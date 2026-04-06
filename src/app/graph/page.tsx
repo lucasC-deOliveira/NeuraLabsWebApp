@@ -726,13 +726,13 @@ export default function GraphPage() {
                 </div>
 
                 <div className="max-h-40 overflow-y-auto space-y-1">
-                  {connectedEdges.map((edge) => {
+                  {connectedEdges.map((edge, idx) => {
                     const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
                     const other = nodes.find((n) => n.id === otherId);
                     if (!other) return null;
                     const isOut = edge.source === selectedNode.id;
                     return (
-                      <div key={`${edge.source}-${edge.target}`} className="flex items-center gap-1 text-xs">
+                      <div key={`${edge.source}-${edge.target}-${edge.type}-${idx}`} className="flex items-center gap-1 text-xs">
                         <span className="text-muted-foreground">{isOut ? "→" : "←"}</span>
                         <span style={{ color: getRelColor(edge.type, isDark) }} className="font-medium">
                           {edge.label}
