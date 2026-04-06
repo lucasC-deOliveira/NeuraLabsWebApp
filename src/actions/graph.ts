@@ -1,0 +1,61 @@
+"use server";
+
+import { prisma } from "@/lib/prisma";
+import { buildKnowledgeGraph, getCriticalNodes as libGetCriticalNodes, type GraphNode, type GraphEdge } from "@/lib/graph";
+
+async function resolveUserId(): Promise<string> {
+  const user = await prisma.usuario.findFirst({ select: { id: true } });
+  if (!user) throw new Error("No user configured");
+  return user.id;
+}
+
+export interface GraphNodeType {
+  id: string;
+  label: string;
+  type: "ASSUNTO" | "TOPICO" | "CONCEITO" | "FLASHCARD" | "NOTA";
+  nivelDominio: number;
+  prioridadeRevisao: number;
+  parentId?: string;
+  pergunta?: string;
+}
+
+export interface GraphEdgeType {
+  source: string;
+  target: string;
+  type: string;
+  peso: number;
+}
+
+export async function getGraphNodes(): Promise<{
+  nodes: GraphNodeType[];
+  edges: GraphEdgeType[];
+}> {
+  const userId = await resolveUserId();
+  const result = await buildKnowledgeGraph(userId);
+
+  // Map builder types to action types
+  const nodes: GraphNodeType[] = result.nodes.map((n) => ({
+    id: n.id,
+    label: n.label,
+    type: n.type,
+    nivelDominio: n.nivelDominio,
+    prioridadeRevisao: n.prioridadeRevisao,
+    parentId: n.parentId,
+    pergunta: n.pergunta,
+  }));
+
+  const edges: GraphEdgeType[] = result.edges.map((e) => ({
+    source: e.source,
+    target: e.target,
+    type: e.type,
+    peso: e.peso,
+  }));
+
+  return { nodes, edges };
+}
+
+export async function getCriticalNodes(): Promise<GraphNode[]> {
+  const userId = await resolveUserId();
+  const { nodes } = await buildKnowledgeGraph(userId);
+  return libGetCriticalNodes(nodes);
+}
