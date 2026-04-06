@@ -20,26 +20,38 @@ async function resolveUserId(): Promise<string> {
   return user.id;
 }
 
-// Create or reuse a knowledge node for a concept, then create a flashcard node.
+// Create or reuse a knowledge node for a concept, then create/upsert a flashcard node.
+// Ensures Flashcard→Conceito TESTA edge exists in the graph.
 async function ensureKnowledgeNodes(tx: Prisma.TransactionClient, conceitoId: string, flashcardId: string) {
   // Upsert concept node
-  const existing = await tx.nodeConhecimento.findFirst({
+  const existingConcept = await tx.nodeConhecimento.findFirst({
     where: { tipoNode: "CONCEITO", referenciaId: conceitoId },
   });
-
-  if (!existing) {
+  const conceptNodeId = existingConcept?.id ?? (
     await tx.nodeConhecimento.create({
       data: { tipoNode: "CONCEITO", referenciaId: conceitoId },
+    })
+  ).id;
+
+  // Upsert flashcard node
+  const existingFc = await tx.nodeConhecimento.findFirst({
+    where: { tipoNode: "FLASHCARD", referenciaId: flashcardId },
+  });
+  const flashcardNodeId = existingFc?.id ?? (
+    await tx.nodeConhecimento.create({
+      data: { tipoNode: "FLASHCARD", referenciaId: flashcardId },
+    })
+  ).id;
+
+  // Create Flashcard → Conceito edge if not exists
+  const existingEdge = await tx.conhecimentoAresta.findFirst({
+    where: { nodeOrigemId: flashcardNodeId, nodeDestinoId: conceptNodeId, tipoRelacao: "TESTA_DEFINICAO" },
+  });
+  if (!existingEdge) {
+    await tx.conhecimentoAresta.create({
+      data: { nodeOrigemId: flashcardNodeId, nodeDestinoId: conceptNodeId, tipoRelacao: "TESTA_DEFINICAO", peso: 1.0 },
     });
   }
-
-  // Create flashcard node (should be unique per flashcard)
-  await tx.nodeConhecimento.create({
-    data: {
-      tipoNode: "FLASHCARD",
-      referenciaId: flashcardId,
-    },
-  });
 }
 
 // ==========================================
@@ -109,15 +121,55 @@ export async function updateFlashcard(
 export async function deleteFlashcard(id: string): Promise<{ success: boolean }> {
   await prisma.flashcard.delete({ where: { id } });
 
+  // Clean orphaned graph nodes and edges for this flashcard
+  await prisma.$transaction(async (tx) => {
+    const node = await tx.nodeConhecimento.findFirst({
+      where: { tipoNode: "FLASHCARD", referenciaId: id },
+    });
+    if (!node) return;
+
+    // Delete edges referencing this node (both directions)
+    await tx.conhecimentoAresta.deleteMany({
+      where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] },
+    });
+
+    // Delete the node itself
+    await tx.nodeConhecimento.delete({ where: { id: node.id } });
+  });
+
   revalidatePath("/flashcards");
+  revalidatePath("/graph");
   return { success: true };
 }
 
 export async function deleteAllFlashcards(): Promise<{ count: number }> {
   const userId = await resolveUserId();
-  const count = await prisma.flashcard.deleteMany({ where: { usuarioId: userId } });
+
+  const flashcards = await prisma.flashcard.findMany({
+    where: { usuarioId: userId },
+    select: { id: true },
+  });
+  const count = flashcards.length;
+
+  await prisma.$transaction(async (tx) => {
+    // Delete all knowledge graph nodes and edges for these flashcards
+    for (const fc of flashcards) {
+      const node = await tx.nodeConhecimento.findFirst({
+        where: { tipoNode: "FLASHCARD", referenciaId: fc.id },
+      });
+      if (node) {
+        await tx.conhecimentoAresta.deleteMany({
+          where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] },
+        });
+        await tx.nodeConhecimento.delete({ where: { id: node.id } });
+      }
+    }
+    await tx.flashcard.deleteMany({ where: { usuarioId: userId } });
+  });
+
   revalidatePath("/flashcards");
-  return count;
+  revalidatePath("/graph");
+  return { count };
 }
 
 export async function getFlashcards(options?: {
@@ -607,7 +659,6 @@ export async function saveFlashcardPreviewsFromNota(notaId: string, data: Array<
   const userId = await resolveUserId();
 
   await prisma.$transaction(async (tx) => {
-    // Find/create the flashcard node for each card
     const flashcardNodeIds = new Map<string, string>();
 
     for (const fc of data) {
@@ -636,29 +687,38 @@ export async function saveFlashcardPreviewsFromNota(notaId: string, data: Array<
         },
       });
 
+      // Creates nodes (Conceito + Flashcard) + TESTA_DEFINICAO edge
       await ensureKnowledgeNodes(tx, fc.conceitoId, created.id);
 
-      // Create FLASHCARD node
-      const fcNode = await tx.nodeConhecimento.create({
-        data: { tipoNode: "FLASHCARD", referenciaId: created.id },
+      // Get the flashcard node ID for edge creation
+      const fcNode = await tx.nodeConhecimento.findFirst({
+        where: { tipoNode: "FLASHCARD", referenciaId: created.id },
       });
-      flashcardNodeIds.set(created.id, fcNode.id);
+      if (fcNode) {
+        flashcardNodeIds.set(created.id, fcNode.id);
+      }
     }
 
-    // Create GERADO edges: Nota -> each Flashcard node
-    for (const [flashcardId, fcNodeId] of flashcardNodeIds) {
-      await tx.conhecimentoAresta.create({
-        data: {
-          notaOrigemId: notaId,
-          nodeDestinoId: fcNodeId,
-          tipoRelacao: "GERADO",
-          peso: 1.0,
-        },
+    // Create Nota -> Flashcard GERADO edges
+    for (const [, fcNodeId] of flashcardNodeIds) {
+      const existing = await tx.conhecimentoAresta.findFirst({
+        where: { notaOrigemId: notaId, nodeDestinoId: fcNodeId, tipoRelacao: "GERA" },
       });
+      if (!existing) {
+        await tx.conhecimentoAresta.create({
+          data: {
+            notaOrigemId: notaId,
+            nodeDestinoId: fcNodeId,
+            tipoRelacao: "GERA",
+            peso: 1.0,
+          },
+        });
+      }
     }
   });
 
   revalidatePath("/flashcards");
   revalidatePath("/notes");
+  revalidatePath("/graph");
   return { count: data.length };
 }

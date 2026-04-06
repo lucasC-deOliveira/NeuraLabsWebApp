@@ -915,7 +915,7 @@ export async function generateFlashcardsFromNota(
           await tx.conhecimentoAresta.create({
             data: {
               nodeOrigemId: fcNode.id,
-              notaOrigemId: nota.id,
+              notaDestinoId: nota.id,
               tipoRelacao: "REFERENCIA",
               peso: 0.8,
             },
