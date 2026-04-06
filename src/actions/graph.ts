@@ -160,3 +160,95 @@ export async function clearAllGraphNodes(): Promise<{ count: number; summary: Re
   const total = Object.values(summary).reduce((a, b) => a + b, 0);
   return { count: total, summary };
 }
+
+export async function deleteGraphNode(graphNodeId: string): Promise<{ success: boolean; deletedType?: string }> {
+  const userId = await requireUserId();
+
+  // Decode the graph node ID — format is "type:realId" or raw node DB id
+  const typeMap: Record<string, { tipoNode: string; campo: string }> = {
+    flashcard: { tipoNode: "FLASHCARD", campo: "id" },
+    nota: { tipoNode: "NOTA", campo: "id" },
+    assunto: { tipoNode: "ASSUNTO", campo: "id" },
+    topico: { tipoNode: "TOPICO", campo: "id" },
+    conceito: { tipoNode: "CONCEITO", campo: "id" },
+  };
+
+  const colonIdx = graphNodeId.indexOf(":");
+  let nodeTipo: string;
+  let refId: string;
+
+  if (colonIdx > -1) {
+    const prefix = graphNodeId.slice(0, colonIdx).toLowerCase();
+    refId = graphNodeId.slice(colonIdx + 1);
+    const mapping = typeMap[prefix];
+    if (!mapping) {
+      throw new Error("Tipo de node desconhecido: " + prefix);
+    }
+    nodeTipo = mapping.tipoNode;
+  } else {
+    // Raw DB node id — lookup
+    const rawNode = await prisma.nodeConhecimento.findUnique({
+      where: { id: graphNodeId },
+    });
+    if (!rawNode || rawNode.usuarioId !== userId) {
+      throw new Error("Node nao encontrado ou nao pertence ao usuario");
+    }
+    nodeTipo = rawNode.tipoNode;
+    refId = rawNode.referenciaId;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Find the actual node by tipoNode + referenciaId
+    const node = await tx.nodeConhecimento.findFirst({
+      where: { tipoNode: nodeTipo as any, referenciaId: refId, usuarioId: userId },
+    });
+
+    // Delete edges referencing this node
+    if (node) {
+      await tx.conhecimentoAresta.deleteMany({
+        where: {
+          OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }],
+        },
+      });
+      await tx.desempenhoNo.deleteMany({
+        where: { nodeId: node.id },
+      });
+    }
+
+    // Delete related real entity depending on type
+    switch (nodeTipo) {
+      case "FLASHCARD": {
+        await tx.revisaoFlashcard.deleteMany({ where: { flashcardId: refId } });
+        await tx.aprendizadoFlashcard.deleteMany({ where: { flashcardId: refId } });
+        await tx.flashcard.delete({ where: { id: refId } });
+        break;
+      }
+      case "NOTA": {
+        await tx.nota.delete({ where: { id: refId } });
+        break;
+      }
+      case "ASSUNTO": {
+        await tx.assunto.delete({ where: { id: refId } });
+        break;
+      }
+      case "TOPICO": {
+        await tx.topico.delete({ where: { id: refId } });
+        break;
+      }
+      case "CONCEITO": {
+        await tx.conceito.delete({ where: { id: refId } });
+        break;
+      }
+    }
+
+    // Delete the graph node itself
+    if (node) {
+      await tx.nodeConhecimento.delete({ where: { id: node.id } });
+    }
+  });
+
+  revalidatePath("/graph");
+  revalidatePath("/flashcards");
+  revalidatePath("/notes");
+  return { success: true, deletedType: nodeTipo };
+}

@@ -158,20 +158,8 @@ async function buildKnowledgeGraph(
     }
   }
 
-  // ---- Nota->Nota: GERA, REFERENCIA if multiple notes ----
-  const notaNodes = nodes.filter((n) => n.type === "NOTA")
-  for (let i = 0; i < notaNodes.length - 1; i++) {
-    edgeTuples.push([notaNodes[i].id, notaNodes[i + 1].id, "REFERENCIA", 0.9])
-  }
-  if (notaNodes.length >= 2) {
-    edgeTuples.push([notaNodes[0].id, notaNodes[notaNodes.length - 1].id, "EXPLICA", 0.8])
-  }
-  if (notaNodes.length >= 3) {
-    edgeTuples.push([notaNodes[0].id, notaNodes[1].id, "GERA", 0.7])
-    edgeTuples.push([notaNodes[1].id, notaNodes[0].id, "SINTETIZA", 0.7])
-  }
-
   // ---- User-defined edges from DB ----
+  const notaNodes = nodes.filter((n) => n.type === "NOTA")
   const notaMap = new Map<string, string>() // nota.id -> "nota:X"
   for (const n of notaNodes) {
     notaMap.set(n.id.replace("nota:", ""), n.id)

@@ -128,67 +128,51 @@ async function ensureEdge(
 }
 
 // ==========================================
-// AI Analysis
+// AI Analysis — Pipeline de 4 estagios
 // ==========================================
 
-export interface NotaCandidata {
-  titulo: string;
-  conteudo: string;
-  conceitosPrevistos: string[];
+async function callAI(messages: Array<{ role: "system" | "user"; content: string }>): Promise<string> {
+  const aiConfig = await resolveAIConfig();
+  if (!aiConfig.apiKey) {
+    throw new Error("API key nao configurada. Configure em /settings.");
+  }
+  const openai = new OpenAI({
+    apiKey: aiConfig.apiKey,
+    baseURL: aiConfig.baseUrl,
+  });
+  const response = await openai.chat.completions.create({
+    model: aiConfig.model,
+    temperature: 0.3,
+    response_format: { type: "json_object" },
+    messages,
+  });
+  return response.choices[0]?.message?.content ?? "";
 }
 
-// AI Analysis
-// ==========================================
+// --- Stage 1: Extract notes from raw text ---
 
 export interface NotaCandidata {
   titulo: string;
   conteudo: string;
-  conceitosPrevistos: string[];
+  conceitosPrevistos: string[]; // deprecated, mantido para compatibilidade
+  conceitosDetalhe?: Array<{ nome: string }>;
 }
 
 export async function analyzeRawText(rawText: string): Promise<{ candidatas: NotaCandidata[] }> {
   if (!rawText.trim()) return { candidatas: [] };
 
-  const allConcepts = await prisma.conceito.findMany({
-    include: { topico: { include: { assunto: true } } },
-  });
-
-  const contextList = allConcepts.map((c) =>
-    `${c.nome} (topico: ${c.topico.nome}, assunto: ${c.topico.assunto.nome})`,
-  ).join(", ");
-
-  const aiConfig = await resolveAIConfig();
-  if (!aiConfig.apiKey) {
-    throw new Error("API key nao configurada. Configure em /settings.");
-  }
-
-  const openai = new OpenAI({
-    apiKey: aiConfig.apiKey,
-    baseURL: aiConfig.baseUrl,
-  });
-
-  const model = aiConfig.model;
-
-  const response = await openai.chat.completions.create({
-    model,
-    temperature: 0.3,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system" as const,
-        content: `Voce e um assistente de analise de texto educacional. Dado um texto bruto, identifique QUANTAS NOTAS fizerem sentido. Cada nota deve ter titulo e conteudo organizado. Conceitos existentes: ${contextList}.
+  const content = await callAI([
+    {
+      role: "system",
+      content: `Voce e um assistente de analise de texto educacional. Dado um texto bruto, identifique QUANTAS NOTAS fizerem sentido. Cada nota deve ter titulo e conteudo organizado.
 
 Responda APENAS com JSON valido neste formato:
-{"notas":[{"titulo":"Nome","conteudo":"Conteudo organizado","conceitos_relacionados":["conceito1"]}]}
+{"notas":[{"titulo":"Nome","conteudo":"Conteudo organizado"}]}
 Sem markdown, sem explicacao fora do JSON.`,
-      },
-      {
-        role: "user" as const,
-        content: rawText.slice(0, 15000),
-      },
-    ],
-  });
-  const content = response.choices[0]?.message?.content;
+    },
+    { role: "user", content: rawText.slice(0, 15000) },
+  ]);
+
   if (!content) return { candidatas: [] };
 
   try {
@@ -196,16 +180,219 @@ Sem markdown, sem explicacao fora do JSON.`,
     const candidatas: NotaCandidata[] = (parsed.notas || []).map((n: Record<string, unknown>) => ({
       titulo: (n.titulo as string) || "Nota sem titulo",
       conteudo: (n.conteudo as string) || "",
-      conceitosPrevistos: (n.conceitos_relacionados as string[]) || [],
+      conceitosPrevistos: [],
     }));
     return { candidatas };
   } catch (e) {
     console.error("Parse error:", e, "Raw:", content?.slice(0, 500));
     return {
-      candidatas: [{ titulo: "Nota", conteudo: rawText, conceitosPrevistos: [] }],
+      candidatas: [{ titulo: "Nota", conteudo: rawText, conceitosPrevistos: [], conceitosDetalhe: [] }],
     };
   }
 }
+
+// --- Stage 2: Extract concepts and relations from selected notes ---
+
+export interface ConceitoDetalhe {
+  nome: string;
+}
+
+export interface IAConceitoRelacao {
+  origem: string;
+  destino: string;
+  tipo: string;
+}
+
+export interface AnaliseConceitosResult {
+  conceitos: ConceitoDetalhe[];
+  conceitoRelacoes: IAConceitoRelacao[];
+}
+
+export async function extractConceitos(notaConteudos: Array<{ titulo: string; conteudo: string }>): Promise<AnaliseConceitosResult> {
+  if (notaConteudos.length === 0) return { conceitos: [], conceitoRelacoes: [] };
+
+  const existingConcepts = await prisma.conceito.findMany({
+    include: { topico: { include: { assunto: true } } },
+  });
+  const contextList = existingConcepts.map((c) =>
+    `${c.nome} (topico: ${c.topico.nome}, assunto: ${c.topico.assunto.nome})`,
+  ).join(", ");
+
+  const texts = notaConteudos.map((n) => `NOTA: "${n.titulo}"\n${n.conteudo}`).join("\n\n---\n\n");
+
+  const content = await callAI([
+    {
+      role: "system",
+      content: `Voce e especialista em mapeamento conceitual educacional. Dado um conjunto de notas de estudo, identifique TODOS os CONCEITOS mencionados e as relacoes semanticas entre eles.
+
+Conceitos ja existentes no banco para referencia: ${contextList}
+
+Use os nomes existentes como referencia. Se encontrar conceitos novos legitimos, liste-os tambem.
+
+Para cada relacao entre conceitos, use APENAS estes tipos:
+IS_A, PART_OF, PREREQUISITO, DERIVA_DE, EVOLUI_PARA, REFORCA, ALTERNATIVA_A, CONTRASTA_COM, CONFUNDE_COM, ANTI_PADRAO_DE, MEDIDO_POR, OBJETIVO_DE, RELACIONADO, DEPENDE_DE, HERDA
+
+Responda APENAS com JSON valido neste formato:
+{"conceitos":[{"nome":"Conceito A"},{"nome":"Conceito B"}],"conceito_relacoes":[{"origem":"Conceito A","destino":"Conceito B","tipo":"IS_A"}]}
+Sem markdown, sem explicacao fora do JSON.`,
+    },
+    { role: "user", content: texts.slice(0, 15000) },
+  ]);
+
+  if (!content) return { conceitos: [], conceitoRelacoes: [] };
+
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      conceitos: (parsed.conceitos || []).map((c: Record<string, unknown>) => ({
+        nome: (c.nome as string) || "Conceito desconhecido",
+      })),
+      conceitoRelacoes: (parsed.conceito_relacoes || []).map((r: Record<string, unknown>) => ({
+        origem: (r.origem as string) || "",
+        destino: (r.destino as string) || "",
+        tipo: (r.tipo as string) || "RELACIONADO",
+      })),
+    };
+  } catch (e) {
+    console.error("Parse error:", e);
+    return { conceitos: [], conceitoRelacoes: [] };
+  }
+}
+
+// --- Stage 3: Extract topics from concepts ---
+
+export interface IATopicoRelacao {
+  origem: string;
+  destino: string;
+  tipo: string;
+}
+
+export interface AnaliseTopicosResult {
+  topicos: Array<{ nome: string; conceitos: string[] }>;
+  topicoRelacoes: IATopicoRelacao[];
+}
+
+export async function extractTopicos(
+  conceitos: string[],
+  notaConteudos: Array<{ titulo: string; conteudo: string }>,
+): Promise<AnaliseTopicosResult> {
+  const existingTopicos = await prisma.topico.findMany({
+    include: { assunto: true },
+  });
+  const contextoTopicos = existingTopicos.map((t) =>
+    `${t.nome} (assunto: ${t.assunto.nome})`,
+  ).join(", ");
+
+  const texts = notaConteudos.map((n) => `NOTA: "${n.titulo}"\n${n.conteudo}`).join("\n\n---\n\n");
+
+  const conceptContext = conceitos.length > 0
+    ? `\nConceitos a serem organizados: ${conceitos.join(", ")}`
+    : "\nIdentifique os CONCEITOS mencionados no texto e agrupe-os em TOPICOS.";
+
+  const content = await callAI([
+    {
+      role: "system",
+      content: `Voce e especialista em organizacao curricular. Dado o conteudo das notas de estudo, identifique os TOPICOS abordados e agrupe os conceitos relevantes dentro de cada topico. Identifique tambem relacoes semanticas entre os topicos.
+
+Topicos existentes no banco para referencia: ${contextoTopicos}
+${conceptContext}
+
+Use estes tipos para relacoes entre topicos: PERTENCE_A, SUBTOPICO_DE, DEPENDE_DE, FUNDAMENTA, APLICADO_EM, REFORCA, EVOLUI_PARA, RELACIONADO
+
+Responda APENAS com JSON valido neste formato:
+{"topicos":[{"nome":"Topico A","conceitos":["Conceito X","Conceito Y"]}],"topico_relacoes":[{"origem":"Topico A","destino":"Topico B","tipo":"DEPENDE_DE"}]}
+Sem markdown, sem explicacao fora do JSON.`,
+    },
+    { role: "user", content: texts.slice(0, 15000) },
+  ]);
+
+  if (!content) return { topicos: [], topicoRelacoes: [] };
+
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      topicos: (parsed.topicos || []).map((t: Record<string, unknown>) => ({
+        nome: (t.nome as string) || "TopicoGeral",
+        conceitos: (t.conceitos as string[]) || [],
+      })),
+      topicoRelacoes: (parsed.topico_relacoes || []).map((r: Record<string, unknown>) => ({
+        origem: (r.origem as string) || "",
+        destino: (r.destino as string) || "",
+        tipo: (r.tipo as string) || "RELACIONADO",
+      })),
+    };
+  } catch (e) {
+    console.error("Parse error:", e);
+    return { topicos: [], topicoRelacoes: [] };
+  }
+}
+
+// --- Stage 4: Extract subjects (assuntos) from topics ---
+
+export interface IAAssuntoRelacao {
+  origem: string;
+  destino: string;
+  tipo: string;
+}
+
+export interface AnaliseAssuntosResult {
+  assuntos: Array<{ nome: string; topicos: string[] }>;
+  assuntoRelacoes: IAAssuntoRelacao[];
+}
+
+export async function extractAssuntos(
+  topicos: string[],
+  notaConteudos: Array<{ titulo: string; conteudo: string }>,
+): Promise<AnaliseAssuntosResult> {
+  const existingAssuntos = await prisma.assunto.findMany({
+    where: { usuarioId: await requireUserId() },
+  });
+  const contextoAssuntos = existingAssuntos.map((a) => a.nome).join(", ");
+
+  const texts = notaConteudos.map((n) => `NOTA: "${n.titulo}"\n${n.conteudo}`).join("\n\n---\n\n");
+
+  const topicContext = topicos.length > 0
+    ? `\nTopicos identificados: ${topicos.join(", ")}`
+    : "\nIdentifique os TOPICOS e agrupe-os em ASSUNTOS (materias/disciplinas).";
+
+  const content = await callAI([
+    {
+      role: "system",
+      content: `Voce e especialista em organizacao curricular. Dado o conteudo das notas de estudo, identifique os ASSUNTOS (materias/disciplinas) abordados, agrupe os topicos relevantes dentro de cada assunto, e identifique relacoes semanticas entre os assuntos.
+
+Assuntos existentes no banco para referencia: ${contextoAssuntos || "(nenhum, pode criar novos se necessario)"}${topicContext}
+
+Use estes tipos para relacoes entre assuntos: RELACIONADO, PREREQUISITO, COMPLEMENTAR, APLICADO_EM, REFORCA
+
+Responda APENAS com JSON valido neste formato:
+{"assuntos":[{"nome":"Direito Constitucional","topicos":["Topico A","Topico B"]}],"assunto_relacoes":[{"origem":"Direito Constitucional","destino":"Direito Administrativo","tipo":"RELACIONADO"}]}
+Sem markdown, sem explicacao fora do JSON.`,
+    },
+    { role: "user", content: texts.slice(0, 15000) },
+  ]);
+
+  if (!content) return { assuntos: [], assuntoRelacoes: [] };
+
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      assuntos: (parsed.assuntos || []).map((a: Record<string, unknown>) => ({
+        nome: (a.nome as string) || "AssuntoGeral",
+        topicos: (a.topicos as string[]) || [],
+      })),
+      assuntoRelacoes: (parsed.assunto_relacoes || []).map((r: Record<string, unknown>) => ({
+        origem: (r.origem as string) || "",
+        destino: (r.destino as string) || "",
+        tipo: (r.tipo as string) || "RELACIONADO",
+      })),
+    };
+  } catch (e) {
+    console.error("Parse error:", e);
+    return { assuntos: [], assuntoRelacoes: [] };
+  }
+}
+
+// --- Single optimized AI pipeline: one prompt for all hierarchy ---
 
 export interface SaveSelectedNotaInput {
   titulo: string;
@@ -216,21 +403,407 @@ export async function saveSelectedNotas(
   candidatas: SaveSelectedNotaInput[],
 ): Promise<{ notaIds: string[] }> {
   const userId = await requireUserId();
+  const textsToAnalyze = candidatas.map((c) => ({ titulo: c.titulo, conteudo: c.conteudo }));
+
+  // Load existing hierarchy for AI context
+  const [existingConcepts, existingTopicos, existingAssuntos] = await Promise.all([
+    prisma.conceito.findMany({ include: { topico: { include: { assunto: true } } } }),
+    prisma.topico.findMany({ include: { assunto: true } }),
+    prisma.assunto.findMany({ where: { usuarioId: userId } }),
+  ]);
+
+  const contextText = [
+    existingAssuntos.length > 0 ? `ASSUNTOS: ${existingAssuntos.map(a => a.nome).join(", ")}` : "",
+    existingTopicos.length > 0 ? `TOPICOS: ${existingTopicos.map(t => t.nome).join(", ")}` : "",
+    existingConcepts.length > 0 ? `CONCEITOS: ${existingConcepts.map(c => c.nome).join(", ")}` : "",
+  ].filter(Boolean).join("\n");
+
+  const texts = textsToAnalyze.map((n) => `NOTA: "${n.titulo}"\n${n.conteudo}`).join("\n\n---\n\n");
+
+  // Single AI call — ask for everything at once
+  const content = await callAI([
+    {
+      role: "system",
+      content: `Voce e especialista em organizacao curricular e mapeamento de conhecimento. Dado um conjunto de notas de estudo, identifique:
+
+1. CONCEITOS: todos os conceitos mencionados no texto
+2. TOPICOS: grupos de conceitos relacionados, com os conceitos de cada topico
+3. ASSUNTOS (materias): disciplinas que agrupam topicos
+4. RELACOES entre cada nota e seus conceitos (como a nota aborda cada conceito)
+5. RELACOES entre conceitos (relacoes semanticas diretas)
+6. RELACOES entre topicos (relacoes semanticas ou de dependencia)
+7. RELACOES entre assuntos (relacoes entre materias)
+
+Voce DEVE usar EXATAMENTE estes tipos de relacao — invente nada alem disso:
+
+NOTA -> CONCEITO (como a nota aborda o conceito):
+  DEFINE: nota define/explica o conceito
+  EXPLICA: nota detalha o funcionamento
+  APROFUNDA: nota aprofunda aspectos do conceito
+  EXEMPLIFICA: nota da exemplos praticos
+  CONTRASTA: nota compara/contrasta o conceito
+  SINTETIZA: nota resume/sintetiza o conceito
+  ALERTA_ERRO: nota alerta sobre erros comuns
+
+CONCEITO -> CONCEITO (relacao semantica direta):
+  IS_A: conceito e um tipo de outro
+  PART_OF: conceito e parte de outro
+  PREREQUISITO: conceito e pre-requisito de outro
+  DERIVA_DE: conceito deriva de outro
+  EVOLUI_PARA: conceito evolui para outro
+  REFORCA: conceito reforca outro
+  ALTERNATIVA_A: conceito e alternativa de outro
+  CONTRASTA_COM: conceitu contrasta com outro
+  CONFUNDE_COM: conceito e frequentemente confundido com outro
+  ANTI_PADRAO_DE: conceito e anti-padrao de outro
+  MEDIDO_POR: conceito e medido por outro
+  OBJETIVO_DE: conceito e objetivo de outro
+
+CONCEITO -> TOPICO (conceito pertence a topico):
+  PERTENCE_A: conceito pertence ao topico
+  FUNDAMENTA: conceito fundamenta o topico
+  APLICADO_EM: conceito e aplicado no topico
+
+TOPICO -> TOPICO (relacao entre topicos):
+  SUBTOPICO_DE: topico e subtopico de outro
+  RELACIONADO: topico relacionado a outro
+  DEPENDE_DE: topico depende de outro
+  EVOLUI_PARA: topico evolui para outro
+
+TOPICO -> ASSUNTO (topico pertence a materia):
+  PERTENCE_A: topico pertence a materia
+  APLICADO_EM: topico e aplicado na materia
+
+ASSUNTO -> ASSUNTO (relacao entre materias):
+  RELACIONADO: materias sao relacionadas
+  DEPENDE_DE: materia depende de outra
+
+Contexto existente no banco:
+${contextText || "(nenhum, pode criar novos)"}
+
+Responda APENAS com JSON valido neste formato:
+{
+  "conceitos": [{"nome":"Conceito A"},{"nome":"Conceito B"}],
+  "nota_conceito_relacoes": [{"nota":"NOTA_TITULO","conceito":"Conceito A","tipo":"DEFINE"}],
+  "conceito_relacoes": [{"origem":"Conceito A","destino":"Conceito B","tipo":"IS_A"}],
+  "topicos": [{"nome":"Topico X","conceitos":["Conceito A","Conceito B"]}],
+  "topico_relacoes": [{"origem":"Topico X","destino":"Topico Y","tipo":"DEPENDE_DE"}],
+  "assuntos": [{"nome":"Direito","topicos":["Topico X","Topico Y"]}],
+  "assunto_relacoes": [{"origem":"Direito","destino":"Filosofia","tipo":"RELACIONADO"}]
+}
+Sem markdown, sem explicacao fora do JSON.`,
+    },
+    { role: "user", content: texts.slice(0, 15000) },
+  ]);
+
+  if (!content) {
+    console.error("AI returned no hierarchy response");
+    return { notaIds: [] };
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    console.error("Parse error:", e, "Raw:", content?.slice(0, 500));
+    return { notaIds: [] };
+  }
+
+  const conceitoResult: AnaliseConceitosResult = {
+    conceitos: ((parsed.conceitos as any[]) || []).map((c) => ({ nome: c.nome || "Conceito" })),
+    conceitoRelacoes: ((parsed.conceito_relacoes as any[]) || []).map((r) => ({
+      origem: r.origem || "", destino: r.destino || "", tipo: r.tipo || "RELACIONADO",
+    })),
+  };
+
+  const topicoResult: AnaliseTopicosResult = {
+    topicos: ((parsed.topicos as any[]) || []).map((t) => ({
+      nome: t.nome || "Topico", conceitos: (t.conceitos as string[]) || [],
+    })),
+    topicoRelacoes: ((parsed.topico_relacoes as any[]) || []).map((r) => ({
+      origem: r.origem || "", destino: r.destino || "", tipo: r.tipo || "RELACIONADO",
+    })),
+  };
+
+  const assuntoResult: AnaliseAssuntosResult = {
+    assuntos: ((parsed.assuntos as any[]) || []).map((a) => ({
+      nome: a.nome || "Assunto", topicos: (a.topicos as string[]) || [],
+    })),
+    assuntoRelacoes: ((parsed.assunto_relacoes as any[]) || []).map((r) => ({
+      origem: r.origem || "", destino: r.destino || "", tipo: r.tipo || "RELACIONADO",
+    })),
+  };
+
+  // Parse per-note concept relations
+  const notaConceitoRels: Array<{ notaTitulo: string; conceito: string; tipo: string }> =
+    ((parsed.nota_conceito_relacoes as any[]) || []).map((r) => ({
+      notaTitulo: r.nota || "", conceito: r.conceito || "", tipo: r.tipo || "DEFINE",
+    }));
+
+  // Build everything in DB — pass per-note concept relations
+  const result = await buildHierarquiaCompleta(
+    userId,
+    textsToAnalyze,
+    conceitoResult,
+    topicoResult,
+    assuntoResult,
+    notaConceitoRels,
+  );
+
+  return { notaIds: result.notaIds };
+}
+
+async function buildHierarquiaCompleta(
+  userId: string,
+  candidatas: Array<{ titulo: string; conteudo: string }>,
+  conceitos: AnaliseConceitosResult,
+  topicos: AnaliseTopicosResult,
+  assuntos: AnaliseAssuntosResult,
+  notaConceitoRels: Array<{ notaTitulo: string; conceito: string; tipo: string }>,
+): Promise<{ notaIds: string[] }> {
+  // Load existing DB entities for matching
+  const [existingConcepts, existingTopicos, existingAssuntos] = await Promise.all([
+    prisma.conceito.findMany({ include: { topico: { include: { assunto: true } } } }),
+    prisma.topico.findMany({ include: { assunto: true } }),
+    prisma.assunto.findMany({ where: { usuarioId: userId } }),
+  ]);
+
+  // Resolve or create assuntos
+  const assuntoNameToId = new Map<string, string>();
+  for (const a of existingAssuntos) assuntoNameToId.set(a.nome.toLowerCase(), a.id);
+
+  // Create missing assuntos from AI output
+  for (const a of assuntos.assuntos) {
+    const key = a.nome.toLowerCase();
+    const existing = existingAssuntos.find((x) => x.nome.toLowerCase() === key);
+    if (existing) {
+      assuntoNameToId.set(key, existing.id);
+    } else {
+      const newAssunto = await prisma.assunto.create({ data: { usuarioId: userId, nome: a.nome } });
+      assuntoNameToId.set(key, newAssunto.id);
+      existingAssuntos.push(newAssunto);
+    }
+  }
+
+  // Resolve or create topicos
+  const topicoNameToId = new Map<string, string>();
+  const topicoNameToAssuntoId = new Map<string, string>();
+
+  // First, match existing topics
+  for (const t of existingTopicos) {
+    const key = t.nome.toLowerCase();
+    topicoNameToId.set(key, t.id);
+    topicoNameToAssuntoId.set(key, t.assuntoId);
+  }
+
+  // Match AI topics to existing
+  for (const topicoInfo of topicos.topicos) {
+    const key = topicoInfo.nome.toLowerCase();
+    if (!topicoNameToId.has(key)) {
+      // Find assunto for this topic from AI grouping
+      let assuntoId: string | null = null;
+      for (const aGroup of assuntos.assuntos) {
+        if (aGroup.topicos.some((tn) => tn.toLowerCase() === key)) {
+          const aKey = aGroup.nome.toLowerCase();
+          const aExisting = existingAssuntos.find((a) => a.nome.toLowerCase() === aKey);
+          if (aExisting) { assuntoId = aExisting.id; break; }
+        }
+      }
+      // Fallback to first available subject
+      if (!assuntoId) {
+        assuntoId = existingAssuntos[0]?.id;
+        if (!assuntoId) {
+          const ga = await prisma.assunto.create({ data: { usuarioId: userId, nome: "Geral" } });
+          assuntoId = ga.id;
+          existingAssuntos.push(ga);
+        }
+      }
+      const newTopico = await prisma.topico.create({
+        data: { assuntoId, nome: topicoInfo.nome },
+      });
+      topicoNameToId.set(key, newTopico.id);
+      topicoNameToAssuntoId.set(key, assuntoId);
+    }
+  }
+
+  // Resolve or create concepts
+  const conceptNameToId = new Map<string, string>();
+  const conceptNameToTopicoId = new Map<string, string>();
+
+  for (const c of existingConcepts) {
+    conceptNameToId.set(c.nome.toLowerCase(), c.id);
+    conceptNameToTopicoId.set(c.nome.toLowerCase(), c.topicoId);
+  }
+
+  // Match AI concepts to topics
+  for (const topicoInfo of topicos.topicos) {
+    const tKey = topicoInfo.nome.toLowerCase();
+    const tid = topicoNameToId.get(tKey);
+    if (!tid) continue;
+
+    for (const cName of topicoInfo.conceitos) {
+      const cKey = cName.toLowerCase();
+      if (conceptNameToId.has(cKey)) continue;
+
+      const existing = existingConcepts.find((c) => c.nome.toLowerCase() === cKey);
+      if (existing) {
+        conceptNameToId.set(cKey, existing.id);
+        conceptNameToTopicoId.set(cKey, existing.topicoId);
+      } else {
+        const newConcept = await prisma.conceito.create({
+          data: { topicoId: tid, nome: cName },
+        });
+        conceptNameToId.set(cKey, newConcept.id);
+        conceptNameToTopicoId.set(cKey, tid);
+      }
+    }
+  }
+
+  // Also handle standalone concepts (from conceitoResult but not in any topic)
+  for (const cd of conceitos.conceitos) {
+    const cKey = cd.nome.toLowerCase();
+    if (conceptNameToId.has(cKey)) continue;
+
+    const existing = existingConcepts.find((c) => c.nome.toLowerCase() === cKey);
+    if (existing) {
+      conceptNameToId.set(cKey, existing.id);
+      conceptNameToTopicoId.set(cKey, existing.topicoId);
+    } else {
+      // Create under first topic or "Geral"
+      let tid = topicoNameToId.values().next().value as string | undefined;
+      if (!tid) {
+        let assuntoId = existingAssuntos[0]?.id;
+        if (!assuntoId) {
+          const ga = await prisma.assunto.create({ data: { usuarioId: userId, nome: "Geral" } });
+          assuntoId = ga.id;
+        }
+        const gt = await prisma.topico.create({ data: { assuntoId, nome: "Geral" } });
+        tid = gt.id;
+        topicoNameToId.set("geral", tid);
+      }
+      const newConcept = await prisma.conceito.create({
+        data: { topicoId: tid, nome: cd.nome },
+      });
+      conceptNameToId.set(cKey, newConcept.id);
+      conceptNameToTopicoId.set(cKey, tid);
+    }
+  }
+
+  // Now create notes and graph nodes
+  // Group concept relations by note
+  const notaConceptsMap = new Map<string, Set<string>>(); // notaTitulo -> concept IDs
+  const notaConceitoTypeMap = new Map<string, NotaConceitoRel[]>(); // notaTitulo -> relations
+  for (const rel of notaConceitoRels) {
+    const cId = conceptNameToId.get(rel.conceito.toLowerCase());
+    if (!cId) continue;
+    if (!notaConceptsMap.has(rel.notaTitulo)) notaConceptsMap.set(rel.notaTitulo, new Set());
+    notaConceptsMap.get(rel.notaTitulo)!.add(cId);
+
+    if (!notaConceitoTypeMap.has(rel.notaTitulo)) notaConceitoTypeMap.set(rel.notaTitulo, []);
+    notaConceitoTypeMap.get(rel.notaTitulo)!.push({ conceitoId: cId, tipoRelacao: rel.tipo });
+  }
+
+  // Cross-note concept relations (from conceitoRelacoes)
+  const conceitoConceitoRels: ConceitoConceitoRel[] = [];
+  for (const rel of conceitos.conceitoRelacoes) {
+    const oId = conceptNameToId.get(rel.origem.toLowerCase());
+    const dId = conceptNameToId.get(rel.destino.toLowerCase());
+    if (oId && dId) {
+      conceitoConceitoRels.push({ origemId: oId, destinoId: dId, tipoRelacao: rel.tipo });
+    }
+  }
+
   const notaIds: string[] = [];
 
   for (const candidata of candidatas) {
-    const useCase = await getCreateNotaUseCaseWithConcepts();
-    const result = await useCase.execute({
-      rawText: candidata.conteudo,
-      userId,
+    // Match note title to AI response (case-insensitive substring match)
+    const titleLower = candidata.titulo.toLowerCase();
+    const matchedNotaKey = [...notaConceitoTypeMap.keys()].find(
+      (k) => k.toLowerCase() === titleLower || k.toLowerCase().includes(titleLower) || titleLower.includes(k.toLowerCase()),
+    );
+
+    const concepts = notaConceptsMap.get(matchedNotaKey || candidata.titulo) || new Set<string>();
+    const noteRels = notaConceitoTypeMap.get(matchedNotaKey || candidata.titulo) || [];
+
+    const { notaId } = await createNotaManual({
       titulo: candidata.titulo,
+      conteudo: candidata.conteudo,
+      selectedConceitoIds: concepts.size > 0 ? Array.from(concepts) : Array.from(conceptNameToId.values()).slice(0, 5), // fallback: use first 5
+      notaConceitoRels: noteRels.length > 0 ? noteRels : undefined,
+      conceitoConceitoRels: conceitoConceitoRels.length > 0 ? conceitoConceitoRels : undefined,
     });
-    notaIds.push(result.notaId);
+    notaIds.push(notaId);
   }
+
+  // Create inter-entity edges (topic->topic, assunto->assunto, concept->concept)
+  // These need graph node IDs, so we do it in a separate transaction
+  await createSemanticEdges(
+    userId,
+    conceitos.conceitoRelacoes,
+    topicos.topicoRelacoes,
+    assuntos.assuntoRelacoes,
+    conceptNameToId,
+    topicoNameToId,
+    assuntoNameToId,
+  );
 
   revalidatePath("/notes");
   revalidatePath("/graph");
+
   return { notaIds };
+}
+
+async function createSemanticEdges(
+  userId: string,
+  conceptRels: IAConceitoRelacao[],
+  topicRels: IATopicoRelacao[],
+  subjectRels: IAAssuntoRelacao[],
+  conceptNameToId: Map<string, string>,
+  topicoNameToId: Map<string, string>,
+  assuntoNameToId: Map<string, string>,
+): Promise<void> {
+  const buildNode = async (tx: any, tipo: string, refId: string): Promise<string> => {
+    const existing = await tx.nodeConhecimento.findFirst({
+      where: { tipoNode: tipo as never, referenciaId: refId, usuarioId: userId },
+    });
+    if (existing) return existing.id;
+    const created = await tx.nodeConhecimento.create({
+      data: { tipoNode: tipo as never, referenciaId: refId, usuarioId: userId },
+    });
+    return created.id;
+  };
+
+  await prisma.$transaction(async (tx) => {
+    // Concept -> Concept edges
+    for (const rel of conceptRels) {
+      const oId = conceptNameToId.get(rel.origem.toLowerCase());
+      const dId = conceptNameToId.get(rel.destino.toLowerCase());
+      if (!oId || !dId || oId === dId) continue;
+      const oNode = await buildNode(tx, "CONCEITO", `conceito-${oId}`);
+      const dNode = await buildNode(tx, "CONCEITO", `conceito-${dId}`);
+      await ensureEdge(tx, oNode, dNode, rel.tipo);
+    }
+
+    // Topic -> Topic edges
+    for (const rel of topicRels) {
+      const oId = topicoNameToId.get(rel.origem.toLowerCase());
+      const dId = topicoNameToId.get(rel.destino.toLowerCase());
+      if (!oId || !dId || oId === dId) continue;
+      const oNode = await buildNode(tx, "TOPICO", `topico-${oId}`);
+      const dNode = await buildNode(tx, "TOPICO", `topico-${dId}`);
+      await ensureEdge(tx, oNode, dNode, rel.tipo);
+    }
+
+    // Subject -> Subject edges
+    for (const rel of subjectRels) {
+      const oId = assuntoNameToId.get(rel.origem.toLowerCase());
+      const dId = assuntoNameToId.get(rel.destino.toLowerCase());
+      if (!oId || !dId || oId === dId) continue;
+      const oNode = await buildNode(tx, "ASSUNTO", `assunto-${oId}`);
+      const dNode = await buildNode(tx, "ASSUNTO", `assunto-${dId}`);
+      await ensureEdge(tx, oNode, dNode, rel.tipo);
+    }
+  });
 }
 
 /**

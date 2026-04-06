@@ -118,7 +118,11 @@ function IAModeContent({ router }: { router: ReturnType<typeof useRouter> }) {
   };
 
   const handleSave = async () => {
-    const toSave = Array.from(selected).filter((i) => candidatas[i]).map((i) => ({ titulo: candidatas[i].titulo, conteudo: candidatas[i].conteudo }));
+    const toSave = Array.from(selected).filter((i) => candidatas[i]).map((i) => ({
+      titulo: candidatas[i].titulo,
+      conteudo: candidatas[i].conteudo,
+      conceitosPrevistos: candidatas[i].conceitosPrevistos,
+    }));
     if (toSave.length === 0) { toast.error("Selecione ao menos uma nota."); return; }
     setStep("saving");
     try { const { notaIds } = await saveSelectedNotas(toSave); toast.success(`${notaIds.length} nota(s) salva(s)!`); router.push("/notes"); }

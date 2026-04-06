@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { getGraphNodes, clearAllGraphNodes, type GraphNodeType, type GraphEdgeType } from "@/actions/graph";
+import { getGraphNodes, clearAllGraphNodes, deleteGraphNode, type GraphNodeType, type GraphEdgeType } from "@/actions/graph";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -384,6 +384,27 @@ export default function GraphPage() {
       toast.error("Erro ao limpar o grafo");
     } finally {
       setIsClearing(false);
+    }
+  };
+
+  const [isDeletingNode, setIsDeletingNode] = useState(false);
+
+  const handleDeleteNode = async () => {
+    if (!selectedNode) return;
+    try {
+      setIsDeletingNode(true);
+      await deleteGraphNode(selectedNode.id);
+      toast.success(`Node "${selectedNode.label}" removido`);
+      // Reload the graph
+      const result = await getGraphNodes();
+      setRawNodes(result.nodes);
+      setRawEdges(result.edges);
+      setSelectedNode(null);
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao remover o node");
+    } finally {
+      setIsDeletingNode(false);
     }
   };
 
@@ -786,6 +807,17 @@ export default function GraphPage() {
                     ✕
                   </button>
                 </div>
+
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleDeleteNode}
+                  disabled={isDeletingNode}
+                  className="w-full gap-1.5 text-xs"
+                >
+                  <Trash2Icon className="size-3.5" />
+                  {isDeletingNode ? "Removendo..." : "Remover este no"}
+                </Button>
 
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-muted-foreground">Domínio:</span>
