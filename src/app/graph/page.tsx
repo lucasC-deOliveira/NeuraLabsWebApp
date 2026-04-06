@@ -95,8 +95,8 @@ function createSimulation(
       parentId: n.parentId,
       pergunta: n.pergunta,
       tipoReal: n.type,
-      x: width / 2 + (Math.random() - 0.5) * 200,
-      y: height / 2 + (Math.random() - 0.5) * 200,
+      x: width / 2 + (Math.random() - 0.5) * 600,
+      y: height / 2 + (Math.random() - 0.5) * 400,
       vx: 0,
       vy: 0,
       width: Math.max(60, Math.min(200, labelLen * 7 + 24)),
@@ -117,14 +117,15 @@ function createSimulation(
   }));
 
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-  const repulsion = 8000;
-  const attraction = 0.005;
-  const gravity = 0.01;
-  const damping = 0.85;
-  const idealEdgeLen = 150;
+  const repulsion = 12000;
+  const attraction = 0.004;
+  const gravity = 0.008;
+  const damping = 0.9;
+  const idealEdgeLen = 200;
+  const minGap = 80; // minimum gap between node boundaries (conservative: half-diagonal)
 
-  for (let iter = 0; iter < 300; iter++) {
-    const temperature = 1 - iter / 300;
+  for (let iter = 0; iter < 500; iter++) {
+    const temperature = 1 - iter / 500;
 
     // Repulsion between all pairs
     for (let i = 0; i < nodes.length; i++) {
@@ -165,6 +166,41 @@ function createSimulation(
     for (const node of nodes) {
       node.vx += (width / 2 - node.x) * gravity;
       node.vy += (height / 2 - node.y) * gravity;
+    }
+
+    // Collision detection — enforce strict minimum gap between node bounding boxes
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i];
+        const b = nodes[j];
+        // Half-widths / half-heights
+        const aHw = a.width / 2;
+        const aHh = a.height / 2;
+        const bHw = b.width / 2;
+        const bHh = b.height / 2;
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        // Minimum distance: sum of radii (half-diagonal for conservative coverage) + gap
+        const rA = Math.sqrt(aHw * aHw + aHh * aHh);
+        const rB = Math.sqrt(bHw * bHw + bHh * bHh);
+        const minDist = rA + rB + minGap;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < minDist * minDist) {
+          const dist = Math.sqrt(distSq) || 0.01;
+          // Push them apart aggressively — full hard separation, no velocity needed
+          const overlap = minDist - dist;
+          const sepX = (dx / dist) * (overlap + 2); // +2 safety margin
+          const sepY = (dy / dist) * (overlap + 2);
+          a.x -= sepX;
+          a.y -= sepY;
+          b.x += sepX;
+          b.y += sepY;
+          a.vx = a.vx * 0.3; // drain velocity to prevent jitter
+          a.vy = a.vy * 0.3;
+          b.vx = b.vx * 0.3;
+          b.vy = b.vy * 0.3;
+        }
+      }
     }
 
     // Update positions
@@ -348,8 +384,8 @@ export default function GraphPage() {
 
   const { nodes, edges } = useMemo(() => {
     if (rawNodes.length === 0) return { nodes: [] as SimNode[], edges: [] as SimEdge[] };
-    const W = 1800;
-    const H = 1200;
+    const W = 3000;
+    const H = 2000;
     return createSimulation(rawNodes, rawEdges, W, H);
   }, [rawNodes, rawEdges]);
 
