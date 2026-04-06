@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { getGraphNodes, type GraphNodeType, type GraphEdgeType } from "@/actions/graph";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -192,13 +193,32 @@ function createSimulation(
   return { nodes, edges };
 }
 
-// --- Color helpers ---
-const GROUP_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  ASSUNTO: { bg: "#1e293b", border: "#64748b", text: "#f1f5f9" },
-  TOPICO: { bg: "#1e3a5f", border: "#3b82f6", text: "#bfdbfe" },
-  CONCEITO: { bg: "#14332d", border: "#10b981", text: "#a7f3d0" },
-  FLASHCARD: { bg: "#33260e", border: "#f59e0b", text: "#fef3c7" },
-  NOTA: { bg: "#2e1065", border: "#8b5cf6", text: "#ede9fe" },
+// --- Node type colors — dark & light variants ---
+// Each type has a distinct hue that stands out on both themes.
+const NODE_TYPE_COLORS: Record<string, {
+  light: { bg: string; border: string; text: string };
+  dark: { bg: string; border: string; text: string };
+}> = {
+  ASSUNTO: {
+    light: { bg: "#f1f5f9", border: "#475569", text: "#1e293b" },
+    dark:  { bg: "#1e293b", border: "#94a3b8", text: "#e2e8f0" },
+  },
+  TOPICO: {
+    light: { bg: "#dbeafe", border: "#2563eb", text: "#1e3a5f" },
+    dark:  { bg: "#1e3a5f", border: "#60a5fa", text: "#bfdbfe" },
+  },
+  CONCEITO: {
+    light: { bg: "#d1fae5", border: "#059669", text: "#064e3b" },
+    dark:  { bg: "#064e3b", border: "#34d399", text: "#a7f3d0" },
+  },
+  FLASHCARD: {
+    light: { bg: "#fef3c7", border: "#d97706", text: "#78350f" },
+    dark:  { bg: "#451a03", border: "#fbbf24", text: "#fef3c7" },
+  },
+  NOTA: {
+    light: { bg: "#ede9fe", border: "#7c3aed", text: "#4c1d95" },
+    dark:  { bg: "#2e1065", border: "#a78bfa", text: "#ede9fe" },
+  },
 };
 
 function dominioColor(dominio: number): string {
@@ -208,51 +228,99 @@ function dominioColor(dominio: number): string {
   return "#71717a";
 }
 
-// Relation color by semantic category
-function relationColor(type: string): string {
-  const hierarchy = ["PERTENCE_A", "SUBTOPICO_DE", "HERDA", "FUNDAMENTA", "APLICADO_EM"];
-  const cognitive = ["TESTA_DEFINICAO", "TESTA_EXEMPLO", "TESTA_APLICACAO", "TESTA_ANALISE", "TESTA_SINTESE"];
-  const concept = ["IS_A", "PART_OF", "PREREQUISITO", "DERIVA_DE", "EVOLUI_PARA", "REFORCA", "ALTERNATIVA_A", "CONTRASTA_COM", "CONFUNDE_COM"];
+// --- Relation colors — one distinct color per type, both themes ---
+// Light theme uses deeper shades, dark theme uses brighter ones for visibility.
+const REL_COLORS: Record<string, { light: string; dark: string }> = {
+  GERA:           { light: "#dc2626", dark: "#f87171" },
+  REFERENCIA:     { light: "#ca8a04", dark: "#facc15" },
+  DEFINE:         { light: "#0891b2", dark: "#22d3ee" },
+  EXPLICA:        { light: "#059669", dark: "#34d399" },
+  APROFUNDA:      { light: "#0d9488", dark: "#2dd4bf" },
+  EXEMPLIFICA:    { light: "#ea580c", dark: "#fb923c" },
+  CONTRASTA:      { light: "#e11d48", dark: "#fb7185" },
+  SINTETIZA:      { light: "#7c3aed", dark: "#a78bfa" },
+  ALERTA_ERRO:    { light: "#dc2626", dark: "#ef4444" },
+  IS_A:           { light: "#2563eb", dark: "#60a5fa" },
+  PART_OF:        { light: "#0891b2", dark: "#22d3ee" },
+  PREREQUISITO:   { light: "#6d28d9", dark: "#a78bfa" },
+  DERIVA_DE:      { light: "#0d9488", dark: "#2dd4bf" },
+  EVOLUI_PARA:    { light: "#0284c7", dark: "#38bdf8" },
+  REFORCA:        { light: "#059669", dark: "#34d399" },
+  ALTERNATIVA_A:  { light: "#ea580c", dark: "#fb923c" },
+  CONTRASTA_COM:  { light: "#e11d48", dark: "#fb7185" },
+  CONFUNDE_COM:   { light: "#c026d3", dark: "#e879f9" },
+  ANTI_PADRAO_DE: { light: "#dc2626", dark: "#f87171" },
+  MEDIDO_POR:     { light: "#0891b2", dark: "#22d3ee" },
+  OBJETIVO_DE:    { light: "#7c3aed", dark: "#a78bfa" },
+  PERTENCE_A:     { light: "#64748b", dark: "#94a3b8" },
+  FUNDAMENTA:     { light: "#4f46e5", dark: "#818cf8" },
+  APLICADO_EM:    { light: "#0d9488", dark: "#2dd4bf" },
+  SUBTOPICO_DE:   { light: "#64748b", dark: "#94a3b8" },
+  RELACIONADO:    { light: "#475569", dark: "#94a3b8" },
+  DEPENDE_DE:     { light: "#7c3aed", dark: "#a78bfa" },
+  HERDA:          { light: "#4f46e5", dark: "#818cf8" },
+  TESTA_DEFINICAO:{ light: "#d97706", dark: "#fbbf24" },
+  TESTA_EXEMPLO:  { light: "#ca8a04", dark: "#facc15" },
+  TESTA_APLICACAO:{ light: "#ea580c", dark: "#fb923c" },
+  TESTA_ANALISE:  { light: "#e11d48", dark: "#fb7185" },
+  TESTA_SINTESE:  { light: "#7c3aed", dark: "#c084fc" },
+};
 
-  if (hierarchy.includes(type)) return "#64748b";
-  if (cognitive.includes(type)) return "#f59e0b";
-  if (concept.includes(type)) return "#10b981";
-  if (type === "RELACIONADO") return "#475569";
-  return "#78716c";
+function getRelColor(type: string, dark: boolean): string {
+  const entry = REL_COLORS[type];
+  return entry ? (dark ? entry.dark : entry.light) : dark ? "#94a3b8" : "#64748b";
 }
 
-// --- Edge type legend groups ---
-const LEGEND_GROUPS: { label: string; types: { code: string; display: string }[] }[] = [
-  {
-    label: "Hierarquia",
-    types: [
-      { code: "PERTENCE_A", display: "pertence a" },
-      { code: "SUBTOPICO_DE", display: "subtópico de" },
-      { code: "HERDA", display: "herda" },
-    ],
-  },
-  {
-    label: "Conceito",
-    types: [
-      { code: "IS_A", display: "é um" },
-      { code: "PREREQUISITO", display: "pré-requisito" },
-      { code: "REFORCA", display: "reforça" },
-      { code: "RELACIONADO", display: "relacionado" },
-    ],
-  },
-  {
-    label: "Cognitivo",
-    types: [
-      { code: "TESTA_DEFINICAO", display: "testa definição" },
-      { code: "TESTA_EXEMPLO", display: "testa exemplo" },
-      { code: "TESTA_ANALISE", display: "testa análise" },
-    ],
-  },
+function getNodeColors(type: string, dark: boolean) {
+  const entry = NODE_TYPE_COLORS[type];
+  if (!entry) return dark ? NODE_TYPE_COLORS.CONCEITO.dark : NODE_TYPE_COLORS.CONCEITO.light;
+  return dark ? entry.dark : entry.light;
+}
+
+// --- Legend groups ---
+const NODE_TYPE_DISPLAY: Record<string, { label: string; icon: string }> = {
+  ASSUNTO:   { label: "Assunto",   icon: "●" },
+  TOPICO:    { label: "Tópico",    icon: "●" },
+  CONCEITO:  { label: "Conceito",  icon: "●" },
+  FLASHCARD: { label: "Flashcard", icon: "●" },
+  NOTA:      { label: "Nota",      icon: "●" },
+};
+
+const RELATION_LEGEND: { code: string; display: string }[] = [
+  { code: "PERTENCE_A",     display: "pertence a" },
+  { code: "SUBTOPICO_DE",   display: "subtópico de" },
+  { code: "HERDA",          display: "herda" },
+  { code: "IS_A",           display: "é um" },
+  { code: "PREREQUISITO",   display: "pré-requisito" },
+  { code: "REFORCA",        display: "reforça" },
+  { code: "GERA",           display: "gera" },
+  { code: "DEFINE",         display: "define" },
+  { code: "EXPLICA",        display: "explica" },
+  { code: "EXEMPLIFICA",    display: "exemplifica" },
+  { code: "ALTERNATIVA_A",  display: "alternativa" },
+  { code: "CONTRASTA_COM",  display: "contrasta com" },
+  { code: "TESTA_DEFINICAO", display: "testa definição" },
+  { code: "TESTA_EXEMPLO",  display: "testa exemplo" },
+  { code: "TESTA_ANALISE",  display: "testa análise" },
+  { code: "RELACIONADO",    display: "relacionado" },
+  { code: "DEPENDE_DE",     display: "depende de" },
+  { code: "EVOLUI_PARA",    display: "evolui para" },
+  { code: "DERIVA_DE",      display: "deriva de" },
+  { code: "APROFUNDA",      display: "aprofunda" },
+  { code: "SINTETIZA",      display: "sintetiza" },
+  { code: "CONFUNDE_COM",   display: "confunde com" },
+  { code: "ALERTA_ERRO",    display: "alerta erro" },
+  { code: "APLICADO_EM",    display: "aplicado em" },
+  { code: "FUNDAMENTA",     display: "fundamenta" },
+  { code: "MEDIDO_POR",     display: "medido por" },
+  { code: "OBJETIVO_DE",    display: "objetivo de" },
+  { code: "ANTI_PADRAO_DE", display: "anti-padrão" },
 ];
 
 export default function GraphPage() {
   const router = useRouter();
   const svgRef = useRef<SVGSVGElement>(null);
+  const { theme, resolvedTheme } = useTheme();
   const [rawNodes, setRawNodes] = useState<GraphNodeType[]>([]);
   const [rawEdges, setRawEdges] = useState<GraphEdgeType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -303,6 +371,9 @@ export default function GraphPage() {
 
   const showEdgeLabels = zoom > 0.5;
 
+  // Resolve dark mode: "system" → detect via resolvedTheme
+  const isDark = resolvedTheme === "dark" || (theme === "dark" && !resolvedTheme);
+
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.05 : 0.05;
@@ -343,81 +414,95 @@ export default function GraphPage() {
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-900">
       {/* Header */}
-      <header className="border-b px-5 py-4 dark:border-zinc-800">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header className="border-b px-3 sm:px-5 py-3 sm:py-4 dark:border-zinc-800">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
               <ArrowLeftIcon className="mr-1 size-4" />
-              Voltar
+              <span className="hidden sm:inline">Voltar</span>
             </Button>
-            <h1 className="text-lg font-semibold">Mapa de Conhecimento</h1>
+            <h1 className="text-base sm:text-lg font-semibold truncate">Mapa de Conhecimento</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setZoom((z) => Math.max(0.2, z - 0.1))}>
-              <ZoomOutIcon className="size-4" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Button variant="outline" size="icon-sm" onClick={() => setZoom((z) => Math.max(0.2, z - 0.1))}>
+              <ZoomOutIcon className="size-3.5 sm:size-4" />
             </Button>
-            <span className="text-xs text-muted-foreground w-12 text-center">{Math.round(zoom * 100)}%</span>
-            <Button variant="outline" size="sm" onClick={() => setZoom((z) => Math.min(3, z + 0.1))}>
-              <ZoomInIcon className="size-4" />
+            <span className="text-[10px] sm:text-xs text-muted-foreground w-8 sm:w-12 text-center">{Math.round(zoom * 100)}%</span>
+            <Button variant="outline" size="icon-sm" onClick={() => setZoom((z) => Math.min(3, z + 0.1))}>
+              <ZoomInIcon className="size-3.5 sm:size-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => { setZoom(0.6); setPan({ x: 0, y: 0 }); }}>
-              <Maximize2Icon className="size-4" />
+            <Button variant="outline" size="icon-sm" onClick={() => { setZoom(0.6); setPan({ x: 0, y: 0 }); }}>
+              <Maximize2Icon className="size-3.5 sm:size-4" />
             </Button>
           </div>
         </div>
       </header>
 
       {/* Legend + Filters */}
-      <div className="mx-auto w-full max-w-7xl px-5 py-3 flex flex-col gap-3">
-        {/* Group filters */}
-        <div className="flex gap-3 flex-wrap">
+      <div className="mx-auto w-full max-w-7xl px-3 sm:px-5 py-2 sm:py-3 flex flex-col gap-2 sm:gap-3">
+        {/* Node type filter badges */}
+        <div className="flex gap-2 sm:gap-3 flex-wrap items-center">
           {groups.map((g) => {
-            const colors = GROUP_COLORS[g] || GROUP_COLORS.CONCEITO;
+            const colors = getNodeColors(g, isDark);
             return (
               <Badge
                 key={g}
                 variant={filterGroup === g ? "default" : "outline"}
-                className="cursor-pointer gap-2 capitalize"
+                className="cursor-pointer gap-1.5 sm:gap-2 capitalize text-xs"
                 onClick={() => setFilterGroup(filterGroup === g ? null : g)}
                 style={filterGroup === g
-                  ? { backgroundColor: colors.border, borderColor: colors.border }
-                  : {}
+                  ? { backgroundColor: colors.border, borderColor: colors.border, color: colors.text }
+                  : { borderColor: colors.border, color: colors.text }
                 }
               >
                 <span
-                  className="inline-block size-2.5 rounded-full ring-1 ring-white/20"
-                  style={{ backgroundColor: dominioColor(0.5) }}
+                  className="inline-block size-2 sm:size-2.5 rounded-full"
+                  style={{ backgroundColor: colors.border }}
                 />
-                {g.toLowerCase()}
+                <span className="hidden sm:inline">{NODE_TYPE_DISPLAY[g]?.label ?? g.toLowerCase()}</span>
+                <span className="sm:hidden">{g.slice(0, 3)}</span>
               </Badge>
             );
           })}
         </div>
 
-        {/* Semantic relation legend */}
-        <div className="flex gap-6 flex-wrap text-xs text-muted-foreground">
-          {LEGEND_GROUPS.map((group) => (
-            <div key={group.label} className="flex flex-col gap-1">
-              <span className="font-medium text-foreground">{group.label}</span>
-              {group.types.map((t) => (
-                <div key={t.code} className="flex items-center gap-2">
-                  <span
-                    className="inline-block w-5 h-0.5 rounded-sm"
-                    style={{ backgroundColor: relationColor(t.code) }}
-                  />
-                  <span>{t.display}</span>
-                </div>
-              ))}
+        {/* Node type legend */}
+        <div className="flex gap-4 sm:gap-6 flex-wrap text-xs">
+          <span className="font-medium text-foreground">Nós:</span>
+          {Object.entries(NODE_TYPE_DISPLAY).map(([type, { label }]) => {
+            const colors = getNodeColors(type, isDark);
+            return (
+              <div key={type} className="flex items-center gap-2">
+                <span
+                  className="inline-block w-5 h-3 rounded-sm"
+                  style={{ backgroundColor: colors.bg, border: `1.5px solid ${colors.border}` }}
+                />
+                <span className="text-muted-foreground">{label}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Relation legend */}
+        <div className="flex gap-4 sm:gap-6 flex-wrap text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Relações:</span>
+          {RELATION_LEGEND.map((t) => (
+            <div key={t.code} className="flex items-center gap-2">
+              <span
+                className="inline-block w-5 h-0.5 rounded-sm"
+                style={{ backgroundColor: getRelColor(t.code, isDark) }}
+              />
+              <span>{t.display}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Canvas */}
-      <div className="flex-1 mx-auto w-full max-w-7xl px-5 pb-5">
+      <div className="flex-1 mx-auto w-full max-w-7xl px-3 sm:px-5 pb-3 sm:pb-5">
         <div
           className="relative w-full rounded-xl border overflow-hidden bg-white dark:bg-zinc-950 dark:border-zinc-800"
-          style={{ height: "calc(100vh - 240px)", minHeight: 500 }}
+          style={{ height: "calc(100vh - 200px)", minHeight: 400 }}
         >
           <svg
             ref={svgRef}
@@ -433,6 +518,7 @@ export default function GraphPage() {
               {filteredEdges.map((edge, i) => {
                 const midX = (edge.sourceX + edge.targetX) / 2;
                 const midY = (edge.sourceY + edge.targetY) / 2;
+                const relColor = getRelColor(edge.type, isDark);
 
                 return (
                   <g key={`${edge.source}-${edge.target}-${i}`}>
@@ -441,9 +527,9 @@ export default function GraphPage() {
                       y1={edge.sourceY}
                       x2={edge.targetX}
                       y2={edge.targetY}
-                      stroke={relationColor(edge.type)}
+                      stroke={relColor}
                       strokeWidth={edge.peso > 0.7 ? 1.5 : 1}
-                      strokeOpacity={0.4}
+                      strokeOpacity={isDark ? 0.6 : 0.5}
                     />
                     {showEdgeLabels && (
                       <foreignObject
@@ -454,7 +540,7 @@ export default function GraphPage() {
                       >
                         <div
                           className="flex items-center justify-center text-[9px] leading-tight font-mono truncate px-1 py-0.5 rounded bg-white/80 dark:bg-zinc-900/80"
-                          style={{ color: relationColor(edge.type), border: `1px solid ${relationColor(edge.type)}30` }}
+                          style={{ color: relColor, border: `1px solid ${relColor}40` }}
                         >
                           {edge.label}
                         </div>
@@ -466,7 +552,7 @@ export default function GraphPage() {
 
               {/* Nodes */}
               {filteredNodes.map((node) => {
-                const colors = GROUP_COLORS[node.group] || GROUP_COLORS.CONCEITO;
+                const colors = getNodeColors(node.group, isDark);
                 const isSelected = selectedNode?.id === node.id;
 
                 return (
@@ -502,7 +588,7 @@ export default function GraphPage() {
                       height={node.height}
                       rx={6}
                       fill={colors.bg}
-                      stroke={isSelected ? "#fff" : colors.border}
+                      stroke={isSelected ? (isDark ? "#f1f5f9" : "#0f172a") : colors.border}
                       strokeWidth={isSelected ? 2.5 : 1.5}
                     />
 
@@ -534,10 +620,10 @@ export default function GraphPage() {
 
       {/* Selected Node Panel */}
       {selectedNode && (
-        <div className="fixed bottom-4 right-4 w-80">
+        <div className="fixed bottom-3 sm:bottom-4 right-3 sm:right-4 w-[calc(100%-1.5rem)] sm:w-80 sm:max-w-sm max-h-[calc(100vh-1.5rem)] overflow-y-auto">
           <Card className="bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
             <CardContent className="pt-4">
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground capitalize">
@@ -569,23 +655,25 @@ export default function GraphPage() {
                   </span>
                 </div>
 
-                {connectedEdges.map((edge) => {
-                  const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
-                  const other = nodes.find((n) => n.id === otherId);
-                  if (!other) return null;
-                  const isOut = edge.source === selectedNode.id;
-                  return (
-                    <div key={`${edge.source}-${edge.target}`} className="flex items-center gap-1 text-xs">
-                      <span className="text-muted-foreground">{isOut ? "→" : "←"}</span>
-                      <span style={{ color: relationColor(edge.type) }} className="font-medium">
-                        {edge.label}
-                      </span>
-                      <span className="text-foreground truncate max-w-[160px]">
-                        {other.label}
-                      </span>
-                    </div>
-                  );
-                })}
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                  {connectedEdges.map((edge) => {
+                    const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
+                    const other = nodes.find((n) => n.id === otherId);
+                    if (!other) return null;
+                    const isOut = edge.source === selectedNode.id;
+                    return (
+                      <div key={`${edge.source}-${edge.target}`} className="flex items-center gap-1 text-xs">
+                        <span className="text-muted-foreground">{isOut ? "→" : "←"}</span>
+                        <span style={{ color: getRelColor(edge.type, isDark) }} className="font-medium">
+                          {edge.label}
+                        </span>
+                        <span className="text-foreground truncate max-w-[160px]">
+                          {other.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
 
                 {selectedNode.pergunta && (
                   <p className="text-xs text-muted-foreground leading-relaxed">
