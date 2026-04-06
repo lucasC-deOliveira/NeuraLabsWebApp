@@ -362,10 +362,11 @@ export default function GraphPage() {
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState(0.6);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [draggingNode, setDraggingNode] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [selectedNode, setSelectedNode] = useState<SimNode | null>(null);
   const [filterGroup, setFilterGroup] = useState<string | null>(null);
+  const [layout, setLayout] = useState<SimNode[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -389,16 +390,26 @@ export default function GraphPage() {
     return createSimulation(rawNodes, rawEdges, W, H);
   }, [rawNodes, rawEdges]);
 
+  // Initialize layout state from simulation result (only once)
+  useEffect(() => {
+    if (layout.length === 0 && nodes.length > 0) {
+      setLayout([...nodes]);
+    }
+  }, [nodes, layout.length]);
+
   const filteredNodes = useMemo(
-    () => (filterGroup ? nodes.filter((n) => n.group === filterGroup) : nodes),
-    [nodes, filterGroup],
+    () => (filterGroup ? layout.filter((n) => n.group === filterGroup) : layout),
+    [layout, filterGroup],
   );
 
   const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
-  const filteredEdges = useMemo(
-    () => edges.filter((e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target)),
-    [edges, visibleNodeIds],
-  );
+  const filteredEdges = useMemo(() => {
+    return edges.map((e) => {
+      const src = layout.find((n) => n.id === e.source);
+      const tgt = layout.find((n) => n.id === e.target);
+      return { ...e, sourceX: src?.x ?? e.sourceX, sourceY: src?.y ?? e.sourceY, targetX: tgt?.x ?? e.targetX, targetY: tgt?.y ?? e.targetY };
+    }).filter((e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target));
+  }, [edges, layout, visibleNodeIds]);
 
   const connectedEdges = useMemo(() => {
     if (!selectedNode) return [];
@@ -416,23 +427,45 @@ export default function GraphPage() {
     setZoom((z) => Math.max(0.2, Math.min(3, z + delta)));
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget || ((e.target as SVGElement).tagName === "rect" && (e.target as SVGElement).dataset.type !== "node")) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  const handleSvgMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setDraggingNode("__pan__");
+      setDragOffset({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   }, [pan]);
 
-  const handleMouseMove = useCallback(
+  const handleNodeMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
+    e.stopPropagation();
+    setDraggingNode(nodeId);
+    const svgX = (e.clientX - pan.x - 400) / zoom;
+    const svgY = (e.clientY - pan.y - 200) / zoom;
+    const nodePos = layout.find((n) => n.id === nodeId);
+    if (nodePos) {
+      setDragOffset({ x: svgX - nodePos.x, y: svgY - nodePos.y });
+    }
+  }, [layout, pan, zoom]);
+
+  const handleSvgMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      if (isDragging) {
-        setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+      if (!draggingNode) return;
+      if (draggingNode === "__pan__") {
+        setPan({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y });
+        return;
       }
+      const svgX = (e.clientX - pan.x - 400) / zoom;
+      const svgY = (e.clientY - pan.y - 200) / zoom;
+      setLayout((prev) =>
+        prev.map((n) =>
+          n.id === draggingNode
+            ? { ...n, x: svgX - dragOffset.x, y: svgY - dragOffset.y }
+            : n,
+        ),
+      );
     },
-    [isDragging, dragStart],
+    [draggingNode, dragOffset, pan, zoom],
   );
 
-  const handleMouseUp = useCallback(() => setIsDragging(false), []);
+  const handleSvgMouseUp = useCallback(() => setDraggingNode(null), []);
 
   const groups = useMemo(() => {
     const set = new Set(rawNodes.map((n) => n.type));
@@ -544,10 +577,10 @@ export default function GraphPage() {
             ref={svgRef}
             className="absolute inset-0 w-full h-full"
             onWheel={handleWheel}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            onMouseDown={handleSvgMouseDown}
+            onMouseMove={handleSvgMouseMove}
+            onMouseUp={handleSvgMouseUp}
+            onMouseLeave={handleSvgMouseUp}
           >
             <g transform={`translate(${pan.x + 400}, ${pan.y + 200}) scale(${zoom})`}>
               {/* Edges */}
@@ -595,11 +628,12 @@ export default function GraphPage() {
                   <g
                     key={node.id}
                     transform={`translate(${node.x}, ${node.y})`}
+                    onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedNode(node);
                     }}
-                    className="cursor-pointer"
+                    className="cursor-grab active:cursor-grabbing"
                   >
                     {/* Glow for low dominio */}
                     {node.dominio < 0.4 && node.tipoReal !== "FLASHCARD" && (
