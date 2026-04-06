@@ -8,6 +8,38 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+
+const OAUTH_PROVIDERS: { name: string; icon: string; color: string; provider: string }[] = [
+  { name: "Google", icon: "G", color: "bg-white text-zinc-800 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-600", provider: "google" },
+  { name: "GitHub", icon: "GH", color: "bg-zinc-900 text-white border-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-200", provider: "github" },
+  { name: "Facebook", icon: "f", color: "bg-blue-600 text-white border-blue-600", provider: "facebook" },
+  { name: "Instagram", icon: "IG", color: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 text-white border-transparent", provider: "instagram" },
+];
+
+function OAuthButtons() {
+  async function handleOAuth(provider: string) {
+    window.location.href = `/api/auth/signin/${provider}`;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        {OAUTH_PROVIDERS.map((p) => (
+          <button
+            key={p.provider}
+            type="button"
+            onClick={() => handleOAuth(p.provider)}
+            className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:opacity-90 ${p.color}`}
+          >
+            <span className="text-sm">{p.icon}</span>
+            <span>{p.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -60,48 +92,61 @@ function LoginForm() {
           <CardDescription>Faca login para acessar seus estudos</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-4">
+            <OAuthButtons />
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-zinc-50 dark:bg-zinc-950 px-2 text-muted-foreground">ou continue com email</span>
+              </div>
+            </div>
+
             {error && (
               <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 {error}
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                ref={emailRef}
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="senha">Senha</Label>
-                <Link href="/register" className="text-xs text-primary underline-offset-4 hover:underline">
-                  Criar conta
-                </Link>
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  ref={emailRef}
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                />
               </div>
-              <Input
-                id="senha"
-                type="password"
-                placeholder="••••••"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                required
-              />
-            </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <Loader2Icon className="size-4 animate-spin" /> : "Entrar"}
-            </Button>
-          </form>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="senha">Senha</Label>
+                  <Link href="/register" className="text-xs text-primary underline-offset-4 hover:underline">
+                    Criar conta
+                  </Link>
+                </div>
+                <Input
+                  id="senha"
+                  type="password"
+                  placeholder="••••••"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  required
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? <Loader2Icon className="size-4 animate-spin" /> : "Entrar"}
+              </Button>
+            </form>
+          </div>
         </CardContent>
       </Card>
     </div>

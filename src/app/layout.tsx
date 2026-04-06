@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import { Sidebar } from "@/components/sidebar";
+import { AppShell } from "@/components/app-shell";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   description: "Estudo inteligente com técnicas científicas e IA",
 };
 
+// Hide sidebar on auth pages
+const AUTH_PATHS = ["/login", "/register"];
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,13 +36,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <Sidebar />
-          <main className="ml-0 md:ml-56 mt-14 md:mt-0 flex-1">
+          <AppShell authPaths={AUTH_PATHS}>
             <TooltipProvider>
               {children}
               <Toaster />
             </TooltipProvider>
-          </main>
+          </AppShell>
         </ThemeProvider>
       </body>
     </html>
