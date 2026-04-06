@@ -23,12 +23,14 @@ model Usuario {
   ultimoAcesso DateTime? @map("ultimo_acesso")
 
   // Relacionamentos
-  flashcards    Flashcard[]            @relation("FlashcardUsuario")
-  sessoesEstudo SessaoEstudo[]
-  aprendizagens AprendizadoFlashcard[] @relation("AprendizadoUsuario")
-  desempenhoNos DesempenhoNo[]
-  notas         Nota[]
-  configAI      ConfigAI?
+  flashcards        Flashcard[]            @relation("FlashcardUsuario")
+  sessoesEstudo     SessaoEstudo[]
+  aprendizagens     AprendizadoFlashcard[] @relation("AprendizadoUsuario")
+  desempenhoNos     DesempenhoNo[]
+  notas             Nota[]
+  configAI          ConfigAI?
+  assuntos          Assunto[]
+  nodesConhecimento NodeConhecimento[]
 
   @@map("usuarios")
 }
@@ -38,9 +40,11 @@ model Usuario {
 // ==========================================
 model Assunto {
   id        String  @id @default(cuid())
+  usuarioId String  @map("id_usuario")
   nome      String
   descricao String?
 
+  usuario Usuario          @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   topicos Topico[]
 
   @@map("assuntos")
@@ -170,11 +174,13 @@ model Nota {
 // ==========================================
 model NodeConhecimento {
   id                String   @id @default(cuid())
+  usuarioId         String   @map("id_usuario")
   tipoNode          TipoNode
   referenciaId      String   @map("referencia_id")
   nivelDominio      Float    @default(0.0) @map("nivel_dominio")
   ultimaAtualizacao DateTime @default(now()) @map("ultima_atualizacao")
 
+  usuario      Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   arestasOrigem  ConhecimentoAresta[] @relation("NodeOrigem")
   arestasDestino ConhecimentoAresta[] @relation("NodeDestino")
   desempenho     DesempenhoNo[]

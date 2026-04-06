@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { BrainIcon, LayersIcon, FlameIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { BrainIcon, LayersIcon, FlameIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon, LogOutIcon, UserIcon } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
+
+interface CurrentUser {
+  id: string;
+  nome: string;
+  email: string;
+}
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: BrainIcon },
@@ -44,8 +50,52 @@ function NavContent({ onItemClick }: { onItemClick?: () => void }) {
   );
 }
 
+function UserSection({ user }: { user: CurrentUser }) {
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "logout" }),
+    });
+    router.push("/login");
+    router.refresh();
+  }
+
+  return (
+    <div className="border-t border-border pt-3">
+      <div className="flex items-center gap-2 px-1 py-2">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+          {user.nome.charAt(0).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium">{user.nome}</p>
+          <p className="truncate text-[10px] text-muted-foreground">{user.email}</p>
+        </div>
+      </div>
+      <button
+        onClick={handleLogout}
+        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <LogOutIcon className="size-3.5" />
+        Sair
+      </button>
+    </div>
+  );
+}
+
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/user")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setUser)
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <>
@@ -98,7 +148,21 @@ export function Sidebar() {
 
             <NavContent onItemClick={() => setMobileOpen(false)} />
 
-            <div className="mt-auto pt-4 border-t border-border">
+            {user && <UserSection user={user} />}
+            {!loading && !user && (
+              <div className="mt-auto pt-3 border-t border-border">
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                >
+                  <UserIcon className="size-3.5" />
+                  Fazer login
+                </Link>
+              </div>
+            )}
+
+            <div className="mt-2">
               <ThemeToggle />
             </div>
           </aside>
@@ -114,9 +178,21 @@ export function Sidebar() {
 
         <NavContent />
 
-        <div className="mt-auto pt-4 border-t border-border">
-          <ThemeToggle />
-        </div>
+        {user && <UserSection user={user} />}
+        {!loading && !user && (
+          <div className="mt-auto pt-4 border-t border-border">
+            <Link
+              href="/login"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+            >
+              <UserIcon className="size-3.5" />
+              Fazer login
+            </Link>
+            <div className="mt-2">
+              <ThemeToggle />
+            </div>
+          </div>
+        )}
       </aside>
     </>
   );

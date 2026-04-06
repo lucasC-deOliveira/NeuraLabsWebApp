@@ -6,13 +6,13 @@ async function main() {
   // ============ USER ============
   const user = await prisma.usuario.upsert({
     where: { email: "usuario@teste.com" },
-    update: {},
-    create: { nome: "Usuário Teste", email: "usuario@teste.com", senhaHash: "senha_placeholder" },
+    update: { nome: "Usuário Teste", senhaHash: "$2b$10$VtCYTcMhu7eCargYMqUmlO46xKvdOgqPMMSpYCL0u/1uo.SFh9cYG", email: "usuario@teste.com" },
+    create: { nome: "Usuário Teste", email: "usuario@teste.com", senhaHash: "$2b$10$VtCYTcMhu7eCargYMqUmlO46xKvdOgqPMMSpYCL0u/1uo.SFh9cYG" },
   })
   console.log("User:", user.id)
 
   // ============ ASSUNTO: Direito Constitucional ============
-  const dc = await prisma.assunto.upsert({ where: { id: "dc" }, update: {}, create: { id: "dc", nome: "Direito Constitucional", descricao: "CF e seus princípios" } })
+  const dc = await prisma.assunto.upsert({ where: { id: "dc" }, update: {}, create: { id: "dc", usuarioId: user.id, nome: "Direito Constitucional", descricao: "CF e seus princípios" } })
   const dcT1 = await prisma.topico.upsert({ where: { id: "dc-t1" }, update: {}, create: { id: "dc-t1", assuntoId: dc.id, nome: "Princípios Fundamentais", descricao: "Art. 1-4" } })
   const dcT2 = await prisma.topico.upsert({ where: { id: "dc-t2" }, update: {}, create: { id: "dc-t2", assuntoId: dc.id, nome: "Direitos Fundamentais", descricao: "Art. 5-17" } })
   const dcT3 = await prisma.topico.upsert({ where: { id: "dc-t3" }, update: {}, create: { id: "dc-t3", assuntoId: dc.id, nome: "Organização do Estado", descricao: "Art. 18-43" } })
@@ -25,7 +25,7 @@ async function main() {
   const cSepPoderes = await prisma.conceito.upsert({ where: { id: "cb-sep-poderes" }, update: {}, create: { id: "cb-sep-poderes", topicoId: dcT3.id, nome: "Separação de Poderes", descricao: "Exec, Leg, Jud" } })
 
   // ============ ASSUNTO: Direito Administrativo ============
-  const da = await prisma.assunto.upsert({ where: { id: "da" }, update: {}, create: { id: "da", nome: "Direito Administrativo", descricao: "Administração Pública" } })
+  const da = await prisma.assunto.upsert({ where: { id: "da" }, update: {}, create: { id: "da", usuarioId: user.id, nome: "Direito Administrativo", descricao: "Administração Pública" } })
   const daT1 = await prisma.topico.upsert({ where: { id: "da-t1" }, update: {}, create: { id: "da-t1", assuntoId: da.id, nome: "Princípios da Adm Pública", descricao: "Art. 37 CF" } })
   const daT2 = await prisma.topico.upsert({ where: { id: "da-t2" }, update: {}, create: { id: "da-t2", assuntoId: da.id, nome: "Atos Administrativos", descricao: "Elementos e atributos" } })
 
