@@ -7,6 +7,135 @@ import { getCreateNotaUseCaseWithConcepts } from "@/modules/notas/adapters/nota-
 import { resolveAIConfig } from "@/actions/settings";
 
 // ==========================================
+// Manual Note Creation
+// ==========================================
+
+export interface NotaConceitoRel {
+  conceitoId: string;
+  tipoRelacao: string;
+}
+
+export interface ConceitoConceitoRel {
+  origemId: string;
+  destinoId: string;
+  tipoRelacao: string;
+}
+
+export interface ManualNotaInput {
+  titulo: string;
+  conteudo: string;
+  selectedConceitoIds: string[];
+  notaConceitoRels?: NotaConceitoRel[];
+  conceitoConceitoRels?: ConceitoConceitoRel[];
+}
+
+export async function createNotaManual(
+  input: ManualNotaInput,
+): Promise<{ notaId: string }> {
+  const userId = await resolveUserId();
+
+  return prisma.$transaction(async (tx) => {
+    // 1. Create nota
+    const rawText = `# ${input.titulo}\n\n${input.conteudo}`;
+    const nota = await tx.nota.create({ data: { usuarioId: userId, textoBruto: rawText } });
+    const notaNode = await tx.nodeConhecimento.create({ data: { tipoNode: "NOTA", referenciaId: nota.id } });
+
+    const conceitoIds = input.selectedConceitoIds;
+    if (conceitoIds.length === 0) {
+      return { notaId: nota.id };
+    }
+
+    // Concepts with hierarchy
+    const conceitos = await tx.conceito.findMany({
+      where: { id: { in: conceitoIds } },
+      include: { topico: { include: { assunto: true } } },
+    });
+
+    // Build concept map
+    const buildNode = async (tipo: string, refId: string): Promise<string> => {
+      const existing = await tx.nodeConhecimento.findFirst({ where: { tipoNode: tipo as never, referenciaId: refId } });
+      if (existing) return existing.id;
+      const created = await tx.nodeConhecimento.create({ data: { tipoNode: tipo as never, referenciaId: refId } });
+      return created.id;
+    };
+
+    const assuntoSet = new Set(conceitos.map((c) => c.topico.assuntoId));
+    const topicoSet = new Set(conceitos.map((c) => c.topicoId));
+
+    const assuntoNodeIds: Record<string, string> = {};
+    const topicoNodeIds: Record<string, string> = {};
+    const conceitoNodeIds: Record<string, string> = {};
+
+    for (const aId of assuntoSet) assuntoNodeIds[aId] = await buildNode("ASSUNTO", `assunto-${aId}`);
+    for (const tId of topicoSet) topicoNodeIds[tId] = await buildNode("TOPICO", `topico-${tId}`);
+    for (const c of conceitos) {
+      const refId = `conceito-${c.id}`;
+      conceitoNodeIds[c.id] = await buildNode("CONCEITO", refId);
+    }
+
+    // ASSUNTO -> TOPICO (PERTENCE_A)
+    for (const tId of topicoSet) {
+      const cData = conceitos.find((c) => c.topicoId === tId);
+      if (cData) {
+        await ensureEdge(tx, assuntoNodeIds[cData.topico.assuntoId], topicoNodeIds[tId], "PERTENCE_A");
+      }
+    }
+
+    // TOPICO -> CONCEITO (DEFINE)
+    for (const c of conceitos) {
+      await ensureEdge(tx, topicoNodeIds[c.topicoId], conceitoNodeIds[c.id], "DEFINE");
+    }
+
+    // NOTA -> CONCEITO (user-specified or default DEFINE)
+    for (const c of conceitos) {
+      const userRel = input.notaConceitoRels?.find((r) => r.conceitoId === c.id);
+      const tipo = userRel?.tipoRelacao || "DEFINE";
+      await ensureEdge(tx, notaNode.id, conceitoNodeIds[c.id], tipo);
+    }
+
+    // CONCEITO <-> CONCEITO (user-specified semantic relations)
+    if (input.conceitoConceitoRels) {
+      for (const rel of input.conceitoConceitoRels) {
+        const oNode = conceitoNodeIds[rel.origemId];
+        const dNode = conceitoNodeIds[rel.destinoId];
+        if (oNode && dNode) {
+          await ensureEdge(tx, oNode, dNode, rel.tipoRelacao);
+        }
+      }
+    }
+
+    revalidatePath("/notes");
+    revalidatePath("/graph");
+    return { notaId: nota.id };
+  });
+}
+
+async function ensureEdge(
+  tx: any,
+  origemId: string,
+  destinoId: string,
+  tipoRelacao: string,
+) {
+  const exists = await tx.conhecimentoAresta.findFirst({
+    where: { nodeOrigemId: origemId, nodeDestinoId: destinoId, tipoRelacao: tipoRelacao as never },
+  });
+  if (!exists) {
+    await tx.conhecimentoAresta.create({
+      data: { nodeOrigemId: origemId, nodeDestinoId: destinoId, tipoRelacao: tipoRelacao as never, peso: 0.9 },
+    });
+  }
+}
+
+// ==========================================
+// AI Analysis
+// ==========================================
+
+export interface NotaCandidata {
+  titulo: string;
+  conteudo: string;
+  conceitosPrevistos: string[];
+}
+
 // AI Analysis
 // ==========================================
 

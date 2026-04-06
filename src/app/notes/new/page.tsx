@@ -1,313 +1,1104 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
-  Loader2Icon, FileTextIcon, ArrowRightIcon, SparklesIcon, CheckCircle2Icon,
-  ChevronDownIcon, ChevronRightIcon, BrainIcon, XIcon,
+  Loader2Icon, SparklesIcon, CheckCircle2Icon, ChevronDownIcon,
+  ChevronRightIcon, BrainIcon, XIcon, PlusIcon, PlusCircleIcon,
+  ArrowRightIcon, LinkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   analyzeRawText,
   saveSelectedNotas,
+  createNotaManual,
   type NotaCandidata,
-  type SaveSelectedNotaInput,
 } from "@/actions/notes";
+import {
+  getHierarquiaConceitos,
+  createFullConcept,
+  createTopico,
+  createAssunto,
+  type ConceitoArvore,
+  type ConceitoNode,
+  type TopicoEntry,
+  type RelAssuntoTopicoGroup,
+  type RelTopicoConceitoGroup,
+} from "@/actions/settings";
 
-type Step = "input" | "analyzing" | "review" | "saving";
+type PageMode = "ia" | "manual";
+type IAStep = "input" | "analyzing" | "review" | "saving";
 
-export default function NewNotaPage() {
-  const router = useRouter();
+// ==========================================
+// Relation type constants
+// ==========================================
+
+const NOTA_TO_CONCEITO_TYPES = [
+  { value: "DEFINE", label: "DEFINE" },
+  { value: "EXPLICA", label: "EXPLICA" },
+  { value: "APROFUNDA", label: "APROFUNDA" },
+  { value: "EXEMPLIFICA", label: "EXEMPLIFICA" },
+  { value: "CONTRASTA", label: "CONTRASTA" },
+  { value: "SINTETIZA", label: "SINTETIZA" },
+  { value: "ALERTA_ERRO", label: "ALERTA_ERRO" },
+];
+
+const CONCEITO_TO_CONCEITO_TYPES = [
+  { value: "IS_A", label: "IS_A" },
+  { value: "PART_OF", label: "PART_OF" },
+  { value: "PREREQUISITO", label: "PREREQUISITO" },
+  { value: "DERIVA_DE", label: "DERIVA_DE" },
+  { value: "EVOLUI_PARA", label: "EVOLUI_PARA" },
+  { value: "REFORCA", label: "REFORCA" },
+  { value: "ALTERNATIVA_A", label: "ALTERNATIVA_A" },
+  { value: "CONTRASTA_COM", label: "CONTRASTA_COM" },
+  { value: "CONFUNDE_COM", label: "CONFUNDE_COM" },
+  { value: "ANTI_PADRAO_DE", label: "ANTI_PADRAO_DE" },
+  { value: "MEDIDO_POR", label: "MEDIDO_POR" },
+  { value: "OBJETIVO_DE", label: "OBJETIVO_DE" },
+];
+
+const CONCEITO_TO_TOPICO_TYPES = [
+  { value: "PERTENCE_A", label: "PERTENCE_A" },
+  { value: "FUNDAMENTA", label: "FUNDAMENTA" },
+  { value: "APLICADO_EM", label: "APLICADO_EM" },
+];
+
+// ==========================================
+// IA Mode
+// ==========================================
+
+function IAModeContent({ router }: { router: ReturnType<typeof useRouter> }) {
   const [rawText, setRawText] = useState("");
-  const [step, setStep] = useState<Step>("input");
+  const [step, setStep] = useState<IAStep>("input");
   const [candidatas, setCandidatas] = useState<NotaCandidata[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
 
   const handleAnalyze = async () => {
-    if (!rawText.trim()) {
-      toast.error("Cole algum texto antes de analisar.");
-      return;
-    }
-
+    if (!rawText.trim()) { toast.error("Cole algum texto."); return; }
     setStep("analyzing");
     try {
       const { candidatas } = await analyzeRawText(rawText);
-      if (candidatas.length === 0) {
-        toast.error("Nenhuma nota pôde ser extraída do texto.");
-        setStep("input");
-        return;
-      }
+      if (candidatas.length === 0) { toast.error("Nenhuma nota extraida."); setStep("input"); return; }
       setCandidatas(candidatas);
-      setSelected(new Set(candidatas.map((_, i) => i))); // all selected by default
+      setSelected(new Set(candidatas.map((_, i) => i)));
       setStep("review");
-      toast.success(`${candidatas.length} nota(s) candidata(s) encontrada(s)!`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Erro ao analisar texto. Tente novamente.");
-      setStep("input");
-    }
+      toast.success(`${candidatas.length} nota(s)!`);
+    } catch (err) { console.error(err); toast.error("Erro ao analisar."); setStep("input"); }
   };
 
   const handleSave = async () => {
-    const toSave: SaveSelectedNotaInput[] = [];
-    selected.forEach((i) => {
-      if (candidatas[i]) toSave.push({ titulo: candidatas[i].titulo, conteudo: candidatas[i].conteudo });
-    });
-
-    if (toSave.length === 0) {
-      toast.error("Selecione ao menos uma nota para salvar.");
-      return;
-    }
-
+    const toSave = Array.from(selected).filter((i) => candidatas[i]).map((i) => ({ titulo: candidatas[i].titulo, conteudo: candidatas[i].conteudo }));
+    if (toSave.length === 0) { toast.error("Selecione ao menos uma nota."); return; }
     setStep("saving");
-    try {
-      const { notaIds } = await saveSelectedNotas(toSave);
-      toast.success(`${notaIds.length} nota(s) salva(s) com sucesso!`);
-      router.push("/notes");
-    } catch (err) {
-      console.error(err);
-      toast.error("Erro ao salvar notas. Tente novamente.");
-      setStep("review");
-    }
+    try { const { notaIds } = await saveSelectedNotas(toSave); toast.success(`${notaIds.length} nota(s) salva(s)!`); router.push("/notes"); }
+    catch (err) { console.error(err); toast.error("Erro ao salvar."); setStep("review"); }
   };
 
-  const toggleSelect = (idx: number) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-  };
-
-  const selectAll = () => setSelected(new Set(candidatas.map((_, i) => i)));
-  const deselectAll = () => setSelected(new Set());
+  const toggle = (i: number) => setSelected((p) => { const n = new Set(p); if (n.has(i)) n.delete(i); else n.add(i); return n; });
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold">Nova Nota</h1>
-        <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-          Cole texto bruto e a IA vai identificar quantas notas ele gera. Você escolhe quais salvar.
-        </p>
-      </div>
-
-      <Separator />
-
-      {/* Step indicator */}
-      <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-        <div className={`flex items-center gap-1.5 font-medium ${step === "input" ? "text-primary" : step === "analyzing" || step === "review" ? "text-zinc-400" : "text-green-500"}`}>
-          <FileTextIcon className="size-3.5 sm:size-4" />
-          <span className="hidden sm:inline">Texto</span>
-          <span className="sm:hidden font-bold">1</span>
-          <CheckCircle2Icon className="size-3 text-green-500 hidden sm:inline" />
-        </div>
-        <ArrowRightIcon className="size-3 text-zinc-300" />
-        <div className={`flex items-center gap-1.5 font-medium ${step === "analyzing" ? "text-primary" : step === "review" ? "text-green-500" : "text-zinc-400"}`}>
-          <SparklesIcon className="size-3.5 sm:size-4" />
-          <span className="hidden sm:inline">Análise IA</span>
-          <span className="sm:hidden font-bold">2</span>
-          <CheckCircle2Icon className="size-3 text-green-500 hidden sm:inline" />
-        </div>
-        <ArrowRightIcon className="size-3 text-zinc-300" />
-        <div className={`flex items-center gap-1.5 font-medium ${step === "review" ? "text-primary" : "text-zinc-400"}`}>
-          <BrainIcon className="size-3.5 sm:size-4" />
-          <span className="hidden sm:inline">Revisar</span>
-          <span className="sm:hidden font-bold">3</span>
-        </div>
-      </div>
-
-      {/* Step 1: Input */}
+    <div className="space-y-6">
       {step === "input" && (
         <Card className="border-zinc-200 dark:border-zinc-800">
-          <CardHeader className="px-3 sm:px-6">
-            <CardTitle className="text-base sm:text-lg">Texto bruto</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Cole conteúdo de aula, artigo ou resumo. A IA vai detectar seções e separar em notas candidatas.
-            </CardDescription>
-          </CardHeader>
+          <CardHeader className="px-3 sm:px-6"><CardTitle className="text-base sm:text-lg">Texto bruto</CardTitle><CardDescription className="text-xs sm:text-sm">Cole conteudo. A IA vai separar em notas.</CardDescription></CardHeader>
           <CardContent className="space-y-4 px-3 sm:px-6">
-            <Textarea
-              placeholder="Cole aqui o texto da aula, artigo ou qualquer conteúdo que quer transformar em notas..."
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              className="min-h-[250px] sm:min-h-[350px] font-mono text-xs sm:text-sm"
-              rows={14}
-            />
-            <Button onClick={handleAnalyze} size="lg" className="w-full">
-              <SparklesIcon className="size-4 mr-1" />
-              Analisar com IA
-            </Button>
+            <Textarea placeholder="Cole aqui o texto..." value={rawText} onChange={(e) => setRawText(e.target.value)} className="min-h-[250px] sm:min-h-[350px] font-mono text-xs sm:text-sm" rows={14} />
+            <Button onClick={handleAnalyze} size="lg" className="w-full"><SparklesIcon className="size-4 mr-1" />Analisar com IA</Button>
           </CardContent>
         </Card>
       )}
-
-      {/* Step 1.5: Analyzing */}
-      {step === "analyzing" && (
-        <Card className="border-zinc-200 dark:border-zinc-800">
-          <CardContent className="py-16 sm:py-20 text-center space-y-4">
-            <Loader2Icon className="size-10 animate-spin text-zinc-400 mx-auto" />
-            <div>
-              <p className="text-lg font-medium">Analisando texto com IA...</p>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                Identificando conceitos, tópicos e notas candidatas.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 2: Review candidates */}
+      {step === "analyzing" && (<Card className="border-zinc-200 dark:border-zinc-800"><CardContent className="py-16 text-center space-y-4"><Loader2Icon className="size-10 animate-spin text-zinc-400 mx-auto" /><p className="text-lg font-medium">Analisando texto com IA...</p></CardContent></Card>)}
       {step === "review" && (
-        <div className="space-y-4 sm:space-y-6">
-          {/* Summary bar */}
+        <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h2 className="text-lg sm:text-xl font-semibold">
-                {candidatas.length} nota(s) candidata{candidatas.length > 1 ? "s" : ""}
-              </h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Selecione quais deseja salvar.
-              </p>
-            </div>
+            <h2 className="text-lg font-semibold">{candidatas.length} nota(s)</h2>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={selectAll}>
-                Selecionar todas
-              </Button>
-              <Button variant="outline" size="sm" onClick={deselectAll}>
-                Nenhuma
-              </Button>
-              <span className="text-sm text-zinc-400">
-                {selected.size}/{candidatas.length} selecionada{selected.size !== 1 ? "s" : ""}
-              </span>
+              <Button variant="outline" size="sm" onClick={() => setSelected(new Set(candidatas.map((_, i) => i)))}>Todas</Button>
+              <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>Nenhuma</Button>
             </div>
           </div>
-
           <Separator />
-
-          {/* Candidate cards */}
           <div className="space-y-3">
-            {candidatas.map((candidata, idx) => (
-              <Card
-                key={idx}
-                className={`border-zinc-200 dark:border-zinc-800 transition-all ${
-                  selected.has(idx)
-                    ? "border-primary/30 dark:border-primary/20 bg-primary/[0.02]"
-                    : "opacity-60"
-                }`}
-              >
-                <button
-                  onClick={() => toggleSelect(idx)}
-                  className="w-full text-left"
-                >
+            {candidatas.map((c, idx) => (
+              <Card key={idx} className={`transition-all ${selected.has(idx) ? "border-primary/30 bg-primary/[0.02]" : "opacity-60"} border-zinc-200 dark:border-zinc-800`}>
+                <button onClick={() => toggle(idx)} className="w-full text-left">
                   <CardHeader className="pb-2 px-3 sm:px-6">
                     <div className="flex items-start gap-2">
-                      {/* Checkbox */}
-                      <div className="mt-0.5 flex-shrink-0">
-                        <div
-                          className={`size-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            selected.has(idx)
-                              ? "bg-primary border-primary text-primary-foreground"
-                              : "border-zinc-300 dark:border-zinc-600"
-                          }`}
-                        >
-                          {selected.has(idx) && (
-                            <CheckCircle2Icon className="size-3.5" />
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium">{candidata.titulo}</h3>
-                        <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1">
-                          {candidata.conteudo.slice(0, 100)}...
-                        </p>
-                      </div>
-
-                      <span className="text-xs text-zinc-400 flex-shrink-0 tabular-nums">
-                        #{idx + 1}
-                      </span>
+                      <div className={`mt-0.5 size-5 rounded border-2 flex items-center justify-center ${selected.has(idx) ? "bg-primary border-primary" : "border-zinc-300 dark:border-zinc-600"}`}>{selected.has(idx) && <CheckCircle2Icon className="size-3.5" />}</div>
+                      <div className="flex-1 min-w-0"><h3 className="text-sm font-medium">{c.titulo}</h3><p className="text-xs text-zinc-400 mt-0.5 line-clamp-1">{c.conteudo.slice(0, 100)}...</p></div>
                     </div>
-
-                    {candidata.conceitosPrevistos.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-3">
-                        {candidata.conceitosPrevistos.map((c, ci) => (
-                          <Badge key={ci} variant="outline" className="text-[10px] px-1.5 h-5">
-                            {c}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+                    {c.conceitosPrevistos.length > 0 && (<div className="flex flex-wrap gap-1.5 mt-3">{c.conceitosPrevistos.map((cn, ci) => (<Badge key={ci} variant="outline" className="text-[10px] px-1.5 h-5">{cn}</Badge>))}</div>)}
                   </CardHeader>
                 </button>
-
-                <CardContent className="pt-0 pb-4 px-3 sm:px-6">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-zinc-400 h-7 px-1"
-                    onClick={() => setExpandedCard(expandedCard === idx ? null : idx)}
-                  >
-                    {expandedCard === idx ? (
-                      <ChevronDownIcon className="size-3.5 mr-1" />
-                    ) : (
-                      <ChevronRightIcon className="size-3.5 mr-1" />
-                    )}
-                    {expandedCard === idx ? "Ocultar" : "Ver conteúdo"}
+                <CardContent className="pt-0 pb-3 px-3 sm:px-6">
+                  <Button variant="ghost" size="sm" className="text-xs text-zinc-400 h-7 px-1" onClick={() => setExpandedCard(expandedCard === idx ? null : idx)}>
+                    {expandedCard === idx ? <ChevronDownIcon className="size-3.5 mr-1" /> : <ChevronRightIcon className="size-3.5 mr-1" />}
+                    {expandedCard === idx ? "Ocultar" : "Ver conteudo"}
                   </Button>
-
-                  {expandedCard === idx && (
-                    <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-300 whitespace-pre-wrap bg-zinc-50 dark:bg-zinc-900 rounded-md p-3 border border-zinc-100 dark:border-zinc-800">
-                      {candidata.conteudo}
-                    </div>
-                  )}
+                  {expandedCard === idx && (<div className="mt-2 text-xs text-zinc-600 dark:text-zinc-300 whitespace-pre-wrap bg-zinc-50 dark:bg-zinc-900 rounded-md p-3 border border-zinc-100 dark:border-zinc-800">{c.conteudo}</div>)}
                 </CardContent>
               </Card>
             ))}
           </div>
-
           <Separator />
-
-          {/* Actions */}
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
-            <Button variant="outline" onClick={() => setStep("input")} className="w-full sm:w-auto">
-              <XIcon className="size-3.5 mr-1" />
-              Voltar e editar texto
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={selected.size === 0}
-              size="lg"
-              className="w-full sm:w-auto"
-            >
-              <CheckCircle2Icon className="size-4 mr-1" />
-              Salvar {selected.size} nota{selected.size !== 1 ? "s" : ""}
-            </Button>
+            <Button variant="outline" onClick={() => setStep("input")} className="w-full sm:w-auto"><XIcon className="size-3.5 mr-1" />Voltar</Button>
+            <Button onClick={handleSave} disabled={selected.size === 0} size="lg" className="w-full sm:w-auto"><CheckCircle2Icon className="size-4 mr-1" />Salvar {selected.size} nota(s)</Button>
           </div>
         </div>
       )}
+      {step === "saving" && (<Card className="border-zinc-200 dark:border-zinc-800"><CardContent className="py-16 text-center space-y-4"><Loader2Icon className="size-10 animate-spin text-zinc-400 mx-auto" /><p className="text-lg font-medium">Salvando notas...</p></CardContent></Card>)}
+    </div>
+  );
+}
 
-      {/* Saving */}
-      {step === "saving" && (
-        <Card className="border-zinc-200 dark:border-zinc-800">
-          <CardContent className="py-16 sm:py-20 text-center space-y-4">
-            <Loader2Icon className="size-10 animate-spin text-zinc-400 mx-auto" />
-            <div>
-              <p className="text-lg font-medium">Salvando notas...</p>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                Criando vínculos semânticos e nós do grafo.
-              </p>
+// ==========================================
+// Manual Mode — concepts + relations
+// ==========================================
+
+
+interface NotaConceitoRel {
+  conceitoId: string;
+  tipoRelacao: string;
+}
+
+interface ConceitoConceitoRel {
+  origemId: string;
+  destinoId: string;
+  tipoRelacao: string;
+}
+
+/** Staged relation being built before adding to queue */
+type StagedRelation = {
+  kind: "existing-topic";
+  topicId: string;
+  topicNome: string;
+  tipoRelacao: string;
+} | {
+  kind: "new-topic";
+  topicTempId: string;
+  topicNome: string;
+  tipoRelacao: string;
+  targetAssuntoIds: string[];
+  targetAssuntoNomes: string[];
+};
+
+// Pending concept: just name + relations (no pre-set assunto/topico)
+interface PendingConcept {
+  tempId: string;
+  nome: string;
+  relsToTopics: Array<{ targetTopicoId: string; tipoRelacao: string }>;
+  relsToPendingTopics: Array<{ tempTopicoId: string; tipoRelacao: string }>;
+}
+
+// Pending topic: name + relations to materias
+interface PendingTopic {
+  nome: string;
+  tempId: string;
+  relsToAssuntos: Array<{ targetAssuntoId: string; tipoRelacao: string }>;
+}
+
+function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> }) {
+  const [titulo, setTitulo] = useState("");
+  const [conteudo, setConteudo] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const [arvore, setArvore] = useState<ConceitoArvore[]>([]);
+  const [loadingConcepts, setLoadingConcepts] = useState(true);
+
+  const [expandedAssuntos, setExpandedAssuntos] = useState<Set<string>>(new Set());
+  const [expandedRelAssuntos, setExpandedRelAssuntos] = useState<Set<string>>(new Set());
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
+  const [expandedRelTopicos, setExpandedRelTopicos] = useState<Set<string>>(new Set());
+
+  const [selectedConcepts, setSelectedConcepts] = useState<Set<string>>(new Set());
+
+  // Flattened list of all concepts for lookups
+  const [conceptMap, setConceptMap] = useState<Map<string, { nome: string; topicoNome: string; assuntoNome: string }>>(new Map());
+
+  // Relations: Nota -> Conceito
+  const [notaConceitoRels, setNotaConceitoRels] = useState<NotaConceitoRel[]>([]);
+
+  // Relations: Conceito -> Conceito
+  const [conceitoConceitoRels, setConceitoConceitoRels] = useState<ConceitoConceitoRel[]>([]);
+
+  // --- Pending queue: new model ---
+  const [pendingAssuntos, setPendingAssuntos] = useState<
+    Array<{ tempId: string; nome: string }>
+  >([]);
+
+  const [pendingTopics, setPendingTopics] = useState<PendingTopic[]>([]);
+
+  const [pendingConcepts, setPendingConcepts] = useState<PendingConcept[]>([]);
+
+  // --- Form state for building a concept ---
+  const [newConceitoNome, setNewConceitoNome] = useState("");
+  const [relationMode, setRelationMode] = useState<"existing" | "new">("existing");
+  const [stagedRelations, setStagedRelations] = useState<StagedRelation[]>([]);
+
+  // Existing topic form — each selected topic has its own relation type
+  const [selectedExistingTopics, setSelectedExistingTopics] = useState<Array<{ id: string; tipoRelacao: string }>>([]);
+
+  // New topic form — each selected materia has its own relation type
+  const [newTopicNome, setNewTopicNome] = useState("");
+  const [newTopicSelectedAssuntos, setNewTopicSelectedAssuntos] = useState<Array<{ id: string; nome: string; tipoRelacao: string }>>([]);
+
+  // Counter for temp IDs
+  const [nextIdCounter, setNextIdCounter] = useState(0);
+  const getNextId = () => {
+    setNextIdCounter((p) => p + 1);
+    return nextIdCounter + 1;
+  };
+
+  // ==========================================
+  // Helpers
+  // ==========================================
+
+  const getTopicosForAssunto = (assuntoId: string): Array<{ id: string; nome: string }> => {
+    const seen = new Map<string, string>();
+    const ass = arvore.find((a) => a.id === assuntoId);
+    if (!ass) return [];
+    for (const rel of ass.relAssuntoTopico) {
+      for (const tp of rel.topicos) {
+        if (!seen.has(tp.id)) seen.set(tp.id, tp.nome);
+      }
+    }
+    return Array.from(seen.entries()).map(([id, nome]) => ({ id, nome }));
+  };
+
+  const getAssuntoName = (assuntoId: string): string => {
+    const real = arvore.find((a) => a.id === assuntoId);
+    if (real) return real.nome;
+    const pending = pendingAssuntos.find((a) => a.tempId === assuntoId);
+    return pending?.nome || "";
+  };
+
+  const getTopicName = (topicoId: string): string => {
+    for (const a of arvore) {
+      for (const rel of a.relAssuntoTopico) {
+        const found = rel.topicos.find((t) => t.id === topicoId);
+        if (found) return found.nome;
+      }
+    }
+    const pt = pendingTopics.find((t) => t.tempId === topicoId);
+    return pt?.nome || topicoId;
+  };
+
+  // All existing topicos grouped by matter for the multiselect
+  const getAllExistingTopicosByAssunto = (): Array<{ assuntoId: string; assuntoNome: string; topicos: Array<{ id: string; nome: string }> }> => {
+    return arvore.map((a) => ({
+      assuntoId: a.id,
+      assuntoNome: a.nome,
+      topicos: getTopicosForAssunto(a.id),
+    })).filter((g) => g.topicos.length > 0);
+  };
+
+  const existingTopicosByAssunto = getAllExistingTopicosByAssunto();
+
+  // Add relation to existing topics (one per selected)
+  const addExistingTopicRelation = () => {
+    if (selectedExistingTopics.length === 0) return;
+    const newRels: StagedRelation[] = selectedExistingTopics.map((item) => ({
+      kind: "existing-topic" as const,
+      topicId: item.id,
+      topicNome: getTopicName(item.id),
+      tipoRelacao: item.tipoRelacao,
+    }));
+    setStagedRelations((prev) => [...prev, ...newRels]);
+    setSelectedExistingTopics([]);
+  };
+
+  const updateExistingTopicRelType = (id: string, tipo: string) => {
+    setSelectedExistingTopics((prev) =>
+      prev.map((item) => item.id === id ? { ...item, tipoRelacao: tipo } : item)
+    );
+  };
+
+  const toggleExistingTopicSelect = (tid: string, defaultType: string) => {
+    setSelectedExistingTopics((prev) =>
+      prev.some((item) => item.id === tid)
+        ? prev.filter((item) => item.id !== tid)
+        : [...prev, { id: tid, tipoRelacao: defaultType }]
+    );
+  };
+
+  // Add relation with new topic
+  const addNewTopicRelation = () => {
+    if (!newTopicNome.trim()) return;
+    if (newTopicSelectedAssuntos.length === 0) return;
+
+    const tempId = `pt-${Date.now()}-${getNextId()}`;
+    const assuntoNomes = newTopicSelectedAssuntos.map((a) => a.nome);
+
+    const rel: StagedRelation = {
+      kind: "new-topic",
+      topicTempId: tempId,
+      topicNome: newTopicNome.trim(),
+      tipoRelacao: newTopicSelectedAssuntos.map((a) => a.tipoRelacao).join(", "),
+      targetAssuntoIds: newTopicSelectedAssuntos.map((a) => a.id),
+      targetAssuntoNomes: assuntoNomes,
+    };
+    setStagedRelations((prev) => [...prev, rel]);
+    setNewTopicNome("");
+    setNewTopicSelectedAssuntos([]);
+  };
+
+  const updateAssuntoRelType = (id: string, tipo: string) => {
+    setNewTopicSelectedAssuntos((prev) =>
+      prev.map((item) => item.id === id ? { ...item, tipoRelacao: tipo } : item)
+    );
+  };
+
+  const removeStagedRelation = (idx: number) => {
+    setStagedRelations((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // Add concept to queue
+  const addConceptToQueue = () => {
+    if (!newConceitoNome.trim() || stagedRelations.length === 0) return;
+
+    const relsToTopics = stagedRelations
+      .filter((r): r is Extract<StagedRelation, { kind: "existing-topic" }> => r.kind === "existing-topic")
+      .map((r) => ({ targetTopicoId: r.topicId, tipoRelacao: r.tipoRelacao }));
+
+    const relsToPendingTopics = stagedRelations
+      .filter((r): r is Extract<StagedRelation, { kind: "new-topic" }> => r.kind === "new-topic")
+      .map((r) => ({ tempTopicoId: r.topicTempId, tipoRelacao: r.tipoRelacao }));
+
+    // Add pending topics from new-topic relations (deduplicate by tempId)
+    const newTopicMap = new Map<string, PendingTopic>();
+    for (const r of stagedRelations) {
+      if (r.kind === "new-topic") {
+        if (!newTopicMap.has(r.topicTempId)) {
+          newTopicMap.set(r.topicTempId, {
+            tempId: r.topicTempId,
+            nome: r.topicNome,
+            relsToAssuntos: r.targetAssuntoIds.map((aid) => ({ targetAssuntoId: aid, tipoRelacao: r.tipoRelacao })),
+          });
+        }
+      }
+    }
+
+    setPendingTopics((prev) => {
+      const existing = new Set(prev.map((p) => p.tempId));
+      const toAdd = [...newTopicMap.values()].filter((p) => !existing.has(p.tempId));
+      return [...prev, ...toAdd];
+    });
+
+    setPendingConcepts((prev) => [...prev, {
+      tempId: `pc-${Date.now()}-${getNextId()}`,
+      nome: newConceitoNome.trim(),
+      relsToTopics,
+      relsToPendingTopics,
+    }]);
+
+    setNewConceitoNome("");
+    setStagedRelations([]);
+  };
+
+  const removePendingConceptFromQueue = (tempId: string) => {
+    setPendingConcepts((prev) => prev.filter((c) => c.tempId !== tempId));
+  };
+
+  // Remove pending assunto
+  const addPendingAssunto = () => {
+    if (!newAssuntoNome.trim()) return;
+    setPendingAssuntos((prev) => [...prev, {
+      tempId: `passunto-${Date.now()}-${getNextId()}`,
+      nome: newAssuntoNome.trim(),
+    }]);
+    setNewAssuntoNome("");
+  };
+
+  const removePendingAssunto = (tempId: string) => {
+    setPendingAssuntos((prev) => prev.filter((a) => a.tempId !== tempId));
+    // Remove pending topics that only reference this assunto
+    setPendingTopics((prev) => prev.filter((t) =>
+      t.relsToAssuntos.length > 0 && t.relsToAssuntos.some((r) => r.targetAssuntoId !== tempId)
+    ));
+  };
+
+  const [newAssuntoNome, setNewAssuntoNome] = useState("");
+
+  // ==========================================
+  // Effects
+  // ==========================================
+
+  useEffect(() => {
+    setLoadingConcepts(true);
+    getHierarquiaConceitos().then((tree: ConceitoArvore[]) => {
+      setArvore(tree);
+      const cMap = new Map<string, { nome: string; topicoNome: string; assuntoNome: string }>();
+      for (const ass of tree) {
+        for (const relAT of ass.relAssuntoTopico) {
+          for (const top of relAT.topicos) {
+            for (const relTC of top.relacoesTopicoConceito) {
+              for (const conc of relTC.conceitos) {
+                cMap.set(conc.id, { nome: conc.nome, topicoNome: top.nome, assuntoNome: ass.nome });
+              }
+            }
+          }
+        }
+      }
+      setConceptMap(cMap);
+      setLoadingConcepts(false);
+    }).catch((err) => { console.error(err); setLoadingConcepts(false); });
+  }, []);
+
+  // Keep nota->conceito rels in sync with selected concepts
+  useEffect(() => {
+    setNotaConceitoRels((prev) => {
+      const existingIds = new Set(prev.map((r) => r.conceitoId));
+      const added = Array.from(selectedConcepts).filter((id) => !existingIds.has(id));
+      const updated = prev.map((r) => {
+        if (!selectedConcepts.has(r.conceitoId)) return null;
+        return r;
+      }).filter(Boolean) as NotaConceitoRel[];
+      const newRels = added.map((id) => ({ conceitoId: id, tipoRelacao: "DEFINE" }));
+      return [...updated, ...newRels];
+    });
+  }, [selectedConcepts]);
+
+  const toggleConcept = (id: string) => {
+    setSelectedConcepts((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  };
+
+  const updateNotaConceitoRel = (conceitoId: string, tipoRelacao: string) => {
+    setNotaConceitoRels((prev) => prev.map((r) => r.conceitoId === conceitoId ? { ...r, tipoRelacao } : r));
+  };
+
+  const addConceitoConceitoRel = () => {
+    const ids = Array.from(selectedConcepts);
+    if (ids.length < 2) return;
+    setConceitoConceitoRels((prev) => [...prev, { origemId: ids[0], destinoId: ids[1], tipoRelacao: "RELACIONADO" }]);
+  };
+
+  const removeConceitoConceitoRel = (idx: number) => {
+    setConceitoConceitoRels((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateConceitoConceitoRel = (idx: number, field: "origemId" | "destinoId" | "tipoRelacao", value: string) => {
+    setConceitoConceitoRels((prev) => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+  };
+
+  const getConceptName = (id: string) => conceptMap.get(id)?.nome || id;
+
+  const toggleAssunto = (id: string) => setExpandedAssuntos((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleRelAssunto = (assuntoId: string) => setExpandedRelAssuntos((prev) => { const n = new Set(prev); if (n.has(assuntoId)) n.delete(assuntoId); else n.add(assuntoId); return n; });
+  const toggleTopico = (id: string) => setExpandedTopics((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleRelTopico = (topicoId: string) => setExpandedRelTopicos((prev) => { const n = new Set(prev); if (n.has(topicoId)) n.delete(topicoId); else n.add(topicoId); return n; });
+
+  const totalConceitos = arvore.reduce((acc, ass) => {
+    for (const rel of ass.relAssuntoTopico) {
+      for (const tp of rel.topicos) {
+        for (const relTC of tp.relacoesTopicoConceito) {
+          acc += relTC.conceitos.length;
+        }
+      }
+    }
+    return acc;
+  }, 0);
+
+  // ==========================================
+  // handleSave flow
+  // ==========================================
+
+  const handleSave = async () => {
+    if (!titulo.trim()) { toast.error("Informe o titulo."); return; }
+    if (!conteudo.trim()) { toast.error("Informe o conteudo."); return; }
+    if (selectedConcepts.size === 0 && pendingConcepts.length === 0) { toast.error("Selecione ou adicione ao menos um conceito."); return; }
+
+    setSaving(true);
+    try {
+      // 1. Create pending assuntos => map tempId -> realId
+      const assuntoIdMap = new Map<string, string>();
+      for (const pa of pendingAssuntos) {
+        const created = await createAssunto(pa.nome);
+        assuntoIdMap.set(pa.tempId, created.id);
+      }
+
+      // 2. Create pending topics (resolve assuntoIds) => map tempId -> realId
+      //    Deduplicate: same tempId may appear in multiple pending concepts
+      const pendingTopicSet = new Map<string, PendingTopic>();
+      for (const pc of pendingConcepts) {
+        for (const r of pc.relsToPendingTopics) {
+          if (!pendingTopicSet.has(r.tempTopicoId)) {
+            const pt = pendingTopics.find((t) => t.tempId === r.tempTopicoId);
+            if (pt) pendingTopicSet.set(r.tempTopicoId, pt);
+          }
+        }
+      }
+
+      const topicIdMap = new Map<string, string>();
+      for (const [tempId, pt] of pendingTopicSet) {
+        if (pt.relsToAssuntos.length === 0) continue;
+        // Use first relation for assunto (or default to first existing)
+        const firstRel = pt.relsToAssuntos[0];
+        const realAssuntoId = assuntoIdMap.get(firstRel.targetAssuntoId) ?? firstRel.targetAssuntoId;
+        const created = await createTopico(pt.nome, realAssuntoId);
+        topicIdMap.set(tempId, created.id);
+      }
+
+      // 3. Create pending concepts (attach to one resolved topic from relations)
+      const createdConceptIds: string[] = [];
+      for (const pc of pendingConcepts) {
+        let firstTopicoId: string | undefined;
+
+        // Prefer existing topic relation
+        if (pc.relsToTopics.length > 0 && !firstTopicoId) {
+          firstTopicoId = pc.relsToTopics[0].targetTopicoId;
+        }
+        // Or pending topic (now resolved)
+        if (pc.relsToPendingTopics.length > 0 && !firstTopicoId) {
+          firstTopicoId = topicIdMap.get(pc.relsToPendingTopics[0].tempTopicoId);
+        }
+
+        if (firstTopicoId) {
+          // Find which assunto this topico belongs to
+          let foundAssuntoId = "";
+          for (const a of arvore) {
+            for (const rel of a.relAssuntoTopico) {
+              const found = rel.topicos.find((tp) => tp.id === firstTopicoId);
+              if (found) { foundAssuntoId = a.id; break; }
+            }
+            if (foundAssuntoId) break;
+          }
+          // If topico was just created, find from pendingTopics
+          if (!foundAssuntoId) {
+            for (const pt of pendingTopicSet.values()) {
+              const createdId = topicIdMap.get(pt.tempId);
+              if (createdId === firstTopicoId && pt.relsToAssuntos.length > 0) {
+                const r = pt.relsToAssuntos[0];
+                foundAssuntoId = assuntoIdMap.get(r.targetAssuntoId) ?? r.targetAssuntoId;
+                break;
+              }
+            }
+          }
+          if (!foundAssuntoId && arvore.length > 0) foundAssuntoId = arvore[0].id;
+
+          const created = await createFullConcept({
+            nome: pc.nome,
+            assuntoId: foundAssuntoId,
+            topicoId: firstTopicoId,
+          });
+          createdConceptIds.push(created.id);
+          conceptMap.set(created.id, { nome: created.nome, topicoNome: "", assuntoNome: "" });
+        } else {
+          // No relation at all — create with default assunto/topico
+          if (arvore.length > 0) {
+            const a0 = arvore[0];
+            const topics = getTopicosForAssunto(a0.id);
+            if (topics.length > 0) {
+              const created = await createFullConcept({
+                nome: pc.nome,
+                assuntoId: a0.id,
+                topicoId: topics[0].id,
+              });
+              createdConceptIds.push(created.id);
+              conceptMap.set(created.id, { nome: created.nome, topicoNome: topics[0].nome, assuntoNome: a0.nome });
+            }
+          }
+        }
+      }
+
+      // 4. Auto-select newly created concepts and create the nota
+      const allIds = new Set([...selectedConcepts, ...createdConceptIds]);
+
+      const { notaId } = await createNotaManual({
+        titulo: titulo.trim(),
+        conteudo: conteudo.trim(),
+        selectedConceitoIds: Array.from(allIds),
+        notaConceitoRels: notaConceitoRels.concat(createdConceptIds.map((id) => ({ conceitoId: id, tipoRelacao: "DEFINE" as const }))),
+        conceitoConceitoRels,
+      });
+
+      toast.success("Nota criada com sucesso!");
+      router.push(`/notes/${notaId}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao criar nota.");
+      setSaving(false);
+    }
+  };
+
+  // ==========================================
+  // Render
+  // ==========================================
+
+  return (
+    <div className="space-y-6">
+      {/* Note fields */}
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader className="px-3 sm:px-6"><CardTitle className="text-base sm:text-lg">Dados da nota</CardTitle><CardDescription className="text-xs sm:text-sm">Titulo e conteudo.</CardDescription></CardHeader>
+        <CardContent className="space-y-4 px-3 sm:px-6">
+          <div className="space-y-2"><Label>Titulo</Label><Input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ex: Aula de Direito - Soberania" /></div>
+          <div className="space-y-2"><Label>Conteudo</Label><Textarea value={conteudo} onChange={(e) => setConteudo(e.target.value)} placeholder="Conteudo..." className="min-h-[150px] font-mono text-xs sm:text-sm" rows={8} /></div>
+        </CardContent>
+      </Card>
+
+      {/* Select concepts — nested tree */}
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader className="px-3 sm:px-6"><CardTitle className="text-base sm:text-lg">Conceitos</CardTitle><CardDescription className="text-xs">Selecione os conceitos. Se necessario crie um novo abaixo.</CardDescription></CardHeader>
+        <CardContent className="px-3 sm:px-6">
+          {loadingConcepts ? (<div className="flex items-center gap-2 text-sm text-zinc-400 py-4"><Loader2Icon className="size-4 animate-spin" /> Carregando...</div>) : totalConceitos === 0 ? (<p className="text-sm text-zinc-400 py-4">Nenhum conceito. Crie abaixo.</p>) : (
+            <div className="space-y-1.5 max-h-[350px] overflow-y-auto pr-1">
+              {arvore.map((assunto) => {
+                const assExpanded = expandedAssuntos.has(assunto.id);
+                let totalSel = 0;
+                for (const rel of assunto.relAssuntoTopico) {
+                  for (const tp of rel.topicos) {
+                    for (const relTC of tp.relacoesTopicoConceito) {
+                      totalSel += relTC.conceitos.filter((c) => selectedConcepts.has(c.id)).length;
+                    }
+                  }
+                }
+                return (
+                  <div key={assunto.id} className="rounded-md border border-zinc-200 dark:border-zinc-800">
+                    {/* Assunto header */}
+                    <button type="button" className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800" onClick={() => toggleAssunto(assunto.id)}>
+                      {assExpanded ? <ChevronDownIcon className="size-3.5 text-zinc-400" /> : <ChevronRightIcon className="size-3.5 text-zinc-400" />}
+                      <span className="text-sm">{assunto.nome}</span>
+                      {totalSel > 0 && <Badge variant="secondary" className="text-[10px] h-4 px-1 ml-auto">{totalSel}</Badge>}
+                    </button>
+                    {assExpanded && (
+                      <div className="ml-2 border-l border-zinc-200 dark:border-zinc-700">
+                        {assunto.relAssuntoTopico.map((relGrupo) => {
+                          const relExpanded = expandedRelAssuntos.has(assunto.id);
+                          return (
+                            <div key={relGrupo.tipoRelacao}>
+                              <button type="button" className="w-full flex items-center gap-1.5 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800" onClick={() => toggleRelAssunto(assunto.id)}>
+                                {relExpanded ? <ChevronDownIcon className="size-3 text-zinc-400" /> : <ChevronRightIcon className="size-3 text-zinc-400" />}
+                                <Badge variant="outline" className="text-[10px] h-4 px-1">{relGrupo.tipoRelacao}</Badge>
+                              </button>
+                              {relExpanded && (
+                                <div className="ml-2 border-l border-zinc-200 dark:border-zinc-700">
+                                  {relGrupo.topicos.map((topico) => {
+                                    const topExpanded = expandedTopics.has(topico.id);
+                                    let topSel = 0;
+                                    for (const relTC of topico.relacoesTopicoConceito) {
+                                      topSel += relTC.conceitos.filter((c) => selectedConcepts.has(c.id)).length;
+                                    }
+                                    return (
+                                      <div key={topico.id}>
+                                        <button type="button" className="w-full flex items-center gap-1.5 px-2 py-1 hover:bg-zinc-50 dark:hover:bg-zinc-800" onClick={() => toggleTopico(topico.id)}>
+                                          {topExpanded ? <ChevronDownIcon className="size-3 text-zinc-400" /> : <ChevronRightIcon className="size-3 text-zinc-400" />}
+                                          <span className="text-xs text-zinc-500">{topico.nome}</span>
+                                          {topSel > 0 && <span className="ml-auto text-[10px] text-emerald-500 font-medium">{topSel}</span>}
+                                        </button>
+                                        {topExpanded && (
+                                          <div className="ml-2 border-l border-zinc-200 dark:border-zinc-700">
+                                            {topico.relacoesTopicoConceito.map((relTC) => {
+                                              const relTCExpanded = expandedRelTopicos.has(topico.id);
+                                              return (
+                                                <div key={relTC.tipoRelacao}>
+                                                  <button type="button" className="w-full flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800" onClick={() => toggleRelTopico(topico.id)}>
+                                                    {relTCExpanded ? <ChevronDownIcon className="size-2.5 text-zinc-400" /> : <ChevronRightIcon className="size-2.5 text-zinc-400" />}
+                                                    <Badge variant="outline" className="text-[9px] h-3.5 px-0.5">{relTC.tipoRelacao}</Badge>
+                                                  </button>
+                                                  {relTCExpanded && (
+                                                    <div className="ml-2 border-l border-zinc-200 dark:border-zinc-700">
+                                                      {relTC.conceitos.map((conceito) => {
+                                                        const isSelected = selectedConcepts.has(conceito.id);
+                                                        return (
+                                                          <button key={conceito.id} type="button" className={`w-full flex items-center gap-2 px-2 py-1 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 ${isSelected ? "bg-primary/[0.04]" : ""}`} onClick={() => toggleConcept(conceito.id)}>
+                                                            <div className={`size-3.5 rounded-sm border flex items-center justify-center flex-shrink-0 ${isSelected ? "bg-primary border-primary text-primary-foreground" : "border-zinc-300 dark:border-zinc-600"}`}>{isSelected && <CheckCircle2Icon className="size-2.5" />}</div>
+                                                            <span className="text-xs text-zinc-700 dark:text-zinc-300">{conceito.nome}</span>
+                                                          </button>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Relations: Nota -> Conceito */}
+      {selectedConcepts.size > 0 && (
+        <Card className="border-zinc-200 dark:border-zinc-800">
+          <CardHeader className="px-3 sm:px-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2"><LinkIcon className="size-4" />Relacoes: Nota → Conceito</CardTitle>
+            <CardDescription className="text-xs">Defina como a nota se relaciona com cada conceito.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 px-3 sm:px-6">
+            {notaConceitoRels.map((rel) => (
+              <div key={rel.conceitoId} className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500 w-28 truncate">{getConceptName(rel.conceitoId)}</span>
+                <select value={rel.tipoRelacao} onChange={(e) => updateNotaConceitoRel(rel.conceitoId, e.target.value)} className="flex-1 h-8 px-2 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background">
+                  {NOTA_TO_CONCEITO_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+                </select>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
+
+      {/* Relations: Conceito -> Conceito */}
+      {selectedConcepts.size >= 2 && (
+        <Card className="border-zinc-200 dark:border-zinc-800">
+          <CardHeader className="px-3 sm:px-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2"><LinkIcon className="size-4" />Relacoes: Conceito ↔ Conceito</CardTitle>
+            <CardDescription className="text-xs">Defina relacoes semanticas entre os conceitos selecionados.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 px-3 sm:px-6">
+            {conceitoConceitoRels.map((rel, idx) => (
+              <div key={idx} className="flex flex-col sm:flex-row gap-1.5 items-start sm:items-center">
+                <select value={rel.origemId} onChange={(e) => updateConceitoConceitoRel(idx, "origemId", e.target.value)} className="h-8 px-2 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background flex-1 min-w-0">
+                  {Array.from(selectedConcepts).map((id) => (<option key={id} value={id}>{getConceptName(id)}</option>))}
+                </select>
+                <select value={rel.tipoRelacao} onChange={(e) => updateConceitoConceitoRel(idx, "tipoRelacao", e.target.value)} className="h-8 px-2 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background w-28 flex-shrink-0">
+                  {CONCEITO_TO_CONCEITO_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+                </select>
+                <ArrowRightIcon className="size-3.5 text-zinc-400 flex-shrink-0 mx-1" />
+                <select value={rel.destinoId} onChange={(e) => updateConceitoConceitoRel(idx, "destinoId", e.target.value)} className="h-8 px-2 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background flex-1 min-w-0">
+                  {Array.from(selectedConcepts).filter((id) => id !== rel.origemId).map((id) => (<option key={id} value={id}>{getConceptName(id)}</option>))}
+                </select>
+                <button type="button" onClick={() => removeConceitoConceitoRel(idx)} className="text-red-400 hover:text-red-500 flex-shrink-0"><XIcon className="size-3.5" /></button>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={addConceitoConceitoRel}><PlusIcon className="size-3.5 mr-1" />Adicionar relacao</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ==========================================
+          NOVO CONCEITO — relation-based form
+      ========================================== */}
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2"><PlusCircleIcon className="size-4" />Novo Conceito</CardTitle>
+          <CardDescription className="text-xs">Defina o conceito e suas relacoes com topicos existentes ou novos.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 px-3 sm:px-6">
+
+          {/* Section 1: Concept name */}
+          <div className="space-y-2">
+            <Label>Nome do conceito</Label>
+            <Input value={newConceitoNome} onChange={(e) => setNewConceitoNome(e.target.value)} placeholder="Ex: Principio da Legalidade" className="h-9" />
+          </div>
+
+          {/* Section 2: Relacoes com topicos */}
+          <div className="space-y-3">
+            <Label>Relacoes com Tópicos</Label>
+
+            {/* Toggle: existing vs new topic */}
+            <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5 w-fit">
+              <button type="button" onClick={() => setRelationMode("existing")} className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${relationMode === "existing" ? "bg-white dark:bg-zinc-700 shadow" : "text-zinc-500"}`}>
+                Para topico existente
+              </button>
+              <button type="button" onClick={() => setRelationMode("new")} className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${relationMode === "new" ? "bg-white dark:bg-zinc-700 shadow" : "text-zinc-500"}`}>
+                Para novo topico
+              </button>
+            </div>
+
+            {relationMode === "existing" && (
+              <div className="space-y-2">
+                {/* Topics: checkbox + individual relation type */}
+                <div className="max-h-52 overflow-y-auto border border-zinc-200 dark:border-zinc-700 rounded-md divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {existingTopicosByAssunto.length === 0 ? (
+                    <p className="text-xs text-zinc-400 py-3 px-3 text-center">Nenhum topico disponivel.</p>
+                  ) : existingTopicosByAssunto.map((group) => {
+                    const groupSelected = group.topicos.filter((t) => selectedExistingTopics.some((s) => s.id === t.id));
+                    const allInGroup = group.topicos.length > 0 && group.topicos.every((t) => selectedExistingTopics.some((s) => s.id === t.id));
+                    return (
+                      <div key={group.assuntoId} className="px-2 py-1.5">
+                        <button type="button" onClick={() => {
+                          const groupIds = group.topicos.map((t) => t.id);
+                          if (allInGroup) {
+                            setSelectedExistingTopics((prev) => prev.filter((item) => !groupIds.includes(item.id)));
+                          } else {
+                            setSelectedExistingTopics((prev) => [...prev, ...group.topicos.map((t) => ({ id: t.id, tipoRelacao: "FUNDAMENTA" }))]);
+                          }
+                        }} className="flex items-center gap-1 mb-1">
+                          <div className={`size-3.5 rounded border flex items-center justify-center flex-shrink-0 ${allInGroup ? "bg-primary border-primary" : "border-zinc-300 dark:border-zinc-600"}`}>
+                            {allInGroup && <CheckCircle2Icon className="size-3 text-white" />}
+                          </div>
+                          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{group.assuntoNome}</span>
+                          {groupSelected.length > 0 && <span className="text-[10px] text-emerald-500 font-medium">{groupSelected.length}/{group.topicos.length}</span>}
+                        </button>
+                        <div className="ml-5 space-y-1">
+                          {group.topicos.map((t) => {
+                            const sel = selectedExistingTopics.find((s) => s.id === t.id);
+                            const isChecked = !!sel;
+                            return (
+                              <div key={t.id} className="flex items-center gap-2 rounded px-1">
+                                <button type="button" onClick={() => toggleExistingTopicSelect(t.id, "FUNDAMENTA")} className="flex-shrink-0">
+                                  <div className={`size-3.5 rounded border flex items-center justify-center ${isChecked ? "bg-primary border-primary" : "border-zinc-300 dark:border-zinc-600"}`}>
+                                    {isChecked && <CheckCircle2Icon className="size-3 text-white" />}
+                                  </div>
+                                </button>
+                                <span className={`text-xs flex-1 truncate ${isChecked ? "font-medium text-zinc-700 dark:text-zinc-300" : "text-zinc-500"}`}>{t.nome}</span>
+                                {isChecked && (
+                                  <select value={sel.tipoRelacao} onChange={(e) => updateExistingTopicRelType(t.id, e.target.value)}
+                                    className="h-7 px-1.5 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background flex-shrink-0">
+                                    {CONCEITO_TO_TOPICO_TYPES.map((rt) => (<option key={rt.value} value={rt.value}>{rt.label}</option>))}
+                                  </select>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {selectedExistingTopics.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-zinc-400">{selectedExistingTopics.length} topico(s) selecionado(s)</span>
+                    <button type="button" onClick={() => setSelectedExistingTopics([])} className="text-[10px] text-red-400 hover:text-red-500">Limpar</button>
+                  </div>
+                )}
+
+                <Button type="button" onClick={addExistingTopicRelation} disabled={selectedExistingTopics.length === 0} size="sm" className="w-full">
+                  <LinkIcon className="size-3 mr-1" />Vincular
+                </Button>
+              </div>
+            )}
+
+            {relationMode === "new" && (
+              <div className="space-y-2">
+                {/* Topic name input */}
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-zinc-400">Nome do novo topico</Label>
+                  <Input value={newTopicNome} onChange={(e) => setNewTopicNome(e.target.value)} placeholder="Ex: Direito Constitucional" className="h-8" />
+                </div>
+
+                {/* Materias: checkbox + individual relation type */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] text-zinc-400">Vincular a materias</Label>
+                    {newTopicSelectedAssuntos.length > 0 && (
+                      <span className="text-[10px] text-emerald-500 font-medium">{newTopicSelectedAssuntos.length} materia(s)</span>
+                    )}
+                  </div>
+                  <div className="max-h-40 overflow-y-auto border border-zinc-200 dark:border-zinc-700 rounded-md divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {/* Existing materias */}
+                    {arvore.map((a) => {
+                      const sel = newTopicSelectedAssuntos.find((s) => s.id === a.id);
+                      const isChecked = !!sel;
+                      return (
+                        <div key={a.id} className="flex items-center gap-2 py-1 px-2">
+                          <button type="button" onClick={() => {
+                            if (isChecked) {
+                              setNewTopicSelectedAssuntos((prev) => prev.filter((x) => x.id !== a.id));
+                            } else {
+                              setNewTopicSelectedAssuntos((prev) => [...prev, { id: a.id, nome: a.nome, tipoRelacao: "PERTENCE_A" }]);
+                            }
+                          }} className="flex-shrink-0">
+                            <div className={`size-3.5 rounded border flex items-center justify-center ${isChecked ? "bg-primary/10 border-primary text-primary" : "border-zinc-300 dark:border-zinc-600"}`}>
+                              {isChecked && <CheckCircle2Icon className="size-3" />}
+                            </div>
+                          </button>
+                          <span className={`text-xs flex-1 ${isChecked ? "font-medium" : "text-zinc-500"}`}>{a.nome}</span>
+                          {isChecked && (
+                            <select value={sel.tipoRelacao} onChange={(e) => updateAssuntoRelType(a.id, e.target.value)}
+                              className="h-7 px-1.5 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background flex-shrink-0">
+                              <option value="PERTENCE_A">PERTENCE_A</option>
+                              <option value="APLICADO_EM">APLICADO_EM</option>
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {/* Pending materias */}
+                    {pendingAssuntos.map((pa) => {
+                      const sel = newTopicSelectedAssuntos.find((s) => s.id === pa.tempId);
+                      const isChecked = !!sel;
+                      return (
+                        <div key={pa.tempId} className="flex items-center gap-2 py-1 px-2">
+                          <button type="button" onClick={() => {
+                            if (isChecked) {
+                              setNewTopicSelectedAssuntos((prev) => prev.filter((x) => x.id !== pa.tempId));
+                            } else {
+                              setNewTopicSelectedAssuntos((prev) => [...prev, { id: pa.tempId, nome: pa.nome, tipoRelacao: "PERTENCE_A" }]);
+                            }
+                          }} className="flex-shrink-0">
+                            <div className={`size-3.5 rounded border flex items-center justify-center ${isChecked ? "bg-emerald-100 border-emerald-400 text-emerald-600" : "border-zinc-300 dark:border-zinc-600"}`}>
+                              {isChecked && <CheckCircle2Icon className="size-3" />}
+                            </div>
+                          </button>
+                          <span className="text-xs flex-1">{pa.nome}</span>
+                          <Badge variant="outline" className="text-[8px] h-3.5 px-0.5 text-emerald-500 border-emerald-300 flex-shrink-0">nova</Badge>
+                          {isChecked && (
+                            <select value={sel.tipoRelacao} onChange={(e) => updateAssuntoRelType(pa.tempId, e.target.value)}
+                              className="h-7 px-1.5 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background flex-shrink-0">
+                              <option value="PERTENCE_A">PERTENCE_A</option>
+                              <option value="APLICADO_EM">APLICADO_EM</option>
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Select all / Clear */}
+                  {(() => {
+                    const allIds = [...arvore.map((a) => a.id), ...pendingAssuntos.map((p) => p.tempId)];
+                    const allSelected = allIds.length > 0 && allIds.every((id) => newTopicSelectedAssuntos.some((s) => s.id === id));
+                    return (
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => {
+                          if (allSelected) setNewTopicSelectedAssuntos([]);
+                          else {
+                            const items = [...arvore.map((a) => ({ id: a.id, nome: a.nome, tipoRelacao: "PERTENCE_A" })), ...pendingAssuntos.map((p) => ({ id: p.tempId, nome: p.nome, tipoRelacao: "PERTENCE_A" }))];
+                            setNewTopicSelectedAssuntos(items);
+                          }
+                        }} className="text-[10px] text-primary hover:underline">
+                          {allSelected ? "Desmarcar todas" : "Selecionar todas"}
+                        </button>
+                        {newTopicSelectedAssuntos.length > 0 && (
+                          <button type="button" onClick={() => setNewTopicSelectedAssuntos([])} className="text-[10px] text-red-400 hover:text-red-500">Limpar</button>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Input for new materia */}
+                  <div className="flex gap-2 items-end">
+                    <Input value={newAssuntoNome} onChange={(e) => setNewAssuntoNome(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newAssuntoNome.trim()) addPendingAssunto(); }} placeholder="Nova materia" className="h-8 flex-1" />
+                    <Button type="button" onClick={addPendingAssunto} disabled={!newAssuntoNome.trim()} size="sm" className="h-8"><PlusIcon className="size-3 mr-1" />Materia</Button>
+                  </div>
+                </div>
+
+                <Button type="button" onClick={addNewTopicRelation} disabled={!newTopicNome.trim() || newTopicSelectedAssuntos.length === 0} size="sm" className="w-full">
+                  <LinkIcon className="size-3 mr-1" />Vincular
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: Current staged relations */}
+          {stagedRelations.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-zinc-500">Relacoes do conceito atual:</Label>
+              {stagedRelations.map((r, idx) => (
+                <div key={idx} className="flex items-center gap-1.5 bg-zinc-50 dark:bg-zinc-900/50 rounded-md px-2 py-1 border border-zinc-200 dark:border-zinc-800 text-xs">
+                  <Badge variant="outline" className="text-[10px] h-5 px-1 flex-shrink-0">{r.tipoRelacao}</Badge>
+                  {r.kind === "existing-topic" ? (
+                    <>Topico: <span className="font-medium">{r.topicNome}</span></>
+                  ) : (
+                    <>Novo topico: <span className="font-medium">{r.topicNome}</span> <span className="text-zinc-400">({r.targetAssuntoNomes.join(", ")})</span></>
+                  )}
+                  <button type="button" onClick={() => removeStagedRelation(idx)} className="ml-auto flex-shrink-0 text-zinc-400 hover:text-red-500">
+                    <XIcon className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Section 4: Add concept to queue */}
+          <Button onClick={addConceptToQueue} disabled={!newConceitoNome.trim() || stagedRelations.length === 0} size="sm" className="w-full">
+            <PlusIcon className="size-3.5 mr-1" />Adicionar conceito a fila
+          </Button>
+
+          {/* Section 5: Queue summary */}
+          {pendingConcepts.length > 0 && (
+            <div className="space-y-1.5">
+              <Separator className="my-2" />
+              <p className="text-xs font-medium text-zinc-500">{pendingConcepts.length} conceito(s) na fila:</p>
+              {pendingConcepts.map((pc) => (
+                <div key={pc.tempId} className="flex items-start justify-between bg-zinc-50 dark:bg-zinc-900/50 rounded-md px-3 py-2 border border-zinc-200 dark:border-zinc-800">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{pc.nome}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {pc.relsToTopics.map((r, ri) => (
+                        <Badge key={ri} variant="outline" className="text-[10px] h-4 px-1">
+                          {r.tipoRelacao}: topico {getTopicName(r.targetTopicoId)}
+                        </Badge>
+                      ))}
+                      {pc.relsToPendingTopics.map((r, ri) => {
+                        const pt = pendingTopics.find((t) => t.tempId === r.tempTopicoId);
+                        const assuntoNames = pt?.relsToAssuntos.map((ra) => getAssuntoName(ra.targetAssuntoId)) ?? [];
+                        return (
+                          <Badge key={ri} variant="secondary" className="text-[10px] h-4 px-1">
+                            {r.tipoRelacao}: novo topico "{pt?.nome}" ({assuntoNames.join(", ")})
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => removePendingConceptFromQueue(pc.tempId)} className="flex-shrink-0 text-zinc-400 hover:text-red-500 ml-2 mt-0.5">
+                    <XIcon className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      <Button onClick={handleSave} disabled={saving} size="lg" className="w-full">
+        {saving ? (<><Loader2Icon className="size-4 mr-1 animate-spin" /> Salvando...</>) : (() => {
+          const parts: string[] = [];
+          if (pendingTopics.length > 0) parts.push(`${pendingTopics.length} topico(s)`);
+          if (pendingConcepts.length > 0) parts.push(`${pendingConcepts.length} conceito(s)`);
+          if (parts.length > 0) {
+            return (<><CheckCircle2Icon className="size-4 mr-1" /> Criar nota e {parts.join(", ")}</>);
+          }
+          return (<><CheckCircle2Icon className="size-4 mr-1" /> Criar nota com relacoes</>);
+        })()}
+      </Button>
+    </div>
+  );
+}
+
+// ==========================================
+// Page
+// ==========================================
+
+export default function NewNotaPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<PageMode>("ia");
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-6">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-semibold">Nova Nota</h1>
+        <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          {mode === "ia" ? "Cole texto bruto e a IA identifica notas." : "Preencha manualmente com relacoes."}
+        </p>
+      </div>
+      <Separator />
+      <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
+        <button onClick={() => setMode("ia")} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${mode === "ia" ? "bg-white dark:bg-zinc-700 shadow text-foreground" : "text-zinc-500"}`}>
+          <SparklesIcon className="size-4" /> Via IA
+        </button>
+        <button onClick={() => setMode("manual")} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${mode === "manual" ? "bg-white dark:bg-zinc-700 shadow text-foreground" : "text-zinc-500"}`}>
+          <BrainIcon className="size-4" /> Manual
+        </button>
+      </div>
+      {mode === "ia" ? <IAModeContent router={router} /> : <ManualModeContent router={router} />}
     </div>
   );
 }
