@@ -7,7 +7,7 @@ import { getGraphNodes, type GraphNodeType, type GraphEdgeType } from "@/actions
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeftIcon, Loader2Icon, ZoomInIcon, ZoomOutIcon, Maximize2Icon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, ZoomInIcon, ZoomOutIcon, Maximize2Icon, BookOpenIcon } from "lucide-react";
 import { toast } from "sonner";
 
 // --- Semantic relation label mapping ---
@@ -738,10 +738,24 @@ export default function GraphPage() {
               <div className="space-y-2">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground capitalize">
-                      {selectedNode.tipoReal.toLowerCase()}
-                    </p>
-                    <h3 className="text-base font-semibold">{selectedNode.label}</h3>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground capitalize">
+                          {selectedNode.tipoReal.toLowerCase()}
+                        </p>
+                        <h3 className="text-base font-semibold">{selectedNode.label}</h3>
+                      </div>
+                    </div>
+                    {selectedNode.tipoReal === "FLASHCARD" && (
+                      <Button
+                        size="sm"
+                        className="mt-2 w-full gap-1.5"
+                        onClick={() => router.push(`/study?flashcard=${selectedNode.id}`)}
+                      >
+                        <BookOpenIcon className="size-3.5" />
+                        Estudar
+                      </Button>
+                    )}
                   </div>
                   <button
                     onClick={() => setSelectedNode(null)}
