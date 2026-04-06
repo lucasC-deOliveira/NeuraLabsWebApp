@@ -506,7 +506,6 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
   // Selected concept (existing or pending)
   const [selectedConceptId, setSelectedConceptId] = useState("");
   const [conceptSearch, setConceptSearch] = useState("");
-  const [showNewConcept, setShowNewConcept] = useState(false);
 
   // Expand state for tree
   const [expandedAssuntos, setExpandedAssuntos] = useState<Set<string>>(new Set());
@@ -623,12 +622,14 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
 
   const addExistingTopicRelation = () => {
     if (selectedExistingTopics.length === 0 || !newConceitoNome.trim()) return;
+    const newTempId = `pc-${Date.now()}-${getNextTempId()}`;
     setPendingConcepts((p) => [...p, {
-      tempId: `pc-${Date.now()}-${getNextTempId()}`,
+      tempId: newTempId,
       nome: newConceitoNome.trim(),
       relsToTopics: selectedExistingTopics.map((s) => ({ targetTopicoId: s.id, tipoRelacao: s.tipoRelacao })),
       relsToPendingTopics: [],
     }]);
+    setSelectedConceptId(`pending:${newTempId}`);
     setNewConceitoNome("");
     setSelectedExistingTopics([]);
   };
@@ -641,12 +642,14 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
       nome: newTopicName.trim(),
       relsToAssuntos: newTopicSelectedAssuntos.map((a) => ({ targetAssuntoId: a.id, tipoRelacao: a.tipoRelacao })),
     }]);
+    const newConceptTempId = `pc-${Date.now()}-${getNextTempId()}`;
     setPendingConcepts((p) => [...p, {
-      tempId: `pc-${Date.now()}-${getNextTempId()}`,
+      tempId: newConceptTempId,
       nome: newConceitoNome.trim(),
       relsToTopics: [],
       relsToPendingTopics: [{ tempTopicoId: ptId, tipoRelacao: "FUNDAMENTA" }],
     }]);
+    setSelectedConceptId(`pending:${newConceptTempId}`);
     setNewConceitoNome("");
     setNewTopicName("");
     setNewTopicSelectedAssuntos([]);
@@ -829,14 +832,14 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
   // ---- Render ----
   return (
     <div className="space-y-5">
-      {/* Step 1: Concept */}
+      {/* Step 1: Concept (merged) */}
       <Card className="border-zinc-200 dark:border-zinc-800">
         <CardHeader className="px-3 sm:px-5 pb-3">
           <div className="flex items-center gap-2">
             <div className="size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold">1</div>
             <div>
-              <CardTitle className="text-sm">Conceito alvo</CardTitle>
-              <CardDescription className="text-[10px]">Selecione ou crie um conceito para vincular o flashcard.</CardDescription>
+              <CardTitle className="text-sm">Conceito</CardTitle>
+              <CardDescription className="text-[10px]">Selecione existente ou crie um novo conceito.</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -862,7 +865,7 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
                 const isSelected = selectedConceptId === fc.id;
                 return (
                   <button key={fc.id} type="button" className={`w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors ${isSelected ? "bg-primary/[0.04]" : ""}`}
-                    onClick={() => { setSelectedConceptId(fc.id); setShowFlatList(false); setConceptSearch(fc.nome); setShowNewConcept(false); }}>
+                    onClick={() => { setSelectedConceptId(fc.id); setShowFlatList(false); setConceptSearch(fc.nome); }}>
                     <div className={`size-3.5 rounded-sm border flex items-center justify-center flex-shrink-0 ${isSelected ? "bg-primary border-primary" : "border-zinc-300 dark:border-zinc-600"}`}>
                       {isSelected && <CheckCircle2Icon className="size-2.5 text-primary-foreground" />}
                     </div>
@@ -876,7 +879,7 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
 
           {/* Tree (shown when not searching) */}
           {!showFlatList && (
-            <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
               {loadingConcepts ? (
                 <div className="flex items-center gap-2 text-sm text-zinc-400 py-6 justify-center"><Loader2Icon className="size-4 animate-spin" /> Carregando...</div>
               ) : arvore.length === 0 ? (
@@ -925,7 +928,7 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
                                                         const isSelected = selectedConceptId === conceito.id;
                                                         return (
                                                           <button key={conceito.id} type="button" className={`w-full flex items-center gap-2 px-2 py-1 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 ${isSelected ? "bg-primary/[0.04]" : ""}`}
-                                                            onClick={() => { setSelectedConceptId(conceito.id); setShowNewConcept(false); }}>
+                                                            onClick={() => { setSelectedConceptId(conceito.id); }}>
                                                             <div className={`size-3.5 rounded-sm border flex items-center justify-center flex-shrink-0 ${isSelected ? "bg-primary border-primary text-primary-foreground" : "border-zinc-300 dark:border-zinc-600"}`}>
                                                               {isSelected && <CheckCircle2Icon className="size-2.5" />}
                                                             </div>
@@ -964,6 +967,160 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
                 {selectedConceptDisplay}
               </Badge>
               <button type="button" onClick={() => { setSelectedConceptId(""); setConceptSearch(""); }} className="text-[10px] text-zinc-400 hover:text-zinc-600">Limpar</button>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Criar novo conceito section */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome do conceito</Label>
+              <Input value={newConceitoNome} onChange={(e) => setNewConceitoNome(e.target.value)} placeholder="Ex: Principio da Legalidade" className="h-9" />
+            </div>
+
+            {/* Toggle */}
+            <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5 w-fit">
+              <button type="button" onClick={() => setNewConceptRelMode("existing")} className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${newConceptRelMode === "existing" ? "bg-white dark:bg-zinc-700 shadow" : "text-zinc-500"}`}>
+                Topico existente
+              </button>
+              <button type="button" onClick={() => setNewConceptRelMode("new")} className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${newConceptRelMode === "new" ? "bg-white dark:bg-zinc-700 shadow" : "text-zinc-500"}`}>
+                Novo topico
+              </button>
+            </div>
+
+            {newConceptRelMode === "existing" && (
+              <div className="space-y-2">
+                <div className="max-h-36 overflow-y-auto border border-zinc-200 dark:border-zinc-700 rounded-md divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {allExistingTopicos.map((topico) => {
+                    const sel = selectedExistingTopics.find((s) => s.id === topico.id);
+                    return (
+                      <div key={topico.id} className="flex items-center gap-2 py-1 px-2">
+                        <button type="button" onClick={() => toggleExistingTopicSelect(topico.id, "FUNDAMENTA")} className="flex-shrink-0">
+                          <div className={`size-3.5 rounded border flex items-center justify-center ${sel ? "bg-primary border-primary" : "border-zinc-300 dark:border-zinc-600"}`}>
+                            {sel && <CheckCircle2Icon className="size-3 text-primary-foreground" />}
+                          </div>
+                        </button>
+                        <span className="text-xs flex-1 truncate">{topico.nome} <span className="text-[10px] text-zinc-400">({topico.assuntoNome})</span></span>
+                        {sel && (
+                          <select value={sel.tipoRelacao} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateExistingTopicRelType(topico.id, e.target.value)} className="h-7 px-1.5 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background flex-shrink-0">
+                            <option value="FUNDAMENTA">FUNDAMENTA</option>
+                            <option value="PERTENCE_A">PERTENCE_A</option>
+                            <option value="APLICADO_EM">APLICADO_EM</option>
+                          </select>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {selectedExistingTopics.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-400">{selectedExistingTopics.length} topico(s)</span>
+                    <button type="button" onClick={() => setSelectedExistingTopics([])} className="text-[10px] text-red-400 hover:text-red-500">Limpar</button>
+                  </div>
+                )}
+                <Button type="button" onClick={addExistingTopicRelation} disabled={selectedExistingTopics.length === 0 || !newConceitoNome.trim()} size="sm" className="w-full">
+                  <LinkIcon className="size-3 mr-1" />Adicionar conceito
+                </Button>
+              </div>
+            )}
+
+            {newConceptRelMode === "new" && (
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-zinc-400">Nome do novo topico</Label>
+                  <Input value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} placeholder="Ex: Direito Constitucional" className="h-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-zinc-400">Vincular a materias</Label>
+                  <div className="max-h-28 overflow-y-auto border border-zinc-200 dark:border-zinc-700 rounded-md divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {arvore.map((a) => {
+                      const sel = newTopicSelectedAssuntos.find((s) => s.id === a.id);
+                      return (
+                        <div key={a.id} className="flex items-center gap-2 py-1 px-2">
+                          <button type="button" onClick={() => {
+                            if (sel) setNewTopicSelectedAssuntos((prev) => prev.filter((x) => x.id !== a.id));
+                            else setNewTopicSelectedAssuntos((prev) => [...prev, { id: a.id, nome: a.nome, tipoRelacao: "PERTENCE_A" }]);
+                          }} className="flex-shrink-0">
+                            <div className={`size-3.5 rounded border flex items-center justify-center ${sel ? "bg-primary/10 border-primary text-primary" : "border-zinc-300 dark:border-zinc-600"}`}>
+                              {sel && <CheckCircle2Icon className="size-3" />}
+                            </div>
+                          </button>
+                          <span className="text-xs flex-1">{a.nome}</span>
+                          {sel && (
+                            <select value={sel.tipoRelacao} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateAssuntoRelType(a.id, e.target.value)} className="h-7 px-1.5 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background flex-shrink-0">
+                              <option value="PERTENCE_A">PERTENCE_A</option>
+                              <option value="APLICADO_EM">APLICADO_EM</option>
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {pendingAssuntos.map((pa) => {
+                      const sel = newTopicSelectedAssuntos.find((s) => s.id === pa.tempId);
+                      return (
+                        <div key={pa.tempId} className="flex items-center gap-2 py-1 px-2">
+                          <button type="button" onClick={() => {
+                            if (sel) setNewTopicSelectedAssuntos((prev) => prev.filter((x) => x.id !== pa.tempId));
+                            else setNewTopicSelectedAssuntos((prev) => [...prev, { id: pa.tempId, nome: pa.nome, tipoRelacao: "PERTENCE_A" }]);
+                          }} className="flex-shrink-0">
+                            <div className={`size-3.5 rounded border flex items-center justify-center ${sel ? "bg-emerald-100 border-emerald-400 text-emerald-600" : "border-zinc-300 dark:border-zinc-600"}`}>
+                              {sel && <CheckCircle2Icon className="size-3" />}
+                            </div>
+                          </button>
+                          <span className="text-xs flex-1">{pa.nome}</span>
+                          <Badge variant="outline" className="text-[8px] h-3.5 px-0.5 text-emerald-500 border-emerald-300 flex-shrink-0">nova</Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2 items-end">
+                    <Input value={newAssuntoNome} onChange={(e) => setNewAssuntoNome(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newAssuntoNome.trim()) addPendingAssuntoFn(); }} placeholder="Nova materia" className="h-8 flex-1" />
+                    <Button type="button" onClick={addPendingAssuntoFn} disabled={!newAssuntoNome.trim()} size="sm" className="h-8"><PlusIcon className="size-3 mr-1" />Materia</Button>
+                  </div>
+                </div>
+                <Button type="button" onClick={addNewTopicRelation} disabled={!newTopicName.trim() || newTopicSelectedAssuntos.length === 0 || !newConceitoNome.trim()} size="sm" className="w-full">
+                  <LinkIcon className="size-3 mr-1" />Adicionar conceito
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Pending queue */}
+          {pendingConcepts.length > 0 && (
+            <div className="space-y-1.5 pt-3 border-t">
+              <p className="text-xs font-medium text-zinc-500">{pendingConcepts.length} conceito(s) na fila:</p>
+              {pendingConcepts.map((pc) => {
+                const isTarget = selectedConceptId === `pending:${pc.tempId}`;
+                return (
+                  <div key={pc.tempId} className={`flex items-start justify-between rounded-md px-3 py-2 border ${isTarget ? "bg-primary/[0.04] border-primary/30" : "bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800"}`}>
+                    <div className="min-w-0 flex-1 flex items-start gap-2">
+                      {/* Checkmark box to select as target */}
+                      <button type="button" onClick={() => setSelectedConceptId(isTarget ? "" : `pending:${pc.tempId}`)} className="flex-shrink-0 mt-0.5">
+                        <div className={`size-4 rounded-sm border flex items-center justify-center ${isTarget ? "bg-primary border-primary" : "border-zinc-300 dark:border-zinc-600"}`}>
+                          {isTarget && <CheckCircle2Icon className="size-3 text-primary-foreground" />}
+                        </div>
+                      </button>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{pc.nome}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {pc.relsToTopics.map((r, ri) => (
+                            <Badge key={ri} variant="outline" className="text-[10px] h-4 px-1">{r.tipoRelacao}: {getTopicoName(r.targetTopicoId)}</Badge>
+                          ))}
+                          {pc.relsToPendingTopics.map((r) => {
+                            const pt = pendingTopics.find((t) => t.tempId === r.tempTopicoId);
+                            const assuntoNames = pt?.relsToAssuntos.map(ra => getAssuntoName(ra.targetAssuntoId)) ?? [];
+                            return (<Badge key={r.tempTopicoId} variant="secondary" className="text-[10px] h-4 px-1">tp. "{pt?.nome}" → {assuntoNames.join(", ")}</Badge>);
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); removePendingConcept(pc.tempId); }} className="flex-shrink-0 text-zinc-400 hover:text-red-500 ml-2">
+                      <XIcon className="size-4" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -1108,157 +1265,6 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
           </CardContent>
         </Card>
       )}
-
-      {/* Novo conceito — collapsible */}
-      <Card className="border-zinc-200 dark:border-zinc-800">
-        <button type="button" className="w-full flex items-center gap-2 px-3 sm:px-5 py-4" onClick={() => setShowNewConcept(!showNewConcept)}>
-          <PlusCircleIcon className="size-4 text-zinc-400" />
-          <span className="text-sm font-medium">Novo Conceito</span>
-          <span className="text-[10px] text-zinc-400">criar conceito se nao existir</span>
-          <ChevronDownIcon className={`size-4 ml-auto text-zinc-400 transition-transform ${showNewConcept ? "rotate-180" : ""}`} />
-        </button>
-        {showNewConcept && (
-          <CardContent className="px-3 sm:px-5 pb-5 space-y-4">
-            <div className="space-y-2">
-              <Label>Nome do conceito</Label>
-              <Input value={newConceitoNome} onChange={(e) => setNewConceitoNome(e.target.value)} placeholder="Ex: Principio da Legalidade" className="h-9" />
-            </div>
-
-            {/* Toggle */}
-            <div className="flex gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-md p-0.5 w-fit">
-              <button type="button" onClick={() => setNewConceptRelMode("existing")} className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${newConceptRelMode === "existing" ? "bg-white dark:bg-zinc-700 shadow" : "text-zinc-500"}`}>
-                Topico existente
-              </button>
-              <button type="button" onClick={() => setNewConceptRelMode("new")} className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors ${newConceptRelMode === "new" ? "bg-white dark:bg-zinc-700 shadow" : "text-zinc-500"}`}>
-                Novo topico
-              </button>
-            </div>
-
-            {newConceptRelMode === "existing" && (
-              <div className="space-y-2">
-                <div className="max-h-36 overflow-y-auto border border-zinc-200 dark:border-zinc-700 rounded-md divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {allExistingTopicos.map((topico) => {
-                    const sel = selectedExistingTopics.find((s) => s.id === topico.id);
-                    return (
-                      <div key={topico.id} className="flex items-center gap-2 py-1 px-2">
-                        <button type="button" onClick={() => toggleExistingTopicSelect(topico.id, "FUNDAMENTA")} className="flex-shrink-0">
-                          <div className={`size-3.5 rounded border flex items-center justify-center ${sel ? "bg-primary border-primary" : "border-zinc-300 dark:border-zinc-600"}`}>
-                            {sel && <CheckCircle2Icon className="size-3 text-primary-foreground" />}
-                          </div>
-                        </button>
-                        <span className="text-xs flex-1 truncate">{topico.nome} <span className="text-[10px] text-zinc-400">({topico.assuntoNome})</span></span>
-                        {sel && (
-                          <select value={sel.tipoRelacao} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateExistingTopicRelType(topico.id, e.target.value)} className="h-7 px-1.5 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background flex-shrink-0">
-                            <option value="FUNDAMENTA">FUNDAMENTA</option>
-                            <option value="PERTENCE_A">PERTENCE_A</option>
-                            <option value="APLICADO_EM">APLICADO_EM</option>
-                          </select>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {selectedExistingTopics.length > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-zinc-400">{selectedExistingTopics.length} topico(s)</span>
-                    <button type="button" onClick={() => setSelectedExistingTopics([])} className="text-[10px] text-red-400 hover:text-red-500">Limpar</button>
-                  </div>
-                )}
-                <Button type="button" onClick={addExistingTopicRelation} disabled={selectedExistingTopics.length === 0 || !newConceitoNome.trim()} size="sm" className="w-full">
-                  <LinkIcon className="size-3 mr-1" />Adicionar conceito
-                </Button>
-              </div>
-            )}
-
-            {newConceptRelMode === "new" && (
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-zinc-400">Nome do novo topico</Label>
-                  <Input value={newTopicName} onChange={(e) => setNewTopicName(e.target.value)} placeholder="Ex: Direito Constitucional" className="h-8" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] text-zinc-400">Vincular a materias</Label>
-                  <div className="max-h-28 overflow-y-auto border border-zinc-200 dark:border-zinc-700 rounded-md divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {arvore.map((a) => {
-                      const sel = newTopicSelectedAssuntos.find((s) => s.id === a.id);
-                      return (
-                        <div key={a.id} className="flex items-center gap-2 py-1 px-2">
-                          <button type="button" onClick={() => {
-                            if (sel) setNewTopicSelectedAssuntos((prev) => prev.filter((x) => x.id !== a.id));
-                            else setNewTopicSelectedAssuntos((prev) => [...prev, { id: a.id, nome: a.nome, tipoRelacao: "PERTENCE_A" }]);
-                          }} className="flex-shrink-0">
-                            <div className={`size-3.5 rounded border flex items-center justify-center ${sel ? "bg-primary/10 border-primary text-primary" : "border-zinc-300 dark:border-zinc-600"}`}>
-                              {sel && <CheckCircle2Icon className="size-3" />}
-                            </div>
-                          </button>
-                          <span className="text-xs flex-1">{a.nome}</span>
-                          {sel && (
-                            <select value={sel.tipoRelacao} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateAssuntoRelType(a.id, e.target.value)} className="h-7 px-1.5 border border-zinc-200 dark:border-zinc-700 rounded text-xs bg-background flex-shrink-0">
-                              <option value="PERTENCE_A">PERTENCE_A</option>
-                              <option value="APLICADO_EM">APLICADO_EM</option>
-                            </select>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {pendingAssuntos.map((pa) => {
-                      const sel = newTopicSelectedAssuntos.find((s) => s.id === pa.tempId);
-                      return (
-                        <div key={pa.tempId} className="flex items-center gap-2 py-1 px-2">
-                          <button type="button" onClick={() => {
-                            if (sel) setNewTopicSelectedAssuntos((prev) => prev.filter((x) => x.id !== pa.tempId));
-                            else setNewTopicSelectedAssuntos((prev) => [...prev, { id: pa.tempId, nome: pa.nome, tipoRelacao: "PERTENCE_A" }]);
-                          }} className="flex-shrink-0">
-                            <div className={`size-3.5 rounded border flex items-center justify-center ${sel ? "bg-emerald-100 border-emerald-400 text-emerald-600" : "border-zinc-300 dark:border-zinc-600"}`}>
-                              {sel && <CheckCircle2Icon className="size-3" />}
-                            </div>
-                          </button>
-                          <span className="text-xs flex-1">{pa.nome}</span>
-                          <Badge variant="outline" className="text-[8px] h-3.5 px-0.5 text-emerald-500 border-emerald-300 flex-shrink-0">nova</Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex gap-2 items-end">
-                    <Input value={newAssuntoNome} onChange={(e) => setNewAssuntoNome(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newAssuntoNome.trim()) addPendingAssuntoFn(); }} placeholder="Nova materia" className="h-8 flex-1" />
-                    <Button type="button" onClick={addPendingAssuntoFn} disabled={!newAssuntoNome.trim()} size="sm" className="h-8"><PlusIcon className="size-3 mr-1" />Materia</Button>
-                  </div>
-                </div>
-                <Button type="button" onClick={addNewTopicRelation} disabled={!newTopicName.trim() || newTopicSelectedAssuntos.length === 0 || !newConceitoNome.trim()} size="sm" className="w-full">
-                  <LinkIcon className="size-3 mr-1" />Adicionar conceito
-                </Button>
-              </div>
-            )}
-
-            {/* Queue */}
-            {pendingConcepts.length > 0 && (
-              <div className="space-y-1.5 pt-3 border-t">
-                <p className="text-xs font-medium text-zinc-500">{pendingConcepts.length} conceito(s) na fila:</p>
-                {pendingConcepts.map((pc) => (
-                  <div key={pc.tempId} className="flex items-start justify-between bg-zinc-50 dark:bg-zinc-900/50 rounded-md px-3 py-2 border border-zinc-200 dark:border-zinc-800">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{pc.nome}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {pc.relsToTopics.map((r, ri) => (
-                          <Badge key={ri} variant="outline" className="text-[10px] h-4 px-1">{r.tipoRelacao}: {getTopicoName(r.targetTopicoId)}</Badge>
-                        ))}
-                        {pc.relsToPendingTopics.map((r) => {
-                          const pt = pendingTopics.find((t) => t.tempId === r.tempTopicoId);
-                          const assuntoNames = pt?.relsToAssuntos.map(ra => getAssuntoName(ra.targetAssuntoId)) ?? [];
-                          return (<Badge key={r.tempTopicoId} variant="secondary" className="text-[10px] h-4 px-1">tp. "{pt?.nome}" → {assuntoNames.join(", ")}</Badge>);
-                        })}
-                      </div>
-                    </div>
-                    <button type="button" onClick={() => removePendingConcept(pc.tempId)} className="flex-shrink-0 text-zinc-400 hover:text-red-500 ml-2">
-                      <XIcon className="size-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        )}
-      </Card>
 
       {/* Validation hint */}
       {!hasSelectedConcept && hasContent && (
