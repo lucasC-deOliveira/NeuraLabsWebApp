@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/auth";
 import {
   getCreateFlashcardUseCaseWithDeps,
   getListFlashcardsUseCase,
@@ -26,21 +27,21 @@ async function resolveUserId(): Promise<string> {
 }
 
 // Knowledge graph service for flashcard creation
-function createKnowledgeNodeService(): KnowledgeNodeService {
+function createKnowledgeNodeService(userId: string): KnowledgeNodeService {
   return {
     async ensureFlashcardNodes(conceitoId: string, flashcardId: string) {
       const existing = await prisma.nodeConhecimento.findFirst({
-        where: { tipoNode: "CONCEITO", referenciaId: conceitoId },
+        where: { tipoNode: "CONCEITO", referenciaId: conceitoId, usuarioId: userId },
       });
 
       if (!existing) {
         await prisma.nodeConhecimento.create({
-          data: { tipoNode: "CONCEITO", referenciaId: conceitoId },
+          data: { tipoNode: "CONCEITO", referenciaId: conceitoId, usuarioId: userId },
         });
       }
 
       await prisma.nodeConhecimento.create({
-        data: { tipoNode: "FLASHCARD", referenciaId: flashcardId },
+        data: { tipoNode: "FLASHCARD", referenciaId: flashcardId, usuarioId: userId },
       });
     },
   };
@@ -95,7 +96,7 @@ export async function createFlashcard(data: {
 
   const useCase = getCreateFlashcardUseCaseWithDeps(
     srService,
-    createKnowledgeNodeService(),
+    createKnowledgeNodeService(userId),
   );
 
   const result = await useCase.execute({

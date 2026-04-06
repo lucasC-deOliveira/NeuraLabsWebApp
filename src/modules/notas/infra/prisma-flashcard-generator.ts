@@ -38,6 +38,7 @@ export class PrismaFlashcardGenerator implements FlashcardGenerator {
           fc.id,
           targetConceptId,
           nota.id,
+          nota.userId,
         );
 
         flashcardIds.push(fc.id);
@@ -71,7 +72,7 @@ export class PrismaFlashcardGenerator implements FlashcardGenerator {
           },
         });
 
-        await this.ensureKnowledgeNodes(fc.id, targetConceptId, nota.id);
+        await this.ensureKnowledgeNodes(fc.id, targetConceptId, nota.id, nota.userId);
         flashcardIds.push(fc.id);
       }
     }
@@ -83,26 +84,27 @@ export class PrismaFlashcardGenerator implements FlashcardGenerator {
     flashcardId: string,
     conceitoId: string,
     notaId: string,
+    userId: string,
   ): Promise<string> {
     let conceptNode = await prisma.nodeConhecimento.findFirst({
-      where: { tipoNode: "CONCEITO", referenciaId: conceitoId },
+      where: { tipoNode: "CONCEITO", referenciaId: conceitoId, usuarioId: userId },
     });
     if (!conceptNode) {
       conceptNode = await prisma.nodeConhecimento.create({
-        data: { tipoNode: "CONCEITO", referenciaId: conceitoId },
+        data: { tipoNode: "CONCEITO", referenciaId: conceitoId, usuarioId: userId },
       });
     }
 
     await prisma.nodeConhecimento.create({
-      data: { tipoNode: "FLASHCARD", referenciaId: flashcardId },
+      data: { tipoNode: "FLASHCARD", referenciaId: flashcardId, usuarioId: userId },
     });
 
     const notaNode = await prisma.nodeConhecimento.findFirst({
-      where: { tipoNode: "NOTA", referenciaId: notaId },
+      where: { tipoNode: "NOTA", referenciaId: notaId, usuarioId: userId },
     });
     if (!notaNode) {
       await prisma.nodeConhecimento.create({
-        data: { tipoNode: "NOTA", referenciaId: notaId },
+        data: { tipoNode: "NOTA", referenciaId: notaId, usuarioId: userId },
       });
     }
 

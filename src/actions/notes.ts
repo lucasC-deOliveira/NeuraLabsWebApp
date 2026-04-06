@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { OpenAI } from "openai";
 import { getCreateNotaUseCaseWithConcepts } from "@/modules/notas/adapters/nota-composer";
 import { resolveAIConfig } from "@/actions/settings";
+import { requireUserId } from "@/lib/auth";
 
 // ==========================================
 // Manual Note Creation
@@ -32,13 +33,13 @@ export interface ManualNotaInput {
 export async function createNotaManual(
   input: ManualNotaInput,
 ): Promise<{ notaId: string }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   return prisma.$transaction(async (tx) => {
     // 1. Create nota
     const rawText = `# ${input.titulo}\n\n${input.conteudo}`;
     const nota = await tx.nota.create({ data: { usuarioId: userId, textoBruto: rawText } });
-    const notaNode = await tx.nodeConhecimento.create({ data: { tipoNode: "NOTA", referenciaId: nota.id } });
+    const notaNode = await tx.nodeConhecimento.create({ data: { tipoNode: "NOTA", referenciaId: nota.id, usuarioId: userId } });
 
     const conceitoIds = input.selectedConceitoIds;
     if (conceitoIds.length === 0) {
@@ -53,9 +54,9 @@ export async function createNotaManual(
 
     // Build concept map
     const buildNode = async (tipo: string, refId: string): Promise<string> => {
-      const existing = await tx.nodeConhecimento.findFirst({ where: { tipoNode: tipo as never, referenciaId: refId } });
+      const existing = await tx.nodeConhecimento.findFirst({ where: { tipoNode: tipo as never, referenciaId: refId, usuarioId: userId } });
       if (existing) return existing.id;
-      const created = await tx.nodeConhecimento.create({ data: { tipoNode: tipo as never, referenciaId: refId } });
+      const created = await tx.nodeConhecimento.create({ data: { tipoNode: tipo as never, referenciaId: refId, usuarioId: userId } });
       return created.id;
     };
 
@@ -145,14 +146,6 @@ export interface NotaCandidata {
   conceitosPrevistos: string[];
 }
 
-async function resolveUserId(): Promise<string> {
-  const user = await prisma.usuario.findFirst({ select: { id: true } });
-  if (!user) {
-    throw new Error("No user configured -- set up auth");
-  }
-  return user.id;
-}
-
 export async function analyzeRawText(rawText: string): Promise<{ candidatas: NotaCandidata[] }> {
   if (!rawText.trim()) return { candidatas: [] };
 
@@ -222,7 +215,7 @@ export interface SaveSelectedNotaInput {
 export async function saveSelectedNotas(
   candidatas: SaveSelectedNotaInput[],
 ): Promise<{ notaIds: string[] }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
   const notaIds: string[] = [];
 
   for (const candidata of candidatas) {
@@ -381,7 +374,7 @@ export async function createNota(
   rawText: string,
   titulo?: string,
 ): Promise<{ notaId: string; matchedConcepts: { term: string; conceito: string }[]; createdNodes: number }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   // Parse the text
   const sections = parseRawTextIntoSections(rawText);
@@ -399,13 +392,13 @@ export async function createNota(
 
     // ── 2. Create raw text graph node (TEXTO_BRUTO = NOTA type with rawtext prefix)
     const rawTextNode = await tx.nodeConhecimento.create({
-      data: { tipoNode: "NOTA", referenciaId: `rawtext-${nota.id}` },
+      data: { tipoNode: "NOTA", referenciaId: `rawtext-${nota.id}`, usuarioId: userId },
     });
     createdNodes++;
 
     // ── 3. Create note graph node
     const notaNode = await tx.nodeConhecimento.create({
-      data: { tipoNode: "NOTA", referenciaId: nota.id },
+      data: { tipoNode: "NOTA", referenciaId: nota.id, usuarioId: userId },
     });
     createdNodes++;
 
@@ -473,10 +466,10 @@ export async function createNota(
       const assunto = allConcepts[0]?.topico?.assunto ?? null;
       const assuntoConcept = mentions.find((m) => m.concept.topico.assuntoId === assuntoId);
       const existingNode = await tx.nodeConhecimento.findFirst({
-        where: { tipoNode: "ASSUNTO", referenciaId: `assunto-${assuntoId}` },
+        where: { tipoNode: "ASSUNTO", referenciaId: `assunto-${assuntoId}`, usuarioId: userId },
       });
       const nodeId = existingNode?.id ?? (await tx.nodeConhecimento.create({
-        data: { tipoNode: "ASSUNTO", referenciaId: `assunto-${assuntoId}` },
+        data: { tipoNode: "ASSUNTO", referenciaId: `assunto-${assuntoId}`, usuarioId: userId },
       })).id;
       if (!existingNode) createdNodes++;
       assuntoNodeId.set(assuntoId, nodeId);
@@ -487,10 +480,10 @@ export async function createNota(
 
     for (const topicoId of topicosSet) {
       const existingNode = await tx.nodeConhecimento.findFirst({
-        where: { tipoNode: "TOPICO", referenciaId: `topico-${topicoId}` },
+        where: { tipoNode: "TOPICO", referenciaId: `topico-${topicoId}`, usuarioId: userId },
       });
       const nodeId = existingNode?.id ?? (await tx.nodeConhecimento.create({
-        data: { tipoNode: "TOPICO", referenciaId: `topico-${topicoId}` },
+        data: { tipoNode: "TOPICO", referenciaId: `topico-${topicoId}`, usuarioId: userId },
       })).id;
       if (!existingNode) createdNodes++;
       topicoNodeId.set(topicoId, nodeId);
@@ -519,10 +512,10 @@ export async function createNota(
     for (const { term, concept } of mentions) {
       const refId = `conceito-${concept.id}`;
       const existingNode = await tx.nodeConhecimento.findFirst({
-        where: { tipoNode: "CONCEITO", referenciaId: refId },
+        where: { tipoNode: "CONCEITO", referenciaId: refId, usuarioId: userId },
       });
       const cNodeId = existingNode?.id ?? (await tx.nodeConhecimento.create({
-        data: { tipoNode: "CONCEITO", referenciaId: refId },
+        data: { tipoNode: "CONCEITO", referenciaId: refId, usuarioId: userId },
       })).id;
       if (!existingNode) createdNodes++;
       conceitoNodeId.set(concept.id, cNodeId);
@@ -592,7 +585,7 @@ export async function createNota(
 export async function getNotasFilterData(): Promise<
   Array<{ id: string; nome: string }>
 > {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   // All unique concepts linked to user's notes with hierarchy
   const edges = await prisma.nota.findMany({
@@ -649,7 +642,7 @@ export async function getNotas(): Promise<
     wordCount: number;
   }>
 > {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   const notas = await prisma.nota.findMany({
     where: { usuarioId: userId },
@@ -738,7 +731,7 @@ export async function getNotaById(notaId: string): Promise<{
   dataCriacao: Date;
   conceitosRelacionados: { nome: string; tipoRelacao: string }[];
 } | null> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   const nota = await prisma.nota.findUnique({
     where: { id: notaId, usuarioId: userId },
@@ -772,13 +765,14 @@ export async function getNotaById(notaId: string): Promise<{
 }
 
 export async function deleteNota(id: string): Promise<{ success: boolean }> {
-  await prisma.nota.delete({ where: { id } });
+  const userId = await requireUserId();
+  await prisma.nota.delete({ where: { id, usuarioId: userId } });
   revalidatePath("/notes");
   return { success: true };
 }
 
 export async function deleteAllNotas(): Promise<{ count: number }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
   const count = await prisma.nota.deleteMany({ where: { usuarioId: userId } });
   revalidatePath("/notes");
   return { count: count.count };
@@ -791,7 +785,7 @@ export async function deleteAllNotas(): Promise<{ count: number }> {
 export async function generateFlashcardsFromNota(
   notaId: string,
 ): Promise<{ flashcards: { id: string; pergunta: string }[] }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   const result = await prisma.$transaction(async (tx) => {
     // Load concepts upfront for memory matching (SQLite lacks case-insensitive support)
@@ -875,15 +869,15 @@ export async function generateFlashcardsFromNota(
 
         // Ensure concept node exists
         const conceptNode = await tx.nodeConhecimento.findFirst({
-          where: { tipoNode: "CONCEITO", referenciaId: targetConceptId },
+          where: { tipoNode: "CONCEITO", referenciaId: targetConceptId, usuarioId: userId },
         });
         const finalConceptNode = conceptNode ?? await tx.nodeConhecimento.create({
-          data: { tipoNode: "CONCEITO", referenciaId: targetConceptId },
+          data: { tipoNode: "CONCEITO", referenciaId: targetConceptId, usuarioId: userId },
         });
 
         // Create flashcard node
         await tx.nodeConhecimento.create({
-          data: { tipoNode: "FLASHCARD", referenciaId: fc.id },
+          data: { tipoNode: "FLASHCARD", referenciaId: fc.id, usuarioId: userId },
         });
 
         // Link Flashcard -> Concept with TESTA_DEFINICAO
@@ -970,14 +964,14 @@ export async function generateFlashcardsFromNota(
 
         // Knowledge nodes
         const conceptNode = await tx.nodeConhecimento.findFirst({
-          where: { tipoNode: "CONCEITO", referenciaId: targetConceptId },
+          where: { tipoNode: "CONCEITO", referenciaId: targetConceptId, usuarioId: userId },
         });
         const finalConceptNode = conceptNode ?? await tx.nodeConhecimento.create({
-          data: { tipoNode: "CONCEITO", referenciaId: targetConceptId },
+          data: { tipoNode: "CONCEITO", referenciaId: targetConceptId, usuarioId: userId },
         });
 
         await tx.nodeConhecimento.create({
-          data: { tipoNode: "FLASHCARD", referenciaId: fc.id },
+          data: { tipoNode: "FLASHCARD", referenciaId: fc.id, usuarioId: userId },
         });
 
         const fcNode = await tx.nodeConhecimento.findFirst({

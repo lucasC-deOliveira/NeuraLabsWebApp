@@ -2,16 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/auth";
 
 // ==========================================
 // Subject (Assunto) Actions
 // ==========================================
 
 export async function createSubject(nome: string, descricao?: string): Promise<{ id: string }> {
+  const userId = await requireUserId();
   const subject = await prisma.assunto.create({
     data: {
       nome,
       descricao: descricao ?? null,
+      usuarioId: userId,
     },
   });
 
@@ -36,7 +39,9 @@ export async function getSubjects(): Promise<
     }>;
   }>
 > {
+  const userId = await requireUserId();
   return prisma.assunto.findMany({
+    where: { usuarioId: userId },
     include: {
       topicos: {
         include: {
@@ -57,6 +62,7 @@ export async function createTopic(
   nome: string,
   descricao?: string,
 ): Promise<{ id: string }> {
+  await requireUserId();
   const topic = await prisma.topico.create({
     data: {
       assuntoId,
@@ -97,6 +103,7 @@ export async function createConcept(
   nome: string,
   descricao?: string,
 ): Promise<{ id: string }> {
+  await requireUserId();
   const concept = await prisma.conceito.create({
     data: {
       topicoId,

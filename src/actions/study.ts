@@ -1,5 +1,6 @@
 "use server";
 
+import { requireUserId } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import type { FlashcardData } from "@/types";
@@ -17,19 +18,11 @@ import {
 const MAX_CARDS_PER_SESSION = 15;
 const MAX_NEW_CARDS_PER_SESSION = 5;
 
-async function resolveUserId(): Promise<string> {
-  const user = await prisma.usuario.findFirst({ select: { id: true } });
-  if (!user) {
-    throw new Error("No user configured -- set up auth");
-  }
-  return user.id;
-}
-
 export async function startStudySession(): Promise<{
   sessionId: string;
   cards: FlashcardData[];
 }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
   const sessionId = await libStartStudySession(userId);
 
   const [dueCards, newCards] = await Promise.all([
@@ -51,7 +44,7 @@ export async function submitCardReview(data: {
   tipoErro?: string;
   tempoResposta?: number;
 }): Promise<{ success: boolean }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   const activeSession = await prisma.sessaoEstudo.findFirst({
     where: {
@@ -99,7 +92,7 @@ export async function getStudySessionHistory(
   }>
 > {
   if (!userId) {
-    userId = await resolveUserId();
+    userId = await requireUserId();
   }
 
   const sessions = await prisma.sessaoEstudo.findMany({

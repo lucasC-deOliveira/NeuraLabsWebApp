@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { createReviewSchedule } from "@/lib/spaced-repetition";
 import { OpenAI } from "openai";
 import { resolveAIConfig } from "@/actions/settings";
+import { requireUserId } from "@/lib/auth";
 import type { FlashcardData, SpacedRepetitionData } from "@/types";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -12,34 +13,26 @@ import { Prisma } from "@/generated/prisma/client";
 // Helpers
 // ==========================================
 
-async function resolveUserId(): Promise<string> {
-  const user = await prisma.usuario.findFirst({ select: { id: true } });
-  if (!user) {
-    throw new Error("No user configured -- set up auth");
-  }
-  return user.id;
-}
-
 // Create or reuse a knowledge node for a concept, then create/upsert a flashcard node.
 // Ensures Flashcard→Conceito TESTA edge exists in the graph.
-async function ensureKnowledgeNodes(tx: Prisma.TransactionClient, conceitoId: string, flashcardId: string) {
+async function ensureKnowledgeNodes(tx: Prisma.TransactionClient, userId: string, conceitoId: string, flashcardId: string) {
   // Upsert concept node
   const existingConcept = await tx.nodeConhecimento.findFirst({
-    where: { tipoNode: "CONCEITO", referenciaId: conceitoId },
+    where: { tipoNode: "CONCEITO", referenciaId: conceitoId, usuarioId: userId },
   });
   const conceptNodeId = existingConcept?.id ?? (
     await tx.nodeConhecimento.create({
-      data: { tipoNode: "CONCEITO", referenciaId: conceitoId },
+      data: { tipoNode: "CONCEITO", referenciaId: conceitoId, usuarioId: userId },
     })
   ).id;
 
   // Upsert flashcard node
   const existingFc = await tx.nodeConhecimento.findFirst({
-    where: { tipoNode: "FLASHCARD", referenciaId: flashcardId },
+    where: { tipoNode: "FLASHCARD", referenciaId: flashcardId, usuarioId: userId },
   });
   const flashcardNodeId = existingFc?.id ?? (
     await tx.nodeConhecimento.create({
-      data: { tipoNode: "FLASHCARD", referenciaId: flashcardId },
+      data: { tipoNode: "FLASHCARD", referenciaId: flashcardId, usuarioId: userId },
     })
   ).id;
 
@@ -63,7 +56,7 @@ export async function createFlashcard(data: {
   resposta: string;
   conceitoId: string;
 }): Promise<{ flashcardId: string }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   const flashcard = await prisma.$transaction(async (tx) => {
     const created = await tx.flashcard.create({
@@ -93,7 +86,7 @@ export async function createFlashcard(data: {
     });
 
     // Knowledge graph nodes
-    await ensureKnowledgeNodes(tx, data.conceitoId, created.id);
+    await ensureKnowledgeNodes(tx, userId, data.conceitoId, created.id);
 
     return created;
   });
@@ -106,8 +99,9 @@ export async function updateFlashcard(
   id: string,
   data: { pergunta?: string; resposta?: string },
 ): Promise<{ success: boolean }> {
+  const userId = await requireUserId();
   await prisma.flashcard.update({
-    where: { id },
+    where: { id, usuarioId: userId },
     data: {
       ...(data.pergunta !== undefined && { pergunta: data.pergunta }),
       ...(data.resposta !== undefined && { resposta: data.resposta }),
@@ -119,7 +113,8 @@ export async function updateFlashcard(
 }
 
 export async function deleteFlashcard(id: string): Promise<{ success: boolean }> {
-  await prisma.flashcard.delete({ where: { id } });
+  const userId = await requireUserId();
+  await prisma.flashcard.delete({ where: { id, usuarioId: userId } });
 
   // Clean orphaned graph nodes and edges for this flashcard
   await prisma.$transaction(async (tx) => {
@@ -143,7 +138,7 @@ export async function deleteFlashcard(id: string): Promise<{ success: boolean }>
 }
 
 export async function deleteAllFlashcards(): Promise<{ count: number }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   const flashcards = await prisma.flashcard.findMany({
     where: { usuarioId: userId },
@@ -187,7 +182,8 @@ export async function getFlashcards(options?: {
     }
   >
 > {
-  const whereClause: Record<string, unknown> = {};
+  const userId = await requireUserId();
+  const whereClause: Record<string, unknown> = { usuarioId: userId };
 
   if (options?.conceptId) {
     whereClause.conceitoId = options.conceptId;
@@ -238,7 +234,9 @@ type HierarquiaFlat = Array<{
 }>;
 
 export async function getFlashcardFilterData(): Promise<HierarquiaFlat> {
+  const userId = await requireUserId();
   const assuntos = await prisma.assunto.findMany({
+    where: { usuarioId: userId },
     include: {
       topicos: { select: { id: true, nome: true, assuntoId: true } },
     },
@@ -256,8 +254,9 @@ export async function getFlashcardById(id: string): Promise<
     dataCriacao: Date;
   } | null
 > {
+  const userId = await requireUserId();
   const record = await prisma.flashcard.findUnique({
-    where: { id },
+    where: { id, usuarioId: userId },
     include: {
       conceito: true,
       aprendizado: {
@@ -391,7 +390,7 @@ export async function previewFlashcardsFromNota(notaId: string): Promise<Array<{
   conceptNome?: string;
   source: FlashcardSourceType;
 }>> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   const nota = await prisma.nota.findUnique({
     where: { id: notaId, usuarioId: userId },
@@ -497,7 +496,7 @@ export async function generateFlashcardsViaIA(notaId: string): Promise<Array<{
   conceptNome?: string;
   source: FlashcardSourceType;
 }>> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   const nota = await prisma.nota.findUnique({
     where: { id: notaId, usuarioId: userId },
@@ -612,7 +611,7 @@ export async function saveFlashcardPreviews(data: Array<{
   resposta: string;
   conceitoId: string;
 }>): Promise<{ count: number }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   await prisma.$transaction(async (tx) => {
     for (const fc of data) {
@@ -641,7 +640,7 @@ export async function saveFlashcardPreviews(data: Array<{
         },
       });
 
-      await ensureKnowledgeNodes(tx, fc.conceitoId, created.id);
+      await ensureKnowledgeNodes(tx, userId, fc.conceitoId, created.id);
     }
   });
 
@@ -656,7 +655,7 @@ export async function saveFlashcardPreviewsFromNota(notaId: string, data: Array<
   resposta: string;
   conceitoId: string;
 }>): Promise<{ count: number }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
 
   await prisma.$transaction(async (tx) => {
     const flashcardNodeIds = new Map<string, string>();
@@ -688,7 +687,7 @@ export async function saveFlashcardPreviewsFromNota(notaId: string, data: Array<
       });
 
       // Creates nodes (Conceito + Flashcard) + TESTA_DEFINICAO edge
-      await ensureKnowledgeNodes(tx, fc.conceitoId, created.id);
+      await ensureKnowledgeNodes(tx, userId, fc.conceitoId, created.id);
 
       // Get the flashcard node ID for edge creation
       const fcNode = await tx.nodeConhecimento.findFirst({

@@ -24,7 +24,7 @@ export class PrismaNotaRepository implements NotaRepository {
       });
       if (!existingNotaNode) {
         await tx.nodeConhecimento.create({
-          data: { tipoNode: "NOTA", referenciaId: nota.id },
+          data: { tipoNode: "NOTA", referenciaId: nota.id, usuarioId: nota.userId },
         });
       }
 
@@ -53,7 +53,7 @@ export class PrismaNotaRepository implements NotaRepository {
         });
         if (!existing) {
           const created = await tx.nodeConhecimento.create({
-            data: { tipoNode: "ASSUNTO", referenciaId: `assunto-${assuntoId}` },
+            data: { tipoNode: "ASSUNTO", referenciaId: `assunto-${assuntoId}`, usuarioId: nota.userId },
           });
           assuntoNodeIds.set(assuntoId, created.id);
         } else {
@@ -69,7 +69,7 @@ export class PrismaNotaRepository implements NotaRepository {
         });
         if (!existing) {
           const created = await tx.nodeConhecimento.create({
-            data: { tipoNode: "TOPICO", referenciaId: `topico-${topicoId}` },
+            data: { tipoNode: "TOPICO", referenciaId: `topico-${topicoId}`, usuarioId: nota.userId },
           });
           topicoNodeIds.set(topicoId, created.id);
         } else {
@@ -101,12 +101,12 @@ export class PrismaNotaRepository implements NotaRepository {
       for (const c of conceitos) {
         const refId = `conceito-${c.id}`;
         const existingConceptNode = await tx.nodeConhecimento.findFirst({
-          where: { tipoNode: "CONCEITO", referenciaId: refId },
+          where: { tipoNode: "CONCEITO", referenciaId: refId, usuarioId: nota.userId },
         });
         let cNodeId: string;
         if (!existingConceptNode) {
           const created = await tx.nodeConhecimento.create({
-            data: { tipoNode: "CONCEITO", referenciaId: refId },
+            data: { tipoNode: "CONCEITO", referenciaId: refId, usuarioId: nota.userId },
           });
           cNodeId = created.id;
         } else {

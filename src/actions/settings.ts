@@ -2,14 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-
-async function resolveUserId(): Promise<string> {
-  const user = await prisma.usuario.findFirst({ select: { id: true } });
-  if (!user) {
-    throw new Error("No user configured -- set up auth");
-  }
-  return user.id;
-}
+import { requireUserId } from "@/lib/auth";
 
 export interface ConfigAIData {
   apiKey: string;
@@ -18,7 +11,7 @@ export interface ConfigAIData {
 }
 
 export async function getConfigAI(): Promise<ConfigAIData | null> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
   const config = await prisma.configAI.findUnique({
     where: { usuarioId: userId },
   });
@@ -29,7 +22,7 @@ export async function getConfigAI(): Promise<ConfigAIData | null> {
 export async function saveConfigAI(
   data: ConfigAIData,
 ): Promise<{ success: boolean }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
   await prisma.configAI.upsert({
     where: { usuarioId: userId },
     create: { usuarioId: userId, ...data },
@@ -66,7 +59,9 @@ export interface HierarchyNode {
 }
 
 export async function getKnowledgeHierarchy(): Promise<HierarchyNode[]> {
+  const userId = await requireUserId();
   const assuntos = await prisma.assunto.findMany({
+    where: { usuarioId: userId },
     include: {
       topicos: {
         include: {
@@ -91,13 +86,15 @@ export async function getKnowledgeHierarchy(): Promise<HierarchyNode[]> {
 }
 
 export async function createAssunto(nome: string): Promise<{ id: string; nome: string }> {
-  const created = await prisma.assunto.create({ data: { nome } });
+  const userId = await requireUserId();
+  const created = await prisma.assunto.create({ data: { nome, usuarioId: userId } });
   revalidatePath("/notes/new");
   revalidatePath("/graph");
   return { id: created.id, nome: created.nome };
 }
 
 export async function createTopico(nome: string, assuntoId: string): Promise<{ id: string; nome: string }> {
+  await requireUserId();
   const created = await prisma.topico.create({ data: { nome, assuntoId } });
   revalidatePath("/notes/new");
   revalidatePath("/graph");
@@ -105,6 +102,7 @@ export async function createTopico(nome: string, assuntoId: string): Promise<{ i
 }
 
 export async function createConceito(nome: string, topicoId: string): Promise<{ id: string; nome: string }> {
+  await requireUserId();
   const created = await prisma.conceito.create({ data: { nome, topicoId } });
   revalidatePath("/notes/new");
   revalidatePath("/graph");
@@ -119,6 +117,7 @@ export async function createFullConcept(input: {
   assuntoId: string;
   topicoId: string;
 }): Promise<{ id: string; nome: string }> {
+  await requireUserId();
   const created = await prisma.conceito.create({
     data: { nome: input.nome, topicoId: input.topicoId },
   });
@@ -167,51 +166,49 @@ export interface ConceitoArvore {
  * Assunto → [tipo_rel_assunto_topico] → Topico → [tipo_rel_topico_conceito] → Conceito
  */
 export async function getHierarquiaConceitos(): Promise<ConceitoArvore[]> {
-  const topicos = await prisma.topico.findMany({
-    include: { assunto: true, conceitos: true },
+  const userId = await requireUserId();
+  const userAssuntos = await prisma.assunto.findMany({
+    where: { usuarioId: userId },
+    include: { topicos: { include: { conceitos: true } } },
   });
 
   const arvore: ConceitoArvore[] = [];
-  const assuntoMap = new Map<string, ConceitoArvore>();
-  const topicoMap = new Map<string, TopicoEntry>();
 
-  for (const t of topicos) {
-    let assunto = assuntoMap.get(t.assunto.id);
-    if (!assunto) {
-      assunto = { id: t.assunto.id, nome: t.assunto.nome, relAssuntoTopico: [] };
-      assuntoMap.set(t.assunto.id, assunto);
-      arvore.push(assunto);
-    }
+  for (const assunto of userAssuntos) {
+    const entry: ConceitoArvore = {
+      id: assunto.id,
+      nome: assunto.nome,
+      relAssuntoTopico: [],
+    };
+    arvore.push(entry);
 
-    let relGrupo = assunto.relAssuntoTopico.find((r) => r.tipoRelacao === "PERTENCE_A");
-    if (!relGrupo) {
-      relGrupo = { tipoRelacao: "PERTENCE_A", topicos: [] };
-      assunto.relAssuntoTopico.push(relGrupo);
-    }
+    const relGrupo: RelAssuntoTopicoGroup = { tipoRelacao: "PERTENCE_A", topicos: [] };
+    entry.relAssuntoTopico.push(relGrupo);
 
-    let tp = topicoMap.get(t.id);
-    if (!tp) {
-      tp = { id: t.id, nome: t.nome, assuntoId: t.assunto.id, relacoesTopicoConceito: [] };
+    for (const t of assunto.topicos) {
+      const tp: TopicoEntry = {
+        id: t.id,
+        nome: t.nome,
+        assuntoId: assunto.id,
+        relacoesTopicoConceito: [],
+      };
       relGrupo.topicos.push(tp);
-      topicoMap.set(t.id, tp);
-    }
 
-    const conceitos = await prisma.conceito.findMany({ where: { topicoId: t.id } });
-
-    for (const c of conceitos) {
-      let relTC = tp.relacoesTopicoConceito.find((r) => r.tipoRelacao === "FUNDAMENTA");
-      if (!relTC) {
-        relTC = { tipoRelacao: "FUNDAMENTA", conceitos: [] };
-        tp.relacoesTopicoConceito.push(relTC);
+      for (const c of t.conceitos) {
+        let relTC = tp.relacoesTopicoConceito.find((r) => r.tipoRelacao === "FUNDAMENTA");
+        if (!relTC) {
+          relTC = { tipoRelacao: "FUNDAMENTA", conceitos: [] };
+          tp.relacoesTopicoConceito.push(relTC);
+        }
+        relTC.conceitos.push({
+          id: c.id,
+          nome: c.nome,
+          topicoId: t.id,
+          topicoNome: t.nome,
+          assuntoId: assunto.id,
+          assuntoNome: assunto.nome,
+        });
       }
-      relTC.conceitos.push({
-        id: c.id,
-        nome: c.nome,
-        topicoId: t.id,
-        topicoNome: t.nome,
-        assuntoId: t.assunto.id,
-        assuntoNome: t.assunto.nome,
-      });
     }
   }
 

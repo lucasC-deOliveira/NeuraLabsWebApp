@@ -1,13 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/auth";
 import { buildKnowledgeGraph, getCriticalNodes as libGetCriticalNodes, type GraphNode, type GraphEdge } from "@/lib/graph";
-
-async function resolveUserId(): Promise<string> {
-  const user = await prisma.usuario.findFirst({ select: { id: true } });
-  if (!user) throw new Error("No user configured");
-  return user.id;
-}
 
 export interface GraphNodeType {
   id: string;
@@ -30,7 +24,7 @@ export async function getGraphNodes(): Promise<{
   nodes: GraphNodeType[];
   edges: GraphEdgeType[];
 }> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
   const result = await buildKnowledgeGraph(userId);
 
   // Map builder types to action types
@@ -55,7 +49,7 @@ export async function getGraphNodes(): Promise<{
 }
 
 export async function getCriticalNodes(): Promise<GraphNode[]> {
-  const userId = await resolveUserId();
+  const userId = await requireUserId();
   const { nodes } = await buildKnowledgeGraph(userId);
   return libGetCriticalNodes(nodes);
 }
