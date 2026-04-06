@@ -36,8 +36,9 @@ type EdgeTuple = [string, string, TipoRelacao, number]
 async function buildKnowledgeGraph(
   userId: string,
 ): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
-  const [subjects, dbEdges, notas] = await Promise.all([
+  const [subjects, notas, userNodes] = await Promise.all([
     prisma.assunto.findMany({
+      where: { usuarioId: userId },
       include: {
         topicos: {
           include: {
@@ -48,9 +49,21 @@ async function buildKnowledgeGraph(
         },
       },
     }),
-    prisma.conhecimentoAresta.findMany(),
     prisma.nota.findMany({ where: { usuarioId: userId } }),
+    prisma.nodeConhecimento.findMany({ where: { usuarioId: userId }, select: { id: true } }),
   ])
+
+  const userIds = userNodes.map((n) => n.id)
+  const safeIn = (ids: string[]) => ids.length > 0 ? ids : ["__none__"]
+
+  const dbEdges = await prisma.conhecimentoAresta.findMany({
+    where: {
+      OR: [
+        { nodeOrigemId: { in: safeIn(userIds) } },
+        { nodeDestinoId: { in: safeIn(userIds) } },
+      ],
+    },
+  })
 
   const nodes: GraphNode[] = []
   const edgeTuples: EdgeTuple[] = []

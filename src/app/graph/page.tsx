@@ -3,11 +3,11 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { getGraphNodes, type GraphNodeType, type GraphEdgeType } from "@/actions/graph";
+import { getGraphNodes, clearAllGraphNodes, type GraphNodeType, type GraphEdgeType } from "@/actions/graph";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeftIcon, Loader2Icon, ZoomInIcon, ZoomOutIcon, Maximize2Icon, BookOpenIcon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, ZoomInIcon, ZoomOutIcon, Maximize2Icon, BookOpenIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 // --- Semantic relation label mapping ---
@@ -367,6 +367,25 @@ export default function GraphPage() {
   const [selectedNode, setSelectedNode] = useState<SimNode | null>(null);
   const [filterGroup, setFilterGroup] = useState<string | null>(null);
   const [layout, setLayout] = useState<SimNode[]>([]);
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearGraph = async () => {
+    if (!confirm("Tem certeza que deseja apagar todos os nos e relacoes do grafo? Esta acao nao pode ser desfeita.")) return;
+    setIsClearing(true);
+    try {
+      const { count } = await clearAllGraphNodes();
+      toast.success(`Grafo limpo — ${count} nos removidos`);
+      setRawNodes([]);
+      setRawEdges([]);
+      setLayout([]);
+      setSelectedNode(null);
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao limpar o grafo");
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   useEffect(() => {
     async function load() {
@@ -544,6 +563,9 @@ export default function GraphPage() {
             </Button>
             <Button variant="outline" size="icon-sm" onClick={() => { setZoom(0.6); setPan({ x: 0, y: 0 }); }}>
               <Maximize2Icon className="size-3.5 sm:size-4" />
+            </Button>
+            <Button variant="outline" size="icon-sm" onClick={handleClearGraph} disabled={isClearing || rawNodes.length === 0}>
+              <Trash2Icon className="size-3.5 sm:size-4 text-red-500" />
             </Button>
           </div>
         </div>
