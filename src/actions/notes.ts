@@ -2,10 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { OpenAI } from "openai";
+import { getCreateNotaUseCaseWithConcepts } from "@/modules/notas/adapters/nota-composer";
+import { resolveAIConfig } from "@/actions/settings";
 
 // ==========================================
-// Helpers
+// AI Analysis
 // ==========================================
+
+export interface NotaCandidata {
+  titulo: string;
+  conteudo: string;
+  conceitosPrevistos: string[];
+}
 
 async function resolveUserId(): Promise<string> {
   const user = await prisma.usuario.findFirst({ select: { id: true } });
@@ -13,6 +22,93 @@ async function resolveUserId(): Promise<string> {
     throw new Error("No user configured -- set up auth");
   }
   return user.id;
+}
+
+export async function analyzeRawText(rawText: string): Promise<{ candidatas: NotaCandidata[] }> {
+  if (!rawText.trim()) return { candidatas: [] };
+
+  const allConcepts = await prisma.conceito.findMany({
+    include: { topico: { include: { assunto: true } } },
+  });
+
+  const contextList = allConcepts.map((c) =>
+    `${c.nome} (topico: ${c.topico.nome}, assunto: ${c.topico.assunto.nome})`,
+  ).join(", ");
+
+  const aiConfig = await resolveAIConfig();
+  if (!aiConfig.apiKey) {
+    throw new Error("API key nao configurada. Configure em /settings.");
+  }
+
+  const openai = new OpenAI({
+    apiKey: aiConfig.apiKey,
+    baseURL: aiConfig.baseUrl,
+  });
+
+  const model = aiConfig.model;
+
+  const response = await openai.chat.completions.create({
+    model,
+    temperature: 0.3,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system" as const,
+        content: `Voce e um assistente de analise de texto educacional. Dado um texto bruto, identifique QUANTAS NOTAS fizerem sentido. Cada nota deve ter titulo e conteudo organizado. Conceitos existentes: ${contextList}.
+
+Responda APENAS com JSON valido neste formato:
+{"notas":[{"titulo":"Nome","conteudo":"Conteudo organizado","conceitos_relacionados":["conceito1"]}]}
+Sem markdown, sem explicacao fora do JSON.`,
+      },
+      {
+        role: "user" as const,
+        content: rawText.slice(0, 15000),
+      },
+    ],
+  });
+  const content = response.choices[0]?.message?.content;
+  if (!content) return { candidatas: [] };
+
+  try {
+    const parsed = JSON.parse(content);
+    const candidatas: NotaCandidata[] = (parsed.notas || []).map((n: Record<string, unknown>) => ({
+      titulo: (n.titulo as string) || "Nota sem titulo",
+      conteudo: (n.conteudo as string) || "",
+      conceitosPrevistos: (n.conceitos_relacionados as string[]) || [],
+    }));
+    return { candidatas };
+  } catch (e) {
+    console.error("Parse error:", e, "Raw:", content?.slice(0, 500));
+    return {
+      candidatas: [{ titulo: "Nota", conteudo: rawText, conceitosPrevistos: [] }],
+    };
+  }
+}
+
+export interface SaveSelectedNotaInput {
+  titulo: string;
+  conteudo: string;
+}
+
+export async function saveSelectedNotas(
+  candidatas: SaveSelectedNotaInput[],
+): Promise<{ notaIds: string[] }> {
+  const userId = await resolveUserId();
+  const notaIds: string[] = [];
+
+  for (const candidata of candidatas) {
+    const useCase = await getCreateNotaUseCaseWithConcepts();
+    const result = await useCase.execute({
+      rawText: candidata.conteudo,
+      userId,
+      titulo: candidata.titulo,
+    });
+    notaIds.push(result.notaId);
+  }
+
+  revalidatePath("/notes");
+  revalidatePath("/graph");
+  return { notaIds };
 }
 
 /**
@@ -148,36 +244,6 @@ async function findMatchingConcepts(terms: string[]): Promise<
   return matches;
 }
 
-async function ensureNotaNode(notaId: string) {
-  const existing = await prisma.nodeConhecimento.findFirst({
-    where: { tipoNode: "NOTA", referenciaId: notaId },
-  });
-
-  if (!existing) {
-    await prisma.nodeConhecimento.create({
-      data: { tipoNode: "NOTA", referenciaId: notaId },
-    });
-  }
-}
-
-async function ensureConceptNode(conceitoId: string) {
-  const existing = await prisma.nodeConhecimento.findFirst({
-    where: { tipoNode: "CONCEITO", referenciaId: conceitoId },
-  });
-
-  if (!existing) {
-    await prisma.nodeConhecimento.create({
-      data: { tipoNode: "CONCEITO", referenciaId: conceitoId },
-    });
-  }
-}
-
-async function ensureFlashcardNode(flashcardId: string) {
-  await prisma.nodeConhecimento.create({
-    data: { tipoNode: "FLASHCARD", referenciaId: flashcardId },
-  });
-}
-
 // ==========================================
 // Note Actions
 // ==========================================
@@ -185,76 +251,212 @@ async function ensureFlashcardNode(flashcardId: string) {
 export async function createNota(
   rawText: string,
   titulo?: string,
-): Promise<{ notaId: string; matchedConcepts: { term: string; conceito: string }[] }> {
+): Promise<{ notaId: string; matchedConcepts: { term: string; conceito: string }[]; createdNodes: number }> {
   const userId = await resolveUserId();
 
   // Parse the text
   const sections = parseRawTextIntoSections(rawText);
   const markdown = sectionsToMarkdown(sections);
-  const terms = extractTermsFromSections(sections);
+
+  let createdNodes = 0;
 
   const result = await prisma.$transaction(async (tx) => {
-    // Create the Nota
+    // ── 1. Create the Nota record
+    const notaText = titulo ? `# ${titulo}\n\n${markdown}` : markdown;
     const nota = await tx.nota.create({
-      data: {
-        usuarioId: userId,
-        textoBruto: titulo ? `# ${titulo}\n\n${markdown}` : markdown,
-      },
+      data: { usuarioId: userId, textoBruto: notaText },
     });
+    createdNodes++;
 
-    // Find matching concepts for extracted terms
-    const conceptMatches = await findMatchingConcepts(terms);
+    // ── 2. Create raw text graph node (TEXTO_BRUTO = NOTA type with rawtext prefix)
+    const rawTextNode = await tx.nodeConhecimento.create({
+      data: { tipoNode: "NOTA", referenciaId: `rawtext-${nota.id}` },
+    });
+    createdNodes++;
 
-    // Ensure Nota knowledge node exists
+    // ── 3. Create note graph node
     const notaNode = await tx.nodeConhecimento.create({
       data: { tipoNode: "NOTA", referenciaId: nota.id },
     });
+    createdNodes++;
 
-    // Link Nota to matched concepts with semantic edges
-    for (const match of conceptMatches) {
-      // Ensure concept node exists
-      await ensureConceptNode(match.conceitoId);
+    // ── 4. Link: TEXTO_BRUTO → GERA → NOTA
+    await tx.conhecimentoAresta.create({
+      data: { nodeOrigemId: rawTextNode.id, nodeDestinoId: notaNode.id, tipoRelacao: "GERA", peso: 1.0 },
+    });
+    createdNodes++;
 
-      // Create REFERENCIA edge from Nota -> Concept
-      const conceptNode = await tx.nodeConhecimento.findFirst({
-        where: { tipoNode: "CONCEITO", referenciaId: match.conceitoId },
-      });
+    // ── 5. Load concepts for matching
+    const allConcepts = await tx.conceito.findMany({
+      include: { topico: { include: { assunto: true } } },
+    });
 
-      if (conceptNode) {
-        // Avoid duplicate edges
-        const existingEdge = await tx.conhecimentoAresta.findFirst({
-          where: {
-            notaOrigemId: nota.id,
-            nodeDestinoId: conceptNode.id,
-            OR: [{ tipoRelacao: "REFERENCIA" }, { tipoRelacao: "DEFINE" }],
-          },
-        });
+    const findConcept = (term: string) => {
+      const lower = term.toLowerCase();
+      return allConcepts.find((c) =>
+        c.nome.toLowerCase() === lower ||
+        c.nome.toLowerCase().includes(lower) ||
+        lower.includes(c.nome.toLowerCase()),
+      );
+    };
 
-        if (!existingEdge) {
-          // First match = DEFINE (it defines that concept), subsequent = REFERENCIA
-          const isConceptInName = nota.textoBruto.toLowerCase().includes(match.term.toLowerCase());
-          await tx.conhecimentoAresta.create({
-            data: {
-              notaOrigemId: nota.id,
-              nodeDestinoId: conceptNode.id,
-              tipoRelacao: isConceptInName ? "DEFINE" : "REFERENCIA",
-              peso: isConceptInName ? 1.0 : 0.7,
-            },
-          });
+    // ── 6. Extract all unique concept mentions from sections
+    const mentions: { term: string; concept: (typeof allConcepts)[number] }[] = [];
+    const seenConcepts = new Set<string>();
+    const topicosSet = new Set<string>();
+    const assuntosSet = new Set<string>();
+
+    for (const section of sections) {
+      const headingConcept = findConcept(section.heading);
+      if (headingConcept && !seenConcepts.has(headingConcept.id)) {
+        mentions.push({ term: section.heading, concept: headingConcept });
+        seenConcepts.add(headingConcept.id);
+        topicosSet.add(headingConcept.topicoId);
+        assuntosSet.add(headingConcept.topico.assuntoId);
+      }
+
+      for (const def of section.definitions) {
+        const mc = findConcept(def.term);
+        if (mc && !seenConcepts.has(mc.id)) {
+          mentions.push({ term: def.term, concept: mc });
+          seenConcepts.add(mc.id);
+          topicosSet.add(mc.topicoId);
+          assuntosSet.add(mc.topico.assuntoId);
+        }
+      }
+
+      for (const line of section.content) {
+        if (!line.startsWith("- ") && !line.startsWith("* ")) continue;
+        const matched = findConcept(line.slice(2).trim());
+        if (matched && !seenConcepts.has(matched.id)) {
+          mentions.push({ term: line.slice(2).trim(), concept: matched });
+          seenConcepts.add(matched.id);
+          topicosSet.add(matched.topicoId);
+          assuntosSet.add(matched.topico.assuntoId);
         }
       }
     }
 
-    return { notaId: nota.id, conceptMatches };
+    // ── 7. Create ASSUNTO nodes + link: ASSUNTO → GERA → TOPICOS → DEFINE → CONCEITOS → REFERENCIA → TEXTO_BRUTO → GERA → NOTA
+    const assuntoNodeId = new Map<string, string>();
+
+    for (const assuntoId of assuntosSet) {
+      const assunto = allConcepts[0]?.topico?.assunto ?? null;
+      const assuntoConcept = mentions.find((m) => m.concept.topico.assuntoId === assuntoId);
+      const existingNode = await tx.nodeConhecimento.findFirst({
+        where: { tipoNode: "ASSUNTO", referenciaId: `assunto-${assuntoId}` },
+      });
+      const nodeId = existingNode?.id ?? (await tx.nodeConhecimento.create({
+        data: { tipoNode: "ASSUNTO", referenciaId: `assunto-${assuntoId}` },
+      })).id;
+      if (!existingNode) createdNodes++;
+      assuntoNodeId.set(assuntoId, nodeId);
+    }
+
+    // ── 8. Create TOPICO nodes + link ASSUNTO → TOPICO
+    const topicoNodeId = new Map<string, string>();
+
+    for (const topicoId of topicosSet) {
+      const existingNode = await tx.nodeConhecimento.findFirst({
+        where: { tipoNode: "TOPICO", referenciaId: `topico-${topicoId}` },
+      });
+      const nodeId = existingNode?.id ?? (await tx.nodeConhecimento.create({
+        data: { tipoNode: "TOPICO", referenciaId: `topico-${topicoId}` },
+      })).id;
+      if (!existingNode) createdNodes++;
+      topicoNodeId.set(topicoId, nodeId);
+
+      // Link ASSUNTO → TOPICO
+      const topicoData = allConcepts.find((c) => c.topicoId === topicoId);
+      if (topicoData) {
+        const aNodeId = assuntoNodeId.get(topicoData.topico.assuntoId);
+        if (aNodeId) {
+          const exists = await tx.conhecimentoAresta.findFirst({
+            where: { nodeOrigemId: aNodeId, nodeDestinoId: nodeId, tipoRelacao: "GERA" },
+          });
+          if (!exists) {
+            await tx.conhecimentoAresta.create({
+              data: { nodeOrigemId: aNodeId, nodeDestinoId: nodeId, tipoRelacao: "GERA", peso: 0.9 },
+            });
+            createdNodes++;
+          }
+        }
+      }
+    }
+
+    // ── 9. Create CONCEITO nodes + link TOPICO → CONCEITO + link CONCEITO → TEXTO_BRUTO
+    const conceitoNodeId = new Map<string, string>();
+
+    for (const { term, concept } of mentions) {
+      const refId = `conceito-${concept.id}`;
+      const existingNode = await tx.nodeConhecimento.findFirst({
+        where: { tipoNode: "CONCEITO", referenciaId: refId },
+      });
+      const cNodeId = existingNode?.id ?? (await tx.nodeConhecimento.create({
+        data: { tipoNode: "CONCEITO", referenciaId: refId },
+      })).id;
+      if (!existingNode) createdNodes++;
+      conceitoNodeId.set(concept.id, cNodeId);
+
+      // Link TOPICO → CONCEITO
+      const tNodeId = topicoNodeId.get(concept.topicoId);
+      if (tNodeId) {
+        const exists = await tx.conhecimentoAresta.findFirst({
+          where: { nodeOrigemId: tNodeId, nodeDestinoId: cNodeId, tipoRelacao: "DEFINE" },
+        });
+        if (!exists) {
+          await tx.conhecimentoAresta.create({
+            data: { nodeOrigemId: tNodeId, nodeDestinoId: cNodeId, tipoRelacao: "DEFINE", peso: 0.9 },
+          });
+          createdNodes++;
+        }
+      }
+
+      // Link CONCEITO → TEXTO_BRUTO
+      const existsRef = await tx.conhecimentoAresta.findFirst({
+        where: { nodeOrigemId: cNodeId, nodeDestinoId: rawTextNode.id },
+      });
+      if (!existsRef) {
+        await tx.conhecimentoAresta.create({
+          data: { nodeOrigemId: cNodeId, nodeDestinoId: rawTextNode.id, tipoRelacao: "REFERENCIA", peso: 0.7 },
+        });
+        createdNodes++;
+      }
+    }
+
+    // ── 10. Link NOTA → CONCEITO (note references all concepts it covers)
+    for (const [conceitoId, cNodeId] of conceitoNodeId) {
+      // Link NOTA → CONCEITO
+      const exists = await tx.conhecimentoAresta.findFirst({
+        where: { nodeOrigemId: notaNode.id, nodeDestinoId: cNodeId, tipoRelacao: "REFERENCIA" },
+      });
+      if (!exists) {
+        await tx.conhecimentoAresta.create({
+          data: { nodeOrigemId: notaNode.id, nodeDestinoId: cNodeId, tipoRelacao: "REFERENCIA", peso: 0.8 },
+        });
+        createdNodes++;
+      }
+    }
+
+    const matchedConceptsList = mentions.map((m) => ({
+      term: m.term,
+      conceitoId: m.concept.id,
+      topicoId: m.concept.topicoId,
+      assuntoId: m.concept.topico.assuntoId,
+    }));
+
+    return { notaId: nota.id, conceptMatches: matchedConceptsList };
   });
 
   revalidatePath("/notes");
+  revalidatePath("/graph");
   return {
     notaId: result.notaId,
     matchedConcepts: result.conceptMatches.map((m) => ({
       term: m.term,
       conceito: m.conceitoId,
     })),
+    createdNodes,
   };
 }
 

@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { Nota } from "./nota";
 import { NotaSection } from "./nota-section";
 import { NotaDefinition } from "../value-objects/nota-definition";

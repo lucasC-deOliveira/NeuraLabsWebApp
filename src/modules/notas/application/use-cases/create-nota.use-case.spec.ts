@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach } from "vitest";
 import { CreateNotaUseCase } from "./create-nota.use-case";
 import type { NotaRepository } from "../../domain/repositories/nota-repository";
 

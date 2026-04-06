@@ -28,6 +28,7 @@ model Usuario {
   aprendizagens AprendizadoFlashcard[] @relation("AprendizadoUsuario")
   desempenhoNos DesempenhoNo[]
   notas         Nota[]
+  configAI      ConfigAI?
 
   @@map("usuarios")
 }
@@ -261,4 +262,19 @@ model DesempenhoNo {
   @@id([usuarioId, nodeId])
   @@unique([usuarioId, nodeId])
   @@map("desempenho_no")
+}
+
+// ==========================================
+// CONFIG_AI - Configuracoes de IA
+// ==========================================
+model ConfigAI {
+  id        String @id @default(cuid())
+  usuarioId String @map("id_usuario") @unique
+  apiKey    String @map("api_key")
+  baseUrl   String @map("base_url")
+  modelo    String @map("modelo")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("config_ai")
 }

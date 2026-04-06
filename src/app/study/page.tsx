@@ -243,10 +243,10 @@ export default function StudyPage() {
   if (phase === "loading") {
     return (
       <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
-        <header className="border-b px-5 py-4">
+        <header className="border-b px-3 sm:px-5 py-3 sm:py-4">
           <div className="mx-auto flex max-w-4xl items-center gap-3">
-            <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
+            <Loader2Icon className="size-4 sm:size-5 animate-spin text-muted-foreground" />
+            <span className="text-xs sm:text-sm text-muted-foreground">
               Preparando sua sessao de estudo...
             </span>
           </div>
@@ -267,7 +267,7 @@ export default function StudyPage() {
 
     return (
       <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
-        <header className="border-b px-5 py-4">
+        <header className="border-b px-3 sm:px-5 py-3 sm:py-4">
           <div className="mx-auto flex max-w-4xl items-center gap-3">
             <Button
               variant="ghost"
@@ -277,62 +277,62 @@ export default function StudyPage() {
               <ArrowLeftIcon className="mr-1 size-4" />
               Voltar
             </Button>
-            <h1 className="text-lg font-semibold">Sessao Concluida</h1>
+            <h1 className="text-base sm:text-lg font-semibold">Sessao Concluida</h1>
           </div>
         </header>
 
-        <main className="flex flex-1 items-center justify-center px-5 py-12">
-          <Card className="mx-auto max-w-md border-green-200 bg-green-50/30 dark:border-green-800/50 dark:bg-green-950/20">
-            <CardHeader className="items-center space-y-2">
-              <CheckCircle2Icon className="size-12 text-green-600 dark:text-green-500" />
-              <CardTitle className="text-center text-2xl">
+        <main className="flex flex-1 items-center justify-center px-3 sm:px-5 py-8 sm:py-12">
+          <Card className="mx-auto max-w-md w-full border-green-200 bg-green-50/30 dark:border-green-800/50 dark:bg-green-950/20">
+            <CardHeader className="items-center space-y-2 px-4 sm:px-6">
+              <CheckCircle2Icon className="size-8 sm:size-12 text-green-600 dark:text-green-500" />
+              <CardTitle className="text-center text-xl sm:text-2xl">
                 Parabens!
               </CardTitle>
-              <p className="text-center text-sm text-muted-foreground">
+              <p className="text-center text-xs sm:text-sm text-muted-foreground">
                 Voce concluiu a sessao de estudo
               </p>
             </CardHeader>
 
-            <CardContent className="space-y-6 px-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-lg border bg-card p-4 text-center">
-                  <p className="text-sm text-muted-foreground">Cartoes</p>
-                  <p className="text-3xl font-semibold">{stats.totalCards}</p>
+            <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="rounded-lg border bg-card p-3 sm:p-4 text-center">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Cartoes</p>
+                  <p className="text-2xl sm:text-3xl font-semibold">{stats.totalCards}</p>
                 </div>
-                <div className="rounded-lg border bg-card p-4 text-center">
-                  <p className="text-sm text-muted-foreground">Precisao</p>
-                  <p className="text-3xl font-semibold">{accuracy}%</p>
+                <div className="rounded-lg border bg-card p-3 sm:p-4 text-center">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Precisao</p>
+                  <p className="text-2xl sm:text-3xl font-semibold">{accuracy}%</p>
                 </div>
-                <div className="rounded-lg border bg-card p-4 text-center">
-                  <p className="text-sm text-muted-foreground">Acertos</p>
-                  <p className="text-2xl font-semibold text-green-600">
+                <div className="rounded-lg border bg-card p-3 sm:p-4 text-center">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Acertos</p>
+                  <p className="text-xl sm:text-2xl font-semibold text-green-600">
                     {stats.correctCount}
                   </p>
                 </div>
-                <div className="rounded-lg border bg-card p-4 text-center">
-                  <p className="text-sm text-muted-foreground">Erros</p>
-                  <p className="text-2xl font-semibold text-red-500">
+                <div className="rounded-lg border bg-card p-3 sm:p-4 text-center">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Erros</p>
+                  <p className="text-xl sm:text-2xl font-semibold text-red-500">
                     {stats.incorrectCount}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <ClockIcon className="size-4" />
+              <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                <ClockIcon className="size-3.5 sm:size-4" />
                 <span>Tempo total: {formatTime(elapsedTime)}</span>
               </div>
 
               {accuracy >= 80 ? (
-                <Badge variant="default" className="mx-auto w-fit gap-1 px-3 py-1">
+                <Badge variant="default" className="mx-auto w-fit gap-1 px-2 sm:px-3 py-1 text-xs">
                   <CheckCircle2Icon className="size-3" />
                   Excelente desempenho
                 </Badge>
               ) : accuracy >= 50 ? (
-                <Badge variant="secondary" className="mx-auto w-fit gap-1 px-3 py-1">
+                <Badge variant="secondary" className="mx-auto w-fit gap-1 px-2 sm:px-3 py-1 text-xs">
                   Bom progresso, continue praticando
                 </Badge>
               ) : (
-                <Badge variant="destructive" className="mx-auto w-fit gap-1 px-3 py-1">
+                <Badge variant="destructive" className="mx-auto w-fit gap-1 px-2 sm:px-3 py-1 text-xs">
                   <XCircleIcon className="size-3" />
                   Revise os conceitos novamente
                 </Badge>
@@ -354,22 +354,22 @@ export default function StudyPage() {
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-black">
       {/* Header */}
-      <header className="border-b px-5 py-4">
+      <header className="border-b px-3 sm:px-5 py-3 sm:py-4">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
               <ArrowLeftIcon className="mr-1 size-4" />
-              Sair
+              <span className="hidden sm:inline">Sair</span>
             </Button>
           </div>
-          <Badge variant="secondary">
+          <Badge variant="secondary" className="text-xs">
             {currentIndex + 1} / {stats.totalCards}
           </Badge>
         </div>
       </header>
 
       {/* Progress */}
-      <div className="mx-auto w-full max-w-4xl border-b px-5 py-3">
+      <div className="mx-auto w-full max-w-4xl border-b px-3 sm:px-5 py-2 sm:py-3">
         <Progress value={progressPercent} className="h-2">
           <ProgressTrack className="h-1">
             <ProgressIndicator
@@ -380,21 +380,21 @@ export default function StudyPage() {
       </div>
 
       {/* Card Area */}
-      <main className="flex flex-1 items-center justify-center px-5 py-8">
+      <main className="flex flex-1 items-center justify-center px-3 sm:px-5 py-6 sm:py-8">
         <div className="mx-auto w-full max-w-2xl">
           {/* Confidence Selector - only in question phase */}
           {phase === "question" && (
-            <div className="mb-4">
-              <label className="mb-2 block text-sm font-medium text-muted-foreground">
+            <div className="mb-3 sm:mb-4">
+              <label className="mb-1.5 sm:mb-2 block text-xs sm:text-sm font-medium text-muted-foreground">
                 Quao confiante voce e antes de ver a resposta?
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5 sm:gap-2">
                 {[1, 2, 3, 4, 5].map((level) => (
                   <button
                     key={level}
                     onClick={() => setConfidence(level)}
                     className={`
-                      flex flex-1 flex-col items-center justify-center rounded-lg border py-2.5 text-sm transition-all
+                      flex flex-1 flex-col items-center justify-center rounded-lg border py-2 sm:py-2.5 text-xs sm:text-sm transition-all
                       ${
                         confidence === level
                           ? "border-primary bg-primary/10 text-primary ring-2 ring-primary/30"
@@ -402,8 +402,8 @@ export default function StudyPage() {
                       }
                     `}
                   >
-                    <span className="text-base font-semibold">{level}</span>
-                    <span className="mt-0.5 text-[0.65rem] leading-tight text-center">
+                    <span className="text-sm sm:text-base font-semibold">{level}</span>
+                    <span className="mt-0.5 text-[0.6rem] sm:text-[0.65rem] leading-tight text-center hidden sm:inline">
                       {CONFIDENCE_LABELS[level].split(" ")[0]}
                     </span>
                   </button>
@@ -414,28 +414,28 @@ export default function StudyPage() {
 
           {/* Main Card */}
           <Card className="text-center">
-            <CardHeader>
-              <CardTitle className="text-lg font-medium text-muted-foreground uppercase tracking-wider">
+            <CardHeader className="px-4 sm:px-6 pb-2">
+              <CardTitle className="text-sm sm:text-lg font-medium text-muted-foreground uppercase tracking-wider">
                 {phase === "question" ? "Pergunta" : "Resposta"}
               </CardTitle>
             </CardHeader>
 
-            <CardContent className="px-6">
+            <CardContent className="px-4 sm:px-6">
               {phase === "question" ? (
-                <p className="text-2xl font-medium leading-relaxed">
+                <p className="text-lg sm:text-2xl font-medium leading-relaxed">
                   {card.pergunta}
                 </p>
               ) : (
                 <div>
-                  <p className="mb-6 text-2xl font-medium leading-relaxed">
+                  <p className="mb-4 sm:mb-6 text-lg sm:text-2xl font-medium leading-relaxed">
                     {card.pergunta}
                   </p>
-                  <div className="rounded-xl bg-muted/50 px-6 py-4">
-                    <p className="text-lg leading-relaxed text-foreground">
+                  <div className="rounded-xl bg-muted/50 px-4 py-3 sm:px-6 sm:py-4">
+                    <p className="text-sm sm:text-lg leading-relaxed text-foreground">
                       {card.resposta}
                     </p>
                     {card.conceito && (
-                      <p className="mt-3 text-sm font-medium text-muted-foreground">
+                      <p className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-muted-foreground">
                         Conceito: {card.conceito}
                       </p>
                     )}
@@ -447,8 +447,8 @@ export default function StudyPage() {
 
           {/* Answer Actions */}
           {phase === "question" && confidence > 0 && (
-            <div className="mt-6 flex justify-center">
-              <Button size="lg" onClick={handleRevealAnswer} className="gap-2">
+            <div className="mt-4 sm:mt-6 flex justify-center">
+              <Button size="lg" onClick={handleRevealAnswer} className="gap-2 w-full sm:w-auto">
                 <EyeIcon className="size-4" />
                 Ver Resposta
               </Button>
@@ -457,14 +457,14 @@ export default function StudyPage() {
 
           {/* After revealing */}
           {(phase === "answer" || phase === "elaboration") && (
-            <div className="mt-6 space-y-4">
+            <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-4">
               {/* Acertei / Errei buttons */}
-              <div className="flex justify-center gap-3">
+              <div className="flex justify-center gap-2 sm:gap-3">
                 <Button
                   size="lg"
                   variant="destructive"
                   onClick={() => handleAnswer(false)}
-                  className="min-w-[120px] gap-2"
+                  className="min-w-[100px] sm:min-w-[120px] gap-2 flex-1 sm:flex-initial"
                 >
                   <XCircleIcon className="size-4" />
                   Errei
@@ -473,7 +473,7 @@ export default function StudyPage() {
                   size="lg"
                   variant="default"
                   onClick={() => handleAnswer(true)}
-                  className="min-w-[120px] gap-2 bg-green-600 text-white hover:bg-green-700"
+                  className="min-w-[100px] sm:min-w-[120px] gap-2 bg-green-600 text-white hover:bg-green-700 flex-1 sm:flex-initial"
                 >
                   <CheckCircle2Icon className="size-4" />
                   Acertei
@@ -487,7 +487,7 @@ export default function StudyPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setPhase("elaboration")}
-                    className="gap-2"
+                    className="gap-2 text-xs"
                   >
                     Responder com minhas palavras
                   </Button>
@@ -500,7 +500,7 @@ export default function StudyPage() {
                     placeholder="Escreva a resposta com suas proprias palavras..."
                     value={userAnswer}
                     onChange={(e) => setUserAnswer(e.target.value)}
-                    className="min-h-[100px] text-base"
+                    className="min-h-[80px] sm:min-h-[100px] text-sm sm:text-base"
                     autoFocus
                   />
                   <div className="flex justify-center gap-2">
@@ -511,6 +511,7 @@ export default function StudyPage() {
                         setUserAnswer("");
                         setPhase("answer");
                       }}
+                      className="flex-1 sm:flex-none"
                     >
                       Cancelar
                     </Button>
@@ -519,6 +520,7 @@ export default function StudyPage() {
                       variant="destructive"
                       disabled={!userAnswer.trim()}
                       onClick={() => handleElaborationSubmit(false)}
+                      className="flex-1 sm:flex-none"
                     >
                       Errei
                     </Button>
@@ -526,7 +528,7 @@ export default function StudyPage() {
                       size="sm"
                       disabled={!userAnswer.trim()}
                       onClick={() => handleElaborationSubmit(true)}
-                      className="bg-green-600 text-white hover:bg-green-700"
+                      className="bg-green-600 text-white hover:bg-green-700 flex-1 sm:flex-none"
                     >
                       Acertei
                     </Button>
@@ -538,9 +540,9 @@ export default function StudyPage() {
 
           {/* Feedback */}
           {phase === "feedback" && lastResult && (
-            <div className="mt-6 space-y-3 text-center">
+            <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-3 text-center">
               <div
-                className={`rounded-xl border px-6 py-4 ${
+                className={`rounded-xl border px-4 py-3 sm:px-6 sm:py-4 ${
                   lastResult.acertou
                     ? "border-green-200 bg-green-50 dark:border-green-800/50 dark:bg-green-950/30"
                     : "border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-950/30"
@@ -548,22 +550,22 @@ export default function StudyPage() {
               >
                 <div className="flex items-center justify-center gap-2">
                   {lastResult.acertou ? (
-                    <CheckCircle2Icon className="size-5 text-green-600" />
+                    <CheckCircle2Icon className="size-4 sm:size-5 text-green-600" />
                   ) : (
-                    <XCircleIcon className="size-5 text-red-500" />
+                    <XCircleIcon className="size-4 sm:size-5 text-red-500" />
                   )}
-                  <span className="text-lg font-semibold">
+                  <span className="text-base sm:text-lg font-semibold">
                     {lastResult.acertou ? "Correto!" : "Incorreto"}
                   </span>
                 </div>
                 {lastResult.metacognitiveGap && (
-                  <p className="mt-2 text-sm font-medium text-amber-600 dark:text-amber-500">
+                  <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm font-medium text-amber-600 dark:text-amber-500">
                     Voce estava confiante, mas errou -- revise este conceito com
                     atencao!
                   </p>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 Avancando automaticamente...
               </p>
             </div>

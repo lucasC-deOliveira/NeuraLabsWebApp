@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BrainIcon, LayersIcon, FlameIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon } from "lucide-react";
+import { BrainIcon, LayersIcon, FlameIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 
 const NAV_ITEMS = [
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/notes", label: "Notas", icon: FileTextIcon },
   { href: "/study", label: "Estudar", icon: FlameIcon },
   { href: "/graph", label: "Grafo", icon: NetworkIcon },
+  { href: "/settings", label: "Configuracoes", icon: SettingsIcon },
 ];
 
 function NavContent({ onItemClick }: { onItemClick?: () => void }) {

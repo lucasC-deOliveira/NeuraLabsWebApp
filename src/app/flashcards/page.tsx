@@ -220,16 +220,16 @@ export default function FlashcardsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 space-y-8">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
       {/* ---------- Header ---------- */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-heading font-semibold">Flashcards</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-heading font-semibold">Flashcards</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {flashcards.length} flashcard{flashcards.length !== 1 && "s"} no total
           </p>
         </div>
-        <Button onClick={openCreateDialog}>
+        <Button onClick={openCreateDialog} className="w-full sm:w-auto">
           <PlusIcon className="size-4 mr-1" />
           Novo flashcard
         </Button>
@@ -249,7 +249,7 @@ export default function FlashcardsPage() {
           />
         </div>
         <Select value={conceptFilter} onValueChange={(v) => setConceptFilter(v ?? "")}>
-          <SelectTrigger className="sm:w-56">
+          <SelectTrigger className="w-full sm:w-56">
             <SelectValue placeholder="Filtrar por conceito" />
           </SelectTrigger>
           <SelectContent>

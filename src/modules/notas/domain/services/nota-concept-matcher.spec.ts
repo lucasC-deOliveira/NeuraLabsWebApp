@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { NotaConceptMatcher } from "./nota-concept-matcher";
 
 const concepts = [

@@ -94,17 +94,17 @@ export default function NotesPage() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold">Notas</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-semibold">Notas</h1>
+          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             Suas notas de estudo convertidas de texto bruto.
           </p>
         </div>
         <Link href="/notes/new">
-          <Button>
+          <Button className="w-full sm:w-auto">
             <PlusIcon className="size-4 mr-1" />
             Nova nota
           </Button>
@@ -120,7 +120,7 @@ export default function NotesPage() {
         </div>
       ) : notas.length === 0 ? (
         <Card className="border-dashed border-zinc-300 dark:border-zinc-700">
-          <CardContent className="py-12 text-center space-y-3">
+          <CardContent className="py-8 sm:py-12 text-center space-y-3">
             <FileTextIcon className="size-10 mx-auto text-zinc-300 dark:text-zinc-600" />
             <div>
               <p className="text-lg font-medium">Nenhuma nota criada</p>
@@ -143,8 +143,8 @@ export default function NotesPage() {
               className="border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
             >
               <Link href={`/notes/${nota.id}`}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
+                <CardHeader className="pb-2 px-3 sm:px-6">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-medium line-clamp-1">
                         {nota.preview.split("\n")[0].replace(/^#+\s*/, "")}
@@ -153,7 +153,7 @@ export default function NotesPage() {
                         {formatRelativeDate(nota.dataCriacao)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 ml-3 flex-shrink-0">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       {nota.flashcardCount > 0 && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
                           <BrainIcon className="size-3 mr-0.5" />
@@ -166,7 +166,7 @@ export default function NotesPage() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0 pb-4">
+                <CardContent className="px-3 sm:px-6 pt-0 pb-4">
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
                     {nota.preview}
                   </p>
@@ -203,7 +203,8 @@ export default function NotesPage() {
                       ) : (
                         <BrainIcon className="size-3.5 mr-1" />
                       )}
-                      Gerar flashcards
+                      <span className="hidden sm:inline">Gerar</span>
+                      <span className="sm:hidden">FC</span>
                     </Button>
 
                     <Button
@@ -228,7 +229,7 @@ export default function NotesPage() {
 
       {/* Delete Confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm mx-4">
           <DialogHeader>
             <DialogTitle>Confirmar exclusão</DialogTitle>
             <DialogDescription>

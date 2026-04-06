@@ -48,9 +48,7 @@ export default function NotaDetailPage() {
     try {
       const result = await generateFlashcardsFromNota(nota.id);
       if (result.flashcards.length > 0) {
-        toast.success(
-          `${result.flashcards.length} flashcard(s) gerado(s)!`,
-        );
+        toast.success(`${result.flashcards.length} flashcard(s) gerado(s)!`);
       } else {
         toast.info("Nenhum flashcard pôde ser gerado. Verifique se a nota contém definições ou conceitos vinculados.");
       }
@@ -83,7 +81,6 @@ export default function NotaDetailPage() {
     );
   }
 
-  // Render the markdown-ish content
   function renderContent(text: string) {
     const lines = text.split("\n");
     const elements: React.ReactNode[] = [];
@@ -91,18 +88,17 @@ export default function NotaDetailPage() {
     lines.forEach((line, i) => {
       if (line.startsWith("# ")) {
         elements.push(
-          <h1 key={i} className="text-2xl font-bold mt-6 mb-3">
+          <h1 key={i} className="text-xl sm:text-2xl font-bold mt-6 mb-3">
             {line.replace("# ", "")}
           </h1>,
         );
       } else if (line.startsWith("## ")) {
         elements.push(
-          <h2 key={i} className="text-xl font-semibold mt-4 mb-2">
+          <h2 key={i} className="text-lg sm:text-xl font-semibold mt-4 mb-2">
             {line.replace("## ", "")}
           </h2>,
         );
       } else if (line.startsWith("- **") || line.startsWith("- ")) {
-        // Bold definition list item
         const boldMatch = line.match(/^- \*\*(.+?)\*\*:\s?(.*)$/);
         if (boldMatch) {
           elements.push(
@@ -120,10 +116,10 @@ export default function NotaDetailPage() {
       } else if (line.startsWith("---")) {
         elements.push(<Separator key={i} className="my-4" />);
       } else if (line.trim() === "") {
-        // skip empty
+        // skip
       } else {
         elements.push(
-          <p key={i} className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">
+          <p key={i} className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed break-words">
             {line}
           </p>,
         );
@@ -134,7 +130,7 @@ export default function NotaDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-4 sm:space-y-6">
       {/* Nav */}
       <Link href="/notes" className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
         <ArrowLeftIcon className="size-4" />
@@ -142,9 +138,9 @@ export default function NotaDetailPage() {
       </Link>
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Detalhes da nota</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Detalhes da nota</h1>
           <p className="text-xs text-zinc-400 mt-1">
             Criada em {new Date(nota.dataCriacao).toLocaleString("pt-BR")}
           </p>
@@ -152,7 +148,7 @@ export default function NotaDetailPage() {
         <Button
           onClick={handleGenerateFlashcards}
           disabled={generating}
-          className="flex-shrink-0"
+          className="w-full sm:w-auto flex-shrink-0"
         >
           {generating ? (
             <Loader2Icon className="size-4 mr-1 animate-spin" />
@@ -168,17 +164,17 @@ export default function NotaDetailPage() {
       {/* Related concepts */}
       {nota.conceitosRelacionados.length > 0 && (
         <Card className="border-zinc-200 dark:border-zinc-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Conceitos vinculados</CardTitle>
-            <CardDescription>
+          <CardHeader className="pb-2 px-3 sm:px-6">
+            <CardTitle className="text-sm sm:text-base">Conceitos vinculados</CardTitle>
+            <CardDescription className="text-xs">
               Conexões semânticas automáticas encontradas no texto.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 sm:px-6">
             <div className="flex flex-wrap gap-2">
               {nota.conceitosRelacionados.map((c, i) => (
                 <div key={i} className="flex items-center gap-1.5">
-                  <Badge variant="outline">{c.nome}</Badge>
+                  <Badge variant="outline" className="text-xs">{c.nome}</Badge>
                   <span className="text-xs text-zinc-400">{c.tipoRelacao}</span>
                 </div>
               ))}
@@ -189,10 +185,10 @@ export default function NotaDetailPage() {
 
       {/* Content */}
       <Card className="border-zinc-200 dark:border-zinc-800">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Conteúdo</CardTitle>
+        <CardHeader className="pb-2 px-3 sm:px-6">
+          <CardTitle className="text-sm sm:text-base">Conteúdo</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-1 pt-1">
+        <CardContent className="space-y-1 pt-1 px-3 sm:px-6">
           {renderContent(nota.textoBruto)}
         </CardContent>
       </Card>

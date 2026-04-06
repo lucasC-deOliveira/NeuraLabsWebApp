@@ -113,19 +113,19 @@ export default function Home() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50">
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+        <div className="mx-auto max-w-5xl px-4 py-6 sm:py-10 lg:px-8">
           {/* Header */}
-          <header className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          <header className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               FlashMind
             </h1>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
               Flashcards Inteligentes com IA
             </p>
           </header>
 
           {/* Stats Row */}
-          <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <section className="mb-6 sm:mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <StatCard
               title="Cartões para revisar hoje"
               value={loading ? "..." : String(dueCardCount)}
@@ -141,13 +141,13 @@ export default function Home() {
             />
 
             <Card className="border-zinc-200 dark:border-zinc-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              <CardHeader className="pb-2 px-3 sm:px-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-zinc-500 dark:text-zinc-400">
                   Dias consecutivos
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold">Em breve</p>
+              <CardContent className="px-3 sm:px-6">
+                <p className="text-xl sm:text-2xl font-semibold">Em breve</p>
                 <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
                   Recurso em produção
                 </p>
@@ -156,11 +156,11 @@ export default function Home() {
           </section>
 
           {/* Quick Actions */}
-          <section className="mb-8">
-            <h2 className="mb-3 text-lg font-semibold">Ações rápidas</h2>
-            <div className="flex flex-wrap gap-3">
+          <section className="mb-6 sm:mb-8">
+            <h2 className="mb-3 text-base sm:text-lg font-semibold">Ações rápidas</h2>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               <Link href="/study">
-                <Button size="lg" className="text-base">Estudar agora</Button>
+                <Button size="lg" className="text-sm sm:text-base px-4 sm:px-6">Estudar agora</Button>
               </Link>
               <Link href="/reviews">
                 <Button variant="outline" size="lg">Revisões</Button>
@@ -171,22 +171,22 @@ export default function Home() {
             </div>
           </section>
 
-          <Separator className="my-6" />
+          <Separator className="my-4 sm:my-6" />
 
           {/* Subject Navigation */}
-          <section className="mb-8">
-            <h2 className="mb-3 text-lg font-semibold">Matérias</h2>
+          <section className="mb-6 sm:mb-8">
+            <h2 className="mb-3 text-base sm:text-lg font-semibold">Matérias</h2>
 
             {loading ? (
-              <p className="text-sm text-zinc-400">Carregando matérias...</p>
+              <p className="text-xs sm:text-sm text-zinc-400">Carregando matérias...</p>
             ) : subjects.length === 0 ? (
               <Card className="border-dashed border-zinc-300 dark:border-zinc-700">
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <CardContent className="py-6 sm:py-8 text-center">
+                  <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
                     Nenhuma matéria cadastrada ainda.
                   </p>
                   <Link href="/flashcards/new">
-                    <Button variant="link" className="mt-1">Criar a primeira</Button>
+                    <Button variant="link" className="mt-1">Criar o primeira</Button>
                   </Link>
                 </CardContent>
               </Card>
@@ -195,14 +195,14 @@ export default function Home() {
                 {subjects.map((subject) => (
                   <Link key={subject.id} href={`/subjects/${subject.id}`}>
                     <Card className="cursor-pointer transition-colors hover:border-zinc-300 dark:hover:border-zinc-600 border-zinc-200 dark:border-zinc-800 h-full">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">{subject.nome}</CardTitle>
+                      <CardHeader className="pb-2 px-3 sm:px-6">
+                        <CardTitle className="text-sm sm:text-base">{subject.nome}</CardTitle>
                         {subject.descricao && (
-                          <CardDescription>{subject.descricao}</CardDescription>
+                          <CardDescription className="text-xs">{subject.descricao}</CardDescription>
                         )}
                       </CardHeader>
-                      <CardContent>
-                        <Badge variant="secondary">
+                      <CardContent className="px-3 sm:px-6">
+                        <Badge variant="secondary" className="text-xs">
                           {subject.topicoCount} {subject.topicoCount === 1 ? "tópico" : "tópicos"}
                         </Badge>
                       </CardContent>
@@ -213,18 +213,18 @@ export default function Home() {
             )}
           </section>
 
-          <Separator className="my-6" />
+          <Separator className="my-4 sm:my-6" />
 
           {/* Recent Activity */}
-          <section className="mb-8">
-            <h2 className="mb-3 text-lg font-semibold">Atividade recente</h2>
+          <section className="mb-6 sm:mb-8">
+            <h2 className="mb-3 text-base sm:text-lg font-semibold">Atividade recente</h2>
 
             {loading ? (
-              <p className="text-sm text-zinc-400">Carregando sessões...</p>
+              <p className="text-xs sm:text-sm text-zinc-400">Carregando sessões...</p>
             ) : sessions.length === 0 ? (
               <Card className="border-dashed border-zinc-300 dark:border-zinc-700">
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <CardContent className="py-6 sm:py-8 text-center">
+                  <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
                     Nenhuma sessão de estudo ainda.
                   </p>
                   <Link href="/study">
@@ -246,10 +246,10 @@ export default function Home() {
                         className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="flex flex-col">
-                          <span className="text-sm font-medium">
+                          <span className="text-xs sm:text-sm font-medium">
                             {formatRelativeDate(session.dataInicio)}
                           </span>
-                          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                          <span className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400">
                             {session.totalReviews} cartas revisadas
                           </span>
                         </div>
@@ -289,13 +289,13 @@ function StatCard({
 }) {
   return (
     <Card className="border-zinc-200 dark:border-zinc-800">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+      <CardHeader className="pb-2 px-3 sm:px-6">
+        <CardTitle className="text-xs sm:text-sm font-medium text-zinc-500 dark:text-zinc-400">
           {title}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className={`text-2xl font-semibold ${accent}`}>{value}</p>
+      <CardContent className="px-3 sm:px-6">
+        <p className={`text-xl sm:text-2xl font-semibold ${accent}`}>{value}</p>
         <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">{description}</p>
       </CardContent>
     </Card>

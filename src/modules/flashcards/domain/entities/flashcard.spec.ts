@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { Flashcard } from "./flashcard";
 import { SpacedRepetitionData } from "../value-objects/flashcard-spaced-data";
 

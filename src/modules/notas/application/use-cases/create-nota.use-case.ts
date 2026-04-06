@@ -18,6 +18,7 @@ export interface CreateNotaInput {
 export interface CreateNotaOutput {
   notaId: string;
   matchedConcepts: Array<{ term: string; conceitoId: string; conceitoNome: string }>;
+  createdNodes: number;
 }
 
 export class CreateNotaUseCase {
@@ -45,8 +46,8 @@ export class CreateNotaUseCase {
       }
     }
 
-    // 4. Persist
-    await this.notaRepository.save(nota);
+    // 4. Persist (creates Nota + graph nodes & edges)
+    const createdNodes = await this.notaRepository.save(nota);
 
     return {
       notaId: nota.id,
@@ -57,6 +58,7 @@ export class CreateNotaUseCase {
           conceitoId: concept!.id,
           conceitoNome: concept!.nome,
         })),
+      createdNodes,
     };
   }
 }
