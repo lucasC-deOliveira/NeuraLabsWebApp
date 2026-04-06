@@ -589,77 +589,147 @@ export async function createNota(
   };
 }
 
+export async function getNotasFilterData(): Promise<
+  Array<{ id: string; nome: string }>
+> {
+  const userId = await resolveUserId();
+
+  // All unique concepts linked to user's notes with hierarchy
+  const edges = await prisma.nota.findMany({
+    where: { usuarioId: userId },
+    include: {
+      arestasOrigem: {
+        include: {
+          nodeDestino: true,
+        },
+      },
+    },
+  });
+
+  const conceitoIds = new Set<string>();
+  for (const nota of edges) {
+    for (const edge of nota.arestasOrigem) {
+      if (edge.nodeDestino?.tipoNode === "CONCEITO") {
+        conceitoIds.add(edge.nodeDestino.referenciaId);
+      }
+    }
+  }
+
+  if (conceitoIds.size === 0) return [];
+
+  const conceitos = await prisma.conceito.findMany({
+    where: { id: { in: Array.from(conceitoIds) } },
+    include: { topico: true },
+  });
+
+  const assuntos = await prisma.assunto.findMany({ include: { topicos: true } });
+  const conceitoTopicos = new Map<string, { topicoNome: string; assuntoId: string }>();
+  for (const c of conceitos) {
+    conceitoTopicos.set(c.id, { topicoNome: c.topico.nome, assuntoId: c.topico.assuntoId });
+  }
+
+  const result: Array<{ id: string; nome: string }> = [];
+  for (const a of assuntos) {
+    if (conceitos.some((c) => c.topico.assuntoId === a.id)) {
+      result.push({ id: a.id, nome: a.nome });
+    }
+  }
+  result.sort((a, b) => a.nome.localeCompare(b.nome));
+  return result;
+}
+
 export async function getNotas(): Promise<
   Array<{
     id: string;
     preview: string;
+    titulo: string;
     dataCriacao: Date;
     conceitosRelacionados: { nome: string; id: string }[];
     flashcardCount: number;
+    wordCount: number;
   }>
 > {
   const userId = await resolveUserId();
 
   const notas = await prisma.nota.findMany({
     where: { usuarioId: userId },
-    include: {
-      arestasOrigem: {
-        include: {
-          nodeDestino: {
-            include: {
-              // Get concept info through the concept model
-            },
-          },
-        },
-        where: {
-          OR: [
-            { nodeDestino: { tipoNode: "CONCEITO" } },
-            { nodeDestino: { tipoNode: "TOPICO" } },
-            { nodeDestino: { tipoNode: "ASSUNTO" } },
-          ],
-        },
-      },
-    },
     orderBy: { dataCriacao: "desc" },
   });
 
-  // Get flashcard count per nota through edges (NOTA -> FLASHCARD edges)
-  return Promise.all(
-    notas.map(async (nota) => {
-      const flashcardsCount = await prisma.conhecimentoAresta.count({
-        where: {
-          notaOrigemId: nota.id,
-          nodeDestino: { tipoNode: "FLASHCARD" },
-        },
-      });
+  // Bulk load concept associations
+  const notaIds = notas.map((n) => n.id);
+  const allEdges = await prisma.conhecimentoAresta.findMany({
+    where: {
+      notaOrigemId: { in: notaIds },
+    },
+    include: { nodeDestino: true },
+  });
 
-      // Get related concept names through knowledge graph edges
-      const edges = await prisma.conhecimentoAresta.findMany({
-        where: { notaOrigemId: nota.id },
-        include: { nodeDestino: true },
-      });
+  const fcCounts = await prisma.conhecimentoAresta.groupBy({
+    by: ["notaOrigemId"],
+    _count: { notaOrigemId: true },
+    where: {
+      notaOrigemId: { in: notaIds },
+      nodeDestino: { tipoNode: "FLASHCARD" },
+    },
+  });
 
-      const conceitosRelacionados: { nome: string; id: string }[] = [];
-      for (const edge of edges) {
-        if (edge.nodeDestino?.tipoNode === "CONCEITO") {
-          const conceito = await prisma.conceito.findUnique({
-            where: { id: edge.nodeDestino.referenciaId },
-          });
-          if (conceito) {
-            conceitosRelacionados.push({ nome: conceito.nome, id: conceito.id });
-          }
-        }
+  const fcCountMap = new Map<string, number>();
+  for (const g of fcCounts) {
+    if (g.notaOrigemId) fcCountMap.set(g.notaOrigemId, g._count.notaOrigemId);
+  }
+
+  const edgesByNota = new Map<string, typeof allEdges>();
+  for (const edge of allEdges) {
+    if (edge.notaOrigemId) {
+      const arr = edgesByNota.get(edge.notaOrigemId) || [];
+      arr.push(edge);
+      edgesByNota.set(edge.notaOrigemId, arr);
+    }
+  }
+
+  // Load all concepts once
+  const conceitoIds = new Set<string>();
+  for (const edges of edgesByNota.values()) {
+    for (const edge of edges) {
+      if (edge.nodeDestino?.tipoNode === "CONCEITO") {
+        conceitoIds.add(edge.nodeDestino.referenciaId);
       }
+    }
+  }
+  const allConcepts = await prisma.conceito.findMany({
+    where: { id: { in: Array.from(conceitoIds) } },
+  });
+  const conceptMap = new Map(allConcepts.map((c) => [c.id, c.nome]));
 
-      return {
-        id: nota.id,
-        preview: nota.textoBruto.slice(0, 200),
-        dataCriacao: nota.dataCriacao,
-        conceitosRelacionados,
-        flashcardCount: flashcardsCount,
-      };
-    }),
-  );
+  return notas.map((nota) => {
+    const edges = edgesByNota.get(nota.id) || [];
+    const conceitosRelacionados: { nome: string; id: string }[] = [];
+    for (const edge of edges) {
+      if (edge.nodeDestino?.tipoNode === "CONCEITO") {
+        const nome = conceptMap.get(edge.nodeDestino.referenciaId);
+        if (nome) conceitosRelacionados.push({ nome, id: edge.nodeDestino.referenciaId });
+      }
+    }
+
+    const textoBruto = nota.textoBruto || "";
+    const titulo = textoBruto
+      .split("\n")[0]
+      .replace(/^#+\s*/, "")
+      .slice(0, 80) || "Sem titulo";
+    const preview = textoBruto.replace(/^#+\s.*\n?/, "").slice(0, 200).trim();
+    const wordCount = textoBruto.trim().split(/\s+/).filter(Boolean).length;
+
+    return {
+      id: nota.id,
+      titulo,
+      preview,
+      dataCriacao: nota.dataCriacao,
+      conceitosRelacionados,
+      flashcardCount: fcCountMap.get(nota.id) ?? 0,
+      wordCount,
+    };
+  });
 }
 
 export async function getNotaById(notaId: string): Promise<{
@@ -705,6 +775,13 @@ export async function deleteNota(id: string): Promise<{ success: boolean }> {
   await prisma.nota.delete({ where: { id } });
   revalidatePath("/notes");
   return { success: true };
+}
+
+export async function deleteAllNotas(): Promise<{ count: number }> {
+  const userId = await resolveUserId();
+  const count = await prisma.nota.deleteMany({ where: { usuarioId: userId } });
+  revalidatePath("/notes");
+  return { count: count.count };
 }
 
 // ==========================================

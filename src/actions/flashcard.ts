@@ -113,6 +113,13 @@ export async function deleteFlashcard(id: string): Promise<{ success: boolean }>
   return { success: true };
 }
 
+export async function deleteAllFlashcards(): Promise<{ count: number }> {
+  const userId = await resolveUserId();
+  const count = await prisma.flashcard.deleteMany({ where: { usuarioId: userId } });
+  revalidatePath("/flashcards");
+  return count;
+}
+
 export async function getFlashcards(options?: {
   conceptId?: string;
   topicId?: string;

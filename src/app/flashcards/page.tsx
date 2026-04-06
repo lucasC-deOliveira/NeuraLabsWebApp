@@ -36,6 +36,7 @@ import {
   createFlashcard,
   updateFlashcard,
   deleteFlashcard,
+  deleteAllFlashcards,
   getFlashcards,
   getFlashcardFilterData,
 } from "@/actions/flashcard";
@@ -133,6 +134,7 @@ export default function FlashcardsPage() {
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<FlashcardWithMeta | null>(null);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
 
   // Detail view
   const [detailCard, setDetailCard] = useState<FlashcardWithMeta | null>(null);
@@ -330,6 +332,17 @@ export default function FlashcardsPage() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    try {
+      const { count } = await deleteAllFlashcards();
+      toast.success(`${count} flashcard(s) removido(s)!`);
+      setShowDeleteAllDialog(false);
+      await load();
+    } catch {
+      toast.error("Erro ao remover flashcards.");
+    }
+  };
+
   // ---------- Active filter count ----------
   const activeFilterCount = [
     assuntoFilter || null,
@@ -375,12 +388,20 @@ export default function FlashcardsPage() {
             {stats.total} flashcard{stats.total !== 1 && "s"} no total
           </p>
         </div>
-        <Link href="/flashcards/new">
-          <Button className="w-full sm:w-auto">
-            <PlusIcon className="size-4 mr-1" />
-            Novo flashcard
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          {stats.total > 0 && (
+            <Button variant="outline" className="text-red-500 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/30 h-9" onClick={() => setShowDeleteAllDialog(true)}>
+              <Trash2Icon className="size-3.5 mr-1" />
+              Todos
+            </Button>
+          )}
+          <Link href="/flashcards/new">
+            <Button className="w-full sm:w-auto">
+              <PlusIcon className="size-4 mr-1" />
+              Novo flashcard
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* ---------- Stats bar ---------- */}
@@ -834,6 +855,25 @@ export default function FlashcardsPage() {
             >
               {submitting && <Loader2Icon className="size-4 mr-1 animate-spin" />}
               Remover
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete All Dialog */}
+      <Dialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remover todos os flashcards</DialogTitle>
+            <DialogDescription>
+              Esta ação remove permanentemente todos os {stats.total} flashcard(s). Essa ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteAllDialog(false)} disabled={submitting}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteAll} disabled={submitting}>
+              {submitting && <Loader2Icon className="size-4 mr-1 animate-spin" />}
+              Remover todos
             </Button>
           </DialogFooter>
         </DialogContent>
