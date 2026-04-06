@@ -2,19 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import type { FlashcardData } from "@/types";
+import { applyInterleaving } from "@/lib/interleaving";
+
+// Re-export from infrastructure layer
 import {
+  startStudySession as libStartStudySession,
+  endStudySession as libEndStudySession,
   getCardsForStudySession,
   getNewCardsForStudy,
-  startStudySession as libStartStudySession,
   submitReview as libSubmitReview,
-  endStudySession as libEndStudySession,
-} from "@/lib/study-session";
-import { applyInterleaving } from "@/lib/interleaving";
-import type { FlashcardData } from "@/types";
+} from "@/modules/study/infra/prisma-estudo-repository";
 
-// ==========================================
-// Helpers
-// ==========================================
+const MAX_CARDS_PER_SESSION = 15;
+const MAX_NEW_CARDS_PER_SESSION = 5;
 
 async function resolveUserId(): Promise<string> {
   const user = await prisma.usuario.findFirst({ select: { id: true } });
@@ -24,33 +25,19 @@ async function resolveUserId(): Promise<string> {
   return user.id;
 }
 
-const MAX_CARDS_PER_SESSION = 15;
-const MAX_NEW_CARDS_PER_SESSION = 5;
-
-// ==========================================
-// Study Session Actions
-// ==========================================
-
 export async function startStudySession(): Promise<{
   sessionId: string;
   cards: FlashcardData[];
 }> {
   const userId = await resolveUserId();
-
-  // Create the session
   const sessionId = await libStartStudySession(userId);
 
-  // Fetch due cards and new cards in parallel
   const [dueCards, newCards] = await Promise.all([
     getCardsForStudySession(userId),
     getNewCardsForStudy(userId, MAX_NEW_CARDS_PER_SESSION),
   ]);
 
-  // Combine: due cards first, then new cards as filler, capped at MAX_CARDS_PER_SESSION
-  let combined: FlashcardData[] = [...dueCards, ...newCards];
-  combined = combined.slice(0, MAX_CARDS_PER_SESSION);
-
-  // Apply interleaving for better learning
+  const combined = [...dueCards, ...newCards].slice(0, MAX_CARDS_PER_SESSION);
   const interleaved = applyInterleaving(combined);
 
   return { sessionId, cards: interleaved };
@@ -66,7 +53,6 @@ export async function submitCardReview(data: {
 }): Promise<{ success: boolean }> {
   const userId = await resolveUserId();
 
-  // Find the most recent active session (no dataFim)
   const activeSession = await prisma.sessaoEstudo.findFirst({
     where: {
       usuarioId: userId,
