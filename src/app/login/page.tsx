@@ -10,22 +10,19 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-const OAUTH_PROVIDERS: { name: string; icon: string; color: string; provider: string }[] = [
-  { name: "Google", icon: "G", color: "bg-white text-zinc-800 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-600", provider: "google" },
+const ALL_PROVIDERS: { name: string; icon: string; color: string; provider: string }[] = [
   { name: "GitHub", icon: "GH", color: "bg-zinc-900 text-white border-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-200", provider: "github" },
-  { name: "Facebook", icon: "f", color: "bg-blue-600 text-white border-blue-600", provider: "facebook" },
-  { name: "Instagram", icon: "IG", color: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 text-white border-transparent", provider: "instagram" },
 ];
 
 function OAuthButtons() {
-  async function handleOAuth(provider: string) {
-    window.location.href = `/api/auth/signin/${provider}`;
+  function handleOAuth(provider: string) {
+    window.location.href = `/api/auth/${provider}`;
   }
 
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        {OAUTH_PROVIDERS.map((p) => (
+        {ALL_PROVIDERS.map((p) => (
           <button
             key={p.provider}
             type="button"
