@@ -25,6 +25,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { PencilIcon, Trash2Icon, PlusIcon, SearchIcon, Loader2Icon } from "lucide-react";
+import Link from "next/link";
 import {
   createFlashcard,
   updateFlashcard,
@@ -229,10 +230,12 @@ export default function FlashcardsPage() {
             {flashcards.length} flashcard{flashcards.length !== 1 && "s"} no total
           </p>
         </div>
-        <Button onClick={openCreateDialog} className="w-full sm:w-auto">
-          <PlusIcon className="size-4 mr-1" />
-          Novo flashcard
-        </Button>
+        <Link href="/flashcards/new">
+          <Button className="w-full sm:w-auto">
+            <PlusIcon className="size-4 mr-1" />
+            Novo flashcard
+          </Button>
+        </Link>
       </div>
 
       <Separator />
