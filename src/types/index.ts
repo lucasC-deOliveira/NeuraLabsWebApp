@@ -33,7 +33,28 @@ export interface SpacedRepetitionData {
   estagioAprendizado: number;
 }
 
+export interface EnhancedFlashcardData {
+  id: string;
+  pergunta: string;
+  resposta: string;
+  conceito: string;
+  topico: string;
+  assunto: string;
+  topicoId: string;
+  assuntoId: string;
+  dataCriacao: Date;
+  spacedRepetition: SpacedRepetitionData | null;
+}
+
 export interface ErrorClassification {
   tipo: "CONCEITUAL" | "DETALHE" | "EXCECAO" | "INCOMPLETO";
   explicacao: string;
+}
+
+export interface FlashcardFilters {
+  search: string;
+  assuntoId?: string;
+  topicoId?: string;
+  status?: "all" | "due" | "not-due" | "overdue" | "new" | "mastered";
+  sortBy?: "date" | "difficulty" | "interval" | "alpha";
 }

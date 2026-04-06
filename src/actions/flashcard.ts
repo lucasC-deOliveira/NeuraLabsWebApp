@@ -119,6 +119,10 @@ export async function getFlashcards(options?: {
 }): Promise<
   Array<
     FlashcardData & {
+      topico: string;
+      topicoId: string;
+      assunto: string;
+      assuntoId: string;
       spacedRepetition: SpacedRepetitionData | null;
       dataCriacao: Date;
     }
@@ -137,7 +141,7 @@ export async function getFlashcards(options?: {
   const records = await prisma.flashcard.findMany({
     where: whereClause,
     include: {
-      conceito: true,
+      conceito: { include: { topico: { include: { assunto: true } } } },
       aprendizado: {
         take: 1,
         orderBy: { ultimaRevisao: "desc" },
@@ -151,6 +155,10 @@ export async function getFlashcards(options?: {
     pergunta: fc.pergunta,
     resposta: fc.resposta,
     conceito: fc.conceito.nome,
+    topico: fc.conceito.topico.nome,
+    topicoId: fc.conceito.topico.id,
+    assunto: fc.conceito.topico.assunto.nome,
+    assuntoId: fc.conceito.topico.assunto.id,
     dataCriacao: fc.dataCriacao,
     spacedRepetition: fc.aprendizado[0]
       ? {
@@ -161,6 +169,25 @@ export async function getFlashcards(options?: {
           estagioAprendizado: fc.aprendizado[0].estagioAprendizado,
         }
       : null,
+  }));
+}
+
+type HierarquiaFlat = Array<{
+  id: string;
+  nome: string;
+  topicos: Array<{ id: string; nome: string; assuntoId: string }>;
+}>;
+
+export async function getFlashcardFilterData(): Promise<HierarquiaFlat> {
+  const assuntos = await prisma.assunto.findMany({
+    include: {
+      topicos: { select: { id: true, nome: true, assuntoId: true } },
+    },
+  });
+  return assuntos.map((a) => ({
+    id: a.id,
+    nome: a.nome,
+    topicos: a.topicos.map((t) => ({ id: t.id, nome: t.nome, assuntoId: t.assuntoId })),
   }));
 }
 
