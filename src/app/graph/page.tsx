@@ -416,6 +416,48 @@ export default function GraphPage() {
     return filteredEdges.filter((e) => e.source === selectedNode.id || e.target === selectedNode.id);
   }, [selectedNode, filteredEdges]);
 
+  // Group edges by relation type
+  const groupedEdges = useMemo(() => {
+    const map = new Map<string, { type: string; label: string; items: { edge: SimEdge; other: SimNode; dir: "out" | "in" }[] }>();
+    for (const edge of connectedEdges) {
+      const otherId = edge.source === selectedNode!.id ? edge.target : edge.source;
+      const other = layout.find((n) => n.id === otherId);
+      if (!other) continue;
+      const dir: "out" | "in" = edge.source === selectedNode!.id ? "out" : "in";
+      const key = `${edge.type}-${dir}`;
+      let group = map.get(key);
+      if (!group) {
+        group = { type: edge.type, label: edge.label, items: [] };
+        map.set(key, group);
+      }
+      group.items.push({ edge, other, dir });
+    }
+    return [...map.entries()];
+  }, [connectedEdges, selectedNode, layout]);
+
+  // Track which node's expanded state we're viewing using a map
+  const [nodeExpansionMap, setNodeExpansionMap] = useState<Record<string, Set<string>>>({});
+
+  const toggleGroup = useCallback((gKey: string) => {
+    const nodeId = selectedNode?.id;
+    if (!nodeId) return;
+    setNodeExpansionMap((prev) => {
+      const current = prev[nodeId] ?? null;
+      const updated = new Set(current);
+      if (updated.has(gKey)) updated.delete(gKey);
+      else updated.add(gKey);
+      return { ...prev, [nodeId]: updated };
+    });
+  }, [selectedNode]);
+
+  const isGroupExpanded = useCallback((gKey: string) => {
+    const nodeId = selectedNode?.id;
+    if (!nodeId) return false;
+    const nodeSet = nodeExpansionMap[nodeId];
+    if (nodeSet === undefined) return true; // default: expanded
+    return nodeSet.has(gKey);
+  }, [selectedNode, nodeExpansionMap]);
+
   const showEdgeLabels = zoom > 0.5;
 
   // Resolve dark mode: "system" → detect via resolvedTheme
@@ -725,21 +767,40 @@ export default function GraphPage() {
                   </span>
                 </div>
 
-                <div className="max-h-40 overflow-y-auto space-y-1">
-                  {connectedEdges.map((edge, idx) => {
-                    const otherId = edge.source === selectedNode.id ? edge.target : edge.source;
-                    const other = nodes.find((n) => n.id === otherId);
-                    if (!other) return null;
-                    const isOut = edge.source === selectedNode.id;
+                <div className="max-h-60 overflow-y-auto space-y-1">
+                  {groupedEdges.map(([key, group]) => {
+                    const expanded = isGroupExpanded(key);
+                    const count = group.items.length;
+
                     return (
-                      <div key={`${edge.source}-${edge.target}-${edge.type}-${idx}`} className="flex items-center gap-1 text-xs">
-                        <span className="text-muted-foreground">{isOut ? "→" : "←"}</span>
-                        <span style={{ color: getRelColor(edge.type, isDark) }} className="font-medium">
-                          {edge.label}
-                        </span>
-                        <span className="text-foreground truncate max-w-[160px]">
-                          {other.label}
-                        </span>
+                      <div key={key} className="space-y-0.5">
+                        <button
+                          onClick={() => toggleGroup(key)}
+                          className="flex items-center gap-2 text-xs w-full text-left py-0.5"
+                          aria-expanded={expanded}
+                        >
+                          <span
+                            className={`transition-transform text-muted-foreground ${expanded ? "rotate-90" : ""}`}
+                          >
+                            ▶
+                          </span>
+                          <span style={{ color: getRelColor(group.type, isDark) }} className="font-medium capitalize">
+                            {group.label}{count > 1 ? ` (${count})` : ""}
+                          </span>
+                        </button>
+
+                        {expanded && (
+                          <div className="ml-5 space-y-0.5">
+                            {group.items.map(({ other, dir }, idx) => (
+                              <div key={`${key}-${idx}`} className="flex items-center gap-1.5 text-xs">
+                                <span className="text-muted-foreground">{dir === "out" ? "→" : "←"}</span>
+                                <span className="text-foreground truncate max-w-[160px]">
+                                  {other.label}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
