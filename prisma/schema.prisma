@@ -31,6 +31,7 @@ model Usuario {
   configAI          ConfigAI?
   assuntos          Assunto[]
   nodesConhecimento NodeConhecimento[]
+  grafos            GrafosConhecimento[]
 
   @@map("usuarios")
 }
@@ -170,20 +171,22 @@ model Nota {
 }
 
 // ==========================================
-// NODE_CONHECIMENTO - Nó do grafo de conhecimento
+// GRAFO - Grafo de conhecimento do usuário (múltiplos contextos)
 // ==========================================
-model NodeConhecimento {
-  id                String   @id @default(cuid())
-  usuarioId         String   @map("id_usuario")
-  tipoNode          TipoNode
-  referenciaId      String   @map("referencia_id")
-  nivelDominio      Float    @default(0.0) @map("nivel_dominio")
-  ultimaAtualizacao DateTime @default(now()) @map("ultima_atualizacao")
+model GrafosConhecimento {
+  id          String   @id @default(cuid())
+  usuarioId   String   @map("id_usuario")
+  nome        String
+  descricao   String?
+  estadoVisual String?  @map("estado_visual") // JSON: zoom, pan, posição de nodes
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+  dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao")
 
-  usuario      Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  arestasOrigem  ConhecimentoAresta[] @relation("NodeOrigem")
-  arestasDestino ConhecimentoAresta[] @relation("NodeDestino")
-  desempenho     DesempenhoNo[]
+  usuario Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  nodes   NodeConhecimento[]
+  arestas ConhecimentoAresta[]
+
+  @@map("grafos_conhecimento")
 }
 
 enum TipoNode {
@@ -196,10 +199,34 @@ enum TipoNode {
 }
 
 // ==========================================
+// NODE_CONHECIMENTO - Nó do grafo de conhecimento
+// ==========================================
+model NodeConhecimento {
+  id                String   @id @default(cuid())
+  usuarioId         String   @map("id_usuario")
+  grafoId           String?  @map("id_grafo")
+  tipoNode          TipoNode
+  referenciaId      String   @map("referencia_id")
+  posicaoX          Float?   @default(0.0) @map("posicao_x")
+  posicaoY          Float?   @default(0.0) @map("posicao_y")
+  nivelDominio      Float    @default(0.0) @map("nivel_dominio")
+  ultimaAtualizacao DateTime @default(now()) @map("ultima_atualizacao")
+
+  usuario      Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  grafo        GrafosConhecimento?  @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+  arestasOrigem  ConhecimentoAresta[] @relation("NodeOrigem")
+  arestasDestino ConhecimentoAresta[] @relation("NodeDestino")
+  desempenho     DesempenhoNo[]
+
+  @@unique([usuarioId, grafoId, tipoNode, referenciaId], name: "_node_unique")
+}
+
+// ==========================================
 // ARESTA_CONHECIMENTO - Relações semânticas entre nodes do grafo
 // ==========================================
 model ConhecimentoAresta {
   id            String      @id @default(cuid())
+  grafoId       String?     @map("id_grafo")
   nodeOrigemId  String?     @map("id_node_origem")
   nodeDestinoId String?     @map("id_node_destino")
   notaOrigemId  String?     @map("id_nota_origem")
@@ -207,10 +234,11 @@ model ConhecimentoAresta {
   tipoRelacao   TipoRelacao
   peso          Float       @default(1.0)
 
-  nodeOrigem  NodeConhecimento? @relation("NodeOrigem", fields: [nodeOrigemId], references: [id], onDelete: Cascade)
-  nodeDestino NodeConhecimento? @relation("NodeDestino", fields: [nodeDestinoId], references: [id], onDelete: Cascade)
-  notaOrigem  Nota?             @relation("NotaOrigem", fields: [notaOrigemId], references: [id], onDelete: Cascade)
-  notaDestino Nota?             @relation("NotaDestino", fields: [notaDestinoId], references: [id], onDelete: Cascade)
+  grafo       GrafosConhecimento? @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+  nodeOrigem  NodeConhecimento?  @relation("NodeOrigem", fields: [nodeOrigemId], references: [id], onDelete: Cascade)
+  nodeDestino NodeConhecimento?  @relation("NodeDestino", fields: [nodeDestinoId], references: [id], onDelete: Cascade)
+  notaOrigem  Nota?              @relation("NotaOrigem", fields: [notaOrigemId], references: [id], onDelete: Cascade)
+  notaDestino Nota?              @relation("NotaDestino", fields: [notaDestinoId], references: [id], onDelete: Cascade)
 
   @@unique([nodeOrigemId, nodeDestinoId, tipoRelacao], name: "_edge_uk")
   @@unique([notaOrigemId, notaDestinoId, tipoRelacao], name: "_nota_edge_uk")

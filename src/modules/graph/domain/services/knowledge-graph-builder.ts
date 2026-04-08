@@ -35,7 +35,105 @@ type EdgeTuple = [string, string, TipoRelacao, number]
 
 async function buildKnowledgeGraph(
   userId: string,
+  grafoId?: string,
 ): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
+  // When grafoId is set, only load data that belongs to this graph.
+  // Otherwise load everything (legacy mode).
+  if (grafoId) {
+    // Load nodes and edges from the specific graph
+    const [graphNodes, graphEdges] = await Promise.all([
+      prisma.nodeConhecimento.findMany({
+        where: { grafoId, usuarioId: userId },
+      }),
+      prisma.conhecimentoAresta.findMany({
+        where: { grafoId },
+      }),
+    ]);
+
+    // Resolve actual entity data from nodes
+    const refIds = new Set<string>();
+    const nodeRefsByType: Record<string, Set<string>> = {};
+    for (const n of graphNodes) {
+      refIds.add(n.referenciaId);
+      if (!nodeRefsByType[n.tipoNode]) nodeRefsByType[n.tipoNode] = new Set();
+      nodeRefsByType[n.tipoNode].add(n.referenciaId);
+    }
+
+    const flashcardIds = nodeRefsByType["FLASHCARD"] ? [...nodeRefsByType["FLASHCARD"]] : ["__none__"];
+    const notaIds = nodeRefsByType["NOTA"] ? [...nodeRefsByType["NOTA"]] : ["__none__"];
+    const assuntoIds = nodeRefsByType["ASSUNTO"] ? [...nodeRefsByType["ASSUNTO"]] : ["__none__"];
+    const topicoIds = nodeRefsByType["TOPICO"] ? [...nodeRefsByType["TOPICO"]] : ["__none__"];
+    const conceitoIds = nodeRefsByType["CONCEITO"] ? [...nodeRefsByType["CONCEITO"]] : ["__none__"];
+
+    const safeIn = (ids: string[]) => ids.length > 0 ? ids : ["__none__"];
+
+    // Only fetch the referenced entities
+    const [subjects, notas, flashcards] = await Promise.all([
+      prisma.assunto.findMany({
+        where: { id: { in: safeIn(assuntoIds) } },
+        include: {
+          topicos: {
+            where: { id: { in: safeIn(topicoIds) } },
+            include: {
+              conceitos: {
+                where: { id: { in: safeIn(conceitoIds) } },
+                include: { flashcards: { include: { aprendizado: true } } },
+              },
+            },
+          },
+        },
+      }),
+      prisma.nota.findMany({
+        where: { id: { in: safeIn(notaIds) } },
+      }),
+      prisma.flashcard.findMany({
+        where: { id: { in: safeIn(flashcardIds) } },
+        include: { aprendizado: true },
+      }),
+    ]);
+
+    // Build flat node+edge list from graph data
+    const nodes: GraphNode[] = [];
+    const edgeTuples: EdgeTuple[] = [];
+
+    for (const n of graphNodes) {
+      nodes.push({
+        id: n.referenciaId,
+        label: resolveLabel(n.tipoNode, n.referenciaId, subjects, notas, flashcards),
+        type: n.tipoNode as GraphNode["type"],
+        nivelDominio: n.nivelDominio,
+        prioridadeRevisao: 5,
+      });
+    }
+
+    // Restore parent positions from layout if available
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+    for (const e of graphEdges) {
+      let src = e.nodeOrigemId ?? "";
+      let tgt = e.nodeDestinoId ?? "";
+      if (e.notaOrigemId) src = `nota:${e.notaOrigemId}`;
+      if (e.notaDestinoId) tgt = `nota:${e.notaDestinoId}`;
+
+      if (src && tgt) {
+        edgeTuples.push([src, tgt, e.tipoRelacao as TipoRelacao, e.peso]);
+      }
+    }
+
+    // Deduplicate
+    const seen = new Set<string>();
+    const edges: GraphEdge[] = [];
+    for (const [s, t, type, peso] of edgeTuples) {
+      const key = `${s}→${t}→${type}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({ source: s, target: t, type, peso });
+    }
+
+    return { nodes, edges };
+  }
+
+  // Legacy: no grafoId — build from all user data
   const [subjects, notas, userNodes] = await Promise.all([
     prisma.assunto.findMany({
       where: { usuarioId: userId },
@@ -257,6 +355,33 @@ function addEdgeConcept(
 ) {
   if (src && tgt && src !== tgt) {
     edges.push([src, tgt, type, peso])
+  }
+}
+
+function resolveLabel(
+  tipoNode: string,
+  refId: string,
+  subjects: any[],
+  notas: any[],
+  flashcards: any[],
+): string {
+  switch (tipoNode) {
+    case "ASSUNTO":
+      return subjects.find((s) => s.id === refId)?.nome ?? refId;
+    case "TOPICO":
+      return subjects.flatMap((s) => s.topicos).find((t) => t.id === refId)?.nome ?? refId;
+    case "CONCEITO":
+      return subjects.flatMap((s) => s.topicos).flatMap((t) => t.conceitos).find((c) => c.id === refId)?.nome ?? refId;
+    case "FLASHCARD":
+      const fc = flashcards.find((f: any) => f.id === refId);
+      const q = fc?.pergunta ?? refId;
+      return q.length > 60 ? `${q.slice(0, 60)}…` : q;
+    case "NOTA":
+      const n = notas.find((x) => x.id === refId);
+      const t = n?.textoBruto ?? refId;
+      return t.length > 60 ? `${t.slice(0, 60)}…` : t;
+    default:
+      return refId;
   }
 }
 
