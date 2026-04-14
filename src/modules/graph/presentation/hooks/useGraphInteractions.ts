@@ -7,9 +7,6 @@ import {
   useRef,
 } from "react";
 
-/**
- * Tipagem mínima esperada do node no layout
- */
 export type LayoutNode = {
   id: string;
   x: number;
@@ -18,7 +15,16 @@ export type LayoutNode = {
 
 type Pan = { x: number; y: number };
 
-type UseGraphInteractionsProps<T extends LayoutNode> = {
+function safe(n: any) {
+  return Number.isFinite(n) ? n : 0;
+}
+
+type InteractionState = {
+  type: "idle" | "pan" | "drag";
+  nodeId: string | null;
+};
+
+type Props<T extends LayoutNode> = {
   layout: T[];
   setLayout: React.Dispatch<React.SetStateAction<T[]>>;
 
@@ -41,163 +47,182 @@ export function useGraphInteractions<T extends LayoutNode>({
   setPan,
   offsetX = 400,
   offsetY = 200,
-}: UseGraphInteractionsProps<T>) {
+}: Props<T>) {
+
   // =========================
-  // STATE
+  // SINGLE SOURCE OF TRUTH
   // =========================
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-  const dragOffsetRef = useRef({ x: 0, y: 0 });
-const [mode, setMode] = useState<"idle" | "pan" | "drag">("idle");
+  const interactionRef = useRef<InteractionState>({
+    type: "idle",
+    nodeId: null,
+  });
+
+  const dragOffset = useRef({ x: 0, y: 0 });
   const layoutRef = useRef(layout);
+  const panRef = useRef(pan);
+  const zoomRef = useRef(zoom);
 
   useEffect(() => {
     layoutRef.current = layout;
   }, [layout]);
 
+  useEffect(() => {
+    panRef.current = pan;
+  }, [pan]);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
   // =========================
   // COORD TRANSFORM
   // =========================
-  const screenToGraph = useCallback(
-    (clientX: number, clientY: number) => ({
-      x: (clientX - pan.x - offsetX) / zoom,
-      y: (clientY - pan.y - offsetY) / zoom,
-    }),
-    [pan.x, pan.y, zoom, offsetX, offsetY]
-  );
-
-  // =========================
-  // ZOOM
-  // =========================
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-
-      const delta = e.deltaY > 0 ? -0.08 : 0.08;
-
-      setZoom((z) => {
-        const next = z + delta;
-        return Math.min(3, Math.max(0.2, next));
-      });
-    },
-    [setZoom]
-  );
-
-  // =========================
-  // PAN START
-  // =========================
- const startPan = useCallback(
-  (clientX: number, clientY: number) => {
-    setMode("pan");
-
-    setDraggingNodeId(null);
-
-    dragOffsetRef.current = {
-      x: clientX - pan.x,
-      y: clientY - pan.y,
+  const screenToGraph = (x: number, y: number) => {
+    return {
+      x: (x - panRef.current.x - offsetX) / zoomRef.current,
+      y: (y - panRef.current.y - offsetY) / zoomRef.current,
     };
-  },
-  [pan.x, pan.y]
-);
+  };
 
   // =========================
-  // NODE DRAG START
+  // WHEEL (ZOOM FIXED)
   // =========================
-  const startDragNode = useCallback(
-  (nodeId: string, clientX: number, clientY: number) => {
-    const node = layoutRef.current.find((n) => n.id === nodeId);
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+
+    if (interactionRef.current.type !== "idle") return;
+
+    const zoomIntensity = 0.08;
+    const delta = e.deltaY > 0 ? -zoomIntensity : zoomIntensity;
+
+    const nextZoom = Math.min(3, Math.max(0.2, zoomRef.current + delta));
+
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+
+    const graph = screenToGraph(mouseX, mouseY);
+
+    const nextPan = {
+      x: mouseX - graph.x * nextZoom,
+      y: mouseY - graph.y * nextZoom,
+    };
+
+    setZoom(nextZoom);
+    setPan({
+      x: safe(nextPan.x),
+      y: safe(nextPan.y),
+    });
+  }, [setZoom, setPan]);
+
+  // =========================
+  // START PAN
+  // =========================
+  const startPan = useCallback((e: React.PointerEvent) => {
+    interactionRef.current = {
+      type: "pan",
+      nodeId: null,
+    };
+
+    dragOffset.current = {
+      x: e.clientX - panRef.current.x,
+      y: e.clientY - panRef.current.y,
+    };
+  }, []);
+
+  // =========================
+  // START DRAG NODE
+  // =========================
+  const startDragNode = useCallback((nodeId: string, e: React.PointerEvent) => {
+    const node = layoutRef.current.find(n => n.id === nodeId);
     if (!node) return;
 
-    setMode("drag");
-    setDraggingNodeId(nodeId);
-
-    const graphPos = screenToGraph(clientX, clientY);
-
-    dragOffsetRef.current = {
-      x: graphPos.x - node.x,
-      y: graphPos.y - node.y,
+    interactionRef.current = {
+      type: "drag",
+      nodeId,
     };
-  },
-  [screenToGraph]
-);
+
+    const graph = screenToGraph(e.clientX, e.clientY);
+
+    dragOffset.current = {
+      x: graph.x - node.x,
+      y: graph.y - node.y,
+    };
+  }, []);
 
   // =========================
-  // GLOBAL DRAG HANDLER (FIXED)
+  // POINTER MOVE GLOBAL
   // =========================
   useEffect(() => {
-    console.log("draggingNodeId", draggingNodeId);
-    if (!draggingNodeId) return;
+    const onMove = (e: PointerEvent) => {
+      const interaction = interactionRef.current;
 
-    const handleMouseMove = (e: MouseEvent) => {
-  if (mode === "pan") {
-    setPan({
-      x: e.clientX - dragOffsetRef.current.x,
-      y: e.clientY - dragOffsetRef.current.y,
-    });
-    return;
-  }
+      // ================= PAN =================
+      if (interaction.type === "pan") {
+        const next = {
+          x: e.clientX - dragOffset.current.x,
+          y: e.clientY - dragOffset.current.y,
+        };
 
-  if (mode !== "drag" || !draggingNodeId) return;
+        panRef.current = next;
 
-  const graphPos = screenToGraph(e.clientX, e.clientY);
+        setPan({
+          x: safe(next.x),
+          y: safe(next.y),
+        });
 
-  setLayout((prev) =>
-    prev.map((node) =>
-      node.id === draggingNodeId
-        ? {
-            ...node,
-            x: graphPos.x - dragOffsetRef.current.x,
-            y: graphPos.y - dragOffsetRef.current.y,
-          }
-        : node
-    )
-  );
-};
+        return;
+      }
 
-    const handleMouseUp = () => {
-  setDraggingNodeId(null);
-  setMode("idle");
-};
+      // ================= DRAG NODE =================
+      if (interaction.type !== "drag" || !interaction.nodeId) return;
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+      const graph = screenToGraph(e.clientX, e.clientY);
+
+      setLayout(prev =>
+        prev.map(node =>
+          node.id === interaction.nodeId
+            ? {
+                ...node,
+                x: graph.x - dragOffset.current.x,
+                y: graph.y - dragOffset.current.y,
+              }
+            : node
+        )
+      );
+    };
+
+    const onUp = () => {
+      interactionRef.current = {
+        type: "idle",
+        nodeId: null,
+      };
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
 
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
     };
-  }, [draggingNodeId, setLayout, setPan, screenToGraph,mode]);
+  }, [setLayout, setPan]);
 
   // =========================
   // FOCUS NODE
   // =========================
-  const focusNode = useCallback(
-    (node: T) => {
-      setPan({
-        x: -node.x * zoom + offsetX,
-        y: -node.y * zoom + offsetY,
-      });
+  const focusNode = useCallback((node: T) => {
+    setPan({
+      x: -node.x * zoomRef.current + offsetX,
+      y: -node.y * zoomRef.current + offsetY,
+    });
 
-      setZoom((z) => Math.max(z, 0.8));
-    },
-    [setPan, setZoom, zoom, offsetX, offsetY]
-  );
+    setZoom(Math.max(zoomRef.current, 0.8));
+  }, [setPan, setZoom]);
 
-  // =========================
-  // DERIVED STATE
-  // =========================
-  const isDragging = draggingNodeId !== null;
-
-  // =========================
-  // API
-  // =========================
   return {
     handleWheel,
     startDragNode,
     startPan,
-
     focusNode,
-
-    draggingNodeId,
-    isDragging,
   };
 }

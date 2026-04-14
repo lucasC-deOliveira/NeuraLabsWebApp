@@ -1,67 +1,138 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { getNodeColors } from "@/modules/graph/presentation/services/graph-style.service";
 
+type Props = {
+  nodes: any[];
+  edges: any[];
+  zoom: number;
+  pan: { x: number; y: number };
+  isDark: boolean;
+
+  onNodeClick: (node: any) => void;
+  onNodeDragStart: (nodeId: string, e: PointerEvent) => void;
+  onPanStart: (e: PointerEvent) => void;
+  onWheel: (e: WheelEvent) => void;
+  onNodeHover: (nodeId: string | null) => void;
+};
+
 export function GraphRenderer({
-    nodes,
-    edges,
-    zoom,
-    pan,
-    isDark,
-    onNodeClick,
-    onNodeDragStart,
-    onPanStart,
-    onWheel,
-    onNodeHover,
-}: any) {
-    return (
-        <svg className="w-full h-full" onWheel={onWheel} onMouseDown={(e) => {
-            if (e.target !== e.currentTarget) return;
-            onPanStart(e.clientX, e.clientY);
-        }}>
-            <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+  nodes,
+  edges,
+  zoom,
+  pan,
+  isDark,
+  onNodeClick,
+  onNodeDragStart,
+  onPanStart,
+  onWheel,
+  onNodeHover,
+}: Props) {
+  const svgRef = useRef<SVGSVGElement>(null);
 
-                {edges.map((edge: any, i: number) => {
-                    if (!edge?.sourceX || !edge?.targetX) return null;
+  // =========================
+  // WHEEL (FIX DEFINITIVO)
+  // =========================
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
 
-                    return (
-                        <line
-                            key={`${edge.source}-${edge.target}-${i}`}
-                            x1={edge.sourceX}
-                            y1={edge.sourceY}
-                            x2={edge.targetX}
-                            y2={edge.targetY}
-                            stroke="#999"
-                        />
-                    );
-                })}
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      onWheel(e);
+    };
 
-                {nodes.map((node: any) => {
-                    const colors = getNodeColors(node.group, isDark);
+    el.addEventListener("wheel", handler, { passive: false });
 
-                    return (
-                        <g
-                            key={node.id}
-                            transform={`translate(${node.x},${node.y})`}
-                            onMouseDown={(e) =>
-                                onNodeDragStart(node.id, e.clientX, e.clientY)
-                            }
-                            onClick={() => onNodeClick(node)}
-                            onMouseEnter={() => onNodeHover(node.id)}
-                            onMouseLeave={() => onNodeHover(null)}
+    return () => {
+      el.removeEventListener("wheel", handler);
+    };
+  }, [onWheel]);
 
-                        >
-                            <rect
-                                width={node.width}
-                                height={node.height}
-                                x={-node.width / 2}
-                                y={-node.height / 2}
-                                fill={colors.bg}
-                                stroke={colors.border}
-                            />
-                            <text textAnchor="middle">{node.label}</text>
-                        </g>
-                    );
-                })}
+  return (
+    <svg
+      ref={svgRef}
+      className="w-full h-full select-none"
+   onPointerDown={(e) => {
+  const target = e.target as SVGElement | null;
+
+  const isNode =
+    target instanceof SVGElement &&
+    target.parentElement?.getAttribute("data-node") === "true";
+
+  if (isNode) return;
+
+  onPanStart(e.nativeEvent);
+}}
+    >
+      <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+
+        {/* EDGES */}
+        {edges.map((edge: any, i: number) => {
+          if (!edge?.sourceX || !edge?.targetX) return null;
+
+          return (
+            <line
+              key={`${edge.source}-${edge.target}-${i}`}
+              x1={edge.sourceX}
+              y1={edge.sourceY}
+              x2={edge.targetX}
+              y2={edge.targetY}
+              stroke="#999"
+            />
+          );
+        })}
+
+        {/* NODES */}
+        {nodes.map((node: any) => {
+          const colors = getNodeColors(node.group, isDark);
+
+          return (
+            <g
+              key={node.id}
+              data-node="true"
+              transform={`translate(${node.x},${node.y})`}
+
+              // =========================
+              // DRAG NODE (FIX ESTABILIZADO)
+              // =========================
+              onPointerDown={(e) => {
+                e.stopPropagation();
+
+                // evita perder drag no meio do zoom/pan
+                (e.currentTarget as any).setPointerCapture(e.pointerId);
+
+                onNodeDragStart(node.id, e.nativeEvent);
+              }}
+
+              onClick={(e) => {
+                e.stopPropagation();
+                onNodeClick(node);
+              }}
+
+              onPointerEnter={() => onNodeHover(node.id)}
+              onPointerLeave={() => onNodeHover(null)}
+            >
+              <rect
+                width={node.width}
+                height={node.height}
+                x={-node.width / 2}
+                y={-node.height / 2}
+                fill={colors?.bg ?? "#ccc"}
+                stroke={colors?.border ?? "#333"}
+              />
+
+              <text
+                textAnchor="middle"
+                dominantBaseline="middle"
+              >
+                {node.label}
+              </text>
             </g>
-        </svg>
-    );
+          );
+        })}
+      </g>
+    </svg>
+  );
 }
