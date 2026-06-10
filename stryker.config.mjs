@@ -9,7 +9,10 @@ export default {
   // Skipping DB/IO-heavy server actions (false-negative rate is too high there).
   mutate: [
     "src/lib/auth.ts",
+    "src/lib/rate-limit.ts",
     "proxy.ts",
+    "src/app/api/auth/google/route.ts",
+    "src/app/api/auth/google/callback/route.ts",
     "src/modules/study/domain/services/spaced-repetition.ts",
     "src/modules/study/domain/services/interleaving.ts",
     "src/modules/notas/domain/services/nota-concept-matcher.ts",
