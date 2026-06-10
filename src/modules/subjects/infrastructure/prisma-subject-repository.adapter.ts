@@ -36,7 +36,12 @@ export class PrismaSubjectRepository implements SubjectRepository {
 
   async createTopic(data: CreateTopicData): Promise<Topic> {
     const record = await this.db.topico.create({
-      data: { nome: data.name, descricao: data.description, usuarioId: data.userId },
+      data: {
+        nome: data.name,
+        descricao: data.description,
+        usuarioId: data.userId,
+        assuntoId: data.subjectId ?? null,
+      },
     })
     return Topic.create({
       id: record.id,
@@ -58,7 +63,12 @@ export class PrismaSubjectRepository implements SubjectRepository {
 
   async createConcept(data: CreateConceptData): Promise<Concept> {
     const record = await this.db.conceito.create({
-      data: { nome: data.name, descricao: data.description, usuarioId: data.userId },
+      data: {
+        nome: data.name,
+        descricao: data.description,
+        usuarioId: data.userId,
+        topicoId: data.topicId ?? null,
+      },
     })
     return Concept.create({
       id: record.id,

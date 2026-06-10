@@ -12,12 +12,14 @@ export interface CreateTopicData {
   name: string
   description: string | null
   userId: string
+  subjectId?: string
 }
 
 export interface CreateConceptData {
   name: string
   description: string | null
   userId: string
+  topicId?: string
 }
 
 export interface SubjectRepository {

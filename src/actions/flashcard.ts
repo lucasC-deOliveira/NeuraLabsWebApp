@@ -209,11 +209,11 @@ export async function getFlashcards(options?: {
     id: fc.id,
     pergunta: fc.pergunta,
     resposta: fc.resposta,
-    conceito: fc.conceito.nome,
-    topico: fc.conceito.topico.nome,
-    topicoId: fc.conceito.topico.id,
-    assunto: fc.conceito.topico.assunto.nome,
-    assuntoId: fc.conceito.topico.assunto.id,
+    conceito: fc.conceito?.nome ?? "",
+    topico: fc.conceito?.topico?.nome ?? "",
+    topicoId: fc.conceito?.topico?.id ?? "",
+    assunto: fc.conceito?.topico?.assunto?.nome ?? "",
+    assuntoId: fc.conceito?.topico?.assunto?.id ?? "",
     dataCriacao: fc.dataCriacao,
     spacedRepetition: fc.aprendizado[0]
       ? {
@@ -244,7 +244,7 @@ export async function getFlashcardFilterData(): Promise<HierarquiaFlat> {
   return assuntos.map((a) => ({
     id: a.id,
     nome: a.nome,
-    topicos: a.topicos.map((t) => ({ id: t.id, nome: t.nome, assuntoId: t.assuntoId })),
+    topicos: a.topicos.map((t) => ({ id: t.id, nome: t.nome, assuntoId: t.assuntoId ?? a.id })),
   }));
 }
 
@@ -272,7 +272,7 @@ export async function getFlashcardById(id: string): Promise<
     id: record.id,
     pergunta: record.pergunta,
     resposta: record.resposta,
-    conceito: record.conceito.nome,
+    conceito: record.conceito?.nome ?? "",
     dataCriacao: record.dataCriacao,
     spacedRepetition: record.aprendizado[0]
       ? {

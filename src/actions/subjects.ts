@@ -28,9 +28,10 @@ export async function getSubjects(): Promise<
 export async function createTopic(
   name: string,
   description?: string,
+  subjectId?: string,
 ): Promise<{ id: string }> {
   const userId = await requireUserId()
-  const result = await subjectsContainer.createTopic.execute({ name, description, userId })
+  const result = await subjectsContainer.createTopic.execute({ name, description, userId, subjectId })
   revalidatePath('/subjects')
   return result
 }
@@ -47,9 +48,10 @@ export async function getTopics(): Promise<
 export async function createConcept(
   name: string,
   description?: string,
+  topicId?: string,
 ): Promise<{ id: string }> {
   const userId = await requireUserId()
-  const result = await subjectsContainer.createConcept.execute({ name, description, userId })
+  const result = await subjectsContainer.createConcept.execute({ name, description, userId, topicId })
   revalidatePath('/subjects')
   return result
 }

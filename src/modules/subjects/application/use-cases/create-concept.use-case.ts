@@ -4,6 +4,7 @@ export interface CreateConceptInput {
   name: string
   description?: string
   userId: string
+  topicId?: string
 }
 
 export class CreateConceptUseCase {
@@ -14,6 +15,7 @@ export class CreateConceptUseCase {
       name: input.name,
       description: input.description ?? null,
       userId: input.userId,
+      topicId: input.topicId,
     })
     return { id: concept.id }
   }

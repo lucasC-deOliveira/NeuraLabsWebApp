@@ -45,7 +45,8 @@ model Assunto {
   nome      String
   descricao String?
 
-  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  topicos Topico[]
 
   @@map("assuntos")
 }
@@ -54,10 +55,13 @@ model Assunto {
 model Topico {
   id        String  @id @default(cuid())
   usuarioId String  @map("id_usuario")
+  assuntoId String? @map("id_assunto")
   nome      String
   descricao String?
 
-  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  assunto   Assunto?  @relation(fields: [assuntoId], references: [id], onDelete: SetNull)
+  conceitos Conceito[]
 
   @@map("topicos")
 }
@@ -66,10 +70,12 @@ model Topico {
 model Conceito {
   id        String  @id @default(cuid())
   usuarioId String  @map("id_usuario")
+  topicoId  String? @map("id_topico")
   nome      String
   descricao String?
 
   usuario    Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  topico     Topico?     @relation(fields: [topicoId], references: [id], onDelete: SetNull)
   flashcards Flashcard[]
 
   @@map("conceitos")
@@ -99,7 +105,9 @@ model Nota {
   textoBruto  String   @map("texto_bruto")
   dataCriacao DateTime @default(now()) @map("data_criacao")
 
-  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario        Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  arestasOrigem  ConhecimentoAresta[] @relation("ArestaNotaOrigem")
+  arestasDestino ConhecimentoAresta[] @relation("ArestaNotaDestino")
 
   @@map("notas")
 }
@@ -170,6 +178,8 @@ model ConhecimentoAresta {
 
   nodeOrigemId  String? @map("id_node_origem")
   nodeDestinoId String? @map("id_node_destino")
+  notaOrigemId  String? @map("id_nota_origem")
+  notaDestinoId String? @map("id_nota_destino")
 
   tipoRelacao TipoRelacao
   peso        Float       @default(1.0)
@@ -177,6 +187,8 @@ model ConhecimentoAresta {
   grafo       GrafosConhecimento? @relation(fields: [grafoId], references: [id], onDelete: Cascade)
   nodeOrigem  NodeConhecimento?   @relation("NodeOrigem", fields: [nodeOrigemId], references: [id], onDelete: Cascade)
   nodeDestino NodeConhecimento?   @relation("NodeDestino", fields: [nodeDestinoId], references: [id], onDelete: Cascade)
+  notaOrigem  Nota?               @relation("ArestaNotaOrigem", fields: [notaOrigemId], references: [id], onDelete: Cascade)
+  notaDestino Nota?               @relation("ArestaNotaDestino", fields: [notaDestinoId], references: [id], onDelete: Cascade)
 
   @@unique([nodeOrigemId, nodeDestinoId, tipoRelacao], name: "_edge_uk")
 }
@@ -198,6 +210,20 @@ enum TipoRelacao {
   EVOLUI_PARA
   REFORCA
   RELACIONADO
+  TESTA_DEFINICAO
+  PERTENCE_A
+  SUBTOPICO_DE
+  DEPENDE_DE
+  FUNDAMENTA
+  APLICADO_EM
+  ALTERNATIVA_A
+  CONTRASTA_COM
+  CONFUNDE_COM
+  ANTI_PADRAO_DE
+  MEDIDO_POR
+  OBJETIVO_DE
+  HERDA
+  COMPLEMENTAR
 }
 
 // ==========================================
