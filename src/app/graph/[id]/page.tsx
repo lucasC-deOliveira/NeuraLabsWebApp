@@ -66,6 +66,25 @@ export default function GraphPage() {
     .slice(0, 8);
 
   // ======================
+  // ZOOM BUTTONS (zoom around SVG center)
+  // ======================
+  const handleZoomButton = (delta: number) => {
+    const rect = controller.svgRef.current?.getBoundingClientRect();
+    const cx = rect ? rect.left + rect.width / 2 : 0;
+    const cy = rect ? rect.top + rect.height / 2 : 0;
+    const currentZoom = controller.state.zoom;
+    const currentPan = controller.state.pan;
+    const nextZoom = Math.min(3, Math.max(0.2, currentZoom + delta));
+    const graphX = (cx - (rect?.left ?? 0) - currentPan.x) / currentZoom;
+    const graphY = (cy - (rect?.top ?? 0) - currentPan.y) / currentZoom;
+    controller.actions.setZoom(nextZoom);
+    controller.actions.setPan({
+      x: cx - (rect?.left ?? 0) - graphX * nextZoom,
+      y: cy - (rect?.top ?? 0) - graphY * nextZoom,
+    });
+  };
+
+  // ======================
   // GRAPH REFRESH
   // ======================
   const refreshGraph = async () => {
@@ -133,19 +152,10 @@ export default function GraphPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            onClick={() =>
-              controller.actions.setZoom((z) => z + 0.1)
-            }
-          >
+          <Button onClick={() => handleZoomButton(0.1)}>
             <ZoomInIcon />
           </Button>
-
-          <Button
-            onClick={() =>
-              controller.actions.setZoom((z) => z - 0.1)
-            }
-          >
+          <Button onClick={() => handleZoomButton(-0.1)}>
             <ZoomOutIcon />
           </Button>
         </div>
@@ -177,17 +187,11 @@ export default function GraphPage() {
             zoom={controller.state.zoom}
             pan={controller.state.pan}
             isDark={isDark}
+            svgRef={controller.svgRef}
             onNodeClick={controller.actions.setSelectedNode}
             onNodeHover={controller.actions.setHoveredNodeId}
-            onNodeDragStart={
-              controller.interactions.startDragNode
-            }
-            onPanStart={(e: any) =>
-              controller.interactions.startPan(
-                e.clientX,
-                e.clientY
-              )
-            }
+            onNodeDragStart={controller.interactions.startDragNode}
+            onPanStart={controller.interactions.startPan}
             onWheel={controller.interactions.handleWheel}
           />
         </div>

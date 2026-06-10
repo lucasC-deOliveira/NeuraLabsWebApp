@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { getNodeColors } from "@/modules/graph/presentation/services/graph-style.service";
 
 type Props = {
@@ -9,10 +9,11 @@ type Props = {
   zoom: number;
   pan: { x: number; y: number };
   isDark: boolean;
+  svgRef: React.RefObject<SVGSVGElement | null>;
 
   onNodeClick: (node: any) => void;
   onNodeDragStart: (nodeId: string, e: PointerEvent) => void;
-  onPanStart: (e: PointerEvent) => void;
+  onPanStart: (clientX: number, clientY: number) => void;
   onWheel: (e: WheelEvent) => void;
   onNodeHover: (nodeId: string | null) => void;
 };
@@ -23,17 +24,13 @@ export function GraphRenderer({
   zoom,
   pan,
   isDark,
+  svgRef,
   onNodeClick,
   onNodeDragStart,
   onPanStart,
   onWheel,
   onNodeHover,
 }: Props) {
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  // =========================
-  // WHEEL (FIX DEFINITIVO)
-  // =========================
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
@@ -44,27 +41,21 @@ export function GraphRenderer({
     };
 
     el.addEventListener("wheel", handler, { passive: false });
-
-    return () => {
-      el.removeEventListener("wheel", handler);
-    };
-  }, [onWheel]);
+    return () => el.removeEventListener("wheel", handler);
+  }, [svgRef, onWheel]);
 
   return (
     <svg
       ref={svgRef}
       className="w-full h-full select-none"
-   onPointerDown={(e) => {
-  const target = e.target as SVGElement | null;
-
-  const isNode =
-    target instanceof SVGElement &&
-    target.parentElement?.getAttribute("data-node") === "true";
-
-  if (isNode) return;
-
-  onPanStart(e.nativeEvent);
-}}
+      onPointerDown={(e) => {
+        const target = e.target as SVGElement | null;
+        const isNode =
+          target instanceof SVGElement &&
+          target.parentElement?.getAttribute("data-node") === "true";
+        if (isNode) return;
+        onPanStart(e.clientX, e.clientY);
+      }}
     >
       <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
 

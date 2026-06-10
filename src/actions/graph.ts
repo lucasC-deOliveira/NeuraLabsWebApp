@@ -702,10 +702,14 @@ export async function getParentOptions(userId?: string): Promise<ParentOptions> 
 
   return {
     assuntos,
-    topicos: topicos.map((t) => ({ id: t.id, nome: `${t.assunto.nome} → ${t.nome}` })),
+    topicos: topicos.map((t) => ({ id: t.id, nome: t.assunto ? `${t.assunto.nome} → ${t.nome}` : t.nome })),
     conceitos: conceitos.map((c) => ({
       id: c.id,
-      nome: `${c.topico.assunto.nome} → ${c.topico.nome} → ${c.nome}`,
+      nome: c.topico
+        ? c.topico.assunto
+          ? `${c.topico.assunto.nome} → ${c.topico.nome} → ${c.nome}`
+          : `${c.topico.nome} → ${c.nome}`
+        : c.nome,
     })),
   };
 }

@@ -60,8 +60,8 @@ export async function createNotaManual(
       return created.id;
     };
 
-    const assuntoSet = new Set(conceitos.map((c) => c.topico.assuntoId));
-    const topicoSet = new Set(conceitos.map((c) => c.topicoId));
+    const assuntoSet = new Set(conceitos.map((c) => c.topico?.assuntoId).filter(Boolean) as string[]);
+    const topicoSet = new Set(conceitos.map((c) => c.topicoId).filter(Boolean) as string[]);
 
     const assuntoNodeIds: Record<string, string> = {};
     const topicoNodeIds: Record<string, string> = {};
@@ -77,14 +77,16 @@ export async function createNotaManual(
     // ASSUNTO -> TOPICO (PERTENCE_A)
     for (const tId of topicoSet) {
       const cData = conceitos.find((c) => c.topicoId === tId);
-      if (cData) {
+      if (cData?.topico?.assuntoId) {
         await ensureEdge(tx, assuntoNodeIds[cData.topico.assuntoId], topicoNodeIds[tId], "PERTENCE_A");
       }
     }
 
     // TOPICO -> CONCEITO (DEFINE)
     for (const c of conceitos) {
-      await ensureEdge(tx, topicoNodeIds[c.topicoId], conceitoNodeIds[c.id], "DEFINE");
+      if (c.topicoId) {
+        await ensureEdge(tx, topicoNodeIds[c.topicoId], conceitoNodeIds[c.id], "DEFINE");
+      }
     }
 
     // NOTA -> CONCEITO (user-specified or default DEFINE)
@@ -215,7 +217,9 @@ export async function extractConceitos(notaConteudos: Array<{ titulo: string; co
     include: { topico: { include: { assunto: true } } },
   });
   const contextList = existingConcepts.map((c) =>
-    `${c.nome} (topico: ${c.topico.nome}, assunto: ${c.topico.assunto.nome})`,
+    c.topico
+      ? `${c.nome} (topico: ${c.topico.nome}, assunto: ${c.topico.assunto?.nome ?? ""})`
+      : c.nome,
   ).join(", ");
 
   const texts = notaConteudos.map((n) => `NOTA: "${n.titulo}"\n${n.conteudo}`).join("\n\n---\n\n");
@@ -280,7 +284,7 @@ export async function extractTopicos(
     include: { assunto: true },
   });
   const contextoTopicos = existingTopicos.map((t) =>
-    `${t.nome} (assunto: ${t.assunto.nome})`,
+    t.assunto ? `${t.nome} (assunto: ${t.assunto.nome})` : t.nome,
   ).join(", ");
 
   const texts = notaConteudos.map((n) => `NOTA: "${n.titulo}"\n${n.conteudo}`).join("\n\n---\n\n");
@@ -619,7 +623,7 @@ async function buildHierarquiaCompleta(
         }
       }
       const newTopico = await prisma.topico.create({
-        data: { assuntoId, nome: topicoInfo.nome },
+        data: { assuntoId: assuntoId!, nome: topicoInfo.nome, usuarioId: userId },
       });
       topicoNameToId.set(key, newTopico.id);
       topicoNameToAssuntoId.set(key, assuntoId);
@@ -632,7 +636,7 @@ async function buildHierarquiaCompleta(
 
   for (const c of existingConcepts) {
     conceptNameToId.set(c.nome.toLowerCase(), c.id);
-    conceptNameToTopicoId.set(c.nome.toLowerCase(), c.topicoId);
+    if (c.topicoId) conceptNameToTopicoId.set(c.nome.toLowerCase(), c.topicoId);
   }
 
   // Match AI concepts to topics
@@ -648,10 +652,10 @@ async function buildHierarquiaCompleta(
       const existing = existingConcepts.find((c) => c.nome.toLowerCase() === cKey);
       if (existing) {
         conceptNameToId.set(cKey, existing.id);
-        conceptNameToTopicoId.set(cKey, existing.topicoId);
+        if (existing.topicoId) conceptNameToTopicoId.set(cKey, existing.topicoId);
       } else {
         const newConcept = await prisma.conceito.create({
-          data: { topicoId: tid, nome: cName },
+          data: { topicoId: tid, nome: cName, usuarioId: userId },
         });
         conceptNameToId.set(cKey, newConcept.id);
         conceptNameToTopicoId.set(cKey, tid);
@@ -667,7 +671,7 @@ async function buildHierarquiaCompleta(
     const existing = existingConcepts.find((c) => c.nome.toLowerCase() === cKey);
     if (existing) {
       conceptNameToId.set(cKey, existing.id);
-      conceptNameToTopicoId.set(cKey, existing.topicoId);
+      if (existing.topicoId) conceptNameToTopicoId.set(cKey, existing.topicoId);
     } else {
       // Create under first topic or "Geral"
       let tid = topicoNameToId.values().next().value as string | undefined;
@@ -677,12 +681,12 @@ async function buildHierarquiaCompleta(
           const ga = await prisma.assunto.create({ data: { usuarioId: userId, nome: "Geral" } });
           assuntoId = ga.id;
         }
-        const gt = await prisma.topico.create({ data: { assuntoId, nome: "Geral" } });
+        const gt = await prisma.topico.create({ data: { assuntoId: assuntoId!, nome: "Geral", usuarioId: userId } });
         tid = gt.id;
         topicoNameToId.set("geral", tid);
       }
       const newConcept = await prisma.conceito.create({
-        data: { topicoId: tid, nome: cd.nome },
+        data: { topicoId: tid, nome: cd.nome, usuarioId: userId },
       });
       conceptNameToId.set(cKey, newConcept.id);
       conceptNameToTopicoId.set(cKey, tid);

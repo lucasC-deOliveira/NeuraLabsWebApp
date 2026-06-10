@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useGraphData } from "../hooks/useGraphData";
 import { useGraphLayout } from "../hooks/useGraphLayout";
 import { SimNode } from "../../infra/layout/force-layout.engine";
@@ -6,6 +6,8 @@ import { useGraphInteractions } from "../hooks/useGraphInteractions";
 import { getFilteredEdges, getFilteredNodes } from "../../domain/selectors/graph.selectors";
 
 export function useGraphController(graphId: string) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
   const {
     rawNodes,
     rawEdges,
@@ -34,6 +36,7 @@ export function useGraphController(graphId: string) {
     setZoom,
     pan,
     setPan,
+    svgRef,
   });
 
   // init layout
@@ -60,6 +63,7 @@ export function useGraphController(graphId: string) {
   );
 
   return {
+    svgRef,
     state: {
       layout,
       filteredNodes,

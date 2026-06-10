@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useState,
   useCallback,
   useEffect,
   useRef,
@@ -34,8 +33,7 @@ type Props<T extends LayoutNode> = {
   pan: Pan;
   setPan: React.Dispatch<React.SetStateAction<Pan>>;
 
-  offsetX?: number;
-  offsetY?: number;
+  svgRef: React.RefObject<SVGSVGElement | null>;
 };
 
 export function useGraphInteractions<T extends LayoutNode>({
@@ -45,109 +43,80 @@ export function useGraphInteractions<T extends LayoutNode>({
   setZoom,
   pan,
   setPan,
-  offsetX = 400,
-  offsetY = 200,
+  svgRef,
 }: Props<T>) {
 
-  // =========================
-  // SINGLE SOURCE OF TRUTH
-  // =========================
-  const interactionRef = useRef<InteractionState>({
-    type: "idle",
-    nodeId: null,
-  });
-
+  const interactionRef = useRef<InteractionState>({ type: "idle", nodeId: null });
   const dragOffset = useRef({ x: 0, y: 0 });
   const layoutRef = useRef(layout);
   const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
 
-  useEffect(() => {
-    layoutRef.current = layout;
-  }, [layout]);
-
-  useEffect(() => {
-    panRef.current = pan;
-  }, [pan]);
-
-  useEffect(() => {
-    zoomRef.current = zoom;
-  }, [zoom]);
+  useEffect(() => { layoutRef.current = layout; }, [layout]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
 
   // =========================
   // COORD TRANSFORM
+  // Converts viewport-absolute mouse coords to graph coords using the SVG's
+  // actual bounding rect so that zoom-around-cursor stays accurate regardless
+  // of sidebar width or header height.
   // =========================
-  const screenToGraph = (x: number, y: number) => {
+  const screenToGraph = useCallback((viewportX: number, viewportY: number) => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    const left = rect?.left ?? 0;
+    const top = rect?.top ?? 0;
     return {
-      x: (x - panRef.current.x - offsetX) / zoomRef.current,
-      y: (y - panRef.current.y - offsetY) / zoomRef.current,
+      x: (viewportX - left - panRef.current.x) / zoomRef.current,
+      y: (viewportY - top - panRef.current.y) / zoomRef.current,
     };
-  };
+  }, [svgRef]);
 
   // =========================
-  // WHEEL (ZOOM FIXED)
+  // WHEEL ZOOM (zoom around cursor)
   // =========================
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-
     if (interactionRef.current.type !== "idle") return;
 
-    const zoomIntensity = 0.08;
-    const delta = e.deltaY > 0 ? -zoomIntensity : zoomIntensity;
-
+    const delta = e.deltaY > 0 ? -0.08 : 0.08;
     const nextZoom = Math.min(3, Math.max(0.2, zoomRef.current + delta));
 
-    const mouseX = e.clientX;
-    const mouseY = e.clientY;
-
-    const graph = screenToGraph(mouseX, mouseY);
-
-    const nextPan = {
-      x: mouseX - graph.x * nextZoom,
-      y: mouseY - graph.y * nextZoom,
-    };
+    const graph = screenToGraph(e.clientX, e.clientY);
 
     setZoom(nextZoom);
     setPan({
-      x: safe(nextPan.x),
-      y: safe(nextPan.y),
+      x: safe(e.clientX - (svgRef.current?.getBoundingClientRect().left ?? 0) - graph.x * nextZoom),
+      y: safe(e.clientY - (svgRef.current?.getBoundingClientRect().top ?? 0) - graph.y * nextZoom),
     });
-  }, [setZoom, setPan]);
+  }, [screenToGraph, setZoom, setPan, svgRef]);
 
   // =========================
   // START PAN
   // =========================
-  const startPan = useCallback((e: React.PointerEvent) => {
-    interactionRef.current = {
-      type: "pan",
-      nodeId: null,
-    };
-
+  const startPan = useCallback((clientX: number, clientY: number) => {
+    interactionRef.current = { type: "pan", nodeId: null };
     dragOffset.current = {
-      x: e.clientX - panRef.current.x,
-      y: e.clientY - panRef.current.y,
+      x: clientX - panRef.current.x,
+      y: clientY - panRef.current.y,
     };
   }, []);
 
   // =========================
   // START DRAG NODE
   // =========================
-  const startDragNode = useCallback((nodeId: string, e: React.PointerEvent) => {
+  const startDragNode = useCallback((nodeId: string, e: PointerEvent) => {
     const node = layoutRef.current.find(n => n.id === nodeId);
     if (!node) return;
 
-    interactionRef.current = {
-      type: "drag",
-      nodeId,
-    };
+    interactionRef.current = { type: "drag", nodeId };
 
     const graph = screenToGraph(e.clientX, e.clientY);
-
     dragOffset.current = {
       x: graph.x - node.x,
       y: graph.y - node.y,
     };
-  }, []);
+  }, [screenToGraph]);
 
   // =========================
   // POINTER MOVE GLOBAL
@@ -156,73 +125,53 @@ export function useGraphInteractions<T extends LayoutNode>({
     const onMove = (e: PointerEvent) => {
       const interaction = interactionRef.current;
 
-      // ================= PAN =================
       if (interaction.type === "pan") {
         const next = {
           x: e.clientX - dragOffset.current.x,
           y: e.clientY - dragOffset.current.y,
         };
-
         panRef.current = next;
-
-        setPan({
-          x: safe(next.x),
-          y: safe(next.y),
-        });
-
+        setPan({ x: safe(next.x), y: safe(next.y) });
         return;
       }
 
-      // ================= DRAG NODE =================
       if (interaction.type !== "drag" || !interaction.nodeId) return;
 
       const graph = screenToGraph(e.clientX, e.clientY);
-
       setLayout(prev =>
         prev.map(node =>
           node.id === interaction.nodeId
-            ? {
-                ...node,
-                x: graph.x - dragOffset.current.x,
-                y: graph.y - dragOffset.current.y,
-              }
+            ? { ...node, x: graph.x - dragOffset.current.x, y: graph.y - dragOffset.current.y }
             : node
         )
       );
     };
 
     const onUp = () => {
-      interactionRef.current = {
-        type: "idle",
-        nodeId: null,
-      };
+      interactionRef.current = { type: "idle", nodeId: null };
     };
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [setLayout, setPan]);
+  }, [setLayout, setPan, screenToGraph]);
 
   // =========================
-  // FOCUS NODE
+  // FOCUS NODE (center in SVG viewport)
   // =========================
   const focusNode = useCallback((node: T) => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    const cx = rect ? rect.width / 2 : 500;
+    const cy = rect ? rect.height / 2 : 300;
     setPan({
-      x: -node.x * zoomRef.current + offsetX,
-      y: -node.y * zoomRef.current + offsetY,
+      x: -node.x * zoomRef.current + cx,
+      y: -node.y * zoomRef.current + cy,
     });
-
     setZoom(Math.max(zoomRef.current, 0.8));
-  }, [setPan, setZoom]);
+  }, [svgRef, setPan, setZoom]);
 
-  return {
-    handleWheel,
-    startDragNode,
-    startPan,
-    focusNode,
-  };
+  return { handleWheel, startDragNode, startPan, focusNode };
 }
