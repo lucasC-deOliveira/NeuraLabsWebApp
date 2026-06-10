@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 
 const ALL_PROVIDERS: { name: string; icon: string; color: string; provider: string }[] = [
   { name: "GitHub", icon: "GH", color: "bg-zinc-900 text-white border-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-200", provider: "github" },
+  { name: "Google", icon: "G", color: "bg-white text-zinc-800 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-600", provider: "google" },
 ];
 
 function OAuthButtons() {
