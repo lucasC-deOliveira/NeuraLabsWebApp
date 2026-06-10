@@ -1,174 +1,78 @@
 // ---------------------------------------------------------------------------
-// Auth API — login, register, logout
+// POST /api/auth — thin HTTP adapter; all business logic lives in the auth module
 // ---------------------------------------------------------------------------
+import { NextRequest, NextResponse } from 'next/server'
+import { authContainer } from '@/modules/auth/container'
+import {
+  attachSessionCookie,
+  clearSessionCookie,
+} from '@/modules/auth/infrastructure/cookie-session.service'
+import {
+  ValidationError,
+  ConflictError,
+  UnauthorizedError,
+  TooManyRequestsError,
+} from '@/shared/errors/application.error'
 
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { hashPassword, verifyPassword, createSessionToken, setSessionCookieResponse, clearSessionCookie } from "@/lib/auth";
-import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
-
-// ---------------------------------------------------------------------------
-// POST /api/auth — all auth actions
-// ---------------------------------------------------------------------------
-
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = await request.json();
-    const { action } = body;
+    const body = (await request.json()) as Record<string, string>
+    const { action } = body
 
-    if (action === "register") {
-      return handleRegister(body);
-    }
+    if (action === 'register') return await handleRegister(body)
 
-    if (action === "login") {
+    if (action === 'login') {
       const ip =
-        request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-        request.headers.get("x-real-ip") ??
-        "unknown";
-      return handleLogin(body, ip);
+        request.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
+        request.headers.get('x-real-ip') ??
+        'unknown'
+      return await handleLogin(body, ip)
     }
 
-    if (action === "logout") {
-      return handleLogout();
-    }
+    if (action === 'logout') return await handleLogout()
 
-    return NextResponse.json({ error: "Acao desconhecida" }, { status: 400 });
+    return NextResponse.json({ error: 'Ação desconhecida' }, { status: 400 })
   } catch (err) {
-    console.error("Auth API error:", err);
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+    if (err instanceof ValidationError) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
+    if (err instanceof ConflictError) {
+      return NextResponse.json({ error: err.message }, { status: 409 })
+    }
+    if (err instanceof UnauthorizedError) {
+      return NextResponse.json({ error: 'Email ou senha incorretos' }, { status: 401 })
+    }
+    if (err instanceof TooManyRequestsError) {
+      return NextResponse.json({ error: err.message }, { status: 429 })
+    }
+    console.error('Auth API error:', err)
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
 
-// ---------------------------------------------------------------------------
-// Register
-// ---------------------------------------------------------------------------
-
-async function handleRegister(body: Record<string, string>) {
-  const { nome, email, senha } = body;
-
-  if (!nome?.trim() || !email?.trim() || !senha) {
-    return NextResponse.json(
-      { error: "Nome, email e senha sao obrigatorios" },
-      { status: 400 },
-    );
-  }
-
-  if (senha.length < 8) {
-    return NextResponse.json(
-      { error: "Senha deve ter no minimo 8 caracteres" },
-      { status: 400 },
-    );
-  }
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-    return NextResponse.json(
-      { error: "Email invalido" },
-      { status: 400 },
-    );
-  }
-
-  const exists = await prisma.usuario.findUnique({
-    where: { email: email.trim().toLowerCase() },
-    select: { id: true },
-  });
-
-  if (exists) {
-    return NextResponse.json(
-      { error: "Email ja esta em uso" },
-      { status: 409 },
-    );
-  }
-
-  const senhaHash = await hashPassword(senha);
-
-  const user = await prisma.usuario.create({
-    data: {
-      nome: nome.trim(),
-      email: email.trim().toLowerCase(),
-      senhaHash,
-    },
-    select: { id: true, nome: true, email: true },
-  });
-
-  const token = await createSessionToken(user.id);
-  const response = NextResponse.json({
-    success: true,
-    user,
-  });
-  setSessionCookieResponse(response, token);
-
-  return response;
+async function handleRegister(body: Record<string, string>): Promise<NextResponse> {
+  const result = await authContainer.registerUser.execute({
+    name: body.nome,
+    email: body.email,
+    password: body.senha,
+  })
+  const response = NextResponse.json({ success: true, user: result.user })
+  attachSessionCookie(response, result.sessionToken)
+  return response
 }
 
-// ---------------------------------------------------------------------------
-// Login
-// ---------------------------------------------------------------------------
-
-async function handleLogin(body: Record<string, string>, ip: string) {
-  const { email, senha } = body;
-
-  if (!email?.trim() || !senha) {
-    return NextResponse.json(
-      { error: "Email e senha sao obrigatorios" },
-      { status: 400 },
-    );
-  }
-
-  const rateLimitKey = `login:${ip}:${email.trim().toLowerCase()}`;
-  const { allowed, retryAfter } = checkRateLimit(rateLimitKey);
-  if (!allowed) {
-    return NextResponse.json(
-      { error: `Muitas tentativas. Tente novamente em ${retryAfter} segundos.` },
-      { status: 429 },
-    );
-  }
-
-  const user = await prisma.usuario.findUnique({
-    where: { email: email.trim().toLowerCase() },
-    select: { id: true, nome: true, email: true, senhaHash: true },
-  });
-
-  if (!user) {
-    return NextResponse.json(
-      { error: "Email ou senha incorretos" },
-      { status: 401 },
-    );
-  }
-
-  const valid = await verifyPassword(senha, user.senhaHash);
-  if (!valid) {
-    return NextResponse.json(
-      { error: "Email ou senha incorretos" },
-      { status: 401 },
-    );
-  }
-
-  // Successful login — clear the failed-attempt counter for this key
-  resetRateLimit(rateLimitKey);
-
-  // Update last access
-  await prisma.usuario.update({
-    where: { id: user.id },
-    data: { ultimoAcesso: new Date() },
-  });
-
-  const { senhaHash: _pw, ...publicUser } = user;
-  const token = await createSessionToken(user.id);
-  const response = NextResponse.json({
-    success: true,
-    user: publicUser,
-  });
-  setSessionCookieResponse(response, token);
-
-  return response;
+async function handleLogin(body: Record<string, string>, ipAddress: string): Promise<NextResponse> {
+  const result = await authContainer.loginUser.execute({
+    email: body.email,
+    password: body.senha,
+    ipAddress,
+  })
+  const response = NextResponse.json({ success: true, user: result.user })
+  attachSessionCookie(response, result.sessionToken)
+  return response
 }
 
-// ---------------------------------------------------------------------------
-// Logout
-// ---------------------------------------------------------------------------
-
-async function handleLogout() {
-  const response = NextResponse.json({ success: true });
-  await clearSessionCookie();
-  return response;
+async function handleLogout(): Promise<NextResponse> {
+  await clearSessionCookie()
+  return NextResponse.json({ success: true })
 }
