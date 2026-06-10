@@ -41,7 +41,10 @@ function OAuthButtons() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const raw = searchParams.get("callbackUrl") ?? "/";
+  // Reject absolute URLs and protocol-relative paths to prevent open redirect.
+  const callbackUrl =
+    raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");

@@ -175,11 +175,8 @@ export function CreateNodeModal({
             toast.error("Digite a resposta para o flashcard");
             return;
           }
-          if (!formData.conceitoId) {
-            toast.error("Selecione um conceito pai");
-            return;
-          }
-          payload = { pergunta: formData.pergunta.trim(), resposta: formData.resposta.trim(), conceitoId: formData.conceitoId };
+          
+          payload = { pergunta: formData.pergunta.trim(), resposta: formData.resposta.trim() };
           break;
         case "NOTA":
           if (!formData.textoBruto.trim()) {
@@ -600,30 +597,7 @@ export function CreateNodeModal({
               {/* FLASHCARD form */}
               {selectedType === "FLASHCARD" && (
                 <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="conceito-pai">Conceito pai</Label>
-                    <Select
-                      value={formData.conceitoId}
-                      onValueChange={(value) => setFormData((f) => ({ ...f, conceitoId: value ?? "" }))}
-                    >
-                      <SelectTrigger id="conceito-pai">
-                        <SelectValue placeholder="Selecione um conceito" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {parentIds.conceitos.length === 0 ? (
-                          <SelectItem value="no-data" disabled>
-                            Nenhum conceito disponível
-                          </SelectItem>
-                        ) : (
-                          parentIds.conceitos.map((conceito) => (
-                            <SelectItem key={conceito.id} value={conceito.id}>
-                              {conceito.nome}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                 
                   <div className="space-y-1.5">
                     <Label htmlFor="pergunta">Pergunta</Label>
                     <Textarea

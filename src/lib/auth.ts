@@ -6,10 +6,16 @@ import { SignJWT, jwtVerify } from "jose";
 import { compare, hash } from "bcryptjs";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  throw new Error(
+    "JWT_SECRET environment variable must be set in production.",
+  );
+}
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "fallback-dev-only",
+  process.env.JWT_SECRET ?? "dev-only-insecure-do-not-use",
 );
 
 const COOKIE_NAME = "flashmind_session";
@@ -58,7 +64,7 @@ export async function getSessionUserId(): Promise<string | null> {
 
 export async function requireUserId(): Promise<string> {
   const userId = await getSessionUserId();
-  if (!userId) throw new Error("Nao autenticado — faca login");
+  if (!userId) redirect("/login");
   return userId;
 }
 

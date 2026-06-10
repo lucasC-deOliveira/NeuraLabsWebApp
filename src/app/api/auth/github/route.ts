@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Initiate GitHub OAuth flow — redirect to GitHub
 export async function GET(request: NextRequest) {
-  const callbackUrl = request.nextUrl.searchParams.get("callbackUrl") || "/";
+  const rawCallback =
+    request.nextUrl.searchParams.get("callbackUrl") ?? "/";
+  const callbackUrl =
+    rawCallback.startsWith("/") && !rawCallback.startsWith("//")
+      ? rawCallback
+      : "/";
   const url = new URL("https://github.com/login/oauth/authorize");
   url.searchParams.set("client_id", process.env.AUTH_GITHUB_ID!);
   url.searchParams.set("redirect_uri", `${request.nextUrl.origin}/api/auth/github/callback`);

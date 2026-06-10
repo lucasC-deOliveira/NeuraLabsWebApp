@@ -24,6 +24,7 @@ import {
   removeNodeFromGraph,
   getGraphNodes,
 } from "@/actions/graph";
+import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
 
 export default function GraphPage() {
   const router = useRouter();
@@ -39,6 +40,11 @@ export default function GraphPage() {
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const handleOpenCreateNode = () => {
+    setIsCreateModalOpen(true);
+  };
 
   // ======================
   // LOADING
@@ -50,7 +56,6 @@ export default function GraphPage() {
       </div>
     );
   }
-
   // ======================
   // SEARCH
   // ======================
@@ -161,7 +166,7 @@ export default function GraphPage() {
           onToggleCollapse={() =>
             setLeftPanelCollapsed((v) => !v)
           }
-          onOpenCreateNode={() => {}}
+          onOpenCreateNode={handleOpenCreateNode}
         />
 
         {/* GRAPH */}
@@ -202,6 +207,11 @@ export default function GraphPage() {
           }
         />
       </div>
+      <CreateNodeModal
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
+        grafoId={graphId}
+      />
     </div>
   );
 }

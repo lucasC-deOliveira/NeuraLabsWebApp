@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma/schema
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -12,7 +9,7 @@ datasource db {
 }
 
 // ==========================================
-// USUARIO - Usuário do sistema
+// USUARIO
 // ==========================================
 model Usuario {
   id           String    @id @default(cuid())
@@ -22,173 +19,114 @@ model Usuario {
   dataCriacao  DateTime  @default(now()) @map("data_criacao")
   ultimoAcesso DateTime? @map("ultimo_acesso")
 
-  // Relacionamentos
-  flashcards        Flashcard[]            @relation("FlashcardUsuario")
+  flashcards        Flashcard[]
   sessoesEstudo     SessaoEstudo[]
-  aprendizagens     AprendizadoFlashcard[] @relation("AprendizadoUsuario")
+  aprendizagens     AprendizadoFlashcard[]
   desempenhoNos     DesempenhoNo[]
   notas             Nota[]
   configAI          ConfigAI?
   assuntos          Assunto[]
   nodesConhecimento NodeConhecimento[]
   grafos            GrafosConhecimento[]
+  topicos           Topico[]
+  conceitos         Conceito[]
 
   @@map("usuarios")
 }
 
 // ==========================================
-// ASSUNTO - Matéria ou disciplina
+// ENTIDADES BASE (SEM RELAÇÕES ENTRE SI)
 // ==========================================
+
+// ASSUNTO
 model Assunto {
   id        String  @id @default(cuid())
   usuarioId String  @map("id_usuario")
   nome      String
   descricao String?
 
-  usuario Usuario          @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  topicos Topico[]
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@map("assuntos")
 }
 
-// ==========================================
-// TOPICO - Tópico dentro de um assunto
-// ==========================================
+// TOPICO
 model Topico {
   id        String  @id @default(cuid())
-  assuntoId String  @map("id_subject")
+  usuarioId String  @map("id_usuario")
   nome      String
   descricao String?
 
-  assunto   Assunto    @relation(fields: [assuntoId], references: [id], onDelete: Cascade)
-  conceitos Conceito[]
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@map("topicos")
 }
 
-// ==========================================
-// CONCEITO - Conceito individual dentro de um tópico
-// ==========================================
+// CONCEITO
 model Conceito {
   id        String  @id @default(cuid())
-  topicoId  String  @map("id_topic")
+  usuarioId String  @map("id_usuario")
   nome      String
   descricao String?
 
-  topico     Topico      @relation(fields: [topicoId], references: [id], onDelete: Cascade)
+  usuario    Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   flashcards Flashcard[]
 
   @@map("conceitos")
 }
 
-// ==========================================
-// FLASHCARD - Cartão de estudo com pergunta e resposta
-// ==========================================
+// FLASHCARD
 model Flashcard {
   id          String   @id @default(cuid())
-  conceitoId  String   @map("id_concept")
+  conceitoId  String?  @map("id_concept") // opcional agora
   usuarioId   String   @map("id_usuario")
   pergunta    String
   resposta    String
   dataCriacao DateTime @default(now()) @map("data_criacao")
 
-  conceito    Conceito               @relation(fields: [conceitoId], references: [id], onDelete: Cascade)
-  usuario     Usuario                @relation("FlashcardUsuario", fields: [usuarioId], references: [id], onDelete: Cascade)
+  conceito    Conceito?              @relation(fields: [conceitoId], references: [id], onDelete: Cascade)
+  usuario     Usuario                @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   revisoes    RevisaoFlashcard[]
   aprendizado AprendizadoFlashcard[]
 
   @@map("flashcards")
 }
 
-// ==========================================
-// SESSAO_ESTUDO - Sessão de estudo de um usuário
-// ==========================================
-model SessaoEstudo {
-  id         String    @id @default(cuid())
-  usuarioId  String    @map("id_usuario")
-  dataInicio DateTime  @default(now()) @map("data_inicio")
-  dataFim    DateTime? @map("data_fim")
-
-  usuario  Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  revisoes RevisaoFlashcard[]
-
-  @@map("sessoes_estudo")
-}
-
-// ==========================================
-// REVISAO_FLASHCARD - Revisão de um flashcard em uma sessão
-// ==========================================
-model RevisaoFlashcard {
-  id              String  @id @default(cuid())
-  flashcardId     String  @map("id_flashcard")
-  sessaoId        String  @map("id_sessao")
-  respostaUsuario String? @map("resposta_usuario")
-  acertou         Boolean
-  nivelConfianca  Int     @default(3) @map("nivel_confianca")
-  tipoErro        String? @map("tipo_erro")
-  tempoResposta   Int?    @map("tempo_resposta")
-
-  flashcard Flashcard    @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
-  sessao    SessaoEstudo @relation(fields: [sessaoId], references: [id], onDelete: Cascade)
-
-  @@map("revisoes_flashcard")
-}
-
-// ==========================================
-// APRENDIZADO_FLASHCARD - Dados de repetição espaçada por cartão/usuário
-// ==========================================
-model AprendizadoFlashcard {
-  flashcardId        String   @map("id_flashcard")
-  usuarioId          String   @map("id_usuario")
-  dificuldade        Int      @default(5)
-  intervalo          Int      @default(0)
-  proximaRevisao     DateTime @default(now()) @map("proxima_revisao")
-  ultimaRevisao      DateTime @default(now()) @map("ultima_revisao")
-  estagioAprendizado Int      @default(0) @map("estagio_aprendizado")
-
-  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
-  usuario   Usuario   @relation("AprendizadoUsuario", fields: [usuarioId], references: [id], onDelete: Cascade)
-
-  @@id([flashcardId, usuarioId])
-  @@unique([flashcardId, usuarioId])
-  @@map("aprendizado_flashcard")
-}
-
-// ==========================================
-// NOTA - Texto bruto / nota de estudo
-// ==========================================
+// NOTA
 model Nota {
   id          String   @id @default(cuid())
   usuarioId   String   @map("id_usuario")
   textoBruto  String   @map("texto_bruto")
   dataCriacao DateTime @default(now()) @map("data_criacao")
 
-  usuario         Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  arestasOrigem   ConhecimentoAresta[] @relation("NotaOrigem")
-  arestasDestino  ConhecimentoAresta[] @relation("NotaDestino")
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@map("notas")
 }
 
 // ==========================================
-// GRAFO - Grafo de conhecimento do usuário (múltiplos contextos)
+// GRAFO
 // ==========================================
 model GrafosConhecimento {
-  id          String   @id @default(cuid())
-  usuarioId   String   @map("id_usuario")
-  nome        String
-  descricao   String?
-  estadoVisual String?  @map("estado_visual") // JSON: zoom, pan, posição de nodes
-  dataCriacao DateTime @default(now()) @map("data_criacao")
+  id              String   @id @default(cuid())
+  usuarioId       String   @map("id_usuario")
+  nome            String
+  descricao       String?
+  estadoVisual    String?  @map("estado_visual")
+  dataCriacao     DateTime @default(now()) @map("data_criacao")
   dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao")
 
-  usuario Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
   nodes   NodeConhecimento[]
   arestas ConhecimentoAresta[]
 
   @@map("grafos_conhecimento")
 }
 
+// ==========================================
+// NODE UNIVERSAL (CAMADA DE GRAFO)
+// ==========================================
 enum TipoNode {
   ASSUNTO
   TOPICO
@@ -198,22 +136,24 @@ enum TipoNode {
   QUESTION
 }
 
-// ==========================================
-// NODE_CONHECIMENTO - Nó do grafo de conhecimento
-// ==========================================
 model NodeConhecimento {
-  id                String   @id @default(cuid())
-  usuarioId         String   @map("id_usuario")
-  grafoId           String?  @map("id_grafo")
-  tipoNode          TipoNode
-  referenciaId      String   @map("referencia_id")
+  id        String  @id @default(cuid())
+  usuarioId String  @map("id_usuario")
+  grafoId   String? @map("id_grafo")
+
+  tipoNode TipoNode
+
+  // 👇 APONTA PARA QUALQUER ENTIDADE
+  referenciaId String @map("referencia_id")
+
   posicaoX          Float?   @default(0.0) @map("posicao_x")
   posicaoY          Float?   @default(0.0) @map("posicao_y")
   nivelDominio      Float    @default(0.0) @map("nivel_dominio")
   ultimaAtualizacao DateTime @default(now()) @map("ultima_atualizacao")
 
-  usuario      Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  grafo        GrafosConhecimento?  @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+  usuario Usuario             @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  grafo   GrafosConhecimento? @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+
   arestasOrigem  ConhecimentoAresta[] @relation("NodeOrigem")
   arestasDestino ConhecimentoAresta[] @relation("NodeDestino")
   desempenho     DesempenhoNo[]
@@ -222,26 +162,23 @@ model NodeConhecimento {
 }
 
 // ==========================================
-// ARESTA_CONHECIMENTO - Relações semânticas entre nodes do grafo
+// ARESTAS (RELACIONAMENTO DO GRAFO)
 // ==========================================
 model ConhecimentoAresta {
-  id            String      @id @default(cuid())
-  grafoId       String?     @map("id_grafo")
-  nodeOrigemId  String?     @map("id_node_origem")
-  nodeDestinoId String?     @map("id_node_destino")
-  notaOrigemId  String?     @map("id_nota_origem")
-  notaDestinoId String?     @map("id_nota_destino")
-  tipoRelacao   TipoRelacao
-  peso          Float       @default(1.0)
+  id      String  @id @default(cuid())
+  grafoId String? @map("id_grafo")
+
+  nodeOrigemId  String? @map("id_node_origem")
+  nodeDestinoId String? @map("id_node_destino")
+
+  tipoRelacao TipoRelacao
+  peso        Float       @default(1.0)
 
   grafo       GrafosConhecimento? @relation(fields: [grafoId], references: [id], onDelete: Cascade)
-  nodeOrigem  NodeConhecimento?  @relation("NodeOrigem", fields: [nodeOrigemId], references: [id], onDelete: Cascade)
-  nodeDestino NodeConhecimento?  @relation("NodeDestino", fields: [nodeDestinoId], references: [id], onDelete: Cascade)
-  notaOrigem  Nota?              @relation("NotaOrigem", fields: [notaOrigemId], references: [id], onDelete: Cascade)
-  notaDestino Nota?              @relation("NotaDestino", fields: [notaDestinoId], references: [id], onDelete: Cascade)
+  nodeOrigem  NodeConhecimento?   @relation("NodeOrigem", fields: [nodeOrigemId], references: [id], onDelete: Cascade)
+  nodeDestino NodeConhecimento?   @relation("NodeDestino", fields: [nodeDestinoId], references: [id], onDelete: Cascade)
 
   @@unique([nodeOrigemId, nodeDestinoId, tipoRelacao], name: "_edge_uk")
-  @@unique([notaOrigemId, notaDestinoId, tipoRelacao], name: "_nota_edge_uk")
 }
 
 enum TipoRelacao {
@@ -260,56 +197,74 @@ enum TipoRelacao {
   DERIVA_DE
   EVOLUI_PARA
   REFORCA
-  ALTERNATIVA_A
-  CONTRASTA_COM
-  CONFUNDE_COM
-  ANTI_PADRAO_DE
-  MEDIDO_POR
-  OBJETIVO_DE
-  PERTENCE_A
-  FUNDAMENTA
-  APLICADO_EM
-  SUBTOPICO_DE
   RELACIONADO
-  GERADO
-  DEPENDE_DE
-  HERDA
-  TESTA_DEFINICAO
-  TESTA_EXEMPLO
-  TESTA_APLICACAO
-  TESTA_ANALISE
-  TESTA_SINTESE
 }
 
 // ==========================================
-// DESEMPENHO_NO - Desempenho de um usuário em um nó do grafo
+// RESTO (SEM MUDANÇA FUNCIONAL)
 // ==========================================
+model SessaoEstudo {
+  id         String    @id @default(cuid())
+  usuarioId  String    @map("id_usuario")
+  dataInicio DateTime  @default(now()) @map("data_inicio")
+  dataFim    DateTime? @map("data_fim")
+
+  usuario  Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  revisoes RevisaoFlashcard[]
+
+  @@map("sessoes_estudo")
+}
+
+model RevisaoFlashcard {
+  id              String  @id @default(cuid())
+  flashcardId     String  @map("id_flashcard")
+  sessaoId        String  @map("id_sessao")
+  respostaUsuario String? @map("resposta_usuario")
+  acertou         Boolean
+  nivelConfianca  Int     @default(3) @map("nivel_confianca")
+  tipoErro        String? @map("tipo_erro")
+  tempoResposta   Int?    @map("tempo_resposta")
+
+  flashcard Flashcard    @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+  sessao    SessaoEstudo @relation(fields: [sessaoId], references: [id], onDelete: Cascade)
+
+  @@map("revisoes_flashcard")
+}
+
+model AprendizadoFlashcard {
+  flashcardId        String   @map("id_flashcard")
+  usuarioId          String   @map("id_usuario")
+  dificuldade        Int      @default(5)
+  intervalo          Int      @default(0)
+  proximaRevisao     DateTime @default(now()) @map("proxima_revisao")
+  ultimaRevisao      DateTime @default(now()) @map("ultima_revisao")
+  estagioAprendizado Int      @default(0) @map("estagio_aprendizado")
+
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([flashcardId, usuarioId])
+}
+
 model DesempenhoNo {
   usuarioId         String @map("id_usuario")
   nodeId            String @map("id_node")
-  taxaAcerto        Float  @default(0.0) @map("taxa_acerto")
-  confiancaMedia    Float  @default(0.0) @map("confianca_media")
-  prioridadeRevisao Int    @default(5) @map("prioridade_revisao")
+  taxaAcerto        Float  @default(0.0)
+  confiancaMedia    Float  @default(0.0)
+  prioridadeRevisao Int    @default(5)
 
   usuario Usuario          @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   node    NodeConhecimento @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 
   @@id([usuarioId, nodeId])
-  @@unique([usuarioId, nodeId])
-  @@map("desempenho_no")
 }
 
-// ==========================================
-// CONFIG_AI - Configuracoes de IA
-// ==========================================
 model ConfigAI {
   id        String @id @default(cuid())
-  usuarioId String @map("id_usuario") @unique
+  usuarioId String @unique @map("id_usuario")
   apiKey    String @map("api_key")
   baseUrl   String @map("base_url")
   modelo    String @map("modelo")
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-
-  @@map("config_ai")
 }

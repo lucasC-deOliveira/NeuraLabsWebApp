@@ -1,48 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PROTECTED_PREFIXES = [
-  "/",
-  "/flashcards",
-  "/notes",
-  "/study",
-  "/graph",
-  "/settings",
-  "/reviews",
-];
+const COOKIE_NAME = "flashmind_session";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public assets, API, auth pages
+  // Skip static assets and API routes unconditionally
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/") ||
-    pathname === "/favicon.ico" ||
-    pathname === "/login" ||
-    pathname === "/register"
+    pathname === "/favicon.ico"
   ) {
     return NextResponse.next();
   }
 
-  // Check cookie
-  const token = request.cookies.get("flashmind_session");
+  const token = request.cookies.get(COOKIE_NAME)?.value;
+  const isAuthPage = pathname === "/login" || pathname === "/register";
 
-  // Not authenticated — redirect all protected routes to /login
-  if (!token) {
-    const isProtected = PROTECTED_PREFIXES.some(
-      (p) => pathname === p || pathname.startsWith(`${p}/`),
-    );
-    if (isProtected) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(loginUrl);
+  if (isAuthPage) {
+    // Redirect already-authenticated users away from auth pages
+    if (token) {
+      return NextResponse.redirect(new URL("/", request.url));
     }
+    return NextResponse.next();
   }
 
-  // Already logged in on login/register — redirect to /
-  if (token && (pathname === "/login" || pathname === "/register")) {
-    return NextResponse.redirect(new URL("/", request.url));
+  // All other routes require authentication
+  if (!token) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
 }
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};

@@ -6,6 +6,9 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["src/**/*.spec.ts"],
+    env: {
+      JWT_SECRET: "vitest-test-secret-not-for-production",
+    },
   },
   resolve: {
     alias: {

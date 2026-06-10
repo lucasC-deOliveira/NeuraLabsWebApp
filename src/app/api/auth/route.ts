@@ -4,7 +4,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, verifyPassword, createSessionToken, setSessionCookie, clearSessionCookie } from "@/lib/auth";
+import { hashPassword, verifyPassword, createSessionToken, setSessionCookieResponse, clearSessionCookie } from "@/lib/auth";
+import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // POST /api/auth — all auth actions
@@ -20,7 +21,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "login") {
-      return handleLogin(body);
+      const ip =
+        request.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+        request.headers.get("x-real-ip") ??
+        "unknown";
+      return handleLogin(body, ip);
     }
 
     if (action === "logout") {
@@ -48,9 +53,9 @@ async function handleRegister(body: Record<string, string>) {
     );
   }
 
-  if (senha.length < 6) {
+  if (senha.length < 8) {
     return NextResponse.json(
-      { error: "Senha deve ter no minimo 6 caracteres" },
+      { error: "Senha deve ter no minimo 8 caracteres" },
       { status: 400 },
     );
   }
@@ -90,7 +95,7 @@ async function handleRegister(body: Record<string, string>) {
     success: true,
     user,
   });
-  await setSessionCookie(token);
+  setSessionCookieResponse(response, token);
 
   return response;
 }
@@ -99,13 +104,22 @@ async function handleRegister(body: Record<string, string>) {
 // Login
 // ---------------------------------------------------------------------------
 
-async function handleLogin(body: Record<string, string>) {
+async function handleLogin(body: Record<string, string>, ip: string) {
   const { email, senha } = body;
 
   if (!email?.trim() || !senha) {
     return NextResponse.json(
       { error: "Email e senha sao obrigatorios" },
       { status: 400 },
+    );
+  }
+
+  const rateLimitKey = `login:${ip}:${email.trim().toLowerCase()}`;
+  const { allowed, retryAfter } = checkRateLimit(rateLimitKey);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Muitas tentativas. Tente novamente em ${retryAfter} segundos.` },
+      { status: 429 },
     );
   }
 
@@ -129,6 +143,9 @@ async function handleLogin(body: Record<string, string>) {
     );
   }
 
+  // Successful login — clear the failed-attempt counter for this key
+  resetRateLimit(rateLimitKey);
+
   // Update last access
   await prisma.usuario.update({
     where: { id: user.id },
@@ -141,7 +158,7 @@ async function handleLogin(body: Record<string, string>) {
     success: true,
     user: publicUser,
   });
-  await setSessionCookie(token);
+  setSessionCookieResponse(response, token);
 
   return response;
 }

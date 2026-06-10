@@ -604,9 +604,7 @@ export async function addNodeToGraph(
             pergunta: data.pergunta,
             resposta: data.resposta,
             usuarioId: userId,
-            nivelDificuldade: data.nivelDificuldade ?? 1,
             dataCriacao: now,
-            dataRevisao: now,
           },
         });
         entityId = flashcard.id;

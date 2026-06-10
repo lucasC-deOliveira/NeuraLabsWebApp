@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { createSessionToken, setSessionCookieResponse } from "@/lib/auth";
@@ -7,7 +8,12 @@ import { createSessionToken, setSessionCookieResponse } from "@/lib/auth";
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const error = request.nextUrl.searchParams.get("error");
-  const callbackUrl = request.cookies.get("oauth_callback_url")?.value || "/";
+  const rawCallback = request.cookies.get("oauth_callback_url")?.value ?? "/";
+  // Reject absolute URLs and protocol-relative paths to prevent open redirect.
+  const callbackUrl =
+    rawCallback.startsWith("/") && !rawCallback.startsWith("//")
+      ? rawCallback
+      : "/";
 
   if (error || !code) {
     return NextResponse.redirect(new URL("/login?error=oauth", request.url));
@@ -65,7 +71,7 @@ export async function GET(request: NextRequest) {
   let existingUser = await prisma.usuario.findUnique({ where: { email } });
 
   if (!existingUser) {
-    const randomPw = await hash(Math.random().toString(36), 10);
+    const randomPw = await hash(randomBytes(32).toString("hex"), 10);
     existingUser = await prisma.usuario.create({
       data: {
         nome: githubUser.name ?? githubUser.login ?? "GitHub User",

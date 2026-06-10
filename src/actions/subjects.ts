@@ -27,28 +27,28 @@ export async function getSubjects(): Promise<
     id: string;
     nome: string;
     descricao: string | null;
-    topicos: Array<{
-      id: string;
-      nome: string;
-      descricao: string | null;
-      conceitos: Array<{
-        id: string;
-        nome: string;
-        descricao: string | null;
-      }>;
-    }>;
+    // topicos: Array<{
+    //   id: string;
+    //   nome: string;
+    //   descricao: string | null;
+    //   conceitos: Array<{
+    //     id: string;
+    //     nome: string;
+    //     descricao: string | null;
+    //   }>;
+    // }>;
   }>
 > {
   const userId = await requireUserId();
-  return prisma.assunto.findMany({
+  return  prisma.assunto.findMany({
     where: { usuarioId: userId },
-    include: {
-      topicos: {
-        include: {
-          conceitos: true,
-        },
-      },
-    },
+    // include: {
+    //   topicos: {
+    //     include: {
+    //       conceitos: true,
+    //     },
+    //   },
+    // },
     orderBy: { nome: "asc" },
   });
 }

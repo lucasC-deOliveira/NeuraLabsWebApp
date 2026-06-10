@@ -41,6 +41,7 @@ export function useGraphController(graphId: string) {
     if (nodes.length > 0 && layout.length === 0) {
       setLayout(nodes);
     }
+    console.log("Layout initialized");
   }, [nodes]);
 
   const visibleNodeIds = useMemo(
