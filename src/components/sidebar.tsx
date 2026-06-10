@@ -8,7 +8,7 @@ import { ThemeToggle } from "./theme-toggle";
 
 interface CurrentUser {
   id: string;
-  nome: string;
+  name: string;
   email: string;
 }
 
@@ -67,10 +67,10 @@ function UserSection({ user }: { user: CurrentUser }) {
     <div className="border-t border-border pt-3">
       <div className="flex items-center gap-2 px-1 py-2">
         <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-          {user.nome.charAt(0).toUpperCase()}
+          {user.name.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium">{user.nome}</p>
+          <p className="truncate text-xs font-medium">{user.name}</p>
           <p className="truncate text-[10px] text-muted-foreground">{user.email}</p>
         </div>
       </div>
