@@ -3,8 +3,24 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BrainIcon, LayersIcon, FlameIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon, LogOutIcon, UserIcon } from "lucide-react";
+import { BrainIcon, LayersIcon, FlameIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon, LogOutIcon, UserIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// envolve o elemento com tooltip à direita (usado na sidebar retraída)
+function SideTip({ label, children }: { label: string; children: React.ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={children} />
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 interface CurrentUser {
   id: string;
@@ -21,7 +37,13 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Configuracoes", icon: SettingsIcon },
 ];
 
-function NavContent({ onItemClick }: { onItemClick?: () => void }) {
+function NavContent({
+  onItemClick,
+  collapsed = false,
+}: {
+  onItemClick?: () => void;
+  collapsed?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -30,27 +52,42 @@ function NavContent({ onItemClick }: { onItemClick?: () => void }) {
         const isActive = pathname === item.href;
         const Icon = item.icon;
 
-        return (
+        const link = (
           <Link
-            key={item.href}
             href={item.href}
             onClick={onItemClick}
-            className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2.5 rounded-lg py-2.5 text-sm font-medium transition-colors ${
+              collapsed ? "justify-center px-0" : "px-3"
+            } ${
               isActive
                 ? "bg-primary text-primary-foreground"
                 : "text-primary hover:bg-primary/10"
             }`}
           >
-            <Icon className="size-4" />
-            {item.label}
+            <Icon className="size-4 shrink-0" />
+            {!collapsed && item.label}
           </Link>
+        );
+
+        return collapsed ? (
+          <SideTip key={item.href} label={item.label}>
+            {link}
+          </SideTip>
+        ) : (
+          <span key={item.href}>{link}</span>
         );
       })}
     </nav>
   );
 }
 
-function UserSection({ user }: { user: CurrentUser }) {
+function UserSection({
+  user,
+  collapsed = false,
+}: {
+  user: CurrentUser;
+  collapsed?: boolean;
+}) {
   const router = useRouter();
 
   async function handleLogout() {
@@ -61,6 +98,26 @@ function UserSection({ user }: { user: CurrentUser }) {
     });
     router.push("/login");
     router.refresh();
+  }
+
+  if (collapsed) {
+    return (
+      <div className="border-t border-border pt-3 flex flex-col items-center gap-2">
+        <SideTip label={`${user.name} (${user.email})`}>
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+        </SideTip>
+        <SideTip label="Sair">
+          <button
+            onClick={handleLogout}
+            className="flex size-8 items-center justify-center rounded-lg text-primary transition-colors hover:bg-primary/10"
+          >
+            <LogOutIcon className="size-3.5" />
+          </button>
+        </SideTip>
+      </div>
+    );
   }
 
   return (
@@ -85,7 +142,13 @@ function UserSection({ user }: { user: CurrentUser }) {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({
+  collapsed = false,
+  onToggleCollapse,
+}: {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,30 +233,65 @@ export function Sidebar() {
       )}
 
       {/* Desktop sidebar */}
-      <aside className="app-sidebar hidden md:flex fixed left-0 top-0 z-40 h-screen w-56 flex-col border-r border-border bg-background p-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold text-lg mb-8 text-primary">
-          <BrainIcon className="size-5" />
-          NeuraLabs
-        </Link>
-
-        <NavContent />
-
-        {user && <UserSection user={user} />}
-        {!loading && !user && (
-          <div className="mt-auto pt-4 border-t border-border">
-            <Link
-              href="/login"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
-            >
-              <UserIcon className="size-3.5" />
-              Fazer login
+      <TooltipProvider delay={200}>
+      <aside
+        className={`app-sidebar hidden md:flex fixed left-0 top-0 z-40 h-screen flex-col border-r border-border bg-background transition-[width] duration-200 ${
+          collapsed ? "w-14 px-2 py-4" : "w-56 p-4"
+        }`}
+      >
+        <div className={`flex items-center mb-6 ${collapsed ? "flex-col gap-2" : "justify-between"}`}>
+          {collapsed ? (
+            <SideTip label="NeuraLabs">
+              <Link href="/" className="flex items-center gap-2 font-semibold text-lg text-primary">
+                <BrainIcon className="size-5 shrink-0" />
+              </Link>
+            </SideTip>
+          ) : (
+            <Link href="/" className="flex items-center gap-2 font-semibold text-lg text-primary">
+              <BrainIcon className="size-5 shrink-0" />
+              NeuraLabs
             </Link>
-            <div className="mt-2">
+          )}
+          <SideTip label={collapsed ? "Expandir menu" : "Recolher menu"}>
+            <button
+              onClick={onToggleCollapse}
+              className="flex size-7 items-center justify-center rounded-md text-primary transition-colors hover:bg-primary/10"
+            >
+              {collapsed ? <PanelLeftOpenIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
+            </button>
+          </SideTip>
+        </div>
+
+        <NavContent collapsed={collapsed} />
+
+        {user && <UserSection user={user} collapsed={collapsed} />}
+        {!loading && !user && (
+          <div className={`mt-auto pt-4 border-t border-border ${collapsed ? "flex flex-col items-center gap-2" : ""}`}>
+            {collapsed ? (
+              <SideTip label="Fazer login">
+                <Link
+                  href="/login"
+                  className="flex size-8 items-center justify-center rounded-lg text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+                >
+                  <UserIcon className="size-3.5 shrink-0" />
+                </Link>
+              </SideTip>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+              >
+                <UserIcon className="size-3.5 shrink-0" />
+                Fazer login
+              </Link>
+            )}
+            <div className={collapsed ? "" : "mt-2"}>
               <ThemeToggle />
             </div>
           </div>
         )}
       </aside>
+      </TooltipProvider>
     </>
   );
 }
