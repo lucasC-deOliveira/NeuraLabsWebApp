@@ -20,20 +20,17 @@ function LegendSwatch({ type, isDark }: { type: string; isDark: boolean }) {
 
   return (
     <svg width={22} height={18} aria-hidden="true">
+      {shape === "circle" && (
+        <circle cx={11} cy={9} r={7} fill={colors.bg} stroke={colors.border} strokeWidth={1.5} />
+      )}
       {shape === "ellipse" && (
         <ellipse cx={11} cy={9} rx={10} ry={6} fill={colors.bg} stroke={colors.border} strokeWidth={1.5} />
       )}
       {shape === "rect" && (
         <rect x={1} y={4.5} width={20} height={9} rx={2} fill={colors.bg} stroke={colors.border} strokeWidth={1.5} />
       )}
-      {shape === "square" && (
-        <rect x={5} y={3} width={12} height={12} rx={1} fill={colors.bg} stroke={colors.border} strokeWidth={1.5} />
-      )}
       {shape === "rect-vertical" && (
         <rect x={6.5} y={2} width={9} height={14} rx={1} fill={colors.bg} stroke={colors.border} strokeWidth={1.5} />
-      )}
-      {shape === "diamond" && (
-        <polygon points="11,1.5 20,9 11,16.5 2,9" fill={colors.bg} stroke={colors.border} strokeWidth={1.5} />
       )}
     </svg>
   );
@@ -41,10 +38,10 @@ function LegendSwatch({ type, isDark }: { type: string; isDark: boolean }) {
 
 export function GraphLegend({ isDark }: { isDark: boolean }) {
   return (
-    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 w-max max-w-[97%] max-h-[40%] overflow-y-auto rounded-md border bg-background/90 backdrop-blur-sm px-5 py-2 shadow-sm">
+    <div className="graph-toolbar absolute top-2 left-1/2 -translate-x-1/2 z-10 w-max max-w-[97%] max-h-[40%] overflow-y-auto rounded-md border border-primary/60 bg-background/90 backdrop-blur-sm px-5 py-2 shadow-sm">
       {/* Nós */}
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-        <span className="text-xs font-semibold text-foreground">Nós:</span>
+        <span className="text-xs font-semibold text-primary">Nós:</span>
         {Object.entries(NODE_TYPE_DISPLAY).map(([type, { label }]) => (
           <div key={type} className="flex items-center gap-1.5">
             <LegendSwatch type={type} isDark={isDark} />
@@ -54,8 +51,8 @@ export function GraphLegend({ isDark }: { isDark: boolean }) {
       </div>
 
       {/* Relações — todas as regras, agrupadas por par de tipos */}
-      <div className="mt-1.5 space-y-0.5 border-t pt-1.5">
-        <span className="text-xs font-semibold text-foreground">Relações:</span>
+      <div className="mt-1.5 space-y-0.5 border-t border-primary/30 pt-1.5">
+        <span className="text-xs font-semibold text-primary">Relações:</span>
         {RELATION_PAIRS.map((pair) => (
           <div
             key={`${pair.a}-${pair.b}`}

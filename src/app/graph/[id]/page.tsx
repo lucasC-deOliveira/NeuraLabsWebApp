@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { LeftSidebar } from "@/components/graph/LeftSidebar";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
 import { ArrowLeftIcon, Loader2Icon } from "lucide-react";
@@ -15,6 +14,7 @@ import { useGraphController } from "@/modules/graph/presentation/controllers/use
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
 import { GraphLegend } from "@/modules/graph/presentation/components/GraphLegend";
 import { GraphToolbar } from "@/modules/graph/presentation/components/GraphToolbar";
+import { GraphSideToolbar } from "@/modules/graph/presentation/components/GraphSideToolbar";
 
 import {
   deleteGraphNode,
@@ -39,7 +39,6 @@ export default function GraphPage() {
   const controller = useGraphController(graphId);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -92,6 +91,12 @@ export default function GraphPage() {
       n.label.toLowerCase().includes(searchQuery.toLowerCase())
     )
     .slice(0, 8);
+
+  // contagem de nós por tipo (painel de camadas/filtro)
+  const nodeStats: Record<string, number> = {};
+  for (const n of controller.state.layout) {
+    nodeStats[n.group] = (nodeStats[n.group] || 0) + 1;
+  }
 
   // ======================
   // ZOOM BUTTONS (zoom around SVG center)
@@ -229,7 +234,7 @@ export default function GraphPage() {
           <ArrowLeftIcon />
         </Button>
 
-        <div className="flex-1 text-center font-semibold">
+        <div className="flex-1 text-center font-semibold text-primary">
           {controller.state.grafoNome}
         </div>
       </header>
@@ -237,27 +242,23 @@ export default function GraphPage() {
       {/* BODY */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* LEFT SIDEBAR */}
-        <LeftSidebar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchResults={searchResults}
-          nodeStats={{}}
-          filterGroup={controller.state.filterGroup}
-          onToggleFilter={controller.actions.setFilterGroup}
-          collapsed={leftPanelCollapsed}
-          onToggleCollapse={() =>
-            setLeftPanelCollapsed((v) => !v)
-          }
-          onOpenCreateNode={handleOpenCreateNode}
-          onOpenEdgeManager={handleOpenEdgeManager}
-          tool={controller.state.activeTool}
-          onToolChange={controller.actions.setActiveTool}
-        />
-
         {/* GRAPH */}
         <div className="flex-1 relative">
           {legendVisible && <GraphLegend isDark={isDark} />}
+          <GraphSideToolbar
+            isDark={isDark}
+            tool={controller.state.activeTool}
+            onToolChange={controller.actions.setActiveTool}
+            onOpenCreateNode={handleOpenCreateNode}
+            onOpenEdgeManager={handleOpenEdgeManager}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchResults={searchResults}
+            onFocusNode={controller.interactions.focusNode}
+            nodeStats={nodeStats}
+            filterGroup={controller.state.filterGroup}
+            onToggleFilter={controller.actions.setFilterGroup}
+          />
           <GraphToolbar
             legendVisible={legendVisible}
             onToggleLegend={() => setLegendVisible((v) => !v)}
@@ -306,6 +307,7 @@ export default function GraphPage() {
         </div>
 
         {/* RIGHT PANEL */}
+        {controller.state.selectedNode && (
         <PropertiesPanel
           selectedNode={controller.state.selectedNode}
           connectedEdges={selectedNodeEdges}
@@ -322,6 +324,7 @@ export default function GraphPage() {
             setRightPanelCollapsed((v) => !v)
           }
         />
+        )}
       </div>
       {/* MENU DE CONTEXTO DO NÓ (clique direito) */}
       {nodeMenu && (

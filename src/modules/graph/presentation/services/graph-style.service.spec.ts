@@ -41,21 +41,23 @@ describe("RELATION_COLORS", () => {
 
 describe("getNodeShape", () => {
   it("maps each node type to its shape", () => {
-    expect(getNodeShape("ASSUNTO")).toBe("ellipse");
-    expect(getNodeShape("TOPICO")).toBe("rect");
-    expect(getNodeShape("CONCEITO")).toBe("square");
+    expect(getNodeShape("ASSUNTO")).toBe("circle");
+    expect(getNodeShape("TOPICO")).toBe("ellipse");
+    expect(getNodeShape("CONCEITO")).toBe("rect");
     expect(getNodeShape("NOTA")).toBe("rect-vertical");
-    expect(getNodeShape("FLASHCARD")).toBe("diamond");
+    expect(getNodeShape("FLASHCARD")).toBe("rect-vertical");
   });
 
   it("falls back to rect for unknown type", () => {
     expect(getNodeShape("UNKNOWN")).toBe("rect");
   });
 
-  // Mutation: every type must have a distinct shape
-  it("all five node types have distinct shapes", () => {
+  // Mutação: notas e flashcards compartilham o retângulo vertical;
+  // as demais formas são distintas entre si
+  it("uses 4 distinct shapes across the five node types", () => {
     const shapes = ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA", "FLASHCARD"].map(getNodeShape);
-    expect(new Set(shapes).size).toBe(5);
+    expect(new Set(shapes).size).toBe(4);
+    expect(getNodeShape("NOTA")).toBe(getNodeShape("FLASHCARD"));
   });
 });
 

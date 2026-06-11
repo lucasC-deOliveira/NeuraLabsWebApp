@@ -1,14 +1,14 @@
 import { NODE_TYPE_COLORS } from "../../constants/graph-ui.constants";
 
 // Node shapes
-export type NodeShape = "ellipse" | "rect" | "square" | "rect-vertical" | "diamond";
+export type NodeShape = "circle" | "ellipse" | "rect" | "rect-vertical";
 
 const NODE_TYPE_SHAPES: Record<string, NodeShape> = {
-  ASSUNTO: "ellipse",
-  TOPICO: "rect",
-  CONCEITO: "square",
+  ASSUNTO: "circle",
+  TOPICO: "ellipse",
+  CONCEITO: "rect",
   NOTA: "rect-vertical",
-  FLASHCARD: "diamond",
+  FLASHCARD: "rect-vertical",
 };
 
 export function getNodeShape(type: string): NodeShape {

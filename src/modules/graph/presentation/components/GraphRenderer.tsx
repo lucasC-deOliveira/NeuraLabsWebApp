@@ -27,19 +27,11 @@ function NodeShapeElement({
   const hh = height / 2;
 
   switch (shape) {
+    case "circle":
+      return <circle r={hw} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
     case "ellipse":
       return <ellipse rx={hw} ry={hh} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
-    case "diamond":
-      return (
-        <polygon
-          points={`0,${-hh} ${hw},0 0,${hh} ${-hw},0`}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-        />
-      );
-    // square e rect-vertical já chegam com width/height corretos do layout
-    case "square":
+    // rect e rect-vertical já chegam com width/height corretos do layout
     case "rect-vertical":
     case "rect":
     default:
@@ -49,7 +41,7 @@ function NodeShapeElement({
           height={height}
           x={-hw}
           y={-hh}
-          rx={shape === "rect" ? 8 : 4}
+          rx={shape === "rect" ? 8 : 6}
           fill={fill}
           stroke={stroke}
           strokeWidth={strokeWidth}

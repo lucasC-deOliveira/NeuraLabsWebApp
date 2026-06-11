@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { boundaryPoint, computeEdgeCurve, type NodeGeom } from "./edge-geometry.service";
 
 const rectNode = (over: Partial<NodeGeom> = {}): NodeGeom => ({
-  x: 0, y: 0, width: 100, height: 40, group: "TOPICO", ...over,
+  x: 0, y: 0, width: 100, height: 40, group: "CONCEITO", ...over,
 });
 
 describe("boundaryPoint", () => {
-  describe("retângulo (TOPICO)", () => {
+  describe("retângulo (CONCEITO)", () => {
     it("direção horizontal sai na borda direita", () => {
       const p = boundaryPoint(rectNode(), 1, 0);
       expect(p.x).toBeCloseTo(50);
@@ -29,9 +29,9 @@ describe("boundaryPoint", () => {
     });
   });
 
-  describe("elipse (ASSUNTO)", () => {
+  describe("elipse (TOPICO)", () => {
     it("ponto satisfaz a equação da elipse (x/a)² + (y/b)² = 1", () => {
-      const node = rectNode({ group: "ASSUNTO", width: 120, height: 60 });
+      const node = rectNode({ group: "TOPICO", width: 120, height: 60 });
       for (const [dx, dy] of [[1, 0], [0, 1], [1, 1], [-3, 2]]) {
         const p = boundaryPoint(node, dx, dy);
         const v = (p.x / 60) ** 2 + (p.y / 30) ** 2;
@@ -40,13 +40,24 @@ describe("boundaryPoint", () => {
     });
   });
 
-  describe("losango (FLASHCARD)", () => {
-    it("ponto satisfaz |x|/hw + |y|/hh = 1", () => {
-      const node = rectNode({ group: "FLASHCARD", width: 120, height: 64 });
+  describe("círculo (ASSUNTO)", () => {
+    it("ponto fica sempre à distância do raio, em qualquer direção", () => {
+      const node = rectNode({ group: "ASSUNTO", width: 100, height: 100 });
       for (const [dx, dy] of [[1, 0], [0, -1], [2, 1], [-1, -2]]) {
         const p = boundaryPoint(node, dx, dy);
-        const v = Math.abs(p.x) / 60 + Math.abs(p.y) / 32;
-        expect(v).toBeCloseTo(1, 5);
+        expect(Math.hypot(p.x, p.y)).toBeCloseTo(50, 5);
+      }
+    });
+  });
+
+  describe("retângulo vertical (FLASHCARD/NOTA)", () => {
+    it("ponto fica sobre o contorno da caixa vertical", () => {
+      const node = rectNode({ group: "FLASHCARD", width: 80, height: 120 });
+      for (const [dx, dy] of [[1, 0], [0, 1], [1, 2], [-2, -3]]) {
+        const p = boundaryPoint(node, dx, dy);
+        const onVertical = Math.abs(Math.abs(p.x) - 40) < 1e-6 && Math.abs(p.y) <= 60 + 1e-6;
+        const onHorizontal = Math.abs(Math.abs(p.y) - 60) < 1e-6 && Math.abs(p.x) <= 40 + 1e-6;
+        expect(onVertical || onHorizontal).toBe(true);
       }
     });
   });

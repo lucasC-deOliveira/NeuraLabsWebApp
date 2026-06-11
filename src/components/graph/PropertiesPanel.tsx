@@ -78,7 +78,7 @@ export function PropertiesPanel({
 
   if (collapsed) {
     return (
-      <div className="w-10 bg-zinc-100 dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col items-center py-2">
+      <div className="app-infopanel w-10 bg-background border-l border-primary/60 flex flex-col items-center py-2">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleCollapse} title="Expandir painel">
           <ChevronLeftIcon className="size-4" />
         </Button>
@@ -87,9 +87,9 @@ export function PropertiesPanel({
   }
 
   return (
-    <div className="w-80 bg-zinc-100 dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col">
+    <div className="app-infopanel w-80 bg-background border-l border-primary/60 flex flex-col text-primary">
       {/* Header */}
-      <div className="flex items-center gap-2 p-3 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex items-center gap-2 p-3 border-b border-primary/30">
         <div className="flex-1 font-medium text-sm truncate">
           {selectedNode ? "Propriedades" : "Informações"}
         </div>
@@ -101,7 +101,7 @@ export function PropertiesPanel({
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3">
         {!selectedNode ? (
-          <div className="text-center text-zinc-500 text-sm py-8">
+          <div className="text-center text-muted-foreground text-sm py-8">
             <p>Selecione um nó para ver suas propriedades</p>
           </div>
         ) : (
@@ -112,11 +112,11 @@ export function PropertiesPanel({
                 <Badge variant="outline" className="text-xs">
                   {selectedNode.tipoReal.toLowerCase()}
                 </Badge>
-                <span className="text-xs text-zinc-500">ID: {selectedNode.id.slice(0, 8)}...</span>
+                <span className="text-xs text-muted-foreground">ID: {selectedNode.id.slice(0, 8)}...</span>
               </div>
               <h3 className="font-semibold text-lg leading-tight mb-1">{selectedNode.label}</h3>
               {selectedNode.pergunta && (
-                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">{selectedNode.pergunta}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{selectedNode.pergunta}</p>
               )}
             </div>
 
@@ -126,10 +126,10 @@ export function PropertiesPanel({
             <div className="space-y-3">
               <div>
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-zinc-600 dark:text-zinc-400">Domínio</span>
+                  <span className="text-primary/80">Domínio</span>
                   <span className="font-mono">{Math.round(selectedNode.dominio * 100)}%</span>
                 </div>
-                <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
                   <div
                     className="h-full rounded-full"
                     style={{
@@ -141,14 +141,14 @@ export function PropertiesPanel({
               </div>
 
               <div className="flex items-center justify-between text-xs">
-                <span className="text-zinc-600 dark:text-zinc-400">Prioridade de revisão</span>
+                <span className="text-primary/80">Prioridade de revisão</span>
                 <Badge variant={selectedNode.prioridadeRevisao >= 7 ? "destructive" : "secondary"} className="text-xs">
                   {selectedNode.prioridadeRevisao}
                 </Badge>
               </div>
 
               <div className="flex items-center justify-between text-xs">
-                <span className="text-zinc-600 dark:text-zinc-400">Conexões</span>
+                <span className="text-primary/80">Conexões</span>
                 <span className="font-mono">{connectedEdges.length}</span>
               </div>
             </div>
@@ -172,11 +172,11 @@ export function PropertiesPanel({
 
             {/* Relações do nó — com editar/excluir */}
             <div>
-              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">
+              <h4 className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">
                 Relações ({connectedEdges.length})
               </h4>
               {connectedEdges.length === 0 ? (
-                <p className="text-xs text-zinc-500">Este nó não tem relações neste grafo.</p>
+                <p className="text-xs text-muted-foreground">Este nó não tem relações neste grafo.</p>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                   {connectedEdges.map((edge) => {
@@ -185,7 +185,7 @@ export function PropertiesPanel({
                     return (
                       <div
                         key={edge.id}
-                        className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-800 rounded text-xs"
+                        className="flex items-center gap-2 p-2 bg-muted/60 rounded text-xs"
                       >
                         <div
                           className="size-2 rounded-full flex-shrink-0"
@@ -193,10 +193,10 @@ export function PropertiesPanel({
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1">
-                            <span className="text-zinc-400">{isOutgoing ? "→" : "←"}</span>
+                            <span className="text-muted-foreground">{isOutgoing ? "→" : "←"}</span>
                             <span className="truncate">{otherNode}</span>
                           </div>
-                          <div className="text-[10px] text-zinc-500 capitalize">
+                          <div className="text-[10px] text-muted-foreground capitalize">
                             {RELATION_LABELS[edge.tipoRelacao] || edge.tipoRelacao}
                           </div>
                         </div>
@@ -239,7 +239,7 @@ export function PropertiesPanel({
             </div>
 
             {/* Position */}
-            <div className="text-xs text-zinc-500">
+            <div className="text-xs text-muted-foreground">
               <div>Posição: ({Math.round(selectedNode.x)}, {Math.round(selectedNode.y)})</div>
             </div>
 

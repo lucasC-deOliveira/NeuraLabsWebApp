@@ -27,11 +27,11 @@ export function GraphToolbar({
   onTogglePhysics,
 }: Props) {
   return (
-    <div className="absolute bottom-3 right-3 z-10 flex flex-row items-center gap-1 rounded-md border bg-background/90 backdrop-blur-sm p-1 shadow-sm">
+    <div className="graph-toolbar absolute bottom-3 right-3 z-10 flex flex-row items-center gap-1 rounded-md border bg-background/90 backdrop-blur-sm p-1 shadow-sm">
       <Button
         variant="ghost"
         size="icon"
-        className="size-8"
+        className="size-8 text-primary"
         onClick={onZoomIn}
         title="Aumentar zoom"
       >
@@ -40,7 +40,7 @@ export function GraphToolbar({
       <Button
         variant="ghost"
         size="icon"
-        className="size-8"
+        className="size-8 text-primary"
         onClick={onZoomOut}
         title="Diminuir zoom"
       >
@@ -52,7 +52,7 @@ export function GraphToolbar({
       <Button
         variant={physicsEnabled ? "secondary" : "ghost"}
         size="icon"
-        className={`size-8 ${physicsEnabled ? "ring-1 ring-primary/50" : ""}`}
+        className={`size-8 text-primary ${physicsEnabled ? "ring-1 ring-primary/50" : ""}`}
         onClick={onTogglePhysics}
         title={physicsEnabled ? "Desligar física" : "Ligar física (órbita lenta)"}
       >
@@ -64,7 +64,7 @@ export function GraphToolbar({
       <Button
         variant="ghost"
         size="icon"
-        className="size-8"
+        className="size-8 text-primary"
         onClick={onToggleLegend}
         title={legendVisible ? "Ocultar legenda" : "Mostrar legenda"}
       >

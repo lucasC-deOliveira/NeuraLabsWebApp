@@ -22,11 +22,10 @@ export function boundaryPoint(node: NodeGeom, dirX: number, dirY: number) {
 
   let r: number;
   switch (getNodeShape(node.group)) {
+    // círculo é uma elipse com raios iguais — mesma equação
+    case "circle":
     case "ellipse":
       r = (hw * hh) / (Math.hypot(hh * ux, hw * uy) || 1);
-      break;
-    case "diamond":
-      r = 1 / (Math.abs(ux) / hw + Math.abs(uy) / hh || 1);
       break;
     default: {
       // retângulos: interseção com a borda da caixa
