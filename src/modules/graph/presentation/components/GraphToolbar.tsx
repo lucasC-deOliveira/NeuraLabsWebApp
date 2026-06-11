@@ -22,7 +22,7 @@ export function GraphToolbar({
   onZoomOut,
 }: Props) {
   return (
-    <div className="absolute bottom-3 right-3 z-10 flex flex-col items-center gap-1 rounded-md border bg-background/90 backdrop-blur-sm p-1 shadow-sm">
+    <div className="absolute bottom-3 right-3 z-10 flex flex-row items-center gap-1 rounded-md border bg-background/90 backdrop-blur-sm p-1 shadow-sm">
       <Button
         variant="ghost"
         size="icon"
@@ -42,7 +42,7 @@ export function GraphToolbar({
         <ZoomOutIcon className="size-4" />
       </Button>
 
-      <div className="h-px w-5 bg-border" />
+      <div className="w-px h-5 bg-border" />
 
       <Button
         variant="ghost"
