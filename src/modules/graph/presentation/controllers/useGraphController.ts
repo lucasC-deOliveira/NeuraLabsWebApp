@@ -3,6 +3,7 @@ import { useGraphData } from "../hooks/useGraphData";
 import { useGraphLayout } from "../hooks/useGraphLayout";
 import { SimNode } from "../../infra/layout/force-layout.engine";
 import { useGraphInteractions } from "../hooks/useGraphInteractions";
+import { useGraphPhysics } from "../hooks/useGraphPhysics";
 import { getFilteredEdges, getFilteredNodes } from "../../domain/selectors/graph.selectors";
 
 export function useGraphController(graphId: string) {
@@ -30,6 +31,7 @@ export function useGraphController(graphId: string) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterGroup, setFilterGroup] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<"select" | "marquee" | "hand">("select");
+  const [physicsEnabled, setPhysicsEnabled] = useState(false);
 
   const layoutRefForSelect = useRef<SimNode[]>([]);
   useEffect(() => { layoutRefForSelect.current = layout; }, [layout]);
@@ -104,6 +106,9 @@ export function useGraphController(graphId: string) {
     onMarqueeSelect: handleMarqueeSelect,
   });
 
+  // física ambiente: nós se movem devagar e orbitam o centro do grafo
+  useGraphPhysics({ enabled: physicsEnabled, setLayout, edges });
+
   // sincroniza layout com os nós: novos entram, removidos saem,
   // e os existentes mantêm a posição atual (não embaralha ao criar/excluir)
   useEffect(() => {
@@ -147,6 +152,7 @@ export function useGraphController(graphId: string) {
       loading,
       grafoNome,
       activeTool,
+      physicsEnabled,
     },
     actions: {
       setSelectedNode,
@@ -161,6 +167,7 @@ export function useGraphController(graphId: string) {
       setRawNodes,
       setRawEdges,
       setActiveTool,
+      setPhysicsEnabled,
     },
     interactions,
   };

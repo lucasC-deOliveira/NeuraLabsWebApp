@@ -263,6 +263,10 @@ export default function GraphPage() {
             onToggleLegend={() => setLegendVisible((v) => !v)}
             onZoomIn={() => handleZoomButton(0.1)}
             onZoomOut={() => handleZoomButton(-0.1)}
+            physicsEnabled={controller.state.physicsEnabled}
+            onTogglePhysics={() =>
+              controller.actions.setPhysicsEnabled((v: boolean) => !v)
+            }
           />
           <GraphRenderer
             nodes={controller.state.filteredNodes}

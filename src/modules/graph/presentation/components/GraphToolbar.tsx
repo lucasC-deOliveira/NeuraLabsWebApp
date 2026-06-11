@@ -3,6 +3,7 @@
 import {
   EyeIcon,
   EyeOffIcon,
+  OrbitIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "lucide-react";
@@ -13,6 +14,8 @@ type Props = {
   onToggleLegend: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  physicsEnabled: boolean;
+  onTogglePhysics: () => void;
 };
 
 export function GraphToolbar({
@@ -20,6 +23,8 @@ export function GraphToolbar({
   onToggleLegend,
   onZoomIn,
   onZoomOut,
+  physicsEnabled,
+  onTogglePhysics,
 }: Props) {
   return (
     <div className="absolute bottom-3 right-3 z-10 flex flex-row items-center gap-1 rounded-md border bg-background/90 backdrop-blur-sm p-1 shadow-sm">
@@ -40,6 +45,18 @@ export function GraphToolbar({
         title="Diminuir zoom"
       >
         <ZoomOutIcon className="size-4" />
+      </Button>
+
+      <div className="w-px h-5 bg-border" />
+
+      <Button
+        variant={physicsEnabled ? "secondary" : "ghost"}
+        size="icon"
+        className={`size-8 ${physicsEnabled ? "ring-1 ring-primary/50" : ""}`}
+        onClick={onTogglePhysics}
+        title={physicsEnabled ? "Desligar física" : "Ligar física (órbita lenta)"}
+      >
+        <OrbitIcon className="size-4" />
       </Button>
 
       <div className="w-px h-5 bg-border" />
