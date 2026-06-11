@@ -376,6 +376,84 @@ export async function deleteGraphNode(graphNodeId: string, grafoId?: string): Pr
   return { success: true };
 }
 
+// Campos editáveis da entidade referenciada por um nó do grafo
+export async function getNodeDetails(
+  tipoNode: string,
+  referenciaId: string
+): Promise<Record<string, string | null> | null> {
+  const userId = await requireUserId();
+
+  switch (tipoNode) {
+    case "ASSUNTO": {
+      const a = await prisma.assunto.findFirst({ where: { id: referenciaId, usuarioId: userId } });
+      return a ? { nome: a.nome, descricao: a.descricao } : null;
+    }
+    case "TOPICO": {
+      const t = await prisma.topico.findFirst({ where: { id: referenciaId, usuarioId: userId } });
+      return t ? { nome: t.nome, descricao: t.descricao } : null;
+    }
+    case "CONCEITO": {
+      const c = await prisma.conceito.findFirst({ where: { id: referenciaId, usuarioId: userId } });
+      return c ? { nome: c.nome, descricao: c.descricao } : null;
+    }
+    case "FLASHCARD": {
+      const f = await prisma.flashcard.findFirst({ where: { id: referenciaId, usuarioId: userId } });
+      return f ? { pergunta: f.pergunta, resposta: f.resposta } : null;
+    }
+    case "NOTA": {
+      const n = await prisma.nota.findFirst({ where: { id: referenciaId, usuarioId: userId } });
+      return n ? { titulo: n.titulo, textoBruto: n.textoBruto } : null;
+    }
+    default:
+      return null;
+  }
+}
+
+export async function updateGraphNode(
+  tipoNode: string,
+  referenciaId: string,
+  data: { nome?: string; descricao?: string | null; pergunta?: string; resposta?: string; textoBruto?: string; titulo?: string },
+  grafoId?: string
+): Promise<{ success: boolean }> {
+  const userId = await requireUserId();
+  // updateMany com usuarioId garante que só o dono altera
+  const where = { id: referenciaId, usuarioId: userId };
+
+  let count = 0;
+  switch (tipoNode) {
+    case "ASSUNTO":
+      count = (await prisma.assunto.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count;
+      break;
+    case "TOPICO":
+      count = (await prisma.topico.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count;
+      break;
+    case "CONCEITO":
+      count = (await prisma.conceito.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count;
+      break;
+    case "FLASHCARD":
+      count = (await prisma.flashcard.updateMany({ where, data: { pergunta: data.pergunta, resposta: data.resposta } })).count;
+      break;
+    case "NOTA":
+      if (data.titulo !== undefined && !data.titulo.trim()) {
+        throw new Error("O título da nota é obrigatório");
+      }
+      count = (await prisma.nota.updateMany({
+        where,
+        data: { titulo: data.titulo?.trim(), textoBruto: data.textoBruto },
+      })).count;
+      break;
+    default:
+      throw new Error(`Tipo de nó desconhecido: ${tipoNode}`);
+  }
+
+  if (count === 0) {
+    throw new Error("Nó não encontrado ou não pertence ao usuário");
+  }
+
+  if (grafoId) revalidatePath(`/graph/${grafoId}`);
+  return { success: true };
+}
+
 export async function deleteEdge(edgeId: string, grafoId: string): Promise<{ success: boolean }> {
   const userId = await requireUserId();
 
@@ -567,6 +645,7 @@ async function resolveNodeLabel(node: any): Promise<string> {
     }
     case "NOTA": {
       const nota = await prisma.nota.findUnique({ where: { id: referenciaId } });
+      if (nota?.titulo && nota.titulo !== "Sem título") return nota.titulo;
       return nota?.textoBruto?.slice(0, 50) ?? referenciaId;
     }
     default:
@@ -622,8 +701,12 @@ export async function addNodeToGraph(
         break;
       }
       case "NOTA": {
+        if (!data.titulo?.trim()) {
+          throw new Error("O título da nota é obrigatório");
+        }
         const nota = await prisma.nota.create({
           data: {
+            titulo: data.titulo.trim(),
             textoBruto: data.textoBruto,
             usuarioId: userId,
             dataCriacao: now,

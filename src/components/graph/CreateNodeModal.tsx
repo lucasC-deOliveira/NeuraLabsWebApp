@@ -171,11 +171,15 @@ export function CreateNodeModal({
           payload = { pergunta: formData.pergunta.trim(), resposta: formData.resposta.trim() };
           break;
         case "NOTA":
+          if (!formData.nome.trim()) {
+            toast.error("Digite um título para a nota");
+            return;
+          }
           if (!formData.textoBruto.trim()) {
             toast.error("Digite o texto da nota");
             return;
           }
-          payload = { textoBruto: formData.textoBruto.trim() };
+          payload = { titulo: formData.nome.trim(), textoBruto: formData.textoBruto.trim() };
           break;
       }
 
@@ -609,15 +613,26 @@ export function CreateNodeModal({
 
               {/* NOTA form */}
               {selectedType === "NOTA" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="texto-bruto">Texto da nota</Label>
-                  <Textarea
-                    id="texto-bruto"
-                    placeholder="Digite ou cole sua nota aqui..."
-                    value={formData.textoBruto}
-                    onChange={(e) => setFormData((f) => ({ ...f, textoBruto: e.target.value }))}
-                    rows={6}
-                  />
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nota-titulo">Título</Label>
+                    <Input
+                      id="nota-titulo"
+                      placeholder="Ex: Aula 3 — Princípios Fundamentais"
+                      value={formData.nome}
+                      onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="texto-bruto">Texto da nota</Label>
+                    <Textarea
+                      id="texto-bruto"
+                      placeholder="Digite ou cole sua nota aqui..."
+                      value={formData.textoBruto}
+                      onChange={(e) => setFormData((f) => ({ ...f, textoBruto: e.target.value }))}
+                      rows={6}
+                    />
+                  </div>
                 </div>
               )}
             </>

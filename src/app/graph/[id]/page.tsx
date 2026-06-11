@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { LeftSidebar } from "@/components/graph/LeftSidebar";
@@ -21,9 +21,12 @@ import {
   removeNodeFromGraph,
   getGraphNodes,
   getGraphEdges,
+  deleteEdge,
 } from "@/actions/graph";
 import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
 import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";
+import { EditNodeModal } from "@/components/graph/EditNodeModal";
+import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 
 export default function GraphPage() {
   const router = useRouter();
@@ -43,6 +46,10 @@ export default function GraphPage() {
   const [legendVisible, setLegendVisible] = useState(true);
   const [isEdgeManagerOpen, setIsEdgeManagerOpen] = useState(false);
   const [graphEdges, setGraphEdges] = useState<any[]>([]);
+  const [nodeMenu, setNodeMenu] = useState<{ node: any; x: number; y: number } | null>(null);
+  const [editingNode, setEditingNode] = useState<any>(null);
+  const [editEdge, setEditEdge] = useState<any>(null);
+  const [addEdgeSourceId, setAddEdgeSourceId] = useState<string | null>(null);
 
   const handleOpenCreateNode = () => {
     setIsCreateModalOpen(true);
@@ -55,6 +62,12 @@ export default function GraphPage() {
       toast.error("Erro ao carregar relações");
     }
   };
+
+  // relações disponíveis desde o início (painel de propriedades)
+  useEffect(() => {
+    loadEdges();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graphId]);
 
   const handleOpenEdgeManager = async () => {
     await loadEdges();
@@ -100,6 +113,23 @@ export default function GraphPage() {
   };
 
   // ======================
+  // MENU "RELACIONAR" — aparece no ponto médio entre 2 nós selecionados
+  // ======================
+  let relateMenuPos: { x: number; y: number } | null = null;
+  if (controller.state.selectedNodeIds.size === 2) {
+    const [idA, idB] = [...controller.state.selectedNodeIds];
+    const a = controller.state.layout.find((n) => n.id === idA);
+    const b = controller.state.layout.find((n) => n.id === idB);
+    // só mostra o menu se os tipos dos dois nós tiverem relação possível
+    if (a && b && canRelate(a.group, b.group)) {
+      relateMenuPos = {
+        x: ((a.x + b.x) / 2) * controller.state.zoom + controller.state.pan.x,
+        y: ((a.y + b.y) / 2) * controller.state.zoom + controller.state.pan.y,
+      };
+    }
+  }
+
+  // ======================
   // GRAPH REFRESH
   // ======================
   const refreshGraph = async () => {
@@ -109,18 +139,54 @@ export default function GraphPage() {
     controller.actions.setRawNodes(result.nodes);
     controller.actions.setRawEdges(result.edges);
     controller.actions.setSelectedNode(null);
+    await loadEdges();
   };
 
   // ======================
-  // DELETE NODE
+  // RELAÇÕES DO NÓ SELECIONADO (painel de propriedades)
   // ======================
-  const handleDeleteNode = async () => {
+  const selectedNodeEdges = controller.state.selectedNode
+    ? graphEdges.filter(
+        (e: any) =>
+          e.source === controller.state.selectedNode.id ||
+          e.target === controller.state.selectedNode.id
+      )
+    : [];
+
+  const handleEditEdge = (edge: any) => {
+    setEditEdge(edge);
+    setIsEdgeManagerOpen(true);
+  };
+
+  // botão "Nova relação" do painel: abre a criação com o nó como origem
+  const handleAddEdgeFromPanel = () => {
     if (!controller.state.selectedNode) return;
+    setAddEdgeSourceId(controller.state.selectedNode.id);
+    setIsEdgeManagerOpen(true);
+  };
+
+  const handleDeleteEdge = async (edge: any) => {
+    if (!confirm("Excluir esta relação?")) return;
+    try {
+      await deleteEdge(edge.id, graphId);
+      toast.success("Relação excluída");
+      await refreshGraph();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao excluir relação");
+    }
+  };
+
+  // ======================
+  // DELETE NODE (exclui a entidade do app)
+  // ======================
+  const deleteNodeFromApp = async (node: any) => {
+    if (!node) return;
+    if (!confirm(`Excluir “${node.label}” permanentemente do aplicativo?`)) return;
 
     setIsDeletingNode(true);
     try {
-      await deleteGraphNode(controller.state.selectedNode.id, graphId);
-      toast.success("Node removido");
+      await deleteGraphNode(node.id, graphId);
+      toast.success("Nó excluído do aplicativo");
       await refreshGraph();
     } catch {
       toast.error("Erro ao excluir node");
@@ -129,18 +195,17 @@ export default function GraphPage() {
     }
   };
 
+  const handleDeleteNode = () => deleteNodeFromApp(controller.state.selectedNode);
+
   // ======================
-  // REMOVE FROM GRAPH
+  // REMOVE FROM GRAPH (mantém a entidade no app)
   // ======================
-  const handleRemoveFromGraph = async () => {
-    if (!controller.state.selectedNode) return;
+  const removeFromGraph = async (node: any) => {
+    if (!node) return;
 
     setIsDeletingNode(true);
     try {
-      await removeNodeFromGraph(
-        controller.state.selectedNode.id,
-        graphId
-      );
+      await removeNodeFromGraph(node.id, graphId);
       toast.success("Removido do grafo");
       await refreshGraph();
     } catch {
@@ -149,6 +214,8 @@ export default function GraphPage() {
       setIsDeletingNode(false);
     }
   };
+
+  const handleRemoveFromGraph = () => removeFromGraph(controller.state.selectedNode);
 
   // ======================
   // RENDER
@@ -208,49 +275,134 @@ export default function GraphPage() {
             selectedNodeIds={controller.state.selectedNodeIds}
             marquee={controller.interactions.marquee}
             onNodeClick={controller.actions.selectNode}
+            onNodeContextMenu={(node, x, y) => setNodeMenu({ node, x, y })}
             onNodeHover={controller.actions.setHoveredNodeId}
             onNodeDragStart={controller.interactions.startDragNode}
             onPanStart={controller.interactions.startPan}
             onMarqueeStart={controller.interactions.startMarquee}
             onWheel={controller.interactions.handleWheel}
           />
+
+          {/* dropdown entre os dois nós selecionados */}
+          {relateMenuPos && (
+            <div
+              className="absolute z-20 -translate-x-1/2 -translate-y-1/2"
+              style={{ left: relateMenuPos.x, top: relateMenuPos.y }}
+            >
+              <div className="rounded-md border bg-popover text-popover-foreground shadow-md py-1 min-w-32">
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={handleOpenEdgeManager}
+                >
+                  Relacionar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* RIGHT PANEL */}
         <PropertiesPanel
           selectedNode={controller.state.selectedNode}
-          connectedEdges={[]}
+          connectedEdges={selectedNodeEdges}
           isDark={isDark}
           onRemoveFromGraph={handleRemoveFromGraph}
           onDeleteNode={handleDeleteNode}
           isDeleting={isDeletingNode}
           onFocusNode={controller.interactions.focusNode}
+          onEditEdge={handleEditEdge}
+          onDeleteEdge={handleDeleteEdge}
+          onAddEdge={handleAddEdgeFromPanel}
           collapsed={rightPanelCollapsed}
           onToggleCollapse={() =>
             setRightPanelCollapsed((v) => !v)
           }
         />
       </div>
+      {/* MENU DE CONTEXTO DO NÓ (clique direito) */}
+      {nodeMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setNodeMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setNodeMenu(null);
+            }}
+          />
+          <div
+            className="fixed z-50 min-w-44 rounded-md border bg-popover text-popover-foreground shadow-md py-1"
+            style={{ left: nodeMenu.x, top: nodeMenu.y }}
+          >
+            <button
+              className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+              onClick={() => {
+                setEditingNode(nodeMenu.node);
+                setNodeMenu(null);
+              }}
+            >
+              Editar
+            </button>
+            <button
+              className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+              onClick={() => {
+                removeFromGraph(nodeMenu.node);
+                setNodeMenu(null);
+              }}
+            >
+              Remover do grafo
+            </button>
+            <div className="my-1 h-px bg-border" />
+            <button
+              className="w-full px-3 py-1.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-accent"
+              onClick={() => {
+                const node = nodeMenu.node;
+                setNodeMenu(null);
+                deleteNodeFromApp(node);
+              }}
+            >
+              Excluir do aplicativo
+            </button>
+          </div>
+        </>
+      )}
+
       <CreateNodeModal
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
         grafoId={graphId}
         onSuccess={refreshGraph}
       />
+      <EditNodeModal
+        open={!!editingNode}
+        onOpenChange={(open) => !open && setEditingNode(null)}
+        grafoId={graphId}
+        node={editingNode}
+        onSuccess={refreshGraph}
+      />
       <EdgeManagerModal
         open={isEdgeManagerOpen}
-        onOpenChange={setIsEdgeManagerOpen}
+        onOpenChange={(open) => {
+          setIsEdgeManagerOpen(open);
+          if (!open) {
+            setEditEdge(null);
+            setAddEdgeSourceId(null);
+          }
+        }}
         grafoId={graphId}
         existingEdges={graphEdges}
-        // com exatamente 2 nós selecionados, abre direto na criação
-        // com origem e destino pré-preenchidos
+        initialEditEdge={editEdge}
+        // origem do botão "Nova relação" do painel, ou os 2 nós selecionados
         initialSourceId={
-          controller.state.selectedNodeIds.size === 2
+          addEdgeSourceId ??
+          (controller.state.selectedNodeIds.size === 2
             ? [...controller.state.selectedNodeIds][0]
-            : undefined
+            : undefined)
         }
         initialTargetId={
-          controller.state.selectedNodeIds.size === 2
+          addEdgeSourceId
+            ? undefined
+            : controller.state.selectedNodeIds.size === 2
             ? [...controller.state.selectedNodeIds][1]
             : undefined
         }

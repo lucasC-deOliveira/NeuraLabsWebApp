@@ -102,6 +102,7 @@ model Flashcard {
 model Nota {
   id          String   @id @default(cuid())
   usuarioId   String   @map("id_usuario")
+  titulo      String   @default("Sem título")
   textoBruto  String   @map("texto_bruto")
   dataCriacao DateTime @default(now()) @map("data_criacao")
 

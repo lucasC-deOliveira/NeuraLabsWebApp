@@ -5,6 +5,7 @@ import {
   getFilteredEdges,
   getNodeStats,
   getConnectedNodeIds,
+  getNodesInRect,
 } from "./graph.selectors";
 
 const nodes = [
@@ -115,5 +116,44 @@ describe("getConnectedNodeIds", () => {
   it("does not include nodes beyond direct neighbours", () => {
     const connected = getConnectedNodeIds(nodes, edges, "n1");
     expect(connected.has("n3")).toBe(false);
+  });
+});
+
+describe("getNodesInRect (seleção múltipla por retângulo)", () => {
+  it("seleciona nós cujo centro está dentro do retângulo", () => {
+    const ids = getNodesInRect(nodes, { x1: 5, y1: 5, x2: 25, y2: 25 });
+    expect(ids).toEqual(["n2", "n3"]);
+  });
+
+  it("retângulo desenhado de baixo para cima / direita para esquerda funciona igual", () => {
+    const normal = getNodesInRect(nodes, { x1: 5, y1: 5, x2: 25, y2: 25 });
+    const invertido = getNodesInRect(nodes, { x1: 25, y1: 25, x2: 5, y2: 5 });
+    expect(invertido).toEqual(normal);
+  });
+
+  it("retângulo de área zero não seleciona ninguém (clique simples limpa seleção)", () => {
+    expect(getNodesInRect(nodes, { x1: 5, y1: 5, x2: 5, y2: 5 })).toEqual([]);
+  });
+
+  it("nó exatamente na borda do retângulo é incluído", () => {
+    const ids = getNodesInRect(nodes, { x1: 0, y1: 0, x2: 10, y2: 10 });
+    expect(ids).toEqual(["n1", "n2"]);
+  });
+
+  it("retângulo cobrindo tudo seleciona todos", () => {
+    const ids = getNodesInRect(nodes, { x1: -100, y1: -100, x2: 100, y2: 100 });
+    expect(ids).toHaveLength(4);
+  });
+
+  // Mutação: os dois eixos precisam ser checados — retângulo fino em x não
+  // pode selecionar por y e vice-versa
+  it("nó dentro do intervalo de x mas fora do de y não é selecionado", () => {
+    const ids = getNodesInRect(nodes, { x1: -100, y1: 8, x2: 100, y2: 12 });
+    expect(ids).toEqual(["n2"]);
+  });
+
+  it("nó dentro do intervalo de y mas fora do de x não é selecionado", () => {
+    const ids = getNodesInRect(nodes, { x1: 8, y1: -100, x2: 12, y2: 100 });
+    expect(ids).toEqual(["n2"]);
   });
 });

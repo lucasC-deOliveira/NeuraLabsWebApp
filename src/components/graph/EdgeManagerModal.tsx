@@ -48,6 +48,8 @@ interface EdgeManagerModalProps {
   // com origem/destino pré-selecionados (ex.: 2 nós selecionados no grafo)
   initialSourceId?: string;
   initialTargetId?: string;
+  // quando informado, o modal abre direto na edição desta relação
+  initialEditEdge?: Edge | null;
 }
 
 const RELATION_GROUPS = [
@@ -115,6 +117,7 @@ export function EdgeManagerModal({
   onSuccess,
   initialSourceId,
   initialTargetId,
+  initialEditEdge,
 }: EdgeManagerModalProps) {
   const router = useRouter();
   const [mode, setMode] = useState<"list" | "add" | "edit">("list");
@@ -145,10 +148,20 @@ export function EdgeManagerModal({
     if (open) {
       // Load nodes from graph
       fetchNodes();
-      if (initialSourceId && initialTargetId) {
+      if (initialEditEdge) {
+        setSelectedEdge(initialEditEdge);
+        setFormData({
+          sourceNodeId: initialEditEdge.source,
+          targetNodeId: initialEditEdge.target,
+          tipoRelacao: initialEditEdge.tipoRelacao,
+          peso: initialEditEdge.peso,
+        });
+        setMode("edit");
+      } else if (initialSourceId) {
+        // com origem (e opcionalmente destino) pré-selecionada, vai direto à criação
         setFormData({
           sourceNodeId: initialSourceId,
-          targetNodeId: initialTargetId,
+          targetNodeId: initialTargetId ?? "",
           tipoRelacao: "",
           peso: 1.0,
         });
@@ -157,7 +170,7 @@ export function EdgeManagerModal({
         setMode("list");
       }
     }
-  }, [open, initialSourceId, initialTargetId]);
+  }, [open, initialSourceId, initialTargetId, initialEditEdge]);
 
   const fetchNodes = async () => {
     try {

@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { getNodesInRect } from "../../domain/selectors/graph.selectors";
 
 export type LayoutNode = {
   id: string;
@@ -204,14 +205,7 @@ export function useGraphInteractions<T extends LayoutNode>({
 
     const onUp = () => {
       if (interactionRef.current.type === "marquee" && marqueeRef.current) {
-        const m = marqueeRef.current;
-        const minX = Math.min(m.x1, m.x2);
-        const maxX = Math.max(m.x1, m.x2);
-        const minY = Math.min(m.y1, m.y2);
-        const maxY = Math.max(m.y1, m.y2);
-        const ids = layoutRef.current
-          .filter(n => n.x >= minX && n.x <= maxX && n.y >= minY && n.y <= maxY)
-          .map(n => n.id);
+        const ids = getNodesInRect(layoutRef.current, marqueeRef.current);
         onMarqueeSelectRef.current?.(ids);
         marqueeRef.current = null;
         setMarquee(null);

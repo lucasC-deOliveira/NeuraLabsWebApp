@@ -19,6 +19,23 @@ export function getVisibleNodeIds(nodes: any[]) {
 }
 
 /**
+ * Nós cujo centro está dentro do retângulo de seleção (marquee).
+ * O retângulo pode ser desenhado em qualquer direção (x1/x2, y1/y2 trocados).
+ */
+export function getNodesInRect(
+  nodes: Array<{ id: string; x: number; y: number }>,
+  rect: { x1: number; y1: number; x2: number; y2: number }
+): string[] {
+  const minX = Math.min(rect.x1, rect.x2);
+  const maxX = Math.max(rect.x1, rect.x2);
+  const minY = Math.min(rect.y1, rect.y2);
+  const maxY = Math.max(rect.y1, rect.y2);
+  return nodes
+    .filter((n) => n.x >= minX && n.x <= maxX && n.y >= minY && n.y <= maxY)
+    .map((n) => n.id);
+}
+
+/**
  * Filtra edges considerando nodes visíveis
  */
 export function getFilteredEdges(

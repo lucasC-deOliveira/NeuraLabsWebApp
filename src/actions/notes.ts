@@ -38,7 +38,9 @@ export async function createNotaManual(
   return prisma.$transaction(async (tx) => {
     // 1. Create nota
     const rawText = `# ${input.titulo}\n\n${input.conteudo}`;
-    const nota = await tx.nota.create({ data: { usuarioId: userId, textoBruto: rawText } });
+    const nota = await tx.nota.create({
+      data: { usuarioId: userId, titulo: input.titulo, textoBruto: rawText },
+    });
     const notaNode = await tx.nodeConhecimento.create({ data: { tipoNode: "NOTA", referenciaId: nota.id, usuarioId: userId } });
 
     const conceitoIds = input.selectedConceitoIds;
@@ -963,7 +965,11 @@ export async function createNota(
     // ── 1. Create the Nota record
     const notaText = titulo ? `# ${titulo}\n\n${markdown}` : markdown;
     const nota = await tx.nota.create({
-      data: { usuarioId: userId, textoBruto: notaText },
+      data: {
+        usuarioId: userId,
+        textoBruto: notaText,
+        ...(titulo ? { titulo } : {}),
+      },
     });
     createdNodes++;
 

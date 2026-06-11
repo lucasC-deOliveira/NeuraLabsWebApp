@@ -379,6 +379,7 @@ function resolveLabel(
       return q.length > 60 ? `${q.slice(0, 60)}…` : q;
     case "NOTA":
       const n = notas.find((x) => x.id === refId);
+      if (n?.titulo && n.titulo !== "Sem título") return n.titulo;
       const t = n?.textoBruto ?? refId;
       return t.length > 60 ? `${t.slice(0, 60)}…` : t;
     default:

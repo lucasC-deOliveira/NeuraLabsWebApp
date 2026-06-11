@@ -12,9 +12,11 @@ export class PrismaNotaRepository implements NotaRepository {
           id: nota.id,
           usuarioId: nota.userId,
           textoBruto: nota.preview,
+          ...(nota.titulo ? { titulo: nota.titulo } : {}),
         },
         update: {
           textoBruto: nota.preview,
+          ...(nota.titulo ? { titulo: nota.titulo } : {}),
         },
       });
 

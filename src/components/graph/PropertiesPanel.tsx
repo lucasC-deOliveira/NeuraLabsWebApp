@@ -11,9 +11,13 @@ import {
   Link2Icon,
   BookOpenIcon,
   XIcon,
+  PencilIcon,
+  PlusIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { getRelationColor } from "@/modules/graph/presentation/services/graph-style.service";
+import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 
 interface SimNode {
   id: string;
@@ -42,15 +46,15 @@ interface PropertiesPanelProps {
   selectedNode: SimNode | null;
   connectedEdges: Edge[];
   isDark: boolean;
-  getNodeColors: (type: string, dark: boolean) => { bg: string; border: string; text: string };
-  getRelColor: (type: string, dark: boolean) => string;
-  RELATION_LABELS: Record<string, string>;
 
   // Actions
   onRemoveFromGraph: () => void;
   onDeleteNode: () => void;
   isDeleting: boolean;
   onFocusNode: (node: any) => void;
+  onEditEdge?: (edge: Edge) => void;
+  onDeleteEdge?: (edge: Edge) => void;
+  onAddEdge?: () => void;
 
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -60,13 +64,13 @@ export function PropertiesPanel({
   selectedNode,
   connectedEdges,
   isDark,
-  getNodeColors,
-  getRelColor,
-  RELATION_LABELS,
   onRemoveFromGraph,
   onDeleteNode,
   isDeleting,
   onFocusNode,
+  onEditEdge,
+  onDeleteEdge,
+  onAddEdge,
   collapsed,
   onToggleCollapse,
 }: PropertiesPanelProps) {
@@ -166,12 +170,16 @@ export function PropertiesPanel({
               </>
             )}
 
-            {/* Connections */}
-            {connectedEdges.length > 0 && (
-              <div>
-                <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Conexões</h4>
-                <div className="space-y-2">
-                  {connectedEdges.slice(0, 5).map((edge) => {
+            {/* Relações do nó — com editar/excluir */}
+            <div>
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">
+                Relações ({connectedEdges.length})
+              </h4>
+              {connectedEdges.length === 0 ? (
+                <p className="text-xs text-zinc-500">Este nó não tem relações neste grafo.</p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {connectedEdges.map((edge) => {
                     const isOutgoing = edge.source === selectedNode.id;
                     const otherNode = isOutgoing ? edge.targetLabel : edge.sourceLabel;
                     return (
@@ -181,24 +189,54 @@ export function PropertiesPanel({
                       >
                         <div
                           className="size-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: getRelColor(edge.tipoRelacao, isDark) }}
+                          style={{ backgroundColor: getRelationColor(edge.tipoRelacao, isDark) }}
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1">
                             <span className="text-zinc-400">{isOutgoing ? "→" : "←"}</span>
                             <span className="truncate">{otherNode}</span>
                           </div>
-                          <div className="text-[10px] text-zinc-500 capitalize">{RELATION_LABELS[edge.tipoRelacao] || edge.tipoRelacao}</div>
+                          <div className="text-[10px] text-zinc-500 capitalize">
+                            {RELATION_LABELS[edge.tipoRelacao] || edge.tipoRelacao}
+                          </div>
                         </div>
+                        {onEditEdge && (
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            title="Editar relação"
+                            onClick={() => onEditEdge(edge)}
+                          >
+                            <PencilIcon className="size-3" />
+                          </Button>
+                        )}
+                        {onDeleteEdge && (
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            title="Excluir relação"
+                            onClick={() => onDeleteEdge(edge)}
+                          >
+                            <Trash2Icon className="size-3 text-red-500" />
+                          </Button>
+                        )}
                       </div>
                     );
                   })}
-                  {connectedEdges.length > 5 && (
-                    <p className="text-xs text-zinc-500 text-center">+{connectedEdges.length - 5} mais</p>
-                  )}
                 </div>
-              </div>
-            )}
+              )}
+              {onAddEdge && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2 mt-2"
+                  onClick={onAddEdge}
+                >
+                  <PlusIcon className="size-4" />
+                  Nova relação
+                </Button>
+              )}
+            </div>
 
             {/* Position */}
             <div className="text-xs text-zinc-500">

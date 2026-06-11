@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   getNodeColors,
   getNodeShape,
   getRelationColor,
 } from "@/modules/graph/presentation/services/graph-style.service";
+import { computeEdgeCurve } from "@/modules/graph/presentation/services/edge-geometry.service";
 
 function NodeShapeElement({
   shape,
@@ -57,37 +58,6 @@ function NodeShapeElement({
   }
 }
 
-// Ponto na borda do nó na direção (dirX, dirY) a partir do centro —
-// faz a aresta partir do contorno da forma, não do centro
-function boundaryPoint(
-  node: { x: number; y: number; width: number; height: number; group: string },
-  dirX: number,
-  dirY: number,
-) {
-  const hw = node.width / 2;
-  const hh = node.height / 2;
-  const len = Math.hypot(dirX, dirY) || 1;
-  const ux = dirX / len;
-  const uy = dirY / len;
-
-  let r: number;
-  switch (getNodeShape(node.group)) {
-    case "ellipse":
-      r = (hw * hh) / (Math.hypot(hh * ux, hw * uy) || 1);
-      break;
-    case "diamond":
-      r = 1 / (Math.abs(ux) / hw + Math.abs(uy) / hh || 1);
-      break;
-    default: {
-      // retângulos: interseção com a borda da caixa
-      const rx = Math.abs(ux) > 1e-6 ? hw / Math.abs(ux) : Infinity;
-      const ry = Math.abs(uy) > 1e-6 ? hh / Math.abs(uy) : Infinity;
-      r = Math.min(rx, ry);
-    }
-  }
-  return { x: node.x + ux * r, y: node.y + uy * r };
-}
-
 export type GraphTool = "select" | "marquee" | "hand";
 
 type MarqueeRect = { x1: number; y1: number; x2: number; y2: number };
@@ -111,6 +81,7 @@ type Props = {
   marquee: MarqueeRect | null;
 
   onNodeClick: (node: any, additive?: boolean) => void;
+  onNodeContextMenu?: (node: any, clientX: number, clientY: number) => void;
   onNodeDragStart: (nodeId: string, e: PointerEvent) => void;
   onPanStart: (clientX: number, clientY: number) => void;
   onMarqueeStart: (clientX: number, clientY: number) => void;
@@ -129,6 +100,7 @@ export function GraphRenderer({
   selectedNodeIds,
   marquee,
   onNodeClick,
+  onNodeContextMenu,
   onNodeDragStart,
   onPanStart,
   onMarqueeStart,
@@ -153,11 +125,15 @@ export function GraphRenderer({
     [nodes]
   );
 
+  // distingue clique de arrasto: só limpa a seleção em clique parado no vazio
+  const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
+
   return (
     <svg
       ref={svgRef}
       className={`w-full h-full select-none ${TOOL_CURSORS[tool]}`}
       onPointerDown={(e) => {
+        pointerDownPos.current = { x: e.clientX, y: e.clientY };
         // mão: arrasta o grafo de qualquer lugar, inclusive sobre nós
         if (tool === "hand") {
           onPanStart(e.clientX, e.clientY);
@@ -175,6 +151,19 @@ export function GraphRenderer({
           target.parentElement?.getAttribute("data-node") === "true";
         if (isNode) return;
         onPanStart(e.clientX, e.clientY);
+      }}
+      onClick={(e) => {
+        // clique parado no vazio (ferramenta de seleção) limpa a seleção;
+        // arrasto de pan não limpa
+        if (tool !== "select") return;
+        const target = e.target as SVGElement | null;
+        const isNode =
+          target instanceof SVGElement &&
+          target.parentElement?.getAttribute("data-node") === "true";
+        if (isNode) return;
+        const down = pointerDownPos.current;
+        if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
+        onNodeClick(null);
       }}
     >
       {/* fundo quadriculado — acompanha pan/zoom como no Figma */}
@@ -204,28 +193,7 @@ export function GraphRenderer({
           const tgt = nodeById.get(edge.target);
           if (!src || !tgt) return null;
 
-          const dx = tgt.x - src.x;
-          const dy = tgt.y - src.y;
-          const dist = Math.hypot(dx, dy) || 1;
-
-          // ponto de controle perpendicular ao meio do segmento (curvatura)
-          const off = Math.min(40, Math.max(14, dist * 0.12));
-          const cx = (src.x + tgt.x) / 2 + (-dy / dist) * off;
-          const cy = (src.y + tgt.y) / 2 + (dx / dist) * off;
-
-          // pontas na borda das formas, apontando para o controle
-          const p0 = boundaryPoint(src, cx - src.x, cy - src.y);
-          const p2 = boundaryPoint(tgt, cx - tgt.x, cy - tgt.y);
-
-          // ponto médio da curva quadrática (t = 0.5) para ancorar o rótulo
-          const qx = 0.25 * p0.x + 0.5 * cx + 0.25 * p2.x;
-          const qy = 0.25 * p0.y + 0.5 * cy + 0.25 * p2.y;
-
-          // inclinação do rótulo = inclinação da corda, sem texto de cabeça para baixo
-          let angle = (Math.atan2(p2.y - p0.y, p2.x - p0.x) * 180) / Math.PI;
-          if (angle > 90) angle -= 180;
-          if (angle < -90) angle += 180;
-
+          const { p0, p2, cx, cy, qx, qy, angle } = computeEdgeCurve(src, tgt);
           const color = getRelationColor(edge.type, isDark);
 
           return (
@@ -282,6 +250,12 @@ export function GraphRenderer({
                 e.stopPropagation();
                 // Ctrl/Cmd + clique: alterna o nó na seleção múltipla
                 onNodeClick(node, e.ctrlKey || e.metaKey);
+              }}
+
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onNodeContextMenu?.(node, e.clientX, e.clientY);
               }}
 
               onPointerEnter={() => onNodeHover(node.id)}
