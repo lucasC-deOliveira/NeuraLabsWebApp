@@ -80,10 +80,10 @@ export const NODE_TYPE_COLORS = {
     light: { bg: "#d1fae5", border: "#059669", text: "#064e3b" },
     dark:  { bg: "#064e3b", border: "#34d399", text: "#a7f3d0" },
   },
-  // Amber — review, practice
+  // Amarelo — revisão, prática
   FLASHCARD: {
-    light: { bg: "#fff7ed", border: "#c2410c", text: "#7c2d12" },
-    dark:  { bg: "#431407", border: "#fb923c", text: "#fed7aa" },
+    light: { bg: "#fef9c3", border: "#eab308", text: "#a16207" },
+    dark:  { bg: "#2a2305", border: "#facc15", text: "#fef08a" },
   },
   // Fuchsia — writing, annotation
   NOTA: {

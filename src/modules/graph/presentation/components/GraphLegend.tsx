@@ -14,8 +14,19 @@ import { RELATION_PAIRS } from "@/modules/graph/domain/services/relation-rules";
 const typeLabel = (type: string) =>
   (NODE_TYPE_DISPLAY[type as keyof typeof NODE_TYPE_DISPLAY]?.label ?? type).toLowerCase();
 
-function LegendSwatch({ type, isDark }: { type: string; isDark: boolean }) {
-  const colors = getNodeColors(type, isDark);
+function LegendSwatch({
+  type,
+  isDark,
+  highContrast = false,
+}: {
+  type: string;
+  isDark: boolean;
+  highContrast?: boolean;
+}) {
+  const base = getNodeColors(type, isDark);
+  const colors = highContrast
+    ? { bg: "transparent", border: "var(--primary)" }
+    : base;
   const shape = getNodeShape(type);
 
   return (
@@ -32,11 +43,20 @@ function LegendSwatch({ type, isDark }: { type: string; isDark: boolean }) {
       {shape === "rect-vertical" && (
         <rect x={6.5} y={2} width={9} height={14} rx={1} fill={colors.bg} stroke={colors.border} strokeWidth={1.5} />
       )}
+      {shape === "square" && (
+        <rect x={5} y={3} width={12} height={12} rx={3} fill={colors.bg} stroke={colors.border} strokeWidth={1.5} />
+      )}
     </svg>
   );
 }
 
-export function GraphLegend({ isDark }: { isDark: boolean }) {
+export function GraphLegend({
+  isDark,
+  highContrast = false,
+}: {
+  isDark: boolean;
+  highContrast?: boolean;
+}) {
   return (
     <div className="graph-toolbar absolute top-2 left-1/2 -translate-x-1/2 z-10 w-max max-w-[97%] max-h-[40%] overflow-y-auto rounded-md border border-primary/60 bg-background/90 backdrop-blur-sm px-5 py-2 shadow-sm">
       {/* Nós */}
@@ -44,7 +64,7 @@ export function GraphLegend({ isDark }: { isDark: boolean }) {
         <span className="text-xs font-semibold text-primary">Nós:</span>
         {Object.entries(NODE_TYPE_DISPLAY).map(([type, { label }]) => (
           <div key={type} className="flex items-center gap-1.5">
-            <LegendSwatch type={type} isDark={isDark} />
+            <LegendSwatch type={type} isDark={isDark} highContrast={highContrast} />
             <span className="text-xs text-foreground">{label}</span>
           </div>
         ))}
@@ -69,7 +89,7 @@ export function GraphLegend({ isDark }: { isDark: boolean }) {
                     y1={4}
                     x2={15}
                     y2={4}
-                    stroke={getRelationColor(rel, isDark)}
+                    stroke={highContrast ? "var(--primary)" : getRelationColor(rel, isDark)}
                     strokeWidth={2.5}
                     strokeLinecap="round"
                   />

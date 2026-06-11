@@ -5,6 +5,7 @@ import {
   getNodeColors,
   getNodeShape,
   getRelationColor,
+  truncateLabel,
 } from "@/modules/graph/presentation/services/graph-style.service";
 import { computeEdgeCurve } from "@/modules/graph/presentation/services/edge-geometry.service";
 
@@ -15,6 +16,7 @@ function NodeShapeElement({
   fill,
   stroke,
   strokeWidth = 2,
+  fillOpacity = 1,
 }: {
   shape: ReturnType<typeof getNodeShape>;
   width: number;
@@ -22,16 +24,18 @@ function NodeShapeElement({
   fill: string;
   stroke: string;
   strokeWidth?: number;
+  fillOpacity?: number;
 }) {
   const hw = width / 2;
   const hh = height / 2;
 
   switch (shape) {
     case "circle":
-      return <circle r={hw} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+      return <circle r={hw} fill={fill} fillOpacity={fillOpacity} stroke={stroke} strokeWidth={strokeWidth} />;
     case "ellipse":
-      return <ellipse rx={hw} ry={hh} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
-    // rect e rect-vertical já chegam com width/height corretos do layout
+      return <ellipse rx={hw} ry={hh} fill={fill} fillOpacity={fillOpacity} stroke={stroke} strokeWidth={strokeWidth} />;
+    // rect, rect-vertical e square já chegam com width/height corretos do layout
+    case "square":
     case "rect-vertical":
     case "rect":
     default:
@@ -41,8 +45,9 @@ function NodeShapeElement({
           height={height}
           x={-hw}
           y={-hh}
-          rx={shape === "rect" ? 8 : 6}
+          rx={shape === "square" ? 14 : shape === "rect" ? 8 : 6}
           fill={fill}
+          fillOpacity={fillOpacity}
           stroke={stroke}
           strokeWidth={strokeWidth}
         />
@@ -71,6 +76,8 @@ type Props = {
   tool: GraphTool;
   selectedNodeIds: Set<string>;
   marquee: MarqueeRect | null;
+  // alto contraste: nós e arestas todos na cor primária do tema
+  highContrast?: boolean;
 
   onNodeClick: (node: any, additive?: boolean) => void;
   onNodeContextMenu?: (node: any, clientX: number, clientY: number) => void;
@@ -91,6 +98,7 @@ export function GraphRenderer({
   tool,
   selectedNodeIds,
   marquee,
+  highContrast = false,
   onNodeClick,
   onNodeContextMenu,
   onNodeDragStart,
@@ -170,7 +178,9 @@ export function GraphRenderer({
           <path
             d="M 32 0 H 0 V 32"
             fill="none"
-            stroke={isDark ? "#27272a" : "#e4e4e7"}
+            // cor primária do tema bem desbotada — acompanha o tema ativo
+            stroke="var(--primary)"
+            strokeOpacity={isDark ? 0.16 : 0.18}
             strokeWidth={1}
           />
         </pattern>
@@ -185,17 +195,27 @@ export function GraphRenderer({
           const tgt = nodeById.get(edge.target);
           if (!src || !tgt) return null;
 
-          const { p0, p2, cx, cy, qx, qy, angle } = computeEdgeCurve(src, tgt);
-          const color = getRelationColor(edge.type, isDark);
+          const { p0, p2, cx, cy, qx, qy, angle, endTangent } = computeEdgeCurve(src, tgt);
+          const color = highContrast ? "var(--primary)" : getRelationColor(edge.type, isDark);
+
+          // seta no nó de destino, alinhada à tangente final da curva
+          const ARROW_LEN = 9;
+          const ARROW_W = 4.5;
+          const baseX = p2.x - endTangent.x * ARROW_LEN;
+          const baseY = p2.y - endTangent.y * ARROW_LEN;
+          const perpX = -endTangent.y;
+          const perpY = endTangent.x;
+          const arrowPoints = `${p2.x},${p2.y} ${baseX + perpX * ARROW_W},${baseY + perpY * ARROW_W} ${baseX - perpX * ARROW_W},${baseY - perpY * ARROW_W}`;
 
           return (
             <g key={`${edge.source}-${edge.target}-${i}`}>
               <path
-                d={`M ${p0.x} ${p0.y} Q ${cx} ${cy} ${p2.x} ${p2.y}`}
+                d={`M ${p0.x} ${p0.y} Q ${cx} ${cy} ${baseX} ${baseY}`}
                 fill="none"
                 stroke={color}
                 strokeWidth={1.5}
               />
+              <polygon points={arrowPoints} fill={color} />
               <text
                 x={qx}
                 y={qy - 5}
@@ -257,18 +277,25 @@ export function GraphRenderer({
                 shape={shape}
                 width={node.width}
                 height={node.height}
-                fill={colors?.bg ?? "#ccc"}
-                stroke={isSelected ? (isDark ? "#60a5fa" : "#2563eb") : colors?.border ?? "#333"}
+                fill={highContrast ? "var(--primary)" : colors?.bg ?? "#ccc"}
+                fillOpacity={highContrast ? 0.12 : 1}
+                stroke={
+                  highContrast
+                    ? "var(--primary)"
+                    : isSelected
+                    ? (isDark ? "#60a5fa" : "#2563eb")
+                    : colors?.border ?? "#333"
+                }
                 strokeWidth={isSelected ? 3.5 : 2}
               />
 
               <text
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill={colors?.text ?? (isDark ? "#e2e8f0" : "#1e293b")}
+                fill={highContrast ? "var(--primary)" : colors?.text ?? (isDark ? "#e2e8f0" : "#1e293b")}
                 fontSize={12}
               >
-                {node.label}
+                {truncateLabel(node.label ?? "", node.group, node.width)}
               </text>
             </g>
           );

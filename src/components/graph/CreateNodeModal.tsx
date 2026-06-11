@@ -435,13 +435,13 @@ export function CreateNodeModal({
                   <SelectContent>
                     <SelectItem value="ASSUNTO">
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#f1f5f9] border border-[#475569] rounded" />
+                        <div className="w-3 h-3 bg-[#eef2ff] border border-[#4338ca] rounded" />
                         <span>Assunto</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="TOPICO">
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#dbeafe] border border-[#2563eb] rounded" />
+                        <div className="w-3 h-3 bg-[#e0f2fe] border border-[#0369a1] rounded" />
                         <span>Tópico</span>
                       </div>
                     </SelectItem>
@@ -453,13 +453,13 @@ export function CreateNodeModal({
                     </SelectItem>
                     <SelectItem value="FLASHCARD">
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#fef3c7] border border-[#d97706] rounded" />
+                        <div className="w-3 h-3 bg-[#fef9c3] border border-[#eab308] rounded" />
                         <span>Flashcard</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="NOTA">
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#ede9fe] border border-[#7c3aed] rounded" />
+                        <div className="w-3 h-3 bg-[#fdf4ff] border border-[#9333ea] rounded" />
                         <span>Nota</span>
                       </div>
                     </SelectItem>

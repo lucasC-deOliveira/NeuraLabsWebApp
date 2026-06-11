@@ -43,6 +43,7 @@ export default function GraphPage() {
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [legendVisible, setLegendVisible] = useState(true);
+  const [highContrast, setHighContrast] = useState(false);
   const [isEdgeManagerOpen, setIsEdgeManagerOpen] = useState(false);
   const [graphEdges, setGraphEdges] = useState<any[]>([]);
   const [nodeMenu, setNodeMenu] = useState<{ node: any; x: number; y: number } | null>(null);
@@ -229,8 +230,8 @@ export default function GraphPage() {
     <div className="flex flex-col h-screen overflow-hidden">
 
       {/* HEADER */}
-      <header className="h-10 flex items-center px-2 border-b">
-        <Button variant="ghost" onClick={() => router.push("/graph")}>
+      <header className="h-10 flex items-center px-2 border-b border-primary/60">
+        <Button variant="ghost" className="text-primary" onClick={() => router.push("/graph")}>
           <ArrowLeftIcon />
         </Button>
 
@@ -244,7 +245,7 @@ export default function GraphPage() {
 
         {/* GRAPH */}
         <div className="flex-1 relative">
-          {legendVisible && <GraphLegend isDark={isDark} />}
+          {legendVisible && <GraphLegend isDark={isDark} highContrast={highContrast} />}
           <GraphSideToolbar
             isDark={isDark}
             tool={controller.state.activeTool}
@@ -268,6 +269,8 @@ export default function GraphPage() {
             onTogglePhysics={() =>
               controller.actions.setPhysicsEnabled((v: boolean) => !v)
             }
+            highContrast={highContrast}
+            onToggleHighContrast={() => setHighContrast((v) => !v)}
           />
           <GraphRenderer
             nodes={controller.state.filteredNodes}
@@ -279,6 +282,7 @@ export default function GraphPage() {
             tool={controller.state.activeTool}
             selectedNodeIds={controller.state.selectedNodeIds}
             marquee={controller.interactions.marquee}
+            highContrast={highContrast}
             onNodeClick={controller.actions.selectNode}
             onNodeContextMenu={(node, x, y) => setNodeMenu({ node, x, y })}
             onNodeHover={controller.actions.setHoveredNodeId}

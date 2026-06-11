@@ -45,6 +45,8 @@ export type EdgeCurve = {
   qx: number;
   qy: number;
   angle: number;
+  // tangente unitária no fim da curva (direção da seta no nó de destino)
+  endTangent: { x: number; y: number };
 };
 
 // Curva quadrática entre dois nós: pontas na borda das formas, ponto de
@@ -70,5 +72,11 @@ export function computeEdgeCurve(src: NodeGeom, tgt: NodeGeom): EdgeCurve {
   if (angle > 90) angle -= 180;
   if (angle < -90) angle += 180;
 
-  return { p0, p2, cx, cy, qx, qy, angle };
+  // tangente da quadrática em t=1 é a direção controle → fim
+  const tx = p2.x - cx;
+  const ty = p2.y - cy;
+  const tl = Math.hypot(tx, ty) || 1;
+  const endTangent = { x: tx / tl, y: ty / tl };
+
+  return { p0, p2, cx, cy, qx, qy, angle, endTangent };
 }

@@ -4,6 +4,7 @@ import {
   getNodeShape,
   getRelationColor,
   getDominioColor,
+  truncateLabel,
   RELATION_COLORS,
 } from "./graph-style.service";
 
@@ -45,19 +46,17 @@ describe("getNodeShape", () => {
     expect(getNodeShape("TOPICO")).toBe("ellipse");
     expect(getNodeShape("CONCEITO")).toBe("rect");
     expect(getNodeShape("NOTA")).toBe("rect-vertical");
-    expect(getNodeShape("FLASHCARD")).toBe("rect-vertical");
+    expect(getNodeShape("FLASHCARD")).toBe("square");
   });
 
   it("falls back to rect for unknown type", () => {
     expect(getNodeShape("UNKNOWN")).toBe("rect");
   });
 
-  // Mutação: notas e flashcards compartilham o retângulo vertical;
-  // as demais formas são distintas entre si
-  it("uses 4 distinct shapes across the five node types", () => {
+  // Mutação: cada tipo tem uma forma distinta
+  it("all five node types have distinct shapes", () => {
     const shapes = ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA", "FLASHCARD"].map(getNodeShape);
-    expect(new Set(shapes).size).toBe(4);
-    expect(getNodeShape("NOTA")).toBe(getNodeShape("FLASHCARD"));
+    expect(new Set(shapes).size).toBe(5);
   });
 });
 
@@ -143,5 +142,42 @@ describe("getDominioColor", () => {
   it("boundary 0.7 is green, 0.699 is yellow", () => {
     expect(getDominioColor(0.7)).toBe("#22c55e");
     expect(getDominioColor(0.699)).toBe("#eab308");
+  });
+});
+
+describe("truncateLabel", () => {
+  it("rótulo curto passa intacto", () => {
+    expect(truncateLabel("abc", "CONCEITO", 100)).toBe("abc");
+  });
+
+  it("rótulo longo é cortado com reticências", () => {
+    const out = truncateLabel("a".repeat(60), "CONCEITO", 100);
+    expect(out.endsWith("…")).toBe(true);
+    expect(out.length).toBeLessThan(60);
+  });
+
+  it("nunca devolve string maior que o original", () => {
+    const label = "Texto de tamanho médio aqui";
+    expect(truncateLabel(label, "FLASHCARD", 96).length).toBeLessThanOrEqual(label.length);
+  });
+
+  // Mutação: formas curvas têm menos espaço útil que a caixa
+  it("círculo trunca mais cedo que retângulo da mesma largura", () => {
+    const label = "x".repeat(40);
+    const circle = truncateLabel(label, "ASSUNTO", 120);
+    const rect = truncateLabel(label, "CONCEITO", 120);
+    expect(circle.length).toBeLessThan(rect.length);
+  });
+
+  it("largura maior permite mais caracteres", () => {
+    const label = "x".repeat(50);
+    const narrow = truncateLabel(label, "CONCEITO", 80);
+    const wide = truncateLabel(label, "CONCEITO", 200);
+    expect(wide.length).toBeGreaterThan(narrow.length);
+  });
+
+  it("mantém pelo menos alguns caracteres mesmo em nós minúsculos", () => {
+    const out = truncateLabel("abcdefgh", "CONCEITO", 10);
+    expect(out.length).toBeGreaterThanOrEqual(3);
   });
 });

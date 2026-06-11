@@ -50,9 +50,9 @@ describe("boundaryPoint", () => {
     });
   });
 
-  describe("retângulo vertical (FLASHCARD/NOTA)", () => {
+  describe("retângulo vertical (NOTA)", () => {
     it("ponto fica sobre o contorno da caixa vertical", () => {
-      const node = rectNode({ group: "FLASHCARD", width: 80, height: 120 });
+      const node = rectNode({ group: "NOTA", width: 80, height: 120 });
       for (const [dx, dy] of [[1, 0], [0, 1], [1, 2], [-2, -3]]) {
         const p = boundaryPoint(node, dx, dy);
         const onVertical = Math.abs(Math.abs(p.x) - 40) < 1e-6 && Math.abs(p.y) <= 60 + 1e-6;
@@ -144,5 +144,30 @@ describe("computeEdgeCurve", () => {
     const c = computeEdgeCurve(a, rectNode({ x: 0, y: 0 }));
     expect(Number.isFinite(c.qx)).toBe(true);
     expect(Number.isFinite(c.angle)).toBe(true);
+  });
+
+  describe("endTangent (direção da seta no destino)", () => {
+    it("é um vetor unitário", () => {
+      const c = computeEdgeCurve(a, b);
+      expect(Math.hypot(c.endTangent.x, c.endTangent.y)).toBeCloseTo(1, 9);
+    });
+
+    it("aponta do controle para a ponta final (chega ao destino)", () => {
+      const c = computeEdgeCurve(a, b); // b à direita de a
+      expect(c.endTangent.x).toBeGreaterThan(0);
+    });
+
+    // Mutação: sentido invertido apontaria para fora do destino
+    it("inverte junto com a direção da aresta", () => {
+      const ab = computeEdgeCurve(a, b);
+      const ba = computeEdgeCurve(b, a);
+      expect(Math.sign(ab.endTangent.x)).not.toBe(Math.sign(ba.endTangent.x));
+    });
+
+    it("é finito mesmo com nós sobrepostos", () => {
+      const c = computeEdgeCurve(a, rectNode({ x: 0, y: 0 }));
+      expect(Number.isFinite(c.endTangent.x)).toBe(true);
+      expect(Number.isFinite(c.endTangent.y)).toBe(true);
+    });
   });
 });

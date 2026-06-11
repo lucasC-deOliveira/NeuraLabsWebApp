@@ -67,7 +67,7 @@ export interface SimEdge {
 }
 // Dimensões por forma do nó:
 // ASSUNTO = círculo, TOPICO = elipse, CONCEITO = retângulo horizontal,
-// NOTA e FLASHCARD = retângulo vertical
+// NOTA = retângulo vertical, FLASHCARD = quadrado
 function getNodeDimensions(type: string, labelW: number): { width: number; height: number } {
   switch (type) {
     case "ASSUNTO": {
@@ -78,11 +78,13 @@ function getNodeDimensions(type: string, labelW: number): { width: number; heigh
     case "TOPICO":
       // elipse precisa de folga horizontal para o texto não tocar a borda
       return { width: Math.min(240, labelW * 1.3), height: 50 };
-    case "NOTA":
-    case "FLASHCARD": {
+    case "NOTA": {
       const w = Math.max(64, Math.min(120, labelW));
       return { width: w, height: Math.max(84, w * 1.35) };
     }
+    case "FLASHCARD":
+      // quadrado perfeito de lado fixo
+      return { width: 96, height: 96 };
     case "CONCEITO":
     default:
       return { width: labelW, height: 40 };

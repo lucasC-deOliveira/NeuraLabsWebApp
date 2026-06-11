@@ -45,16 +45,23 @@ describe("runForceLayout — dimensões por forma do nó", () => {
     expect(n.width).toBeGreaterThan(n.height);
   });
 
-  it("NOTA e FLASHCARD são retângulos verticais: altura > largura", () => {
-    for (const tipo of ["NOTA", "FLASHCARD"]) {
-      const n = layoutSingle(tipo);
-      expect(n.height, tipo).toBeGreaterThan(n.width);
+  it("NOTA é retângulo vertical: altura > largura", () => {
+    const n = layoutSingle("NOTA");
+    expect(n.height).toBeGreaterThan(n.width);
+  });
+
+  it("FLASHCARD é quadrado perfeito de lado fixo 96, independente do rótulo", () => {
+    const curto = layoutSingle("FLASHCARD", "ab");
+    const longo = layoutSingle("FLASHCARD", "x".repeat(80));
+    for (const n of [curto, longo]) {
+      expect(n.width).toBe(96);
+      expect(n.height).toBe(96);
     }
   });
 
-  it("NOTA/FLASHCARD têm largura entre 64 e 120", () => {
+  it("NOTA tem largura entre 64 e 120", () => {
     const curto = layoutSingle("NOTA", "ab");
-    const longo = layoutSingle("FLASHCARD", "x".repeat(80));
+    const longo = layoutSingle("NOTA", "x".repeat(80));
     expect(curto.width).toBeGreaterThanOrEqual(64);
     expect(longo.width).toBeLessThanOrEqual(120);
   });
