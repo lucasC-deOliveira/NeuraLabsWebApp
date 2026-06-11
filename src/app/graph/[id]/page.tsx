@@ -15,6 +15,7 @@ import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRend
 import { GraphLegend } from "@/modules/graph/presentation/components/GraphLegend";
 import { GraphToolbar } from "@/modules/graph/presentation/components/GraphToolbar";
 import { GraphSideToolbar } from "@/modules/graph/presentation/components/GraphSideToolbar";
+import { GraphSettingsModal } from "@/modules/graph/presentation/components/GraphSettingsModal";
 
 import {
   deleteGraphNode,
@@ -44,6 +45,7 @@ export default function GraphPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [legendVisible, setLegendVisible] = useState(true);
   const [highContrast, setHighContrast] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEdgeManagerOpen, setIsEdgeManagerOpen] = useState(false);
   const [graphEdges, setGraphEdges] = useState<any[]>([]);
   const [nodeMenu, setNodeMenu] = useState<{ node: any; x: number; y: number } | null>(null);
@@ -271,6 +273,7 @@ export default function GraphPage() {
             }
             highContrast={highContrast}
             onToggleHighContrast={() => setHighContrast((v) => !v)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
           <GraphRenderer
             nodes={controller.state.filteredNodes}
@@ -378,6 +381,12 @@ export default function GraphPage() {
         </>
       )}
 
+      <GraphSettingsModal
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        options={controller.state.physicsOptions}
+        onChange={controller.actions.setPhysicsOptions}
+      />
       <CreateNodeModal
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}

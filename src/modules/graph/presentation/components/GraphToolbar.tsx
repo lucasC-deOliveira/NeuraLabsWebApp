@@ -5,6 +5,7 @@ import {
   EyeIcon,
   EyeOffIcon,
   OrbitIcon,
+  SettingsIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "lucide-react";
@@ -25,6 +26,7 @@ type Props = {
   onTogglePhysics: () => void;
   highContrast: boolean;
   onToggleHighContrast: () => void;
+  onOpenSettings: () => void;
 };
 
 function ToolbarButton({
@@ -66,6 +68,7 @@ export function GraphToolbar({
   onTogglePhysics,
   highContrast,
   onToggleHighContrast,
+  onOpenSettings,
 }: Props) {
   return (
     <TooltipProvider delay={200}>
@@ -102,6 +105,12 @@ export function GraphToolbar({
           onClick={onToggleLegend}
         >
           {legendVisible ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+        </ToolbarButton>
+
+        <div className="w-px h-5 bg-border" />
+
+        <ToolbarButton label="Configurações do gráfico" onClick={onOpenSettings}>
+          <SettingsIcon className="size-4" />
         </ToolbarButton>
       </div>
     </TooltipProvider>

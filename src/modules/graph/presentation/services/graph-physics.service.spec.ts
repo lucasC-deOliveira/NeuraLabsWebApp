@@ -4,9 +4,9 @@ import { physicsStep } from "./graph-physics.service";
 const node = (id: string, x: number, y: number) => ({ id, x, y });
 const edge = (source: string, target: string) => ({ source, target });
 
-function run(nodes: any[], edges: any[] = [], steps = 1) {
+function run(nodes: any[], edges: any[] = [], steps = 1, options?: any) {
   let cur = nodes;
-  for (let i = 0; i < steps; i++) cur = physicsStep(cur, edges);
+  for (let i = 0; i < steps; i++) cur = physicsStep(cur, edges, options);
   return cur;
 }
 
@@ -34,14 +34,15 @@ describe("physicsStep (modelo orbital origem→destino)", () => {
     expect(Math.abs(angleAround(destino, origem))).toBeGreaterThan(0.01);
   });
 
-  it("o raio da órbita é preservado (rotação pura)", () => {
+  it("aglomeração: o raio converge para o limite da repulsão (raios + folga)", () => {
+    // nós sem tamanho: raio de colisão 30 cada → preferido = 30 + 30 + 200 = 260
     const out = run(
       [node("origem", 0, 0), node("destino", 150, 0)],
       [edge("origem", "destino")],
-      100
+      250
     );
     const destino = out.find((n) => n.id === "destino")!;
-    expect(Math.hypot(destino.x, destino.y)).toBeCloseTo(150, 6);
+    expect(Math.hypot(destino.x, destino.y)).toBeCloseTo(260, 0);
   });
 
   it("origem que é destino de outro nó também orbita (cadeia a→b→c)", () => {
@@ -55,9 +56,11 @@ describe("physicsStep (modelo orbital origem→destino)", () => {
     // a é raiz: parado
     expect(a.x).toBe(0);
     expect(a.y).toBe(0);
-    // b orbita a
+    // b orbita a, aproximando-se do raio preferido sem ultrapassá-lo
     expect(Math.abs(angleAround(b, a))).toBeGreaterThan(0.01);
-    expect(Math.hypot(b.x, b.y)).toBeCloseTo(100, 4);
+    const rb = Math.hypot(b.x, b.y);
+    expect(rb).toBeGreaterThan(100);
+    expect(rb).toBeLessThanOrEqual(261);
   });
 
   it("destino de múltiplas origens orbita o centro delas", () => {
@@ -67,15 +70,17 @@ describe("physicsStep (modelo orbital origem→destino)", () => {
       50
     );
     const t = out.find((n) => n.id === "t")!;
-    // âncora fixa em (100, 0): raio preservado
-    expect(Math.hypot(t.x - 100, t.y - 0)).toBeCloseTo(80, 5);
+    // âncora fixa em (100, 0): raio cresce rumo ao preferido, sem saltos
+    const rt = Math.hypot(t.x - 100, t.y - 0);
+    expect(rt).toBeGreaterThan(100);
+    expect(rt).toBeLessThanOrEqual(261);
     // origens paradas
     expect(out.find((n) => n.id === "s1")).toMatchObject({ x: 0, y: 0 });
     expect(out.find((n) => n.id === "s2")).toMatchObject({ x: 200, y: 0 });
   });
 
-  it("movimento é lento: arco máximo de 0.5px por frame (raio dentro da faixa)", () => {
-    let prev: any[] = [node("o", 0, 0), node("t", 250, 0)];
+  it("movimento é lento: arco máximo de 0.5px por frame (no raio preferido)", () => {
+    let prev: any[] = [node("o", 0, 0), node("t", 260, 0)];
     const edges = [edge("o", "t")];
     for (let i = 0; i < 30; i++) {
       const next = physicsStep(prev, edges);
@@ -86,22 +91,37 @@ describe("physicsStep (modelo orbital origem→destino)", () => {
   });
 
   describe("faixa de raio da órbita", () => {
-    it("raio abaixo do mínimo cresce até 80 e estabiliza", () => {
-      const out = run([node("o", 0, 0), node("t", 30, 0)], [edge("o", "t")], 200);
+    it("nó muito perto se afasta até o raio preferido e estabiliza", () => {
+      const out = run([node("o", 0, 0), node("t", 30, 0)], [edge("o", "t")], 400);
       const t = out.find((n) => n.id === "t")!;
-      expect(Math.hypot(t.x, t.y)).toBeCloseTo(80, 4);
+      expect(Math.hypot(t.x, t.y)).toBeCloseTo(260, 0);
     });
 
-    it("raio acima do máximo encolhe até 300 e estabiliza", () => {
+    it("nó muito longe é atraído de volta ao raio preferido (aglomeração)", () => {
       const out = run([node("o", 0, 0), node("t", 600, 0)], [edge("o", "t")], 500);
       const t = out.find((n) => n.id === "t")!;
-      expect(Math.hypot(t.x, t.y)).toBeCloseTo(300, 4);
+      expect(Math.hypot(t.x, t.y)).toBeCloseTo(260, 0);
     });
 
-    it("raio dentro da faixa não é alterado", () => {
-      const out = run([node("o", 0, 0), node("t", 200, 0)], [edge("o", "t")], 100);
+    it("raio preferido nunca passa do teto da órbita (600)", () => {
+      // folga enorme: 80 + 40 + 600 = 720 → limitado a 600
+      const big = { id: "o", x: 0, y: 0, width: 160, height: 160 };
+      const t0 = { id: "t", x: 580, y: 0, width: 80, height: 80 };
+      const out = run([big, t0], [edge("o", "t")], 100, { repulsionGap: 200, clusterGap: 600 });
       const t = out.find((n) => n.id === "t")!;
-      expect(Math.hypot(t.x, t.y)).toBeCloseTo(200, 5);
+      expect(Math.hypot(t.x, t.y)).toBeCloseTo(600, 0);
+    });
+
+    it("opções: clusterGap menor aproxima mais o aglomerado", () => {
+      const out = run(
+        [node("o", 0, 0), node("t", 200, 0)],
+        [edge("o", "t")],
+        300,
+        { repulsionGap: 50, clusterGap: 50 }
+      );
+      const t = out.find((n) => n.id === "t")!;
+      // preferido = 30 + 30 + 50 = 110
+      expect(Math.hypot(t.x, t.y)).toBeCloseTo(110, 0);
     });
 
     // Mutação: a convergência é suave — no máximo 0.8px de ajuste por frame
@@ -158,5 +178,69 @@ describe("physicsStep (modelo orbital origem→destino)", () => {
     const a1 = Math.abs(angleAround(one.find((n) => n.id === "t")!, { x: 0, y: 0 }));
     const a20 = Math.abs(angleAround(many.find((n) => n.id === "t")!, { x: 0, y: 0 }));
     expect(a20).toBeGreaterThan(a1);
+  });
+});
+
+describe("repulsão (nós não se sobrepõem)", () => {
+  const sized = (id: string, x: number, y: number, w = 80, h = 80) =>
+    ({ id, x, y, width: w, height: h });
+
+  it("irmãos orbitando a mesma âncora se separam até não sobrepor", () => {
+    // b e c orbitam a, partindo praticamente do mesmo lugar
+    const nodes = [
+      sized("a", 0, 0, 100, 100),
+      sized("b", 120, 0),
+      sized("c", 121, 1),
+    ];
+    const edges = [edge("a", "b"), edge("a", "c")];
+    const out = run(nodes, edges, 600);
+    const b = out.find((n) => n.id === "b")!;
+    const c = out.find((n) => n.id === "c")!;
+    const minDist = 40 + 40 + 200; // raios + folga
+    expect(Math.hypot(b.x - c.x, b.y - c.y)).toBeGreaterThanOrEqual(minDist - 1);
+  });
+
+  it("nó parado (âncora/isolado) não é empurrado — só o que orbita se desvia", () => {
+    // "solto" é isolado e está no caminho da órbita de b
+    const nodes = [
+      sized("a", 0, 0),
+      sized("b", 100, 0),
+      sized("solto", 100, 40),
+    ];
+    const edges = [edge("a", "b")];
+    const out = run(nodes, edges, 400);
+    const solto = out.find((n) => n.id === "solto")!;
+    expect(solto.x).toBe(100);
+    expect(solto.y).toBe(40);
+    // e b mantém distância do solto
+    const b = out.find((n) => n.id === "b")!;
+    expect(Math.hypot(b.x - 100, b.y - 40)).toBeGreaterThanOrEqual(40 + 40 + 200 - 1);
+  });
+
+  it("empurrão por frame é limitado (separação suave, sem saltos)", () => {
+    let prev: any[] = [
+      sized("a", 0, 0),
+      sized("b", 150, 0),
+      sized("c", 150, 1),
+    ];
+    const edges = [edge("a", "b"), edge("a", "c")];
+    for (let i = 0; i < 10; i++) {
+      const next = physicsStep(prev, edges);
+      for (let k = 0; k < next.length; k++) {
+        const moved = Math.hypot(next[k].x - prev[k].x, next[k].y - prev[k].y);
+        // arco (≤0.5) + raio (≤0.8) + empurrão (≤2.0) — teto folgado
+        expect(moved).toBeLessThanOrEqual(3.4);
+      }
+      prev = next;
+    }
+  });
+
+  it("âncora e seu próprio destino não brigam (raio da órbita prevalece)", () => {
+    // o par âncora↔destino é isento da colisão; o raio é governado pela
+    // órbita, que converge para o preferido 80+40+200 = 320 sem jitter
+    const nodes = [sized("a", 0, 0, 160, 160), sized("b", 80, 0)];
+    const out = run(nodes, [edge("a", "b")], 400);
+    const b = out.find((n) => n.id === "b")!;
+    expect(Math.hypot(b.x, b.y)).toBeCloseTo(320, 0);
   });
 });

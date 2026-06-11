@@ -4,6 +4,7 @@ import { useGraphLayout } from "../hooks/useGraphLayout";
 import { SimNode } from "../../infra/layout/force-layout.engine";
 import { useGraphInteractions } from "../hooks/useGraphInteractions";
 import { useGraphPhysics } from "../hooks/useGraphPhysics";
+import { DEFAULT_PHYSICS_OPTIONS, type PhysicsOptions } from "../services/graph-physics.service";
 import { getFilteredEdges, getFilteredNodes } from "../../domain/selectors/graph.selectors";
 
 export function useGraphController(graphId: string) {
@@ -32,6 +33,7 @@ export function useGraphController(graphId: string) {
   const [filterGroup, setFilterGroup] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<"select" | "marquee" | "hand">("select");
   const [physicsEnabled, setPhysicsEnabled] = useState(false);
+  const [physicsOptions, setPhysicsOptions] = useState<PhysicsOptions>(DEFAULT_PHYSICS_OPTIONS);
 
   const layoutRefForSelect = useRef<SimNode[]>([]);
   useEffect(() => { layoutRefForSelect.current = layout; }, [layout]);
@@ -107,7 +109,7 @@ export function useGraphController(graphId: string) {
   });
 
   // física ambiente: nós se movem devagar e orbitam o centro do grafo
-  useGraphPhysics({ enabled: physicsEnabled, setLayout, edges });
+  useGraphPhysics({ enabled: physicsEnabled, setLayout, edges, options: physicsOptions });
 
   // sincroniza layout com os nós: novos entram, removidos saem,
   // e os existentes mantêm a posição atual (não embaralha ao criar/excluir)
@@ -153,6 +155,7 @@ export function useGraphController(graphId: string) {
       grafoNome,
       activeTool,
       physicsEnabled,
+      physicsOptions,
     },
     actions: {
       setSelectedNode,
@@ -168,6 +171,7 @@ export function useGraphController(graphId: string) {
       setRawEdges,
       setActiveTool,
       setPhysicsEnabled,
+      setPhysicsOptions,
     },
     interactions,
   };
