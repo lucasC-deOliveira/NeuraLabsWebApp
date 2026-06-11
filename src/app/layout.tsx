@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/app-shell";
 
 import { ThemeProvider } from "next-themes";
+import { ColorThemeProvider } from "@/components/color-theme-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -43,12 +44,14 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AppShell authPaths={AUTH_PATHS}>
-            <TooltipProvider>
-              {children}
-              <Toaster />
-            </TooltipProvider>
-          </AppShell>
+          <ColorThemeProvider>
+            <AppShell authPaths={AUTH_PATHS}>
+              <TooltipProvider>
+                {children}
+                <Toaster />
+              </TooltipProvider>
+            </AppShell>
+          </ColorThemeProvider>
         </ThemeProvider>
       </body>
     </html>
