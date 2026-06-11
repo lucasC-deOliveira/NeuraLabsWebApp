@@ -38,7 +38,7 @@ function NavContent({ onItemClick }: { onItemClick?: () => void }) {
             className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
               isActive
                 ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                : "text-primary hover:bg-primary/10"
             }`}
           >
             <Icon className="size-4" />
@@ -70,13 +70,13 @@ function UserSection({ user }: { user: CurrentUser }) {
           {user.name.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium">{user.name}</p>
+          <p className="truncate text-xs font-medium text-primary">{user.name}</p>
           <p className="truncate text-[10px] text-muted-foreground">{user.email}</p>
         </div>
       </div>
       <button
         onClick={handleLogout}
-        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
       >
         <LogOutIcon className="size-3.5" />
         Sair
@@ -100,7 +100,7 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile hamburger + brand bar */}
-      <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 md:hidden">
+      <header className="app-sidebar-top fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 md:hidden">
         <button
           onClick={() => setMobileOpen(true)}
           className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -109,9 +109,9 @@ export function Sidebar() {
           <MenuIcon className="size-5" />
         </button>
 
-        <Link href="/" className="flex items-center gap-2 font-semibold text-base">
+        <Link href="/" className="flex items-center gap-2 font-semibold text-base text-primary">
           <BrainIcon className="size-5" />
-          FlashMind
+          NeuraLabs
         </Link>
 
         <ThemeToggle />
@@ -127,15 +127,15 @@ export function Sidebar() {
           />
 
           {/* Drawer */}
-          <aside className="absolute left-0 top-0 bottom-0 flex flex-col w-64 bg-background p-4 shadow-xl">
+          <aside className="app-sidebar absolute left-0 top-0 bottom-0 flex flex-col w-64 bg-background p-4 shadow-xl">
             <div className="flex items-center justify-between mb-6">
               <Link
                 href="/"
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2 font-semibold text-lg"
+                className="flex items-center gap-2 font-semibold text-lg text-primary"
               >
                 <BrainIcon className="size-5" />
-                FlashMind
+                NeuraLabs
               </Link>
               <button
                 onClick={() => setMobileOpen(false)}
@@ -154,7 +154,7 @@ export function Sidebar() {
                 <Link
                   href="/login"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
                 >
                   <UserIcon className="size-3.5" />
                   Fazer login
@@ -170,10 +170,10 @@ export function Sidebar() {
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex fixed left-0 top-0 z-40 h-screen w-56 flex-col border-r border-border bg-background p-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold text-lg mb-8">
+      <aside className="app-sidebar hidden md:flex fixed left-0 top-0 z-40 h-screen w-56 flex-col border-r border-border bg-background p-4">
+        <Link href="/" className="flex items-center gap-2 font-semibold text-lg mb-8 text-primary">
           <BrainIcon className="size-5" />
-          FlashMind
+          NeuraLabs
         </Link>
 
         <NavContent />
@@ -183,7 +183,7 @@ export function Sidebar() {
           <div className="mt-auto pt-4 border-t border-border">
             <Link
               href="/login"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
             >
               <UserIcon className="size-3.5" />
               Fazer login

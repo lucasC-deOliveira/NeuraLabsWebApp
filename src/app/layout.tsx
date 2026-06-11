@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FlashMind — Flashcards Inteligentes",
+  title: "NeuraLabs — Flashcards Inteligentes",
   description: "Estudo inteligente com técnicas científicas e IA",
 };
 

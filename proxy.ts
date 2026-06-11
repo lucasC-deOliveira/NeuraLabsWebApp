@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const COOKIE_NAME = "flashmind_session";
+const COOKIE_NAME = "neuralabs_session";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

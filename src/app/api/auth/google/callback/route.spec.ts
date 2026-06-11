@@ -23,7 +23,7 @@ import { GET } from "./route";
 
 const prisma = new PrismaClient();
 
-const TEST_EMAIL = "google-oauth-callback-test@flashmind.test";
+const TEST_EMAIL = "google-oauth-callback-test@neuralabs.test";
 const VALID_STATE = "valid-csrf-state-abc123";
 const VALID_COOKIES = { oauth_state: VALID_STATE, oauth_callback_url: "/" };
 
@@ -169,7 +169,7 @@ describe("GET /api/auth/google/callback — new user", () => {
   it("sets a valid httpOnly session cookie", async () => {
     mockGoogleSuccess();
     const res = await GET(req({ code: "code", state: VALID_STATE }, VALID_COOKIES));
-    const session = res.cookies.get("flashmind_session");
+    const session = res.cookies.get("neuralabs_session");
     expect(session?.value).toBeTruthy();
     expect(session?.httpOnly).toBe(true);
   });
@@ -211,7 +211,7 @@ describe("GET /api/auth/google/callback — existing user", () => {
   it("still sets a session cookie for the existing user", async () => {
     mockGoogleSuccess();
     const res = await GET(req({ code: "code", state: VALID_STATE }, VALID_COOKIES));
-    expect(res.cookies.get("flashmind_session")?.value).toBeTruthy();
+    expect(res.cookies.get("neuralabs_session")?.value).toBeTruthy();
   });
 });
 

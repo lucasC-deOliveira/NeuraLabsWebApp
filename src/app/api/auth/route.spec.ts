@@ -21,7 +21,7 @@ import { hashPassword } from "@/lib/auth";
 const prisma = new PrismaClient();
 
 // Stable IDs so we can delete them reliably
-const TEST_EMAIL = "integration-auth-test@flashmind.test";
+const TEST_EMAIL = "integration-auth-test@neuralabs.test";
 const TEST_NOME = "Auth Integration Test";
 const TEST_SENHA = "senha-segura-123";
 
@@ -83,7 +83,7 @@ describe("POST /api/auth — register", () => {
 
   it("sets the session cookie on the response", async () => {
     const res = await POST(post({ action: "register", nome: TEST_NOME, email: TEST_EMAIL, senha: TEST_SENHA }));
-    const cookie = res.cookies.get("flashmind_session");
+    const cookie = res.cookies.get("neuralabs_session");
     expect(cookie?.value).toBeTruthy();
     expect(cookie?.httpOnly).toBe(true);
   });
@@ -129,7 +129,7 @@ describe("POST /api/auth — login", () => {
     expect(body.success).toBe(true);
     expect(body.user.email).toBe(TEST_EMAIL);
 
-    const cookie = res.cookies.get("flashmind_session");
+    const cookie = res.cookies.get("neuralabs_session");
     expect(cookie?.value).toBeTruthy();
   });
 
@@ -145,7 +145,7 @@ describe("POST /api/auth — login", () => {
   });
 
   it("returns 401 for unknown email", async () => {
-    const res = await POST(post({ action: "login", email: "nobody@flashmind.test", senha: TEST_SENHA }));
+    const res = await POST(post({ action: "login", email: "nobody@neuralabs.test", senha: TEST_SENHA }));
     expect(res.status).toBe(401);
   });
 

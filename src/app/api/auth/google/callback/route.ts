@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
   const googleUser = await userRes.json();
   const email: string =
-    googleUser.email ?? `google-${googleUser.sub}@oauth.flashmind.app`;
+    googleUser.email ?? `google-${googleUser.sub}@oauth.neuralabs.app`;
   const nome: string =
     googleUser.name ?? googleUser.given_name ?? "Google User";
 

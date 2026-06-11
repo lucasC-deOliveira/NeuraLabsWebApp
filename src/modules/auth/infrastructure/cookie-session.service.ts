@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import type { NextResponse } from 'next/server'
 import type { SessionCookieReader } from '../domain/ports/session-cookie.port'
 
-const COOKIE_NAME = 'flashmind_session'
+const COOKIE_NAME = 'neuralabs_session'
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7 // 7 days
 
 export class CookieSessionReader implements SessionCookieReader {

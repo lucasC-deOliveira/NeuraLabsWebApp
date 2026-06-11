@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon } from "lucide-react";
+import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getConfigAI, saveConfigAI } from "@/actions/settings";
 import { useColorTheme, type ColorTheme } from "@/components/color-theme-provider";
@@ -73,7 +73,7 @@ function ThemeCard({ theme, active, onSelect }: { theme: ThemeOption; active: bo
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { colorTheme, setColorTheme } = useColorTheme();
+  const { colorTheme, setColorTheme, neonEnabled, setNeonEnabled } = useColorTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [apiKey, setApiKey] = useState("");
@@ -177,6 +177,28 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
+
+          {/* Efeito neon na sidebar */}
+          <label className="flex w-fit cursor-pointer select-none items-center gap-3">
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={neonEnabled}
+              onChange={(e) => setNeonEnabled(e.target.checked)}
+            />
+            <span
+              className={`flex size-5 items-center justify-center rounded border-2 transition-all duration-200 ${
+                neonEnabled
+                  ? "border-primary bg-primary/15 shadow-[0_0_10px_2px_var(--primary)]"
+                  : "border-muted-foreground/40 hover:border-primary/60"
+              }`}
+            >
+              {neonEnabled && <CheckIcon className="size-3.5 text-primary drop-shadow-[0_0_4px_var(--primary)]" />}
+            </span>
+            <span className={`text-sm transition-all ${neonEnabled ? "text-primary drop-shadow-[0_0_6px_var(--primary)]" : ""}`}>
+              Efeito neon na sidebar
+            </span>
+          </label>
 
           {/* Reset */}
           {colorTheme !== "none" && (

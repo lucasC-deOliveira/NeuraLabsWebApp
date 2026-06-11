@@ -13,7 +13,7 @@ import { proxy } from "../proxy";
 function makeRequest(path: string, sessionToken?: string): NextRequest {
   const headers: Record<string, string> = {};
   if (sessionToken) {
-    headers["cookie"] = `flashmind_session=${sessionToken}`;
+    headers["cookie"] = `neuralabs_session=${sessionToken}`;
   }
   return new NextRequest(`http://localhost:3000${path}`, { headers });
 }

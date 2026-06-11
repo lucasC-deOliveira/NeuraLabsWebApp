@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!email) {
-    email = `github-${githubUser.id}@oauth.flashmind.app`;
+    email = `github-${githubUser.id}@oauth.neuralabs.app`;
   }
 
   // Upsert user

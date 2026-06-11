@@ -27,7 +27,7 @@ beforeAll(async () => {
     create: {
       id: TEST_USER_ID,
       nome: 'Subjects Test User',
-      email: 'subjects-spec@flashmind.test',
+      email: 'subjects-spec@neuralabs.test',
       senhaHash: 'hash',
     },
     update: {},
@@ -83,7 +83,7 @@ describe('getSubjects', () => {
 
   it('does not leak subjects from other users', async () => {
     const other = await prisma.usuario.create({
-      data: { nome: 'Other', email: 'other-subjects-spec@flashmind.test', senhaHash: 'h' },
+      data: { nome: 'Other', email: 'other-subjects-spec@neuralabs.test', senhaHash: 'h' },
     })
     await prisma.assunto.create({ data: { nome: 'Segredo Alheio', usuarioId: other.id } })
 

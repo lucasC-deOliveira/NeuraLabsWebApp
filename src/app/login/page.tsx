@@ -89,7 +89,7 @@ function LoginForm() {
           <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-primary/10">
             <BrainIcon className="size-5 text-primary" />
           </div>
-          <CardTitle className="text-xl">FlashMind</CardTitle>
+          <CardTitle className="text-xl">NeuraLabs</CardTitle>
           <CardDescription>Faca login para acessar seus estudos</CardDescription>
         </CardHeader>
         <CardContent>

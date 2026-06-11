@@ -37,7 +37,7 @@ import { NextResponse } from "next/server";
 
 function mockCookieValue(value: string | undefined) {
   vi.mocked(cookies).mockResolvedValue({
-    get: vi.fn().mockReturnValue(value ? { name: "flashmind_session", value } : undefined),
+    get: vi.fn().mockReturnValue(value ? { name: "neuralabs_session", value } : undefined),
   } as ReturnType<typeof cookies> extends Promise<infer T> ? T : never);
 }
 
@@ -157,26 +157,26 @@ describe("requireUserId", () => {
 // ---------------------------------------------------------------------------
 
 describe("setSessionCookieResponse", () => {
-  it("attaches flashmind_session cookie to the response", async () => {
+  it("attaches neuralabs_session cookie to the response", async () => {
     const response = NextResponse.json({ ok: true });
     const token = await createSessionToken("user-1");
     setSessionCookieResponse(response, token);
 
-    const cookie = response.cookies.get("flashmind_session");
+    const cookie = response.cookies.get("neuralabs_session");
     expect(cookie?.value).toBe(token);
   });
 
   it("sets httpOnly flag", async () => {
     const response = NextResponse.json({});
     setSessionCookieResponse(response, "tok");
-    const cookie = response.cookies.get("flashmind_session");
+    const cookie = response.cookies.get("neuralabs_session");
     expect(cookie?.httpOnly).toBe(true);
   });
 
   it("sets sameSite to lax", async () => {
     const response = NextResponse.json({});
     setSessionCookieResponse(response, "tok");
-    const cookie = response.cookies.get("flashmind_session");
+    const cookie = response.cookies.get("neuralabs_session");
     expect(cookie?.sameSite).toBe("lax");
   });
 });

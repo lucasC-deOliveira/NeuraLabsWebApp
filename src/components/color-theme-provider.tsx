@@ -19,15 +19,20 @@ const DARK_THEMES = new Set<ColorTheme>([
 ]);
 
 const STORAGE_KEY = "color-theme";
+const NEON_KEY = "neon-effect";
 
 interface ColorThemeContextValue {
   colorTheme: ColorTheme;
   setColorTheme: (theme: ColorTheme) => void;
+  neonEnabled: boolean;
+  setNeonEnabled: (enabled: boolean) => void;
 }
 
 const ColorThemeContext = createContext<ColorThemeContextValue>({
   colorTheme: "none",
   setColorTheme: () => {},
+  neonEnabled: false,
+  setNeonEnabled: () => {},
 });
 
 export function useColorTheme() {
@@ -52,13 +57,26 @@ export function ColorThemeProvider({ children }: { children: React.ReactNode }) 
     localStorage.setItem(STORAGE_KEY, theme);
   }, [setTheme]);
 
+  const [neonEnabled, setNeonState] = useState(false);
+
+  const setNeonEnabled = useCallback((enabled: boolean) => {
+    setNeonState(enabled);
+    const html = document.documentElement;
+    if (enabled) html.setAttribute("data-neon", "true");
+    else html.removeAttribute("data-neon");
+    localStorage.setItem(NEON_KEY, enabled ? "1" : "0");
+  }, []);
+
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as ColorTheme | null;
     if (stored && stored !== "none") applyTheme(stored);
-  }, [applyTheme]);
+    if (localStorage.getItem(NEON_KEY) === "1") setNeonEnabled(true);
+  }, [applyTheme, setNeonEnabled]);
 
   return (
-    <ColorThemeContext.Provider value={{ colorTheme, setColorTheme: applyTheme }}>
+    <ColorThemeContext.Provider
+      value={{ colorTheme, setColorTheme: applyTheme, neonEnabled, setNeonEnabled }}
+    >
       {children}
     </ColorThemeContext.Provider>
   );
