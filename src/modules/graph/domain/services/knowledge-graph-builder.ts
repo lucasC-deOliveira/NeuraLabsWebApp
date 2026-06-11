@@ -103,14 +103,16 @@ async function buildKnowledgeGraph(
       });
     }
 
-    // Restore parent positions from layout if available
-    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+    // Arestas referenciam NodeConhecimento.id; os nós do grafo usam
+    // referenciaId — traduz as pontas para casar com os nós deste grafo
+    const nodeIdToRef = new Map(graphNodes.map((n) => [n.id, n.referenciaId]));
 
     for (const e of graphEdges) {
-      let src = e.nodeOrigemId ?? "";
-      let tgt = e.nodeDestinoId ?? "";
-      if (e.notaOrigemId) src = `nota:${e.notaOrigemId}`;
-      if (e.notaDestinoId) tgt = `nota:${e.notaDestinoId}`;
+      let src = e.nodeOrigemId ? nodeIdToRef.get(e.nodeOrigemId) ?? "" : "";
+      let tgt = e.nodeDestinoId ? nodeIdToRef.get(e.nodeDestinoId) ?? "" : "";
+      // arestas de nota apontam direto para a entidade (referenciaId do nó NOTA)
+      if (e.notaOrigemId) src = e.notaOrigemId;
+      if (e.notaDestinoId) tgt = e.notaDestinoId;
 
       if (src && tgt) {
         edgeTuples.push([src, tgt, e.tipoRelacao as TipoRelacao, e.peso]);

@@ -3,8 +3,16 @@
 import {
   getNodeColors,
   getNodeShape,
+  getRelationColor,
 } from "@/modules/graph/presentation/services/graph-style.service";
-import { NODE_TYPE_DISPLAY } from "@/modules/graph/constants/graph-ui.constants";
+import {
+  NODE_TYPE_DISPLAY,
+  RELATION_LABELS,
+} from "@/modules/graph/constants/graph-ui.constants";
+import { RELATION_PAIRS } from "@/modules/graph/domain/services/relation-rules";
+
+const typeLabel = (type: string) =>
+  (NODE_TYPE_DISPLAY[type as keyof typeof NODE_TYPE_DISPLAY]?.label ?? type).toLowerCase();
 
 function LegendSwatch({ type, isDark }: { type: string; isDark: boolean }) {
   const colors = getNodeColors(type, isDark);
@@ -33,13 +41,50 @@ function LegendSwatch({ type, isDark }: { type: string; isDark: boolean }) {
 
 export function GraphLegend({ isDark }: { isDark: boolean }) {
   return (
-    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4 rounded-md border bg-background/90 backdrop-blur-sm px-4 py-1.5 shadow-sm">
-      {Object.entries(NODE_TYPE_DISPLAY).map(([type, { label }]) => (
-        <div key={type} className="flex items-center gap-1.5">
-          <LegendSwatch type={type} isDark={isDark} />
-          <span className="text-xs text-foreground">{label}</span>
-        </div>
-      ))}
+    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 w-max max-w-[97%] max-h-[40%] overflow-y-auto rounded-md border bg-background/90 backdrop-blur-sm px-5 py-2 shadow-sm">
+      {/* Nós */}
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+        <span className="text-xs font-semibold text-foreground">Nós:</span>
+        {Object.entries(NODE_TYPE_DISPLAY).map(([type, { label }]) => (
+          <div key={type} className="flex items-center gap-1.5">
+            <LegendSwatch type={type} isDark={isDark} />
+            <span className="text-xs text-foreground">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Relações — todas as regras, agrupadas por par de tipos */}
+      <div className="mt-1.5 space-y-0.5 border-t pt-1.5">
+        <span className="text-xs font-semibold text-foreground">Relações:</span>
+        {RELATION_PAIRS.map((pair) => (
+          <div
+            key={`${pair.a}-${pair.b}`}
+            className="flex flex-wrap items-center gap-x-3 gap-y-0.5"
+          >
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {typeLabel(pair.a)}–{typeLabel(pair.b)}:
+            </span>
+            {pair.relations.map((rel) => (
+              <div key={rel} className="flex items-center gap-1">
+                <svg width={16} height={8} aria-hidden="true">
+                  <line
+                    x1={1}
+                    y1={4}
+                    x2={15}
+                    y2={4}
+                    stroke={getRelationColor(rel, isDark)}
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="text-[11px] text-muted-foreground">
+                  {RELATION_LABELS[rel] ?? rel.toLowerCase()}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

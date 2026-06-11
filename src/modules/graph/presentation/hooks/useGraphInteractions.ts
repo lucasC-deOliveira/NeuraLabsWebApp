@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
 } from "react";
 
 export type LayoutNode = {
@@ -12,6 +13,8 @@ export type LayoutNode = {
   y: number;
 };
 
+export type MarqueeRect = { x1: number; y1: number; x2: number; y2: number };
+
 type Pan = { x: number; y: number };
 
 function safe(n: any) {
@@ -19,7 +22,7 @@ function safe(n: any) {
 }
 
 type InteractionState = {
-  type: "idle" | "pan" | "drag";
+  type: "idle" | "pan" | "drag" | "marquee";
   nodeId: string | null;
 };
 
@@ -34,6 +37,10 @@ type Props<T extends LayoutNode> = {
   setPan: React.Dispatch<React.SetStateAction<Pan>>;
 
   svgRef: React.RefObject<SVGSVGElement | null>;
+
+  // seleção múltipla: nós que se movem juntos ao arrastar um deles
+  selectedNodeIds?: Set<string>;
+  onMarqueeSelect?: (ids: string[]) => void;
 };
 
 export function useGraphInteractions<T extends LayoutNode>({
@@ -44,6 +51,8 @@ export function useGraphInteractions<T extends LayoutNode>({
   pan,
   setPan,
   svgRef,
+  selectedNodeIds,
+  onMarqueeSelect,
 }: Props<T>) {
 
   const interactionRef = useRef<InteractionState>({ type: "idle", nodeId: null });
@@ -51,10 +60,24 @@ export function useGraphInteractions<T extends LayoutNode>({
   const layoutRef = useRef(layout);
   const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
+  const selectedRef = useRef(selectedNodeIds);
+  const onMarqueeSelectRef = useRef(onMarqueeSelect);
+
+  // drag: posição inicial do ponteiro e dos nós do grupo arrastado
+  const dragStart = useRef<{
+    graph: { x: number; y: number };
+    positions: Map<string, { x: number; y: number }>;
+  }>({ graph: { x: 0, y: 0 }, positions: new Map() });
+
+  // marquee em coordenadas do grafo
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
+  const marqueeRef = useRef<MarqueeRect | null>(null);
 
   useEffect(() => { layoutRef.current = layout; }, [layout]);
   useEffect(() => { panRef.current = pan; }, [pan]);
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { selectedRef.current = selectedNodeIds; }, [selectedNodeIds]);
+  useEffect(() => { onMarqueeSelectRef.current = onMarqueeSelect; }, [onMarqueeSelect]);
 
   // =========================
   // COORD TRANSFORM
@@ -103,7 +126,7 @@ export function useGraphInteractions<T extends LayoutNode>({
   }, []);
 
   // =========================
-  // START DRAG NODE
+  // START DRAG NODE (move o grupo selecionado quando o nó faz parte dele)
   // =========================
   const startDragNode = useCallback((nodeId: string, e: PointerEvent) => {
     const node = layoutRef.current.find(n => n.id === nodeId);
@@ -111,11 +134,32 @@ export function useGraphInteractions<T extends LayoutNode>({
 
     interactionRef.current = { type: "drag", nodeId };
 
-    const graph = screenToGraph(e.clientX, e.clientY);
-    dragOffset.current = {
-      x: graph.x - node.x,
-      y: graph.y - node.y,
+    const selected = selectedRef.current;
+    const groupIds =
+      selected && selected.has(nodeId) && selected.size > 1
+        ? [...selected]
+        : [nodeId];
+
+    const positions = new Map<string, { x: number; y: number }>();
+    for (const n of layoutRef.current) {
+      if (groupIds.includes(n.id)) positions.set(n.id, { x: n.x, y: n.y });
+    }
+
+    dragStart.current = {
+      graph: screenToGraph(e.clientX, e.clientY),
+      positions,
     };
+  }, [screenToGraph]);
+
+  // =========================
+  // START MARQUEE (seleção por retângulo)
+  // =========================
+  const startMarquee = useCallback((clientX: number, clientY: number) => {
+    const g = screenToGraph(clientX, clientY);
+    interactionRef.current = { type: "marquee", nodeId: null };
+    const rect = { x1: g.x, y1: g.y, x2: g.x, y2: g.y };
+    marqueeRef.current = rect;
+    setMarquee(rect);
   }, [screenToGraph]);
 
   // =========================
@@ -135,19 +179,43 @@ export function useGraphInteractions<T extends LayoutNode>({
         return;
       }
 
+      if (interaction.type === "marquee") {
+        const prev = marqueeRef.current;
+        if (!prev) return;
+        const g = screenToGraph(e.clientX, e.clientY);
+        const rect = { x1: prev.x1, y1: prev.y1, x2: g.x, y2: g.y };
+        marqueeRef.current = rect;
+        setMarquee(rect);
+        return;
+      }
+
       if (interaction.type !== "drag" || !interaction.nodeId) return;
 
       const graph = screenToGraph(e.clientX, e.clientY);
+      const dx = graph.x - dragStart.current.graph.x;
+      const dy = graph.y - dragStart.current.graph.y;
       setLayout(prev =>
-        prev.map(node =>
-          node.id === interaction.nodeId
-            ? { ...node, x: graph.x - dragOffset.current.x, y: graph.y - dragOffset.current.y }
-            : node
-        )
+        prev.map(node => {
+          const start = dragStart.current.positions.get(node.id);
+          return start ? { ...node, x: start.x + dx, y: start.y + dy } : node;
+        })
       );
     };
 
     const onUp = () => {
+      if (interactionRef.current.type === "marquee" && marqueeRef.current) {
+        const m = marqueeRef.current;
+        const minX = Math.min(m.x1, m.x2);
+        const maxX = Math.max(m.x1, m.x2);
+        const minY = Math.min(m.y1, m.y2);
+        const maxY = Math.max(m.y1, m.y2);
+        const ids = layoutRef.current
+          .filter(n => n.x >= minX && n.x <= maxX && n.y >= minY && n.y <= maxY)
+          .map(n => n.id);
+        onMarqueeSelectRef.current?.(ids);
+        marqueeRef.current = null;
+        setMarquee(null);
+      }
       interactionRef.current = { type: "idle", nodeId: null };
     };
 
@@ -173,5 +241,5 @@ export function useGraphInteractions<T extends LayoutNode>({
     setZoom(Math.max(zoomRef.current, 0.8));
   }, [svgRef, setPan, setZoom]);
 
-  return { handleWheel, startDragNode, startPan, focusNode };
+  return { handleWheel, startDragNode, startPan, startMarquee, marquee, focusNode };
 }

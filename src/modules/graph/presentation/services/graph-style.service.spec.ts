@@ -1,5 +1,43 @@
 import { describe, it, expect } from "vitest";
-import { getNodeColors, getNodeShape, getRelationColor, getDominioColor } from "./graph-style.service";
+import {
+  getNodeColors,
+  getNodeShape,
+  getRelationColor,
+  getDominioColor,
+  RELATION_COLORS,
+} from "./graph-style.service";
+
+describe("RELATION_COLORS", () => {
+  it("toda relação tem cor única na paleta clara", () => {
+    const lights = Object.values(RELATION_COLORS).map((c) => c.light);
+    expect(new Set(lights).size).toBe(lights.length);
+  });
+
+  it("toda relação tem cor única na paleta escura", () => {
+    const darks = Object.values(RELATION_COLORS).map((c) => c.dark);
+    expect(new Set(darks).size).toBe(darks.length);
+  });
+
+  it("cobre todas as relações das regras de relacionamento", () => {
+    const ruleRelations = [
+      "DEFINE", "EXPLICA", "APROFUNDA", "EXEMPLIFICA", "CONTRASTA", "SINTETIZA", "ALERTA_ERRO",
+      "IS_A", "PART_OF", "PREREQUISITO", "DERIVA_DE", "EVOLUI_PARA", "REFORCA", "ALTERNATIVA_A",
+      "CONTRASTA_COM", "CONFUNDE_COM", "ANTI_PADRAO_DE", "MEDIDO_POR", "OBJETIVO_DE",
+      "PERTENCE_A", "FUNDAMENTA", "APLICADO_EM",
+      "SUBTOPICO_DE", "RELACIONADO", "DEPENDE_DE",
+      "HERDA",
+    ];
+    for (const rel of ruleRelations) {
+      expect(RELATION_COLORS[rel], `falta cor para ${rel}`).toBeDefined();
+    }
+  });
+
+  it("cores claras e escuras diferem para cada relação", () => {
+    for (const [rel, c] of Object.entries(RELATION_COLORS)) {
+      expect(c.light, `light===dark em ${rel}`).not.toBe(c.dark);
+    }
+  });
+});
 
 describe("getNodeShape", () => {
   it("maps each node type to its shape", () => {

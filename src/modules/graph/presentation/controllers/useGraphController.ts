@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useGraphData } from "../hooks/useGraphData";
 import { useGraphLayout } from "../hooks/useGraphLayout";
 import { SimNode } from "../../infra/layout/force-layout.engine";
@@ -26,8 +26,71 @@ export function useGraphController(graphId: string) {
 
   const [layout, setLayout] = useState<SimNode[]>([]);
   const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterGroup, setFilterGroup] = useState<string | null>(null);
+  const [activeTool, setActiveTool] = useState<"select" | "marquee" | "hand">("select");
+
+  const layoutRefForSelect = useRef<SimNode[]>([]);
+  useEffect(() => { layoutRefForSelect.current = layout; }, [layout]);
+
+  const handleMarqueeSelect = useCallback((ids: string[]) => {
+    setSelectedNodeIds(new Set(ids));
+    setSelectedNode(
+      ids.length === 1
+        ? (layoutRefForSelect.current.find((n) => n.id === ids[0]) ?? null)
+        : null
+    );
+  }, []);
+
+  // clique simples seleciona um único nó; com Ctrl/Cmd alterna o nó na
+  // seleção múltipla (comportamento do Windows Explorer)
+  const selectNode = useCallback((node: any, additive = false) => {
+    if (!node) {
+      setSelectedNode(null);
+      setSelectedNodeIds(new Set());
+      return;
+    }
+    if (!additive) {
+      setSelectedNode(node);
+      setSelectedNodeIds(new Set([node.id]));
+      return;
+    }
+    const next = new Set(selectedNodeIds);
+    if (next.has(node.id)) {
+      next.delete(node.id);
+      if (next.size === 1) {
+        const onlyId = [...next][0];
+        setSelectedNode(layoutRefForSelect.current.find((n) => n.id === onlyId) ?? null);
+      } else {
+        setSelectedNode(null);
+      }
+    } else {
+      next.add(node.id);
+      setSelectedNode(node);
+    }
+    setSelectedNodeIds(next);
+  }, [selectedNodeIds]);
+
+  // atalhos estilo Figma: V seleção, M seleção múltipla, H mão
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        t?.isContentEditable
+      ) {
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (key === "v") setActiveTool("select");
+      if (key === "m") setActiveTool("marquee");
+      if (key === "h") setActiveTool("hand");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const interactions = useGraphInteractions({
     layout,
@@ -37,6 +100,8 @@ export function useGraphController(graphId: string) {
     pan,
     setPan,
     svgRef,
+    selectedNodeIds,
+    onMarqueeSelect: handleMarqueeSelect,
   });
 
   // sincroniza layout com os nós: novos entram, removidos saem,
@@ -74,15 +139,19 @@ export function useGraphController(graphId: string) {
       filteredNodes,
       filteredEdges,
       selectedNode,
+      selectedNodeIds,
       hoveredNodeId,
       filterGroup,
       zoom,
       pan,
       loading,
       grafoNome,
+      activeTool,
     },
     actions: {
       setSelectedNode,
+      selectNode,
+      setSelectedNodeIds,
       setHoveredNodeId,
       setFilterGroup,
       setLayout,
@@ -91,6 +160,7 @@ export function useGraphController(graphId: string) {
       setPan,
       setRawNodes,
       setRawEdges,
+      setActiveTool,
     },
     interactions,
   };

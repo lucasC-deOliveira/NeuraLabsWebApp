@@ -22,6 +22,11 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PlusIcon, Loader2Icon, PencilIcon, Trash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import {
+  getAllowedRelations,
+  canRelate,
+} from "@/modules/graph/domain/services/relation-rules";
+import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 
 interface Edge {
   id: string;
@@ -39,6 +44,10 @@ interface EdgeManagerModalProps {
   grafoId: string;
   existingEdges: Edge[];
   onSuccess?: () => void;
+  // quando informados, o modal abre direto no formulário de nova relação
+  // com origem/destino pré-selecionados (ex.: 2 nós selecionados no grafo)
+  initialSourceId?: string;
+  initialTargetId?: string;
 }
 
 const RELATION_GROUPS = [
@@ -104,6 +113,8 @@ export function EdgeManagerModal({
   grafoId,
   existingEdges,
   onSuccess,
+  initialSourceId,
+  initialTargetId,
 }: EdgeManagerModalProps) {
   const router = useRouter();
   const [mode, setMode] = useState<"list" | "add" | "edit">("list");
@@ -124,15 +135,29 @@ export function EdgeManagerModal({
     return map;
   }, [nodes]);
 
-  const allRelationTypes = RELATION_GROUPS.flatMap((g) => g.types);
+  // tipos dos nós escolhidos → relações permitidas para o par
+  const sourceType = nodeMap.get(formData.sourceNodeId)?.type;
+  const targetType = nodeMap.get(formData.targetNodeId)?.type;
+  const allowedRelations =
+    sourceType && targetType ? getAllowedRelations(sourceType, targetType) : [];
 
   useEffect(() => {
     if (open) {
       // Load nodes from graph
       fetchNodes();
-      setMode("list");
+      if (initialSourceId && initialTargetId) {
+        setFormData({
+          sourceNodeId: initialSourceId,
+          targetNodeId: initialTargetId,
+          tipoRelacao: "",
+          peso: 1.0,
+        });
+        setMode("add");
+      } else {
+        setMode("list");
+      }
     }
-  }, [open]);
+  }, [open, initialSourceId, initialTargetId]);
 
   const fetchNodes = async () => {
     try {
@@ -229,11 +254,12 @@ export function EdgeManagerModal({
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/graph/edge/${selectedEdge.id}`, {
+      const response = await fetch("/api/graph/edge", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           grafoId,
+          edgeId: selectedEdge.id,
           tipoRelacao: formData.tipoRelacao,
           peso: formData.peso,
         }),
@@ -260,7 +286,7 @@ export function EdgeManagerModal({
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/graph/edge/${edgeId}?grafoId=${grafoId}`, {
+      const response = await fetch(`/api/graph/edge?grafoId=${grafoId}&edgeId=${edgeId}`, {
         method: "DELETE",
       });
 
@@ -303,10 +329,17 @@ export function EdgeManagerModal({
 
   // Filter out edges that would create duplicates (same source/target with same direction)
   const getAvailableTargets = (sourceId: string, excludeEdgeId?: string) => {
+    const srcType = nodeMap.get(sourceId)?.type;
     const usedTargets = existingEdges
       .filter((e) => e.id !== excludeEdgeId && e.source === sourceId)
       .map((e) => e.target);
-    return nodes.filter((n) => n.id !== sourceId && !usedTargets.includes(n.id));
+    return nodes.filter(
+      (n) =>
+        n.id !== sourceId &&
+        !usedTargets.includes(n.id) &&
+        // só tipos que têm alguma relação permitida com a origem
+        (!srcType || canRelate(srcType, n.type))
+    );
   };
 
   const getAvailableSources = (targetId: string, excludeEdgeId?: string) => {
@@ -410,7 +443,9 @@ export function EdgeManagerModal({
                   <Label htmlFor="source">Nó de origem</Label>
                   <Select
                     value={formData.sourceNodeId}
-                    onValueChange={(value) => setFormData((f) => ({ ...f, sourceNodeId: value ?? "", targetNodeId: "" }))}
+                    onValueChange={(value) =>
+                      setFormData((f) => ({ ...f, sourceNodeId: value ?? "", targetNodeId: "", tipoRelacao: "" }))
+                    }
                     disabled={mode === "edit"}
                   >
                     <SelectTrigger id="source" className="w-full">
@@ -433,7 +468,9 @@ export function EdgeManagerModal({
                   <Label htmlFor="target">Nó de destino</Label>
                   <Select
                     value={formData.targetNodeId}
-                    onValueChange={(value) => setFormData((f) => ({ ...f, targetNodeId: value ?? "" }))}
+                    onValueChange={(value) =>
+                      setFormData((f) => ({ ...f, targetNodeId: value ?? "", tipoRelacao: "" }))
+                    }
                     disabled={mode === "edit"}
                   >
                     <SelectTrigger id="target" className="w-full">
@@ -475,18 +512,28 @@ export function EdgeManagerModal({
                     <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {RELATION_GROUPS.map((group) => (
-                      <div key={group.title}>
-                        <div className="px-2 py-1.5 text-xs font-semibold text-zinc-500 bg-zinc-100 dark:bg-zinc-800">{group.title}</div>
-                        {group.types.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </div>
-                    ))}
+                    {!sourceType || !targetType ? (
+                      <SelectItem value="none" disabled>
+                        Selecione origem e destino primeiro
+                      </SelectItem>
+                    ) : allowedRelations.length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        Estes tipos de nó não podem ser relacionados
+                      </SelectItem>
+                    ) : (
+                      allowedRelations.map((rel) => (
+                        <SelectItem key={rel} value={rel}>
+                          {RELATION_LABELS[rel] ?? rel}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
+                {sourceType && targetType && allowedRelations.length > 0 && (
+                  <p className="text-xs text-zinc-500">
+                    Relações permitidas para {sourceType.toLowerCase()} ↔ {targetType.toLowerCase()}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

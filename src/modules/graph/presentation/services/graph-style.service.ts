@@ -28,45 +28,52 @@ export function getNodeColors(type: string, isDark: boolean) {
   return isDark ? entry.dark : entry.light;
 }
 
-// Relation colors
-export function getRelationColor(type: string, isDark: boolean): string {
-  const REL_COLORS: Record<string, { light: string; dark: string }> = {
-    GERA: { light: "#dc2626", dark: "#f87171" },
-    REFERENCIA: { light: "#ca8a04", dark: "#facc15" },
-    DEFINE: { light: "#0891b2", dark: "#22d3ee" },
-    EXPLICA: { light: "#059669", dark: "#34d399" },
-    APROFUNDA: { light: "#0d9488", dark: "#2dd4bf" },
-    EXEMPLIFICA: { light: "#ea580c", dark: "#fb923c" },
-    CONTRASTA: { light: "#e11d48", dark: "#fb7185" },
-    SINTETIZA: { light: "#7c3aed", dark: "#a78bfa" },
-    ALERTA_ERRO: { light: "#dc2626", dark: "#ef4444" },
-    IS_A: { light: "#2563eb", dark: "#60a5fa" },
-    PART_OF: { light: "#0891b2", dark: "#22d3ee" },
-    PREREQUISITO: { light: "#6d28d9", dark: "#a78bfa" },
-    DERIVA_DE: { light: "#0d9488", dark: "#2dd4bf" },
-    EVOLUI_PARA: { light: "#0284c7", dark: "#38bdf8" },
-    REFORCA: { light: "#059669", dark: "#34d399" },
-    ALTERNATIVA_A: { light: "#ea580c", dark: "#fb923c" },
-    CONTRASTA_COM: { light: "#e11d48", dark: "#fb7185" },
-    CONFUNDE_COM: { light: "#c026d3", dark: "#e879f9" },
-    ANTI_PADRAO_DE: { light: "#dc2626", dark: "#f87171" },
-    MEDIDO_POR: { light: "#0891b2", dark: "#22d3ee" },
-    OBJETIVO_DE: { light: "#7c3aed", dark: "#a78bfa" },
-    PERTENCE_A: { light: "#64748b", dark: "#94a3b8" },
-    FUNDAMENTA: { light: "#4f46e5", dark: "#818cf8" },
-    APLICADO_EM: { light: "#0d9488", dark: "#2dd4bf" },
-    SUBTOPICO_DE: { light: "#64748b", dark: "#94a3b8" },
-    RELACIONADO: { light: "#475569", dark: "#94a3b8" },
-    DEPENDE_DE: { light: "#7c3aed", dark: "#a78bfa" },
-    HERDA: { light: "#4f46e5", dark: "#818cf8" },
-    TESTA_DEFINICAO: { light: "#d97706", dark: "#fbbf24" },
-    TESTA_EXEMPLO: { light: "#ca8a04", dark: "#facc15" },
-    TESTA_APLICACAO: { light: "#ea580c", dark: "#fb923c" },
-    TESTA_ANALISE: { light: "#e11d48", dark: "#fb7185" },
-    TESTA_SINTESE: { light: "#7c3aed", dark: "#c084fc" },
-  };
+// Relation colors — cada relação tem uma cor única em ambas as paletas
+// (light: tons saturados/escuros para fundo claro; dark: tons claros para fundo escuro)
+export const RELATION_COLORS: Record<string, { light: string; dark: string }> = {
+  // Nota ↔ Conceito
+  DEFINE: { light: "#0891b2", dark: "#22d3ee" },
+  EXPLICA: { light: "#059669", dark: "#34d399" },
+  APROFUNDA: { light: "#0d9488", dark: "#2dd4bf" },
+  EXEMPLIFICA: { light: "#ea580c", dark: "#fb923c" },
+  CONTRASTA: { light: "#e11d48", dark: "#fb7185" },
+  SINTETIZA: { light: "#7c3aed", dark: "#a78bfa" },
+  ALERTA_ERRO: { light: "#dc2626", dark: "#ef4444" },
+  // Conceito ↔ Conceito
+  IS_A: { light: "#2563eb", dark: "#60a5fa" },
+  PART_OF: { light: "#0284c7", dark: "#38bdf8" },
+  PREREQUISITO: { light: "#4f46e5", dark: "#818cf8" },
+  DERIVA_DE: { light: "#16a34a", dark: "#4ade80" },
+  EVOLUI_PARA: { light: "#65a30d", dark: "#a3e635" },
+  REFORCA: { light: "#15803d", dark: "#86efac" },
+  ALTERNATIVA_A: { light: "#d97706", dark: "#fbbf24" },
+  CONTRASTA_COM: { light: "#db2777", dark: "#f472b6" },
+  CONFUNDE_COM: { light: "#c026d3", dark: "#e879f9" },
+  ANTI_PADRAO_DE: { light: "#b91c1c", dark: "#f87171" },
+  MEDIDO_POR: { light: "#0e7490", dark: "#67e8f9" },
+  OBJETIVO_DE: { light: "#9333ea", dark: "#c084fc" },
+  // Conceito ↔ Tópico / Tópico ↔ Assunto
+  PERTENCE_A: { light: "#475569", dark: "#94a3b8" },
+  FUNDAMENTA: { light: "#4338ca", dark: "#a5b4fc" },
+  APLICADO_EM: { light: "#0f766e", dark: "#5eead4" },
+  // Tópico ↔ Tópico
+  SUBTOPICO_DE: { light: "#57534e", dark: "#a8a29e" },
+  RELACIONADO: { light: "#52525b", dark: "#a1a1aa" },
+  DEPENDE_DE: { light: "#6d28d9", dark: "#c4b5fd" },
+  // Flashcard ↔ Conceito
+  HERDA: { light: "#ca8a04", dark: "#facc15" },
+  // Legadas
+  GERA: { light: "#7f1d1d", dark: "#fca5a5" },
+  REFERENCIA: { light: "#854d0e", dark: "#fef08a" },
+  TESTA_DEFINICAO: { light: "#b45309", dark: "#fcd34d" },
+  TESTA_EXEMPLO: { light: "#a16207", dark: "#fde047" },
+  TESTA_APLICACAO: { light: "#9a3412", dark: "#fdba74" },
+  TESTA_ANALISE: { light: "#be123c", dark: "#fda4af" },
+  TESTA_SINTESE: { light: "#6b21a8", dark: "#d8b4fe" },
+};
 
-  const entry = REL_COLORS[type];
+export function getRelationColor(type: string, isDark: boolean): string {
+  const entry = RELATION_COLORS[type];
   return entry ? (isDark ? entry.dark : entry.light) : isDark ? "#94a3b8" : "#64748b";
 }
 

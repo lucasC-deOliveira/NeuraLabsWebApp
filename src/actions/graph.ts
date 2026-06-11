@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildKnowledgeGraph, getCriticalNodes as libGetCriticalNodes, type GraphNode, type GraphEdge, type TipoRelacao } from "@/lib/graph";
+import { getAllowedRelations, isRelationAllowed } from "@/modules/graph/domain/services/relation-rules";
 
 export interface GraphNodeType {
   id: string;
@@ -425,6 +426,16 @@ export async function createEdge(grafoId: string, data: {
 
   if (!sourceNode || !targetNode) {
     throw new Error("Um ou ambos os nós não encontrados no grafo");
+  }
+
+  // Regra de domínio: cada par de tipos só aceita certas relações
+  if (!isRelationAllowed(sourceNode.tipoNode, targetNode.tipoNode, data.tipoRelacao)) {
+    const allowed = getAllowedRelations(sourceNode.tipoNode, targetNode.tipoNode);
+    throw new Error(
+      allowed.length === 0
+        ? `Nós do tipo ${sourceNode.tipoNode} e ${targetNode.tipoNode} não podem ser relacionados`
+        : `Relação ${data.tipoRelacao} não é permitida entre ${sourceNode.tipoNode} e ${targetNode.tipoNode}. Permitidas: ${allowed.join(", ")}`
+    );
   }
 
   // Check for duplicate edge (same source, target, and type)

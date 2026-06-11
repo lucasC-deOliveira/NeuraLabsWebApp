@@ -1,0 +1,101 @@
+import { describe, it, expect } from "vitest";
+import { getAllowedRelations, canRelate, isRelationAllowed } from "./relation-rules";
+
+describe("relation-rules", () => {
+  describe("getAllowedRelations", () => {
+    it("Nota ↔ Conceito permite as 7 relações de anotação", () => {
+      const expected = [
+        "DEFINE", "EXPLICA", "APROFUNDA", "EXEMPLIFICA",
+        "CONTRASTA", "SINTETIZA", "ALERTA_ERRO",
+      ];
+      expect(getAllowedRelations("NOTA", "CONCEITO")).toEqual(expected);
+    });
+
+    it("Conceito ↔ Conceito permite as 12 relações conceituais", () => {
+      const rels = getAllowedRelations("CONCEITO", "CONCEITO");
+      expect(rels).toHaveLength(12);
+      expect(rels).toContain("IS_A");
+      expect(rels).toContain("OBJETIVO_DE");
+    });
+
+    it("Conceito ↔ Tópico permite PERTENCE_A, FUNDAMENTA, APLICADO_EM", () => {
+      expect(getAllowedRelations("CONCEITO", "TOPICO")).toEqual([
+        "PERTENCE_A", "FUNDAMENTA", "APLICADO_EM",
+      ]);
+    });
+
+    it("Tópico ↔ Tópico permite SUBTOPICO_DE, RELACIONADO, DEPENDE_DE, EVOLUI_PARA", () => {
+      expect(getAllowedRelations("TOPICO", "TOPICO")).toEqual([
+        "SUBTOPICO_DE", "RELACIONADO", "DEPENDE_DE", "EVOLUI_PARA",
+      ]);
+    });
+
+    it("Tópico ↔ Assunto permite PERTENCE_A e APLICADO_EM", () => {
+      expect(getAllowedRelations("TOPICO", "ASSUNTO")).toEqual(["PERTENCE_A", "APLICADO_EM"]);
+    });
+
+    it("Flashcard ↔ Conceito permite apenas HERDA", () => {
+      expect(getAllowedRelations("FLASHCARD", "CONCEITO")).toEqual(["HERDA"]);
+    });
+
+    it("é indiferente à ordem dos tipos", () => {
+      expect(getAllowedRelations("CONCEITO", "NOTA")).toEqual(getAllowedRelations("NOTA", "CONCEITO"));
+      expect(getAllowedRelations("ASSUNTO", "TOPICO")).toEqual(getAllowedRelations("TOPICO", "ASSUNTO"));
+      expect(getAllowedRelations("CONCEITO", "FLASHCARD")).toEqual(getAllowedRelations("FLASHCARD", "CONCEITO"));
+    });
+
+    it("retorna vazio para pares sem regra", () => {
+      expect(getAllowedRelations("NOTA", "TOPICO")).toEqual([]);
+      expect(getAllowedRelations("NOTA", "ASSUNTO")).toEqual([]);
+      expect(getAllowedRelations("NOTA", "NOTA")).toEqual([]);
+      expect(getAllowedRelations("FLASHCARD", "FLASHCARD")).toEqual([]);
+      expect(getAllowedRelations("FLASHCARD", "TOPICO")).toEqual([]);
+      expect(getAllowedRelations("ASSUNTO", "ASSUNTO")).toEqual([]);
+      expect(getAllowedRelations("ASSUNTO", "CONCEITO")).toEqual([]);
+    });
+
+    it("retorna vazio para tipos desconhecidos", () => {
+      expect(getAllowedRelations("FOO", "CONCEITO")).toEqual([]);
+    });
+  });
+
+  describe("canRelate", () => {
+    it("true para pares com regra", () => {
+      expect(canRelate("NOTA", "CONCEITO")).toBe(true);
+      expect(canRelate("FLASHCARD", "CONCEITO")).toBe(true);
+    });
+
+    it("false para pares sem regra", () => {
+      expect(canRelate("NOTA", "TOPICO")).toBe(false);
+      expect(canRelate("FLASHCARD", "ASSUNTO")).toBe(false);
+    });
+  });
+
+  describe("isRelationAllowed", () => {
+    it("aceita relação válida para o par", () => {
+      expect(isRelationAllowed("NOTA", "CONCEITO", "DEFINE")).toBe(true);
+      expect(isRelationAllowed("CONCEITO", "FLASHCARD", "HERDA")).toBe(true);
+      expect(isRelationAllowed("TOPICO", "TOPICO", "EVOLUI_PARA")).toBe(true);
+    });
+
+    it("rejeita relação que pertence a outro par", () => {
+      // DEFINE é de Nota↔Conceito, não de Conceito↔Conceito
+      expect(isRelationAllowed("CONCEITO", "CONCEITO", "DEFINE")).toBe(false);
+      // HERDA é de Flashcard↔Conceito
+      expect(isRelationAllowed("CONCEITO", "CONCEITO", "HERDA")).toBe(false);
+      // PERTENCE_A vale para Conceito↔Tópico e Tópico↔Assunto, não Conceito↔Conceito
+      expect(isRelationAllowed("CONCEITO", "CONCEITO", "PERTENCE_A")).toBe(false);
+    });
+
+    it("rejeita qualquer relação para par sem regra", () => {
+      expect(isRelationAllowed("NOTA", "TOPICO", "DEFINE")).toBe(false);
+    });
+
+    // Mutação: EVOLUI_PARA existe em dois pares distintos
+    it("EVOLUI_PARA vale para Conceito↔Conceito e Tópico↔Tópico", () => {
+      expect(isRelationAllowed("CONCEITO", "CONCEITO", "EVOLUI_PARA")).toBe(true);
+      expect(isRelationAllowed("TOPICO", "TOPICO", "EVOLUI_PARA")).toBe(true);
+      expect(isRelationAllowed("TOPICO", "ASSUNTO", "EVOLUI_PARA")).toBe(false);
+    });
+  });
+});

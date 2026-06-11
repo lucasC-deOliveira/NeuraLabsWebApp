@@ -20,8 +20,10 @@ import {
   deleteGraphNode,
   removeNodeFromGraph,
   getGraphNodes,
+  getGraphEdges,
 } from "@/actions/graph";
 import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
+import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";
 
 export default function GraphPage() {
   const router = useRouter();
@@ -39,9 +41,24 @@ export default function GraphPage() {
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [legendVisible, setLegendVisible] = useState(true);
+  const [isEdgeManagerOpen, setIsEdgeManagerOpen] = useState(false);
+  const [graphEdges, setGraphEdges] = useState<any[]>([]);
 
   const handleOpenCreateNode = () => {
     setIsCreateModalOpen(true);
+  };
+
+  const loadEdges = async () => {
+    try {
+      setGraphEdges(await getGraphEdges(graphId));
+    } catch {
+      toast.error("Erro ao carregar relações");
+    }
+  };
+
+  const handleOpenEdgeManager = async () => {
+    await loadEdges();
+    setIsEdgeManagerOpen(true);
   };
 
   // ======================
@@ -166,6 +183,9 @@ export default function GraphPage() {
             setLeftPanelCollapsed((v) => !v)
           }
           onOpenCreateNode={handleOpenCreateNode}
+          onOpenEdgeManager={handleOpenEdgeManager}
+          tool={controller.state.activeTool}
+          onToolChange={controller.actions.setActiveTool}
         />
 
         {/* GRAPH */}
@@ -184,10 +204,14 @@ export default function GraphPage() {
             pan={controller.state.pan}
             isDark={isDark}
             svgRef={controller.svgRef}
-            onNodeClick={controller.actions.setSelectedNode}
+            tool={controller.state.activeTool}
+            selectedNodeIds={controller.state.selectedNodeIds}
+            marquee={controller.interactions.marquee}
+            onNodeClick={controller.actions.selectNode}
             onNodeHover={controller.actions.setHoveredNodeId}
             onNodeDragStart={controller.interactions.startDragNode}
             onPanStart={controller.interactions.startPan}
+            onMarqueeStart={controller.interactions.startMarquee}
             onWheel={controller.interactions.handleWheel}
           />
         </div>
@@ -212,6 +236,28 @@ export default function GraphPage() {
         onOpenChange={setIsCreateModalOpen}
         grafoId={graphId}
         onSuccess={refreshGraph}
+      />
+      <EdgeManagerModal
+        open={isEdgeManagerOpen}
+        onOpenChange={setIsEdgeManagerOpen}
+        grafoId={graphId}
+        existingEdges={graphEdges}
+        // com exatamente 2 nós selecionados, abre direto na criação
+        // com origem e destino pré-preenchidos
+        initialSourceId={
+          controller.state.selectedNodeIds.size === 2
+            ? [...controller.state.selectedNodeIds][0]
+            : undefined
+        }
+        initialTargetId={
+          controller.state.selectedNodeIds.size === 2
+            ? [...controller.state.selectedNodeIds][1]
+            : undefined
+        }
+        onSuccess={async () => {
+          await loadEdges();
+          await refreshGraph();
+        }}
       />
     </div>
   );

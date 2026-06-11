@@ -13,14 +13,22 @@ import {
   ChevronRightIcon,
   XIcon,
   Trash2Icon,
+  MousePointer2Icon,
+  BoxSelectIcon,
+  HandIcon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import type { GraphTool } from "@/modules/graph/presentation/components/GraphRenderer";
 
 interface LeftSidebarProps {
   // Tools
   onOpenCreateNode: () => void;
   onOpenEdgeManager: () => void;
   onDeleteGraph?: () => void;
+
+  // Graph interaction tools (Figma-style)
+  tool?: GraphTool;
+  onToolChange?: (tool: GraphTool) => void;
 
   // Search
   searchQuery: string;
@@ -44,6 +52,8 @@ export function LeftSidebar({
   onOpenCreateNode,
   onOpenEdgeManager,
   onDeleteGraph,
+  tool,
+  onToolChange,
   searchQuery,
   onSearchChange,
   searchResults,
@@ -111,6 +121,28 @@ export function LeftSidebar({
               <PlusIcon className="size-4" />
               Novo Nó
             </Button>
+            {tool && onToolChange && (
+              <div className="grid grid-cols-3 gap-1">
+                {(
+                  [
+                    { id: "select", icon: MousePointer2Icon, title: "Selecionar (V)" },
+                    { id: "marquee", icon: BoxSelectIcon, title: "Seleção múltipla (M)" },
+                    { id: "hand", icon: HandIcon, title: "Mover o grafo (H)" },
+                  ] as const
+                ).map((t) => (
+                  <Button
+                    key={t.id}
+                    variant={tool === t.id ? "secondary" : "outline"}
+                    size="icon"
+                    className={`w-full h-8 ${tool === t.id ? "ring-1 ring-primary/50" : ""}`}
+                    onClick={() => onToolChange(t.id)}
+                    title={t.title}
+                  >
+                    <t.icon className="size-4" />
+                  </Button>
+                ))}
+              </div>
+            )}
             <Button onClick={onOpenEdgeManager} variant="outline" className="w-full justify-start gap-2">
               <LinkIcon className="size-4" />
               Gerenciar Relações

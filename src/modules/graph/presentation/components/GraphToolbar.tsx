@@ -1,6 +1,11 @@
 "use client";
 
-import { EyeIcon, EyeOffIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react";
+import {
+  EyeIcon,
+  EyeOffIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -36,7 +41,9 @@ export function GraphToolbar({
       >
         <ZoomOutIcon className="size-4" />
       </Button>
+
       <div className="h-px w-5 bg-border" />
+
       <Button
         variant="ghost"
         size="icon"
