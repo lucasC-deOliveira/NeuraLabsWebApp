@@ -59,27 +59,36 @@ export const RELATION_GROUPS = [
   },
 ];
 
-// NODE COLORS
+// NODE COLORS — 50-30-20 rule:
+//   50% dominant  → bg     (background fill, largest visual area)
+//   30% structure → border (defines shape and hierarchy)
+//   20% accent    → text   (readable label)
+// Two palettes only: light and dark. Each node type has a distinct hue.
 export const NODE_TYPE_COLORS = {
+  // Indigo — root concept, authoritative
   ASSUNTO: {
-    light: { bg: "#f1f5f9", border: "#475569", text: "#1e293b" },
-    dark: { bg: "#1e293b", border: "#94a3b8", text: "#e2e8f0" },
+    light: { bg: "#eef2ff", border: "#4338ca", text: "#1e1b4b" },
+    dark:  { bg: "#1e1b4b", border: "#818cf8", text: "#c7d2fe" },
   },
+  // Sky blue — structured, organised
   TOPICO: {
-    light: { bg: "#dbeafe", border: "#2563eb", text: "#1e3a5f" },
-    dark: { bg: "#1e3a5f", border: "#60a5fa", text: "#bfdbfe" },
+    light: { bg: "#e0f2fe", border: "#0369a1", text: "#0c4a6e" },
+    dark:  { bg: "#0c2840", border: "#38bdf8", text: "#bae6fd" },
   },
+  // Emerald — knowledge, clarity
   CONCEITO: {
     light: { bg: "#d1fae5", border: "#059669", text: "#064e3b" },
-    dark: { bg: "#064e3b", border: "#34d399", text: "#a7f3d0" },
+    dark:  { bg: "#064e3b", border: "#34d399", text: "#a7f3d0" },
   },
+  // Amber — review, practice
   FLASHCARD: {
-    light: { bg: "#fef3c7", border: "#d97706", text: "#78350f" },
-    dark: { bg: "#451a03", border: "#fbbf24", text: "#fef3c7" },
+    light: { bg: "#fff7ed", border: "#c2410c", text: "#7c2d12" },
+    dark:  { bg: "#431407", border: "#fb923c", text: "#fed7aa" },
   },
+  // Fuchsia — writing, annotation
   NOTA: {
-    light: { bg: "#ede9fe", border: "#7c3aed", text: "#4c1d95" },
-    dark: { bg: "#2e1065", border: "#a78bfa", text: "#ede9fe" },
+    light: { bg: "#fdf4ff", border: "#9333ea", text: "#4a044e" },
+    dark:  { bg: "#2e0540", border: "#e879f9", text: "#f5d0fe" },
   },
 };
 

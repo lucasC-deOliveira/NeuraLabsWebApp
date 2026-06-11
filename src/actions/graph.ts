@@ -650,8 +650,6 @@ export async function addNodeToGraph(
             nome: data.nome,
             descricao: data.descricao,
             topicoId: data.topicoId || null,
-            nivelDominio: data.nivelDominio ?? 0,
-            prioridadeRevisao: data.prioridadeRevisao ?? 5,
             usuarioId: userId,
           },
         });

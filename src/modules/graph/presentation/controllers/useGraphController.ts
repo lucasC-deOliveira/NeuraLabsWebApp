@@ -39,12 +39,17 @@ export function useGraphController(graphId: string) {
     svgRef,
   });
 
-  // init layout
+  // sincroniza layout com os nós: novos entram, removidos saem,
+  // e os existentes mantêm a posição atual (não embaralha ao criar/excluir)
   useEffect(() => {
-    if (nodes.length > 0 && layout.length === 0) {
-      setLayout(nodes);
-    }
-    console.log("Layout initialized");
+    setLayout((prev) => {
+      if (prev.length === 0) return nodes;
+      const prevById = new Map(prev.map((n) => [n.id, n]));
+      return nodes.map((n) => {
+        const old = prevById.get(n.id);
+        return old ? { ...n, x: old.x, y: old.y, vx: 0, vy: 0 } : n;
+      });
+    });
   }, [nodes]);
 
   const visibleNodeIds = useMemo(

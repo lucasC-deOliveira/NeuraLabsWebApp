@@ -9,15 +9,12 @@ import { Button } from "@/components/ui/button";
 import { LeftSidebar } from "@/components/graph/LeftSidebar";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
-import {
-  ArrowLeftIcon,
-  Loader2Icon,
-  ZoomInIcon,
-  ZoomOutIcon,
-} from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon } from "lucide-react";
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
+import { GraphLegend } from "@/modules/graph/presentation/components/GraphLegend";
+import { GraphToolbar } from "@/modules/graph/presentation/components/GraphToolbar";
 
 import {
   deleteGraphNode,
@@ -41,6 +38,7 @@ export default function GraphPage() {
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [legendVisible, setLegendVisible] = useState(true);
 
   const handleOpenCreateNode = () => {
     setIsCreateModalOpen(true);
@@ -90,9 +88,9 @@ export default function GraphPage() {
   const refreshGraph = async () => {
     const result = await getGraphNodes(graphId);
 
+    // o controller mescla os nós novos preservando as posições dos existentes
     controller.actions.setRawNodes(result.nodes);
     controller.actions.setRawEdges(result.edges);
-    controller.actions.setLayout([]);
     controller.actions.setSelectedNode(null);
   };
 
@@ -150,15 +148,6 @@ export default function GraphPage() {
         <div className="flex-1 text-center font-semibold">
           {controller.state.grafoNome}
         </div>
-
-        <div className="flex gap-2">
-          <Button onClick={() => handleZoomButton(0.1)}>
-            <ZoomInIcon />
-          </Button>
-          <Button onClick={() => handleZoomButton(-0.1)}>
-            <ZoomOutIcon />
-          </Button>
-        </div>
       </header>
 
       {/* BODY */}
@@ -181,6 +170,13 @@ export default function GraphPage() {
 
         {/* GRAPH */}
         <div className="flex-1 relative">
+          {legendVisible && <GraphLegend isDark={isDark} />}
+          <GraphToolbar
+            legendVisible={legendVisible}
+            onToggleLegend={() => setLegendVisible((v) => !v)}
+            onZoomIn={() => handleZoomButton(0.1)}
+            onZoomOut={() => handleZoomButton(-0.1)}
+          />
           <GraphRenderer
             nodes={controller.state.filteredNodes}
             edges={controller.state.filteredEdges}
@@ -215,6 +211,7 @@ export default function GraphPage() {
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
         grafoId={graphId}
+        onSuccess={refreshGraph}
       />
     </div>
   );

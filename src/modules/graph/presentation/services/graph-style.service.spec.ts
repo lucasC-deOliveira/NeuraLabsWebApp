@@ -1,5 +1,25 @@
 import { describe, it, expect } from "vitest";
-import { getNodeColors, getRelationColor, getDominioColor } from "./graph-style.service";
+import { getNodeColors, getNodeShape, getRelationColor, getDominioColor } from "./graph-style.service";
+
+describe("getNodeShape", () => {
+  it("maps each node type to its shape", () => {
+    expect(getNodeShape("ASSUNTO")).toBe("ellipse");
+    expect(getNodeShape("TOPICO")).toBe("rect");
+    expect(getNodeShape("CONCEITO")).toBe("square");
+    expect(getNodeShape("NOTA")).toBe("rect-vertical");
+    expect(getNodeShape("FLASHCARD")).toBe("diamond");
+  });
+
+  it("falls back to rect for unknown type", () => {
+    expect(getNodeShape("UNKNOWN")).toBe("rect");
+  });
+
+  // Mutation: every type must have a distinct shape
+  it("all five node types have distinct shapes", () => {
+    const shapes = ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA", "FLASHCARD"].map(getNodeShape);
+    expect(new Set(shapes).size).toBe(5);
+  });
+});
 
 describe("getNodeColors", () => {
   it("returns dark colors when isDark=true for known type", () => {

@@ -149,22 +149,14 @@ export function CreateNodeModal({
             toast.error("Digite um nome para o tópico");
             return;
           }
-          if (!formData.assuntoId) {
-            toast.error("Selecione um assunto pai");
-            return;
-          }
-          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null, assuntoId: formData.assuntoId };
+          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null, assuntoId: formData.assuntoId || null };
           break;
         case "CONCEITO":
           if (!formData.nome.trim()) {
             toast.error("Digite um nome para o conceito");
             return;
           }
-          if (!formData.topicoId) {
-            toast.error("Selecione um tópico pai");
-            return;
-          }
-          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null, topicoId: formData.topicoId };
+          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null, topicoId: formData.topicoId || null };
           break;
         case "FLASHCARD":
           if (!formData.pergunta.trim()) {
@@ -519,26 +511,23 @@ export function CreateNodeModal({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="assunto-pai">Assunto pai</Label>
+                    <Label htmlFor="assunto-pai">Assunto pai (opcional)</Label>
                     <Select
-                      value={formData.assuntoId}
-                      onValueChange={(value) => setFormData((f) => ({ ...f, assuntoId: value ?? "" }))}
+                      value={formData.assuntoId || "__none__"}
+                      onValueChange={(value) =>
+                        setFormData((f) => ({ ...f, assuntoId: value === "__none__" ? "" : value ?? "" }))
+                      }
                     >
                       <SelectTrigger id="assunto-pai">
-                        <SelectValue placeholder="Selecione um assunto" />
+                        <SelectValue placeholder="Sem assunto pai" />
                       </SelectTrigger>
                       <SelectContent>
-                        {parentIds.assuntos.length === 0 ? (
-                          <SelectItem value="no-data" disabled>
-                            Nenhum assunto disponível
+                        <SelectItem value="__none__">Sem assunto pai</SelectItem>
+                        {parentIds.assuntos.map((assunto) => (
+                          <SelectItem key={assunto.id} value={assunto.id}>
+                            {assunto.nome}
                           </SelectItem>
-                        ) : (
-                          parentIds.assuntos.map((assunto) => (
-                            <SelectItem key={assunto.id} value={assunto.id}>
-                              {assunto.nome}
-                            </SelectItem>
-                          ))
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -568,26 +557,23 @@ export function CreateNodeModal({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="topico-pai">Tópico pai</Label>
+                    <Label htmlFor="topico-pai">Tópico pai (opcional)</Label>
                     <Select
-                      value={formData.topicoId}
-                      onValueChange={(value) => setFormData((f) => ({ ...f, topicoId: value ?? "" }))}
+                      value={formData.topicoId || "__none__"}
+                      onValueChange={(value) =>
+                        setFormData((f) => ({ ...f, topicoId: value === "__none__" ? "" : value ?? "" }))
+                      }
                     >
                       <SelectTrigger id="topico-pai">
-                        <SelectValue placeholder="Selecione um tópico" />
+                        <SelectValue placeholder="Sem tópico pai" />
                       </SelectTrigger>
                       <SelectContent>
-                        {parentIds.topicos.length === 0 ? (
-                          <SelectItem value="no-data" disabled>
-                            Nenhum tópico disponível
+                        <SelectItem value="__none__">Sem tópico pai</SelectItem>
+                        {parentIds.topicos.map((topico) => (
+                          <SelectItem key={topico.id} value={topico.id}>
+                            {topico.nome}
                           </SelectItem>
-                        ) : (
-                          parentIds.topicos.map((topico) => (
-                            <SelectItem key={topico.id} value={topico.id}>
-                              {topico.nome}
-                            </SelectItem>
-                          ))
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

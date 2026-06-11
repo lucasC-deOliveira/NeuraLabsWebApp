@@ -67,21 +67,18 @@ async function buildKnowledgeGraph(
 
     const safeIn = (ids: string[]) => ids.length > 0 ? ids : ["__none__"];
 
-    // Only fetch the referenced entities
-    const [subjects, notas, flashcards] = await Promise.all([
+    // Only fetch the referenced entities.
+    // Tópicos e conceitos são buscados diretamente por id (não via assunto)
+    // porque podem não ter pai — o nó precisa do nome mesmo assim.
+    const [subjects, topicos, conceitos, notas, flashcards] = await Promise.all([
       prisma.assunto.findMany({
         where: { id: { in: safeIn(assuntoIds) } },
-        include: {
-          topicos: {
-            where: { id: { in: safeIn(topicoIds) } },
-            include: {
-              conceitos: {
-                where: { id: { in: safeIn(conceitoIds) } },
-                include: { flashcards: { include: { aprendizado: true } } },
-              },
-            },
-          },
-        },
+      }),
+      prisma.topico.findMany({
+        where: { id: { in: safeIn(topicoIds) } },
+      }),
+      prisma.conceito.findMany({
+        where: { id: { in: safeIn(conceitoIds) } },
       }),
       prisma.nota.findMany({
         where: { id: { in: safeIn(notaIds) } },
@@ -99,7 +96,7 @@ async function buildKnowledgeGraph(
     for (const n of graphNodes) {
       nodes.push({
         id: n.referenciaId,
-        label: resolveLabel(n.tipoNode, n.referenciaId, subjects, notas, flashcards),
+        label: resolveLabel(n.tipoNode, n.referenciaId, subjects, topicos, conceitos, notas, flashcards),
         type: n.tipoNode as GraphNode["type"],
         nivelDominio: n.nivelDominio,
         prioridadeRevisao: 5,
@@ -362,6 +359,8 @@ function resolveLabel(
   tipoNode: string,
   refId: string,
   subjects: any[],
+  topicos: any[],
+  conceitos: any[],
   notas: any[],
   flashcards: any[],
 ): string {
@@ -369,9 +368,9 @@ function resolveLabel(
     case "ASSUNTO":
       return subjects.find((s) => s.id === refId)?.nome ?? refId;
     case "TOPICO":
-      return subjects.flatMap((s) => s.topicos).find((t) => t.id === refId)?.nome ?? refId;
+      return topicos.find((t) => t.id === refId)?.nome ?? refId;
     case "CONCEITO":
-      return subjects.flatMap((s) => s.topicos).flatMap((t) => t.conceitos).find((c) => c.id === refId)?.nome ?? refId;
+      return conceitos.find((c) => c.id === refId)?.nome ?? refId;
     case "FLASHCARD":
       const fc = flashcards.find((f: any) => f.id === refId);
       const q = fc?.pergunta ?? refId;

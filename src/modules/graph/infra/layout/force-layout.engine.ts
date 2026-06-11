@@ -65,6 +65,31 @@ export interface SimEdge {
   targetX: number;
   targetY: number;
 }
+// Dimensões por forma do nó:
+// ASSUNTO = elipse, TOPICO = retângulo, CONCEITO = quadrado,
+// NOTA = retângulo vertical, FLASHCARD = losango
+function getNodeDimensions(type: string, labelW: number): { width: number; height: number } {
+  switch (type) {
+    case "ASSUNTO":
+      // elipse precisa de folga horizontal para o texto não tocar a borda
+      return { width: Math.min(240, labelW * 1.3), height: 60 };
+    case "CONCEITO": {
+      const side = Math.max(64, Math.min(120, labelW));
+      return { width: side, height: side };
+    }
+    case "NOTA": {
+      const w = Math.max(64, Math.min(120, labelW));
+      return { width: w, height: Math.max(84, w * 1.35) };
+    }
+    case "FLASHCARD":
+      // losango: largura útil para o texto é menor que a largura total
+      return { width: Math.min(260, labelW * 1.5), height: 64 };
+    case "TOPICO":
+    default:
+      return { width: labelW, height: 40 };
+  }
+}
+
 export function runForceLayout(
   rawNodes: GraphNodeType[],
   rawEdges: GraphEdgeType[],
@@ -73,6 +98,8 @@ export function runForceLayout(
 ): { nodes: SimNode[]; edges: SimEdge[] } {
   const nodes: SimNode[] = rawNodes.map((n) => {
     const labelLen = n.label.length;
+    const labelW = Math.max(60, Math.min(200, labelLen * 7 + 24));
+    const { width: nodeW, height: nodeH } = getNodeDimensions(n.type, labelW);
     return {
       id: n.id,
       label: n.label,
@@ -86,8 +113,8 @@ export function runForceLayout(
       y: height / 2 + (Math.random() - 0.5) * 400,
       vx: 0,
       vy: 0,
-      width: Math.max(60, Math.min(200, labelLen * 7 + 24)),
-      height: n.type === "FLASHCARD" ? 56 : n.type === "ASSUNTO" ? 48 : 40,
+      width: nodeW,
+      height: nodeH,
     };
   });
 

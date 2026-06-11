@@ -1,7 +1,58 @@
 "use client";
 
 import { useEffect } from "react";
-import { getNodeColors } from "@/modules/graph/presentation/services/graph-style.service";
+import {
+  getNodeColors,
+  getNodeShape,
+} from "@/modules/graph/presentation/services/graph-style.service";
+
+function NodeShapeElement({
+  shape,
+  width,
+  height,
+  fill,
+  stroke,
+}: {
+  shape: ReturnType<typeof getNodeShape>;
+  width: number;
+  height: number;
+  fill: string;
+  stroke: string;
+}) {
+  const hw = width / 2;
+  const hh = height / 2;
+
+  switch (shape) {
+    case "ellipse":
+      return <ellipse rx={hw} ry={hh} fill={fill} stroke={stroke} strokeWidth={2} />;
+    case "diamond":
+      return (
+        <polygon
+          points={`0,${-hh} ${hw},0 0,${hh} ${-hw},0`}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={2}
+        />
+      );
+    // square e rect-vertical já chegam com width/height corretos do layout
+    case "square":
+    case "rect-vertical":
+    case "rect":
+    default:
+      return (
+        <rect
+          width={width}
+          height={height}
+          x={-hw}
+          y={-hh}
+          rx={shape === "rect" ? 8 : 4}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={2}
+        />
+      );
+  }
+}
 
 type Props = {
   nodes: any[];
@@ -78,6 +129,7 @@ export function GraphRenderer({
         {/* NODES */}
         {nodes.map((node: any) => {
           const colors = getNodeColors(node.group, isDark);
+          const shape = getNodeShape(node.group);
 
           return (
             <g
@@ -105,11 +157,10 @@ export function GraphRenderer({
               onPointerEnter={() => onNodeHover(node.id)}
               onPointerLeave={() => onNodeHover(null)}
             >
-              <rect
+              <NodeShapeElement
+                shape={shape}
                 width={node.width}
                 height={node.height}
-                x={-node.width / 2}
-                y={-node.height / 2}
                 fill={colors?.bg ?? "#ccc"}
                 stroke={colors?.border ?? "#333"}
               />
@@ -117,6 +168,8 @@ export function GraphRenderer({
               <text
                 textAnchor="middle"
                 dominantBaseline="middle"
+                fill={colors?.text ?? (isDark ? "#e2e8f0" : "#1e293b")}
+                fontSize={12}
               >
                 {node.label}
               </text>
