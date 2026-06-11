@@ -63,6 +63,9 @@ export function CreateNodeModal({
     pergunta: string;
     resposta: string;
     textoBruto: string;
+    tipoNota: string;
+    subtipo: string;
+    fonte: string;
   }>({
     nome: "",
     descricao: "",
@@ -72,6 +75,9 @@ export function CreateNodeModal({
     pergunta: "",
     resposta: "",
     textoBruto: "",
+    tipoNota: "PERMANENTE",
+    subtipo: "",
+    fonte: "",
   });
 
   // Load available items when modal opens
@@ -122,6 +128,9 @@ export function CreateNodeModal({
       pergunta: "",
       resposta: "",
       textoBruto: "",
+      tipoNota: "PERMANENTE",
+      subtipo: "",
+      fonte: "",
     });
   };
 
@@ -175,11 +184,25 @@ export function CreateNodeModal({
             toast.error("Digite um título para a nota");
             return;
           }
+          if (!formData.subtipo) {
+            toast.error("Selecione o subtipo da nota");
+            return;
+          }
+          if (formData.tipoNota === "LITERATURA" && !formData.fonte.trim()) {
+            toast.error("Notas de referência exigem a fonte (livro, artigo, vídeo...)");
+            return;
+          }
           if (!formData.textoBruto.trim()) {
             toast.error("Digite o texto da nota");
             return;
           }
-          payload = { titulo: formData.nome.trim(), textoBruto: formData.textoBruto.trim() };
+          payload = {
+            titulo: formData.nome.trim(),
+            textoBruto: formData.textoBruto.trim(),
+            tipoNota: formData.tipoNota,
+            subtipo: formData.subtipo,
+            fonte: formData.fonte.trim() || null,
+          };
           break;
       }
 
@@ -618,16 +641,99 @@ export function CreateNodeModal({
                     <Label htmlFor="nota-titulo">Título</Label>
                     <Input
                       id="nota-titulo"
-                      placeholder="Ex: Aula 3 — Princípios Fundamentais"
+                      placeholder="Ex: SVM maximiza a margem entre classes"
                       value={formData.nome}
                       onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
                     />
                   </div>
+
+                  {/* Zettelkasten: tipo da nota */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="texto-bruto">Texto da nota</Label>
+                    <Label htmlFor="nota-tipo">Tipo de nota (Zettelkasten)</Label>
+                    <Select
+                      value={formData.tipoNota}
+                      onValueChange={(value) => setFormData((f) => ({ ...f, tipoNota: value ?? "PERMANENTE" }))}
+                    >
+                      <SelectTrigger id="nota-tipo">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LITERATURA">
+                          <div className="py-0.5">
+                            <div className="font-medium">Nota de referência (literatura)</div>
+                            <div className="text-xs text-muted-foreground">Anotações de leitura — próximas da fonte original</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="PERMANENTE">
+                          <div className="py-0.5">
+                            <div className="font-medium">Nota permanente</div>
+                            <div className="text-xs text-muted-foreground">Uma ideia, suas palavras, compreensível isoladamente</div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="ESTRUTURA">
+                          <div className="py-0.5">
+                            <div className="font-medium">Nota de estrutura</div>
+                            <div className="text-xs text-muted-foreground">Índice ou mapa de conhecimento</div>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* subtipo do conteúdo */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nota-subtipo">Subtipo</Label>
+                    <Select
+                      value={formData.subtipo}
+                      onValueChange={(value) => setFormData((f) => ({ ...f, subtipo: value ?? "" }))}
+                    >
+                      <SelectTrigger id="nota-subtipo">
+                        <SelectValue placeholder="Selecione o subtipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DEFINICAO">Definição</SelectItem>
+                        <SelectItem value="EXPLICACAO">Explicação</SelectItem>
+                        <SelectItem value="EXEMPLO">Exemplo</SelectItem>
+                        <SelectItem value="COMPARACAO">Comparação</SelectItem>
+                        <SelectItem value="SINTESE">Síntese</SelectItem>
+                        <SelectItem value="PREREQUISITO">Pré-requisito</SelectItem>
+                        <SelectItem value="ERRO_COMUM">Erro comum</SelectItem>
+                        <SelectItem value="APLICACAO">Aplicação</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* fonte: obrigatória para notas de literatura */}
+                  {formData.tipoNota === "LITERATURA" && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="nota-fonte">Fonte</Label>
+                      <Input
+                        id="nota-fonte"
+                        placeholder="Ex: Livro sobre Machine Learning, cap. 4"
+                        value={formData.fonte}
+                        onChange={(e) => setFormData((f) => ({ ...f, fonte: e.target.value }))}
+                      />
+                    </div>
+                  )}
+
+                  {formData.tipoNota === "PERMANENTE" && (
+                    <p className="text-xs text-muted-foreground">
+                      Dica: uma única ideia principal por nota. Depois, conecte-a a conceitos
+                      pelo grafo (define, explica, aprofunda...).
+                    </p>
+                  )}
+                  {formData.tipoNota === "ESTRUTURA" && (
+                    <p className="text-xs text-muted-foreground">
+                      Dica: use esta nota como índice — relacione-a aos tópicos e conceitos
+                      que ela organiza.
+                    </p>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="texto-bruto">Texto da nota (suporta Markdown)</Label>
                     <Textarea
                       id="texto-bruto"
-                      placeholder="Digite ou cole sua nota aqui..."
+                      placeholder="Digite ou cole sua nota aqui... (markdown: # título, **negrito**, - listas, tabelas)"
                       value={formData.textoBruto}
                       onChange={(e) => setFormData((f) => ({ ...f, textoBruto: e.target.value }))}
                       rows={6}

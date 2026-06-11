@@ -15,6 +15,25 @@ import {
   PlusIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getNodeDetails } from "@/actions/graph";
+
+const SUBTIPO_LABELS: Record<string, string> = {
+  DEFINICAO: "Definição",
+  EXPLICACAO: "Explicação",
+  EXEMPLO: "Exemplo",
+  COMPARACAO: "Comparação",
+  SINTESE: "Síntese",
+  PREREQUISITO: "Pré-requisito",
+  ERRO_COMUM: "Erro comum",
+  APLICACAO: "Aplicação",
+};
+
+const TIPO_NOTA_LABELS: Record<string, string> = {
+  LITERATURA: "Nota de referência",
+  PERMANENTE: "Nota permanente",
+  ESTRUTURA: "Nota de estrutura",
+};
 import { toast } from "sonner";
 import { getRelationColor } from "@/modules/graph/presentation/services/graph-style.service";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
@@ -55,6 +74,8 @@ interface PropertiesPanelProps {
   onEditEdge?: (edge: Edge) => void;
   onDeleteEdge?: (edge: Edge) => void;
   onAddEdge?: () => void;
+  onEditNode?: () => void;
+  onViewNota?: () => void;
 
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -71,10 +92,28 @@ export function PropertiesPanel({
   onEditEdge,
   onDeleteEdge,
   onAddEdge,
+  onEditNode,
+  onViewNota,
   collapsed,
   onToggleCollapse,
 }: PropertiesPanelProps) {
   const router = useRouter();
+
+  // metadados Zettelkasten da nota selecionada (slug + datas)
+  const [notaMeta, setNotaMeta] = useState<Record<string, string | null> | null>(null);
+  const isNota = selectedNode?.tipoReal === "NOTA";
+  useEffect(() => {
+    setNotaMeta(null);
+    if (!isNota || !selectedNode) return;
+    getNodeDetails("NOTA", selectedNode.id)
+      .then(setNotaMeta)
+      .catch(() => setNotaMeta(null));
+  }, [isNota, selectedNode?.id]);
+
+  const formatDate = (iso: string | null | undefined) =>
+    iso
+      ? new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+      : null;
 
   if (collapsed) {
     return (
@@ -170,6 +209,45 @@ export function PropertiesPanel({
               </>
             )}
 
+            {/* Metadados da nota (slug + datas) */}
+            {isNota && notaMeta && (
+              <>
+                <div className="space-y-1.5">
+                  <h4 className="text-xs font-semibold text-primary uppercase tracking-wide">
+                    Metadados
+                  </h4>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {notaMeta.tipoNota && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {TIPO_NOTA_LABELS[notaMeta.tipoNota] ?? notaMeta.tipoNota}
+                      </Badge>
+                    )}
+                    {notaMeta.subtipo && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {SUBTIPO_LABELS[notaMeta.subtipo] ?? notaMeta.subtipo}
+                      </Badge>
+                    )}
+                  </div>
+                  {notaMeta.fonte && (
+                    <p className="text-xs text-muted-foreground">Fonte: {notaMeta.fonte}</p>
+                  )}
+                  {notaMeta.slug && (
+                    <p className="text-[11px] font-mono text-muted-foreground break-all">
+                      {notaMeta.slug}
+                    </p>
+                  )}
+                  <div className="text-xs text-muted-foreground space-y-0.5">
+                    <p>Criada em {formatDate(notaMeta.dataCriacao)}</p>
+                    {notaMeta.dataAtualizacao &&
+                      notaMeta.dataAtualizacao !== notaMeta.dataCriacao && (
+                        <p>Modificada em {formatDate(notaMeta.dataAtualizacao)}</p>
+                      )}
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
+
             {/* Relações do nó — com editar/excluir */}
             <div>
               <h4 className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">
@@ -247,6 +325,28 @@ export function PropertiesPanel({
 
             {/* Actions */}
             <div className="space-y-2">
+              {onEditNode && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={onEditNode}
+                >
+                  <PencilIcon className="size-4" />
+                  Editar
+                </Button>
+              )}
+              {selectedNode.tipoReal === "NOTA" && onViewNota && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={onViewNota}
+                >
+                  <BookOpenIcon className="size-4" />
+                  Mostrar conteúdo
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"

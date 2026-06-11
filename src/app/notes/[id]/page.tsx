@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { MarkdownContent } from "@/components/markdown-content";
 import { Loader2Icon, ArrowLeftIcon, BrainIcon, ArrowRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getNotaById, generateFlashcardsFromNota } from "@/actions/notes";
@@ -81,53 +82,6 @@ export default function NotaDetailPage() {
     );
   }
 
-  function renderContent(text: string) {
-    const lines = text.split("\n");
-    const elements: React.ReactNode[] = [];
-
-    lines.forEach((line, i) => {
-      if (line.startsWith("# ")) {
-        elements.push(
-          <h1 key={i} className="text-xl sm:text-2xl font-bold mt-6 mb-3">
-            {line.replace("# ", "")}
-          </h1>,
-        );
-      } else if (line.startsWith("## ")) {
-        elements.push(
-          <h2 key={i} className="text-lg sm:text-xl font-semibold mt-4 mb-2">
-            {line.replace("## ", "")}
-          </h2>,
-        );
-      } else if (line.startsWith("- **") || line.startsWith("- ")) {
-        const boldMatch = line.match(/^- \*\*(.+?)\*\*:\s?(.*)$/);
-        if (boldMatch) {
-          elements.push(
-            <div key={i} className="text-sm py-1 pl-2 border-l-2 border-zinc-200 dark:border-zinc-700 ml-1">
-              <strong>{boldMatch[1]}</strong>: {boldMatch[2]}
-            </div>,
-          );
-        } else {
-          elements.push(
-            <li key={i} className="text-sm text-zinc-600 dark:text-zinc-300 list-disc ml-4">
-              {line.replace(/^-\s*/, "")}
-            </li>,
-          );
-        }
-      } else if (line.startsWith("---")) {
-        elements.push(<Separator key={i} className="my-4" />);
-      } else if (line.trim() === "") {
-        // skip
-      } else {
-        elements.push(
-          <p key={i} className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed break-words">
-            {line}
-          </p>,
-        );
-      }
-    });
-
-    return elements;
-  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-4 sm:space-y-6">
@@ -189,7 +143,7 @@ export default function NotaDetailPage() {
           <CardTitle className="text-sm sm:text-base">Conteúdo</CardTitle>
         </CardHeader>
         <CardContent className="space-y-1 pt-1 px-3 sm:px-6">
-          {renderContent(nota.textoBruto)}
+          <MarkdownContent>{nota.textoBruto}</MarkdownContent>
         </CardContent>
       </Card>
 

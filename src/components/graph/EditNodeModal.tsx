@@ -11,6 +11,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -61,6 +68,14 @@ export function EditNodeModal({ open, onOpenChange, grafoId, node, onSuccess }: 
         toast.error("O título da nota é obrigatório");
         return;
       }
+      if (!fields.subtipo) {
+        toast.error("Selecione o subtipo da nota");
+        return;
+      }
+      if (fields.tipoNota === "LITERATURA" && !fields.fonte?.trim()) {
+        toast.error("Notas de referência exigem a fonte");
+        return;
+      }
       if (!fields.textoBruto?.trim()) {
         toast.error("O texto da nota é obrigatório");
         return;
@@ -79,6 +94,9 @@ export function EditNodeModal({ open, onOpenChange, grafoId, node, onSuccess }: 
         resposta: fields.resposta?.trim(),
         textoBruto: fields.textoBruto?.trim(),
         titulo: fields.titulo?.trim(),
+        tipoNota: fields.tipoNota,
+        subtipo: fields.subtipo || undefined,
+        fonte: fields.fonte?.trim() || null,
       }, grafoId);
       toast.success("Nó atualizado!");
       onOpenChange(false);
@@ -164,7 +182,55 @@ export function EditNodeModal({ open, onOpenChange, grafoId, node, onSuccess }: 
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="edit-texto">Texto da nota</Label>
+                  <Label htmlFor="edit-tipo-nota">Tipo de nota (Zettelkasten)</Label>
+                  <Select
+                    value={fields.tipoNota || "PERMANENTE"}
+                    onValueChange={(value) => setFields((f) => ({ ...f, tipoNota: value ?? "PERMANENTE" }))}
+                  >
+                    <SelectTrigger id="edit-tipo-nota">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LITERATURA">Nota de referência (literatura)</SelectItem>
+                      <SelectItem value="PERMANENTE">Nota permanente</SelectItem>
+                      <SelectItem value="ESTRUTURA">Nota de estrutura</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-subtipo">Subtipo</Label>
+                  <Select
+                    value={fields.subtipo || ""}
+                    onValueChange={(value) => setFields((f) => ({ ...f, subtipo: value ?? "" }))}
+                  >
+                    <SelectTrigger id="edit-subtipo">
+                      <SelectValue placeholder="Selecione o subtipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DEFINICAO">Definição</SelectItem>
+                      <SelectItem value="EXPLICACAO">Explicação</SelectItem>
+                      <SelectItem value="EXEMPLO">Exemplo</SelectItem>
+                      <SelectItem value="COMPARACAO">Comparação</SelectItem>
+                      <SelectItem value="SINTESE">Síntese</SelectItem>
+                      <SelectItem value="PREREQUISITO">Pré-requisito</SelectItem>
+                      <SelectItem value="ERRO_COMUM">Erro comum</SelectItem>
+                      <SelectItem value="APLICACAO">Aplicação</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {fields.tipoNota === "LITERATURA" && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-fonte">Fonte</Label>
+                    <Input
+                      id="edit-fonte"
+                      placeholder="Ex: Livro sobre Machine Learning, cap. 4"
+                      value={fields.fonte ?? ""}
+                      onChange={(e) => setFields((f) => ({ ...f, fonte: e.target.value }))}
+                    />
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-texto">Texto da nota (suporta Markdown)</Label>
                   <Textarea
                     id="edit-texto"
                     rows={6}

@@ -402,7 +402,18 @@ export async function getNodeDetails(
     }
     case "NOTA": {
       const n = await prisma.nota.findFirst({ where: { id: referenciaId, usuarioId: userId } });
-      return n ? { titulo: n.titulo, textoBruto: n.textoBruto } : null;
+      return n
+        ? {
+            titulo: n.titulo,
+            textoBruto: n.textoBruto,
+            tipoNota: n.tipoNota,
+            subtipo: n.subtipo,
+            fonte: n.fonte,
+            slug: n.slug,
+            dataCriacao: n.dataCriacao.toISOString(),
+            dataAtualizacao: n.dataAtualizacao.toISOString(),
+          }
+        : null;
     }
     default:
       return null;
@@ -412,7 +423,7 @@ export async function getNodeDetails(
 export async function updateGraphNode(
   tipoNode: string,
   referenciaId: string,
-  data: { nome?: string; descricao?: string | null; pergunta?: string; resposta?: string; textoBruto?: string; titulo?: string },
+  data: { nome?: string; descricao?: string | null; pergunta?: string; resposta?: string; textoBruto?: string; titulo?: string; tipoNota?: string; fonte?: string | null; subtipo?: string },
   grafoId?: string
 ): Promise<{ success: boolean }> {
   const userId = await requireUserId();
@@ -433,15 +444,31 @@ export async function updateGraphNode(
     case "FLASHCARD":
       count = (await prisma.flashcard.updateMany({ where, data: { pergunta: data.pergunta, resposta: data.resposta } })).count;
       break;
-    case "NOTA":
+    case "NOTA": {
       if (data.titulo !== undefined && !data.titulo.trim()) {
         throw new Error("O título da nota é obrigatório");
       }
+      if (data.tipoNota && !["LITERATURA", "PERMANENTE", "ESTRUTURA"].includes(data.tipoNota)) {
+        throw new Error(`Tipo de nota inválido: ${data.tipoNota}`);
+      }
+      if (data.tipoNota === "LITERATURA" && !data.fonte?.trim()) {
+        throw new Error("Notas de referência (literatura) exigem a fonte");
+      }
+      if (data.subtipo && !NOTA_SUBTIPOS.includes(data.subtipo as any)) {
+        throw new Error(`Subtipo de nota inválido: ${data.subtipo}`);
+      }
       count = (await prisma.nota.updateMany({
         where,
-        data: { titulo: data.titulo?.trim(), textoBruto: data.textoBruto },
+        data: {
+          titulo: data.titulo?.trim(),
+          textoBruto: data.textoBruto,
+          tipoNota: data.tipoNota,
+          subtipo: data.subtipo,
+          fonte: data.fonte === undefined ? undefined : data.fonte?.trim() || null,
+        },
       })).count;
       break;
+    }
     default:
       throw new Error(`Tipo de nó desconhecido: ${tipoNode}`);
   }
@@ -661,6 +688,27 @@ export interface ParentOptions {
   conceitos: { id: string; nome: string }[];
 }
 
+const NOTA_SUBTIPOS = [
+  "DEFINICAO", "EXPLICACAO", "EXEMPLO", "COMPARACAO",
+  "SINTESE", "PREREQUISITO", "ERRO_COMUM", "APLICACAO",
+] as const;
+
+// slug único estilo Zettelkasten: timestamp de criação + título normalizado
+function buildNotaSlug(titulo: string, when: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp =
+    `${when.getFullYear()}${pad(when.getMonth() + 1)}${pad(when.getDate())}` +
+    `${pad(when.getHours())}${pad(when.getMinutes())}${pad(when.getSeconds())}`;
+  const slugTitulo = titulo
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return slugTitulo ? `${stamp}-${slugTitulo}` : stamp;
+}
+
 export async function addNodeToGraph(
   grafoId: string,
   tipoNode: string,
@@ -704,9 +752,25 @@ export async function addNodeToGraph(
         if (!data.titulo?.trim()) {
           throw new Error("O título da nota é obrigatório");
         }
+        const tiposNota = ["LITERATURA", "PERMANENTE", "ESTRUTURA"];
+        const tipoNota = data.tipoNota ?? "PERMANENTE";
+        if (!tiposNota.includes(tipoNota)) {
+          throw new Error(`Tipo de nota inválido: ${tipoNota}`);
+        }
+        // nota de literatura fica próxima da fonte original — fonte obrigatória
+        if (tipoNota === "LITERATURA" && !data.fonte?.trim()) {
+          throw new Error("Notas de referência (literatura) exigem a fonte");
+        }
+        if (!data.subtipo || !NOTA_SUBTIPOS.includes(data.subtipo)) {
+          throw new Error("Selecione o subtipo da nota");
+        }
         const nota = await prisma.nota.create({
           data: {
             titulo: data.titulo.trim(),
+            tipoNota,
+            subtipo: data.subtipo,
+            fonte: data.fonte?.trim() || null,
+            slug: buildNotaSlug(data.titulo.trim(), now),
             textoBruto: data.textoBruto,
             usuarioId: userId,
             dataCriacao: now,

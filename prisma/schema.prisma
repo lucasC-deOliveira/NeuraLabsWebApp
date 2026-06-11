@@ -103,8 +103,18 @@ model Nota {
   id          String   @id @default(cuid())
   usuarioId   String   @map("id_usuario")
   titulo      String   @default("Sem título")
+  // Zettelkasten: LITERATURA (notas de referência), PERMANENTE (uma ideia,
+  // suas palavras) ou ESTRUTURA (índice/mapa de conhecimento)
+  tipoNota    String   @default("PERMANENTE") @map("tipo_nota")
+  // subtipo do conteúdo: DEFINICAO, EXPLICACAO, EXEMPLO, COMPARACAO,
+  // SINTESE, PREREQUISITO, ERRO_COMUM ou APLICACAO
+  subtipo     String?
+  fonte       String?  // origem da nota de literatura (livro, artigo, vídeo...)
+  // identificador único estilo Zettelkasten: timestamp de criação + título
+  slug        String?
   textoBruto  String   @map("texto_bruto")
   dataCriacao DateTime @default(now()) @map("data_criacao")
+  dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao")
 
   usuario        Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   arestasOrigem  ConhecimentoAresta[] @relation("ArestaNotaOrigem")

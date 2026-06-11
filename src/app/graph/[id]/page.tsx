@@ -27,6 +27,7 @@ import {
 import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
 import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";
 import { EditNodeModal } from "@/components/graph/EditNodeModal";
+import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 
 export default function GraphPage() {
@@ -50,6 +51,7 @@ export default function GraphPage() {
   const [graphEdges, setGraphEdges] = useState<any[]>([]);
   const [nodeMenu, setNodeMenu] = useState<{ node: any; x: number; y: number } | null>(null);
   const [editingNode, setEditingNode] = useState<any>(null);
+  const [viewingNotaId, setViewingNotaId] = useState<string | null>(null);
   const [editEdge, setEditEdge] = useState<any>(null);
   const [addEdgeSourceId, setAddEdgeSourceId] = useState<string | null>(null);
 
@@ -326,6 +328,8 @@ export default function GraphPage() {
           onEditEdge={handleEditEdge}
           onDeleteEdge={handleDeleteEdge}
           onAddEdge={handleAddEdgeFromPanel}
+          onEditNode={() => setEditingNode(controller.state.selectedNode)}
+          onViewNota={() => setViewingNotaId(controller.state.selectedNode?.id ?? null)}
           collapsed={rightPanelCollapsed}
           onToggleCollapse={() =>
             setRightPanelCollapsed((v) => !v)
@@ -399,6 +403,11 @@ export default function GraphPage() {
         grafoId={graphId}
         node={editingNode}
         onSuccess={refreshGraph}
+      />
+      <ViewNotaModal
+        open={!!viewingNotaId}
+        onOpenChange={(open) => !open && setViewingNotaId(null)}
+        notaId={viewingNotaId}
       />
       <EdgeManagerModal
         open={isEdgeManagerOpen}
