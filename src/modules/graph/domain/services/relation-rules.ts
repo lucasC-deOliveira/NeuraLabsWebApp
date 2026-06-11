@@ -22,6 +22,8 @@ export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }
   { a: "CONCEITO", b: "TOPICO", relations: ["PERTENCE_A", "FUNDAMENTA", "APLICADO_EM"] },
   { a: "TOPICO", b: "TOPICO", relations: ["SUBTOPICO_DE", "RELACIONADO", "DEPENDE_DE", "EVOLUI_PARA"] },
   { a: "TOPICO", b: "ASSUNTO", relations: ["PERTENCE_A", "APLICADO_EM"] },
+  { a: "NOTA", b: "TOPICO", relations: ["PERTENCE_A"] },
+  { a: "NOTA", b: "ASSUNTO", relations: ["PERTENCE_A"] },
   { a: "FLASHCARD", b: "CONCEITO", relations: ["HERDA"] },
 ];
 

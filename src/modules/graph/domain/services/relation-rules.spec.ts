@@ -44,9 +44,12 @@ describe("relation-rules", () => {
       expect(getAllowedRelations("CONCEITO", "FLASHCARD")).toEqual(getAllowedRelations("FLASHCARD", "CONCEITO"));
     });
 
+    it("Nota ↔ Tópico e Nota ↔ Assunto permitem PERTENCE_A", () => {
+      expect(getAllowedRelations("NOTA", "TOPICO")).toEqual(["PERTENCE_A"]);
+      expect(getAllowedRelations("NOTA", "ASSUNTO")).toEqual(["PERTENCE_A"]);
+    });
+
     it("retorna vazio para pares sem regra", () => {
-      expect(getAllowedRelations("NOTA", "TOPICO")).toEqual([]);
-      expect(getAllowedRelations("NOTA", "ASSUNTO")).toEqual([]);
       expect(getAllowedRelations("NOTA", "NOTA")).toEqual([]);
       expect(getAllowedRelations("FLASHCARD", "FLASHCARD")).toEqual([]);
       expect(getAllowedRelations("FLASHCARD", "TOPICO")).toEqual([]);
@@ -66,7 +69,7 @@ describe("relation-rules", () => {
     });
 
     it("false para pares sem regra", () => {
-      expect(canRelate("NOTA", "TOPICO")).toBe(false);
+      expect(canRelate("NOTA", "NOTA")).toBe(false);
       expect(canRelate("FLASHCARD", "ASSUNTO")).toBe(false);
     });
   });
@@ -88,6 +91,8 @@ describe("relation-rules", () => {
     });
 
     it("rejeita qualquer relação para par sem regra", () => {
+      expect(isRelationAllowed("FLASHCARD", "TOPICO", "HERDA")).toBe(false);
+      // nota↔tópico só aceita PERTENCE_A
       expect(isRelationAllowed("NOTA", "TOPICO", "DEFINE")).toBe(false);
     });
 

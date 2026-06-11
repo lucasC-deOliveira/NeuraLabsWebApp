@@ -21,7 +21,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { PlusIcon, Loader2Icon } from "lucide-react";
+import { PlusIcon, Loader2Icon, SparklesIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { suggestNotaRelations, type NotaRelationSuggestion } from "@/actions/ai-graph";
+import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
+import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { useRouter } from "next/navigation";
 
 interface CreateNodeModalProps {
@@ -52,6 +56,10 @@ export function CreateNodeModal({
     notas: Array<{ id: string; label: string; fullText: string; tipo: string; hierarquia: string; conceitoId?: string | null }>;
   }>({ flashcards: [], notas: [] });
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [aiSuggestions, setAiSuggestions] = useState<
+    Array<NotaRelationSuggestion & { accepted: boolean }>
+  >([]);
+  const [aiLoading, setAiLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [formData, setFormData] = useState<{
@@ -117,6 +125,7 @@ export function CreateNodeModal({
 
   const resetForm = () => {
     setSelectedType("");
+    setAiSuggestions([]);
     setSelectedItems(new Set());
     setSearchQuery("");
     setFormData({
@@ -132,6 +141,29 @@ export function CreateNodeModal({
       subtipo: "",
       fonte: "",
     });
+  };
+
+  const handleSuggestRelations = async () => {
+    if (!formData.nome.trim() || !formData.textoBruto.trim()) {
+      toast.error("Preencha o título e o texto antes de pedir sugestões");
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const suggestions = await suggestNotaRelations(
+        grafoId,
+        formData.nome.trim(),
+        formData.textoBruto.trim()
+      );
+      if (suggestions.length === 0) {
+        toast.info("A IA não encontrou relações pertinentes no grafo atual.");
+      }
+      setAiSuggestions(suggestions.map((sg) => ({ ...sg, accepted: true })));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao sugerir relações");
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -223,7 +255,33 @@ export function CreateNodeModal({
           throw new Error(data.error || "Erro ao criar nó");
         }
 
-        toast.success("Nó criado com sucesso!");
+        // relações sugeridas pela IA e aceitas pelo usuário (nota como origem)
+        const accepted = selectedType === "NOTA" ? aiSuggestions.filter((sg) => sg.accepted) : [];
+        let createdEdges = 0;
+        for (const sg of accepted) {
+          try {
+            const edgeRes = await fetch("/api/graph/edge", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                grafoId,
+                sourceNodeId: data.nodeId,
+                targetNodeId: sg.nodeId,
+                tipoRelacao: sg.relacao,
+                peso: 1.0,
+              }),
+            });
+            if (edgeRes.ok) createdEdges++;
+          } catch {
+            // segue criando as demais
+          }
+        }
+
+        toast.success(
+          createdEdges > 0
+            ? `Nó criado com ${createdEdges} relação(ões)!`
+            : "Nó criado com sucesso!"
+        );
         resetForm();
         setSelectedType("");
         onOpenChange(false);
@@ -739,6 +797,75 @@ export function CreateNodeModal({
                       rows={6}
                     />
                   </div>
+
+                  {/* IA: sugerir relações com o grafo */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={handleSuggestRelations}
+                    disabled={aiLoading}
+                  >
+                    {aiLoading ? (
+                      <Loader2Icon className="size-4 animate-spin" />
+                    ) : (
+                      <SparklesIcon className="size-4" />
+                    )}
+                    Sugerir relações com IA
+                  </Button>
+
+                  {aiSuggestions.length > 0 && (
+                    <div className="space-y-2 rounded-md border border-primary/40 p-2">
+                      <p className="text-xs font-semibold text-primary">
+                        Sugestões — desmarque as que não quiser; a relação é criada junto com a nota
+                      </p>
+                      {aiSuggestions.map((sg, idx) => (
+                        <div key={sg.nodeId} className="flex items-start gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={sg.accepted}
+                            onChange={(e) =>
+                              setAiSuggestions((prev) =>
+                                prev.map((x, i) => (i === idx ? { ...x, accepted: e.target.checked } : x))
+                              )
+                            }
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <Badge variant="outline" className="text-[10px]">
+                                {sg.nodeTipo.toLowerCase()}
+                              </Badge>
+                              <span className="truncate font-medium">{sg.nodeNome}</span>
+                              <Select
+                                value={sg.relacao}
+                                onValueChange={(value) =>
+                                  setAiSuggestions((prev) =>
+                                    prev.map((x, i) => (i === idx ? { ...x, relacao: value ?? x.relacao } : x))
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="h-6 w-auto px-2 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {getAllowedRelations("NOTA", sg.nodeTipo).map((rel) => (
+                                    <SelectItem key={rel} value={rel}>
+                                      {RELATION_LABELS[rel] ?? rel}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {sg.motivo && (
+                              <p className="text-xs text-muted-foreground">{sg.motivo}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </>
