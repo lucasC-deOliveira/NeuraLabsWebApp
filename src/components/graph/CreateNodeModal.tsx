@@ -33,8 +33,11 @@ import { useRouter } from "next/navigation";
 
 // relações possíveis entre um Tópico (origem) e um Assunto (destino)
 const TOPICO_ASSUNTO_RELATIONS = getAllowedRelations("TOPICO", "ASSUNTO");
+// relações possíveis entre um Conceito (origem) e um Tópico (destino)
+const CONCEITO_TOPICO_RELATIONS = getAllowedRelations("CONCEITO", "TOPICO");
 
 type TopicoAssuntoLink = { assuntoId: string; relacao: string; peso: number };
+type ConceitoTopicoLink = { topicoId: string; relacao: string; peso: number };
 
 interface CreateNodeModalProps {
   open: boolean;
@@ -76,6 +79,8 @@ export function CreateNodeModal({
   const [deckLoading, setDeckLoading] = useState(false);
   // tópico: conjunto de assuntos relacionados (relação + peso) escolhidos na criação
   const [topicoAssuntos, setTopicoAssuntos] = useState<TopicoAssuntoLink[]>([]);
+  // conceito: conjunto de tópicos relacionados (relação + peso)
+  const [conceitoTopicos, setConceitoTopicos] = useState<ConceitoTopicoLink[]>([]);
 
   const [formData, setFormData] = useState<{
     nome: string;
@@ -162,6 +167,7 @@ export function CreateNodeModal({
     setDeckSelected(new Set());
     setDeckSearch("");
     setTopicoAssuntos([]);
+    setConceitoTopicos([]);
     setFormData({
       nome: "",
       descricao: "",
@@ -263,7 +269,8 @@ export function CreateNodeModal({
             toast.error("Digite um nome para o conceito");
             return;
           }
-          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null, topicoId: formData.topicoId || null };
+          // sem "tópico pai": a ligação com tópicos é feita por arestas (relação + peso)
+          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null, topicoId: null };
           break;
         case "FLASHCARD":
           if (!formData.pergunta.trim()) {
@@ -329,6 +336,12 @@ export function CreateNodeModal({
             if (!link.assuntoId) continue;
             const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
             edgesToCreate.push({ targetNodeId: link.assuntoId, tipoRelacao: link.relacao, peso });
+          }
+        } else if (selectedType === "CONCEITO") {
+          for (const link of conceitoTopicos) {
+            if (!link.topicoId) continue;
+            const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
+            edgesToCreate.push({ targetNodeId: link.topicoId, tipoRelacao: link.relacao, peso });
           }
         } else if (selectedType === "NOTA") {
           for (const sg of aiSuggestions.filter((s) => s.accepted)) {
@@ -892,26 +905,115 @@ export function CreateNodeModal({
                       rows={3}
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="topico-pai">Tópico pai (opcional)</Label>
-                    <Select
-                      value={formData.topicoId || "__none__"}
-                      onValueChange={(value) =>
-                        setFormData((f) => ({ ...f, topicoId: value === "__none__" ? "" : value ?? "" }))
-                      }
-                    >
-                      <SelectTrigger id="topico-pai">
-                        <SelectValue placeholder="Sem tópico pai" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Sem tópico pai</SelectItem>
-                        {parentIds.topicos.map((topico) => (
-                          <SelectItem key={topico.id} value={topico.id}>
-                            {topico.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {/* Tópicos relacionados (relação + peso) — substitui o "tópico pai" */}
+                  <div className="space-y-2">
+                    <Label>Tópicos relacionados (opcional)</Label>
+                    {parentIds.topicos.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Nenhum tópico no grafo para relacionar.
+                      </p>
+                    ) : (
+                      <>
+                        {conceitoTopicos.map((link, idx) => {
+                          // um tópico já escolhido em outra linha não aparece de novo
+                          const usados = new Set(
+                            conceitoTopicos
+                              .filter((_, i) => i !== idx)
+                              .map((l) => l.topicoId)
+                              .filter(Boolean)
+                          );
+                          const opcoes = parentIds.topicos.filter(
+                            (t) => t.id === link.topicoId || !usados.has(t.id)
+                          );
+                          return (
+                            <div key={idx} className="flex items-center gap-1.5">
+                              <Select
+                                value={link.topicoId || "__none__"}
+                                onValueChange={(value) =>
+                                  setConceitoTopicos((prev) =>
+                                    prev.map((l, i) =>
+                                      i === idx ? { ...l, topicoId: value === "__none__" ? "" : value ?? "" } : l
+                                    )
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="flex-1 min-w-0">
+                                  <SelectValue placeholder="Tópico" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {opcoes.map((t) => (
+                                    <SelectItem key={t.id} value={t.id}>
+                                      {t.nome}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={link.relacao}
+                                onValueChange={(value) =>
+                                  setConceitoTopicos((prev) =>
+                                    prev.map((l, i) => (i === idx ? { ...l, relacao: value ?? l.relacao } : l))
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="w-32 shrink-0">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {CONCEITO_TOPICO_RELATIONS.map((r) => (
+                                    <SelectItem key={r} value={r}>
+                                      {RELATION_LABELS[r] ?? r.toLowerCase()}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                type="number"
+                                min={0.1}
+                                max={2}
+                                step={0.1}
+                                value={link.peso}
+                                title="Peso da relação (0.1 a 2)"
+                                onChange={(e) =>
+                                  setConceitoTopicos((prev) =>
+                                    prev.map((l, i) =>
+                                      i === idx ? { ...l, peso: Number(e.target.value) } : l
+                                    )
+                                  )
+                                }
+                                className="w-16 shrink-0"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setConceitoTopicos((prev) => prev.filter((_, i) => i !== idx))}
+                                className="shrink-0 text-muted-foreground hover:text-destructive"
+                                title="Remover"
+                              >
+                                <XIcon className="size-4" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                        {/* só dá pra adicionar enquanto houver tópico ainda não usado */}
+                        {conceitoTopicos.length < parentIds.topicos.length && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() =>
+                              setConceitoTopicos((prev) => [
+                                ...prev,
+                                { topicoId: "", relacao: CONCEITO_TOPICO_RELATIONS[0], peso: 1 },
+                              ])
+                            }
+                          >
+                            <PlusIcon className="size-3.5" />
+                            Adicionar tópico
+                          </Button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               )}
