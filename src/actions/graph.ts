@@ -190,6 +190,69 @@ export async function getGraphNodes(grafoId?: string): Promise<{
   return { nodes, edges };
 }
 
+// Busca por CONTEÚDO sob demanda: roda no servidor e devolve só os
+// referenciaIds (= ids dos nós do layout) cujo corpo casa com o termo.
+// O conteúdo nunca é enviado ao cliente — o grafo continua leve mesmo
+// com notas/textos grandes (e, no futuro, vídeo/imagens).
+export async function searchGraphNodeContent(
+  grafoId: string,
+  query: string,
+): Promise<string[]> {
+  const userId = await requireUserId();
+  const term = query.trim().slice(0, 200);
+  if (!term || !grafoId) return [];
+
+  const graphNodes = await prisma.nodeConhecimento.findMany({
+    where: { grafoId, usuarioId: userId },
+    select: { referenciaId: true, tipoNode: true },
+  });
+
+  const byType: Record<string, string[]> = {};
+  for (const n of graphNodes) {
+    (byType[n.tipoNode] ??= []).push(n.referenciaId);
+  }
+
+  const matched = new Set<string>();
+  const add = (rows: { id: string }[]) => rows.forEach((r) => matched.add(r.id));
+  const has = (t: string) => (byType[t]?.length ?? 0) > 0;
+  const contains = { contains: term };
+
+  await Promise.all([
+    has("NOTA") &&
+      prisma.nota
+        .findMany({ where: { id: { in: byType.NOTA }, conteudo: contains }, select: { id: true } })
+        .then(add),
+    has("FLASHCARD") &&
+      prisma.flashcard
+        .findMany({
+          where: {
+            id: { in: byType.FLASHCARD },
+            OR: [{ pergunta: contains }, { resposta: contains }],
+          },
+          select: { id: true },
+        })
+        .then(add),
+    has("TEXTO_BRUTO") &&
+      prisma.textoBruto
+        .findMany({ where: { id: { in: byType.TEXTO_BRUTO }, texto: contains }, select: { id: true } })
+        .then(add),
+    has("CONCEITO") &&
+      prisma.conceito
+        .findMany({ where: { id: { in: byType.CONCEITO }, descricao: contains }, select: { id: true } })
+        .then(add),
+    has("ASSUNTO") &&
+      prisma.assunto
+        .findMany({ where: { id: { in: byType.ASSUNTO }, descricao: contains }, select: { id: true } })
+        .then(add),
+    has("TOPICO") &&
+      prisma.topico
+        .findMany({ where: { id: { in: byType.TOPICO }, descricao: contains }, select: { id: true } })
+        .then(add),
+  ]);
+
+  return [...matched];
+}
+
 export async function getGrafoInfo(grafoId: string): Promise<{ nome: string; descricao?: string } | null> {
   const userId = await requireUserId();
   const grafo = await prisma.grafosConhecimento.findFirst({

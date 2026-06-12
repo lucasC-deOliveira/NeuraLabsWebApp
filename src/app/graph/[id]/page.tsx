@@ -15,6 +15,7 @@ import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRend
 import { GraphLegend } from "@/modules/graph/presentation/components/GraphLegend";
 import { GraphToolbar } from "@/modules/graph/presentation/components/GraphToolbar";
 import { GraphSideToolbar } from "@/modules/graph/presentation/components/GraphSideToolbar";
+import { useGraphSearch } from "@/modules/graph/presentation/hooks/useGraphSearch";
 import { GraphSettingsModal, DEFAULT_FOCUS_DEPTH } from "@/modules/graph/presentation/components/GraphSettingsModal";
 
 import {
@@ -45,7 +46,12 @@ export default function GraphPage() {
 
   const controller = useGraphController(graphId);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  // busca com filtros poderosos (texto, tipo, domínio, prioridade, conexões)
+  const search = useGraphSearch(
+    controller.state.filteredNodes,
+    controller.state.filteredEdges,
+    graphId,
+  );
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -100,15 +106,6 @@ export default function GraphPage() {
       </div>
     );
   }
-  // ======================
-  // SEARCH
-  // ======================
-  const searchResults = controller.state.layout
-    .filter((n) =>
-      n.label.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .slice(0, 8);
-
   // contagem de nós por tipo (painel de camadas/filtro)
   const nodeStats: Record<string, number> = {};
   for (const n of controller.state.layout) {
@@ -269,9 +266,7 @@ export default function GraphPage() {
             onOpenCreateNode={handleOpenCreateNode}
             onOpenEdgeManager={handleOpenEdgeManager}
             onOpenImportJson={() => setIsImportJsonOpen(true)}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchResults={searchResults}
+            search={search}
             onFocusNode={controller.interactions.focusNode}
             nodeStats={nodeStats}
             hiddenTypes={controller.state.hiddenTypes}
@@ -305,6 +300,7 @@ export default function GraphPage() {
             highContrast={highContrast}
             focusMode={focusMode}
             focusDepth={focusDepth}
+            matchedIds={search.matchedIds}
             onNodeClick={controller.actions.selectNode}
             onNodeContextMenu={(node, x, y) => setNodeMenu({ node, x, y })}
             onNodeHover={controller.actions.setHoveredNodeId}

@@ -88,6 +88,9 @@ type Props = {
   focusMode?: boolean;
   // quantos saltos a cadeia de relações percorre a partir do nó selecionado
   focusDepth?: number;
+  // busca/filtros: quando não-nulo, só os ids deste conjunto ficam em destaque
+  // (os demais são esmaecidos). Nulo = sem filtro ativo.
+  matchedIds?: Set<string> | null;
 
   onNodeClick: (node: any, additive?: boolean) => void;
   onNodeContextMenu?: (node: any, clientX: number, clientY: number) => void;
@@ -111,6 +114,7 @@ export function GraphRenderer({
   highContrast = false,
   focusMode = false,
   focusDepth = 1,
+  matchedIds = null,
   onNodeClick,
   onNodeContextMenu,
   onNodeDragStart,
@@ -253,7 +257,10 @@ export function GraphRenderer({
           const arrowPoints = `${p2.x},${p2.y} ${baseX + perpX * ARROW_W},${baseY + perpY * ARROW_W} ${baseX - perpX * ARROW_W},${baseY - perpY * ARROW_W}`;
 
           // no modo destaque, só arestas dentro da cadeia (ambas as pontas alcançáveis) ficam visíveis
-          const edgeActive = !focusActive || (reachableIds!.has(edge.source) && reachableIds!.has(edge.target));
+          const focusOk = !focusActive || (reachableIds!.has(edge.source) && reachableIds!.has(edge.target));
+          // na busca, só arestas entre dois nós correspondentes ficam vivas
+          const matchOk = !matchedIds || (matchedIds.has(edge.source) && matchedIds.has(edge.target));
+          const edgeActive = focusOk && matchOk;
 
           return (
             <g
@@ -291,8 +298,10 @@ export function GraphRenderer({
           const colors = getNodeColors(node.group, isDark);
           const shape = getNodeShape(node.group);
           const isSelected = selectedNodeIds.has(node.id);
-          // ofusca nós fora da cadeia quando o destaque está ativo
-          const dimmed = focusActive && !reachableIds!.has(node.id);
+          // ofusca nós fora da cadeia (destaque) ou fora da busca (filtros)
+          const dimmed =
+            (focusActive && !reachableIds!.has(node.id)) ||
+            (matchedIds != null && !matchedIds.has(node.id));
 
           return (
             <g
