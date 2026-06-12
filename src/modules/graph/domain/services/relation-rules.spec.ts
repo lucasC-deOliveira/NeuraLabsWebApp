@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { getAllowedRelations, canRelate, isRelationAllowed } from "./relation-rules";
+import {
+  getAllowedRelations,
+  canRelate,
+  isRelationAllowed,
+  getCanonicalDirection,
+  getInsightTargets,
+} from "./relation-rules";
 
 describe("relation-rules", () => {
   describe("getAllowedRelations", () => {
@@ -101,6 +107,47 @@ describe("relation-rules", () => {
       expect(isRelationAllowed("CONCEITO", "CONCEITO", "EVOLUI_PARA")).toBe(true);
       expect(isRelationAllowed("TOPICO", "TOPICO", "EVOLUI_PARA")).toBe(true);
       expect(isRelationAllowed("TOPICO", "ASSUNTO", "EVOLUI_PARA")).toBe(false);
+    });
+  });
+
+  describe("getCanonicalDirection", () => {
+    it("devolve [origem, destino] na ordem canônica, qualquer que seja a ordem dos args", () => {
+      // par definido como CONCEITO → TOPICO (PERTENCE_A)
+      expect(getCanonicalDirection("CONCEITO", "TOPICO", "PERTENCE_A")).toEqual(["CONCEITO", "TOPICO"]);
+      expect(getCanonicalDirection("TOPICO", "CONCEITO", "PERTENCE_A")).toEqual(["CONCEITO", "TOPICO"]);
+    });
+
+    it("par NOTA → CONCEITO para DEFINE", () => {
+      expect(getCanonicalDirection("CONCEITO", "NOTA", "DEFINE")).toEqual(["NOTA", "CONCEITO"]);
+    });
+
+    it("null para relação inválida no par", () => {
+      expect(getCanonicalDirection("ASSUNTO", "CONCEITO", "PREREQUISITO")).toBeNull();
+      expect(getCanonicalDirection("CONCEITO", "TOPICO", "DEPENDE_DE")).toBeNull();
+    });
+  });
+
+  describe("getInsightTargets", () => {
+    it("CONCEITO pode criar CONCEITO e TOPICO (não ASSUNTO)", () => {
+      const tipos = getInsightTargets("CONCEITO").map((t) => t.tipo);
+      expect(tipos).toContain("CONCEITO");
+      expect(tipos).toContain("TOPICO");
+      expect(tipos).not.toContain("ASSUNTO");
+    });
+
+    it("FLASHCARD só pode criar CONCEITO (HERDA)", () => {
+      const targets = getInsightTargets("FLASHCARD");
+      expect(targets).toEqual([{ tipo: "CONCEITO", relacoes: ["HERDA"] }]);
+    });
+
+    it("ASSUNTO só pode criar TOPICO", () => {
+      const tipos = getInsightTargets("ASSUNTO").map((t) => t.tipo);
+      expect(tipos).toEqual(["TOPICO"]);
+    });
+
+    it("cada combo traz as relações permitidas daquele par", () => {
+      const topico = getInsightTargets("CONCEITO").find((t) => t.tipo === "TOPICO");
+      expect(topico?.relacoes).toEqual(["PERTENCE_A", "FUNDAMENTA", "APLICADO_EM"]);
     });
   });
 });

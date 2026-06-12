@@ -14,6 +14,7 @@ import {
   XIcon,
   PencilIcon,
   PlusIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -81,6 +82,7 @@ interface PropertiesPanelProps {
   onViewFlashcard?: () => void;
   onStudyDeck?: () => void;
   onViewDeck?: () => void;
+  onGenerateInsights?: () => void;
 
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -103,6 +105,7 @@ export function PropertiesPanel({
   onViewFlashcard,
   onStudyDeck,
   onViewDeck,
+  onGenerateInsights,
   collapsed,
   onToggleCollapse,
 }: PropertiesPanelProps) {
@@ -213,6 +216,23 @@ export function PropertiesPanel({
             </div>
 
             <Separator />
+
+            {/* Insights da IA — disponível para os nós de conhecimento */}
+            {onGenerateInsights &&
+              ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA", "FLASHCARD"].includes(selectedNode.tipoReal) && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/10"
+                    onClick={onGenerateInsights}
+                  >
+                    <SparklesIcon className="size-4" />
+                    Insights da IA
+                  </Button>
+                  <Separator />
+                </>
+              )}
 
             {/* Flashcard: estudar (com repetição espaçada) ou só ver o conteúdo */}
             {selectedNode.tipoReal === "FLASHCARD" && (onStudyFlashcard || onViewFlashcard) && (

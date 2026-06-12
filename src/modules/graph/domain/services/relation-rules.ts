@@ -55,3 +55,37 @@ export function canRelate(typeA: string, typeB: string): boolean {
 export function isRelationAllowed(typeA: string, typeB: string, relation: string): boolean {
   return getAllowedRelations(typeA, typeB).includes(relation);
 }
+
+/**
+ * Direção canônica (origem→destino) de uma relação entre dois tipos.
+ * Retorna [origemTipo, destinoTipo] conforme RELATION_PAIRS, ou null se inválida.
+ */
+export function getCanonicalDirection(
+  typeA: string,
+  typeB: string,
+  relation: string,
+): [string, string] | null {
+  for (const p of RELATION_PAIRS) {
+    if (!p.relations.includes(relation)) continue;
+    if ((p.a === typeA && p.b === typeB) || (p.a === typeB && p.b === typeA)) {
+      return [p.a, p.b];
+    }
+  }
+  return null;
+}
+
+// tipos de nó de conhecimento que um insight pode criar/conectar
+const INSIGHT_TARGET_TYPES = ["ASSUNTO", "TOPICO", "CONCEITO"];
+
+/**
+ * Combos (tipo de nó de conhecimento + relações permitidas) que um nó de
+ * `sourceType` pode criar para um insight.
+ */
+export function getInsightTargets(sourceType: string): Array<{ tipo: string; relacoes: string[] }> {
+  const out: Array<{ tipo: string; relacoes: string[] }> = [];
+  for (const tipo of INSIGHT_TARGET_TYPES) {
+    const relacoes = getAllowedRelations(sourceType, tipo);
+    if (relacoes.length > 0) out.push({ tipo, relacoes });
+  }
+  return out;
+}

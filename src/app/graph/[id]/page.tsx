@@ -33,6 +33,7 @@ import { EditNodeModal } from "@/components/graph/EditNodeModal";
 import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
 import { StudyFlashcardModal } from "@/components/graph/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/components/graph/ViewFlashcardModal";
+import { NodeInsightsModal } from "@/components/graph/NodeInsightsModal";
 import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
 import { ViewDeckModal } from "@/components/graph/ViewDeckModal";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
@@ -54,6 +55,7 @@ export default function GraphPage() {
     graphId,
   );
   const [roadmapOpen, setRoadmapOpen] = useState(false);
+  const [insightsNode, setInsightsNode] = useState<{ id: string; label?: string } | null>(null);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -364,6 +366,7 @@ export default function GraphPage() {
           onViewFlashcard={() => setViewFlashcardId(controller.state.selectedNode?.id ?? null)}
           onStudyDeck={() => setStudyDeckId(controller.state.selectedNode?.id ?? null)}
           onViewDeck={() => setViewDeckId(controller.state.selectedNode?.id ?? null)}
+          onGenerateInsights={() => setInsightsNode(controller.state.selectedNode ?? null)}
           collapsed={rightPanelCollapsed}
           onToggleCollapse={() =>
             setRightPanelCollapsed((v) => !v)
@@ -466,6 +469,14 @@ export default function GraphPage() {
         open={!!viewFlashcardId}
         onOpenChange={(open) => !open && setViewFlashcardId(null)}
         flashcardId={viewFlashcardId}
+      />
+      <NodeInsightsModal
+        open={!!insightsNode}
+        onOpenChange={(open) => !open && setInsightsNode(null)}
+        grafoId={graphId}
+        nodeId={insightsNode?.id ?? null}
+        nodeLabel={insightsNode?.label}
+        onAdded={refreshGraph}
       />
       <StudyDeckModal
         open={!!studyDeckId}
