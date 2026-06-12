@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2Icon } from "lucide-react";
 import { getNodeDetails } from "@/actions/graph";
-import { MarkdownContent } from "@/components/markdown-content";
+import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
 
 interface ViewFlashcardModalProps {
   open: boolean;
@@ -58,24 +58,7 @@ export function ViewFlashcardModal({ open, onOpenChange, flashcardId }: ViewFlas
               Não foi possível carregar este flashcard.
             </p>
           ) : (
-            <div className="space-y-4">
-              <div className="rounded-xl border bg-card p-4">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Pergunta
-                </span>
-                <div className="mt-1 text-base font-medium">
-                  <MarkdownContent>{data.pergunta}</MarkdownContent>
-                </div>
-              </div>
-              <div className="rounded-xl border border-primary/30 bg-muted/40 p-4">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
-                  Resposta
-                </span>
-                <div className="mt-1 text-sm">
-                  <MarkdownContent>{data.resposta}</MarkdownContent>
-                </div>
-              </div>
-            </div>
+            <FlashcardFace pergunta={data.pergunta} resposta={data.resposta} showAnswer />
           )}
         </div>
       </DialogContent>

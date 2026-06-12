@@ -13,7 +13,7 @@ import { Loader2Icon, EyeIcon, CheckCircle2Icon, XCircleIcon } from "lucide-reac
 import { toast } from "sonner";
 import { startDeckStudy, submitCardReview, finalizeStudySession } from "@/actions/study";
 import type { FlashcardData } from "@/types";
-import { MarkdownContent } from "@/components/markdown-content";
+import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
 
 interface StudyDeckModalProps {
   open: boolean;
@@ -182,30 +182,12 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
             </div>
           ) : card ? (
             <div className="space-y-4">
-              <div className="rounded-xl border bg-card p-4">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Pergunta
-                </span>
-                <div className="mt-1 text-base font-medium">
-                  <MarkdownContent>{card.pergunta}</MarkdownContent>
-                </div>
-              </div>
-
-              {(phase === "answer" || phase === "confidence") && (
-                <div className="rounded-xl border border-primary/30 bg-muted/40 p-4">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
-                    Resposta
-                  </span>
-                  <div className="mt-1 text-sm">
-                    <MarkdownContent>{card.resposta}</MarkdownContent>
-                  </div>
-                  {card.conceito && (
-                    <p className="mt-2 text-xs font-medium text-muted-foreground">
-                      Conceito: {card.conceito}
-                    </p>
-                  )}
-                </div>
-              )}
+              <FlashcardFace
+                pergunta={card.pergunta}
+                resposta={card.resposta}
+                conceito={card.conceito}
+                showAnswer={phase === "answer" || phase === "confidence"}
+              />
 
               {phase === "question" && (
                 <div className="flex justify-center">

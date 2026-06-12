@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 
 import { ThemeProvider } from "next-themes";
 import { ColorThemeProvider } from "@/components/color-theme-provider";
+import { CardStyleProvider } from "@/components/flashcard/CardStyleProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -45,12 +46,14 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ColorThemeProvider>
-            <AppShell authPaths={AUTH_PATHS}>
-              <TooltipProvider>
-                {children}
-                <Toaster />
-              </TooltipProvider>
-            </AppShell>
+            <CardStyleProvider>
+              <AppShell authPaths={AUTH_PATHS}>
+                <TooltipProvider>
+                  {children}
+                  <Toaster />
+                </TooltipProvider>
+              </AppShell>
+            </CardStyleProvider>
           </ColorThemeProvider>
         </ThemeProvider>
       </body>
