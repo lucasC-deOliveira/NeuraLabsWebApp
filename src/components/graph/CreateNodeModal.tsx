@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { PlusIcon, Loader2Icon, SparklesIcon } from "lucide-react";
+import { PlusIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { suggestNotaRelations, type NotaRelationSuggestion } from "@/actions/ai-graph";
 import { createBaralhoNode } from "@/actions/graph";
@@ -30,6 +30,11 @@ import { getAllowedRelations } from "@/modules/graph/domain/services/relation-ru
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { useRouter } from "next/navigation";
 
+
+// relações possíveis entre um Tópico (origem) e um Assunto (destino)
+const TOPICO_ASSUNTO_RELATIONS = getAllowedRelations("TOPICO", "ASSUNTO");
+
+type TopicoAssuntoLink = { assuntoId: string; relacao: string; peso: number };
 
 interface CreateNodeModalProps {
   open: boolean;
@@ -69,6 +74,8 @@ export function CreateNodeModal({
   const [deckSelected, setDeckSelected] = useState<Set<string>>(new Set());
   const [deckSearch, setDeckSearch] = useState("");
   const [deckLoading, setDeckLoading] = useState(false);
+  // tópico: conjunto de assuntos relacionados (relação + peso) escolhidos na criação
+  const [topicoAssuntos, setTopicoAssuntos] = useState<TopicoAssuntoLink[]>([]);
 
   const [formData, setFormData] = useState<{
     nome: string;
@@ -154,6 +161,7 @@ export function CreateNodeModal({
     setSearchQuery("");
     setDeckSelected(new Set());
     setDeckSearch("");
+    setTopicoAssuntos([]);
     setFormData({
       nome: "",
       descricao: "",
@@ -247,7 +255,8 @@ export function CreateNodeModal({
             toast.error("Digite um nome para o tópico");
             return;
           }
-          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null, assuntoId: formData.assuntoId || null };
+          // sem "assunto pai": a ligação com assuntos é feita por arestas (relação + peso)
+          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null, assuntoId: null };
           break;
         case "CONCEITO":
           if (!formData.nome.trim()) {
@@ -312,10 +321,23 @@ export function CreateNodeModal({
           throw new Error(data.error || "Erro ao criar nó");
         }
 
-        // relações sugeridas pela IA e aceitas pelo usuário (nota como origem)
-        const accepted = selectedType === "NOTA" ? aiSuggestions.filter((sg) => sg.accepted) : [];
+        // arestas a criar após o nó: relações do tópico com assuntos (origem→destino
+        // = tópico→assunto) ou relações de nota sugeridas pela IA e aceitas.
+        const edgesToCreate: Array<{ targetNodeId: string; tipoRelacao: string; peso: number }> = [];
+        if (selectedType === "TOPICO") {
+          for (const link of topicoAssuntos) {
+            if (!link.assuntoId) continue;
+            const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
+            edgesToCreate.push({ targetNodeId: link.assuntoId, tipoRelacao: link.relacao, peso });
+          }
+        } else if (selectedType === "NOTA") {
+          for (const sg of aiSuggestions.filter((s) => s.accepted)) {
+            edgesToCreate.push({ targetNodeId: sg.nodeId, tipoRelacao: sg.relacao, peso: 1.0 });
+          }
+        }
+
         let createdEdges = 0;
-        for (const sg of accepted) {
+        for (const e of edgesToCreate) {
           try {
             const edgeRes = await fetch("/api/graph/edge", {
               method: "POST",
@@ -323,9 +345,9 @@ export function CreateNodeModal({
               body: JSON.stringify({
                 grafoId,
                 sourceNodeId: data.nodeId,
-                targetNodeId: sg.nodeId,
-                tipoRelacao: sg.relacao,
-                peso: 1.0,
+                targetNodeId: e.targetNodeId,
+                tipoRelacao: e.tipoRelacao,
+                peso: e.peso,
               }),
             });
             if (edgeRes.ok) createdEdges++;
@@ -735,26 +757,102 @@ export function CreateNodeModal({
                       rows={3}
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="assunto-pai">Assunto pai (opcional)</Label>
-                    <Select
-                      value={formData.assuntoId || "__none__"}
-                      onValueChange={(value) =>
-                        setFormData((f) => ({ ...f, assuntoId: value === "__none__" ? "" : value ?? "" }))
-                      }
-                    >
-                      <SelectTrigger id="assunto-pai">
-                        <SelectValue placeholder="Sem assunto pai" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Sem assunto pai</SelectItem>
-                        {parentIds.assuntos.map((assunto) => (
-                          <SelectItem key={assunto.id} value={assunto.id}>
-                            {assunto.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {/* Assuntos relacionados (relação + peso) — substitui o "assunto pai" */}
+                  <div className="space-y-2">
+                    <Label>Assuntos relacionados (opcional)</Label>
+                    {parentIds.assuntos.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Nenhum assunto no grafo para relacionar.
+                      </p>
+                    ) : (
+                      <>
+                        {topicoAssuntos.map((link, idx) => {
+                          return (
+                            <div key={idx} className="flex items-center gap-1.5">
+                              <Select
+                                value={link.assuntoId || "__none__"}
+                                onValueChange={(value) =>
+                                  setTopicoAssuntos((prev) =>
+                                    prev.map((l, i) =>
+                                      i === idx ? { ...l, assuntoId: value === "__none__" ? "" : value ?? "" } : l
+                                    )
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="flex-1 min-w-0">
+                                  <SelectValue placeholder="Assunto" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {parentIds.assuntos.map((a) => (
+                                    <SelectItem key={a.id} value={a.id}>
+                                      {a.nome}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={link.relacao}
+                                onValueChange={(value) =>
+                                  setTopicoAssuntos((prev) =>
+                                    prev.map((l, i) => (i === idx ? { ...l, relacao: value ?? l.relacao } : l))
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="w-32 shrink-0">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {TOPICO_ASSUNTO_RELATIONS.map((r) => (
+                                    <SelectItem key={r} value={r}>
+                                      {RELATION_LABELS[r] ?? r.toLowerCase()}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                type="number"
+                                min={0.1}
+                                max={2}
+                                step={0.1}
+                                value={link.peso}
+                                title="Peso da relação (0.1 a 2)"
+                                onChange={(e) =>
+                                  setTopicoAssuntos((prev) =>
+                                    prev.map((l, i) =>
+                                      i === idx ? { ...l, peso: Number(e.target.value) } : l
+                                    )
+                                  )
+                                }
+                                className="w-16 shrink-0"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setTopicoAssuntos((prev) => prev.filter((_, i) => i !== idx))}
+                                className="shrink-0 text-muted-foreground hover:text-destructive"
+                                title="Remover"
+                              >
+                                <XIcon className="size-4" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() =>
+                            setTopicoAssuntos((prev) => [
+                              ...prev,
+                              { assuntoId: "", relacao: TOPICO_ASSUNTO_RELATIONS[0], peso: 1 },
+                            ])
+                          }
+                        >
+                          <PlusIcon className="size-3.5" />
+                          Adicionar assunto
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

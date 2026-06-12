@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
@@ -56,6 +56,20 @@ export default function GraphPage() {
   );
   const [roadmapOpen, setRoadmapOpen] = useState(false);
   const [insightsNode, setInsightsNode] = useState<{ id: string; label?: string } | null>(null);
+
+  // assuntos/tópicos/conceitos já no grafo (para relacionar ao criar nós)
+  const graphEntities = useMemo(() => {
+    const assuntos: { id: string; nome: string }[] = [];
+    const topicos: { id: string; nome: string }[] = [];
+    const conceitos: { id: string; nome: string }[] = [];
+    for (const n of controller.state.layout) {
+      const item = { id: n.id, nome: n.label };
+      if (n.group === "ASSUNTO") assuntos.push(item);
+      else if (n.group === "TOPICO") topicos.push(item);
+      else if (n.group === "CONCEITO") conceitos.push(item);
+    }
+    return { assuntos, topicos, conceitos };
+  }, [controller.state.layout]);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -434,6 +448,7 @@ export default function GraphPage() {
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
         grafoId={graphId}
+        parentIds={graphEntities}
         onSuccess={refreshGraph}
       />
       <ImportJsonModal
