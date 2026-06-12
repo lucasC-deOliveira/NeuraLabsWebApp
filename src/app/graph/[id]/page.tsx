@@ -25,6 +25,7 @@ import {
   deleteEdge,
 } from "@/actions/graph";
 import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
+import { ImportJsonModal } from "@/components/graph/ImportJsonModal";
 import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";
 import { EditNodeModal } from "@/components/graph/EditNodeModal";
 import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
@@ -46,7 +47,8 @@ export default function GraphPage() {
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [legendVisible, setLegendVisible] = useState(true);
+  const [isImportJsonOpen, setIsImportJsonOpen] = useState(false);
+  const [legendVisible, setLegendVisible] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEdgeManagerOpen, setIsEdgeManagerOpen] = useState(false);
@@ -260,6 +262,7 @@ export default function GraphPage() {
             onToolChange={controller.actions.setActiveTool}
             onOpenCreateNode={handleOpenCreateNode}
             onOpenEdgeManager={handleOpenEdgeManager}
+            onOpenImportJson={() => setIsImportJsonOpen(true)}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             searchResults={searchResults}
@@ -400,6 +403,12 @@ export default function GraphPage() {
       <CreateNodeModal
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
+        grafoId={graphId}
+        onSuccess={refreshGraph}
+      />
+      <ImportJsonModal
+        open={isImportJsonOpen}
+        onOpenChange={setIsImportJsonOpen}
         grafoId={graphId}
         onSuccess={refreshGraph}
       />

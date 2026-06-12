@@ -1013,6 +1013,191 @@ export async function getDeckForStudy(baralhoId: string): Promise<{
 }
 
 // ---------------------------------------------------------------------------
+// Importação genérica do grafo: quaisquer tipos de nó + arestas, num único JSON.
+// Cada nó tem um "ref" (id local) referenciado pelas arestas. Tudo numa
+// transação atômica, com as mesmas regras de relação da legenda.
+// ---------------------------------------------------------------------------
+
+export interface ImportGraphNode {
+  ref: string;
+  tipo: string;
+  // campos variam por tipo
+  nome?: string;
+  descricao?: string | null;
+  pergunta?: string;
+  resposta?: string;
+  titulo?: string;
+  conteudo?: string;
+  tipoNota?: string;
+  subtipo?: string;
+  fonte?: string | null;
+  texto?: string;
+}
+export interface ImportGraphEdge {
+  origem: string;
+  destino: string;
+  relacao: string;
+  peso?: number;
+}
+export interface ImportGraphPayload {
+  nodes: ImportGraphNode[];
+  edges: ImportGraphEdge[];
+}
+
+const IMPORT_NODE_TIPOS = ["ASSUNTO", "TOPICO", "CONCEITO", "FLASHCARD", "NOTA", "TEXTO_BRUTO", "BARALHO"];
+const IMPORT_GRAPH_MAX = { nodes: 2000, edges: 5000 };
+
+export async function importGraph(
+  grafoId: string,
+  payload: ImportGraphPayload
+): Promise<{ nodes: number; edges: number }> {
+  const userId = await requireUserId();
+
+  const grafo = await prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+  if (!grafo) throw new Error("Grafo não encontrado ou não pertence ao usuário");
+
+  const nodes = payload?.nodes ?? [];
+  const edges = payload?.edges ?? [];
+  if (nodes.length === 0) throw new Error("Forneça ao menos um nó.");
+  if (nodes.length > IMPORT_GRAPH_MAX.nodes) throw new Error(`Máximo de ${IMPORT_GRAPH_MAX.nodes} nós por importação.`);
+  if (edges.length > IMPORT_GRAPH_MAX.edges) throw new Error(`Máximo de ${IMPORT_GRAPH_MAX.edges} arestas por importação.`);
+
+  // valida nós e refs (fora da transação, para falhar cedo)
+  const refSet = new Set<string>();
+  const refTipo = new Map<string, string>();
+  for (const [i, n] of nodes.entries()) {
+    const pos = ` (nó #${i + 1})`;
+    const ref = typeof n.ref === "string" ? n.ref.trim() : "";
+    if (!ref) throw new Error(`Cada nó precisa de um "ref"${pos}.`);
+    if (refSet.has(ref)) throw new Error(`"ref" duplicado: "${ref}"${pos}.`);
+    if (!IMPORT_NODE_TIPOS.includes(n.tipo)) throw new Error(`"tipo" inválido (${n.tipo})${pos}. Use: ${IMPORT_NODE_TIPOS.join(", ")}.`);
+    refSet.add(ref);
+    refTipo.set(ref, n.tipo);
+    assertFieldLimits(n as unknown as Record<string, unknown>);
+    validateImportNodeFields(n, pos);
+  }
+
+  // valida arestas contra as regras de relação
+  for (const [i, e] of edges.entries()) {
+    const pos = ` (aresta #${i + 1})`;
+    const to = refTipo.get(e.origem);
+    const td = refTipo.get(e.destino);
+    if (!to) throw new Error(`"origem" desconhecida ("${e.origem}")${pos}.`);
+    if (!td) throw new Error(`"destino" desconhecido ("${e.destino}")${pos}.`);
+    if (e.origem === e.destino) throw new Error(`Aresta não pode ligar um nó a si mesmo${pos}.`);
+    if (e.peso !== undefined && (typeof e.peso !== "number" || !Number.isFinite(e.peso) || e.peso <= 0 || e.peso > 2)) {
+      throw new Error(`"peso" deve ser um número entre 0 e 2${pos}.`);
+    }
+    if (!isRelationAllowed(to, td, e.relacao)) {
+      const allowed = getAllowedRelations(to, td);
+      throw new Error(
+        `Relação "${e.relacao}" não permitida entre ${to} e ${td}${pos}. ${allowed.length ? `Permitidas: ${allowed.join(", ")}.` : "Esses tipos não podem se relacionar."}`
+      );
+    }
+  }
+
+  const now = new Date();
+
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // ref -> { referenciaId, nodeId }
+      const created = new Map<string, { refId: string; nodeId: string }>();
+
+      const createEntity = async (n: ImportGraphNode): Promise<string> => {
+        switch (n.tipo) {
+          case "ASSUNTO":
+            return (await tx.assunto.create({ data: { nome: n.nome!.trim(), descricao: n.descricao ?? null, usuarioId: userId } })).id;
+          case "TOPICO":
+            return (await tx.topico.create({ data: { nome: n.nome!.trim(), descricao: n.descricao ?? null, usuarioId: userId } })).id;
+          case "CONCEITO":
+            return (await tx.conceito.create({ data: { nome: n.nome!.trim(), descricao: n.descricao ?? null, usuarioId: userId } })).id;
+          case "FLASHCARD":
+            return (await tx.flashcard.create({ data: { pergunta: n.pergunta!.trim(), resposta: n.resposta!.trim(), usuarioId: userId, dataCriacao: now } })).id;
+          case "NOTA": {
+            const titulo = n.titulo?.trim() || deriveNotaTitulo(n.conteudo ?? "");
+            return (await tx.nota.create({ data: { titulo, conteudo: n.conteudo!, tipoNota: n.tipoNota || "PERMANENTE", subtipo: n.subtipo!, fonte: n.fonte?.trim() || null, slug: buildNotaSlug(titulo, now), usuarioId: userId, dataCriacao: now } })).id;
+          }
+          case "TEXTO_BRUTO":
+            return (await tx.textoBruto.create({ data: { titulo: n.titulo?.trim() || "Texto sem título", texto: n.texto!, usuarioId: userId, dataCriacao: now } })).id;
+          case "BARALHO":
+            return (await tx.baralho.create({ data: { titulo: (n.titulo ?? n.nome ?? "").trim(), usuarioId: userId, dataCriacao: now } })).id;
+          default:
+            throw new Error(`Tipo de nó desconhecido: ${n.tipo}`);
+        }
+      };
+
+      for (const n of nodes) {
+        const refId = await createEntity(n);
+        const node = await tx.nodeConhecimento.create({
+          data: { grafoId, tipoNode: n.tipo as any, referenciaId: refId, usuarioId: userId },
+        });
+        created.set(n.ref.trim(), { refId, nodeId: node.id });
+      }
+
+      const edgeSeen = new Set<string>();
+      let edgeCount = 0;
+      for (const e of edges) {
+        const s = created.get(e.origem);
+        const t = created.get(e.destino);
+        if (!s || !t) continue;
+        const key = `${s.nodeId}->${t.nodeId}->${e.relacao}`;
+        if (edgeSeen.has(key)) continue;
+        await tx.conhecimentoAresta.create({
+          data: { grafoId, nodeOrigemId: s.nodeId, nodeDestinoId: t.nodeId, tipoRelacao: e.relacao as any, peso: e.peso ?? 1.0 },
+        });
+        edgeSeen.add(key);
+        edgeCount++;
+        // BARALHO contém FLASHCARD: mantém também a composição m-n do deck
+        if (refTipo.get(e.origem) === "BARALHO" && refTipo.get(e.destino) === "FLASHCARD" && e.relacao === "CONTEM") {
+          await tx.baralho.update({ where: { id: s.refId }, data: { flashcards: { connect: { id: t.refId } } } });
+        }
+      }
+
+      return { nodes: nodes.length, edges: edgeCount };
+    },
+    { maxWait: 10_000, timeout: 120_000 }
+  );
+
+  revalidatePath(`/graph/${grafoId}`);
+  return result;
+}
+
+// Valida os campos obrigatórios de um nó conforme o tipo.
+function validateImportNodeFields(n: ImportGraphNode, pos: string) {
+  const need = (cond: boolean, msg: string) => { if (!cond) throw new Error(`${msg}${pos}.`); };
+  switch (n.tipo) {
+    case "ASSUNTO":
+    case "TOPICO":
+    case "CONCEITO":
+      need(!!n.nome?.trim(), '"nome" é obrigatório');
+      break;
+    case "FLASHCARD":
+      need(!!n.pergunta?.trim(), '"pergunta" é obrigatória');
+      need(!!n.resposta?.trim(), '"resposta" é obrigatória');
+      break;
+    case "NOTA":
+      need(!!n.conteudo?.trim(), '"conteudo" é obrigatório');
+      need(["LITERATURA", "PERMANENTE", "ESTRUTURA"].includes(n.tipoNota || "PERMANENTE"), '"tipoNota" inválido');
+      need(NOTA_SUBTIPOS.includes((n.subtipo ?? "") as any), '"subtipo" inválido');
+      if ((n.tipoNota || "PERMANENTE") === "LITERATURA") need(!!n.fonte?.trim(), 'Notas LITERATURA exigem "fonte"');
+      break;
+    case "TEXTO_BRUTO":
+      need(!!n.texto?.trim(), '"texto" é obrigatório');
+      break;
+    case "BARALHO":
+      need(!!(n.titulo?.trim() || n.nome?.trim()), '"titulo" é obrigatório');
+      break;
+  }
+}
+
+// deriva um título de nota a partir do conteúdo (primeira linha, sem Markdown)
+function deriveNotaTitulo(conteudo: string): string {
+  const line = conteudo.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+  const clean = line.replace(/^#{1,6}\s*/, "").replace(/[*_`]/g, "").trim();
+  return clean ? clean.slice(0, 120) : "Sem título";
+}
+
+// ---------------------------------------------------------------------------
 // Importação em lote (texto bruto + notas + relações + flashcards)
 // Tudo numa única transação atômica: ou cria tudo, ou nada (sem import parcial).
 // ---------------------------------------------------------------------------

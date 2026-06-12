@@ -32,7 +32,7 @@ export function useGraphController(graphId: string) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [filterGroup, setFilterGroup] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<"select" | "marquee" | "hand">("select");
-  const [physicsEnabled, setPhysicsEnabled] = useState(false);
+  const [physicsEnabled, setPhysicsEnabled] = useState(true);
   const [physicsOptions, setPhysicsOptions] = useState<PhysicsOptions>(DEFAULT_PHYSICS_OPTIONS);
 
   const layoutRefForSelect = useRef<SimNode[]>([]);

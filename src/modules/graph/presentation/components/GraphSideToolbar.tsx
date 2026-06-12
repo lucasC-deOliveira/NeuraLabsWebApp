@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   BoxSelectIcon,
+  BracesIcon,
   HandIcon,
   LayersIcon,
   LinkIcon,
@@ -32,6 +33,7 @@ type Props = {
 
   onOpenCreateNode: () => void;
   onOpenEdgeManager: () => void;
+  onOpenImportJson?: () => void;
   onDeleteGraph?: () => void;
 
   searchQuery: string;
@@ -89,6 +91,7 @@ export function GraphSideToolbar({
   onToolChange,
   onOpenCreateNode,
   onOpenEdgeManager,
+  onOpenImportJson,
   onDeleteGraph,
   searchQuery,
   onSearchChange,
@@ -113,6 +116,11 @@ export function GraphSideToolbar({
           <SideButton label="Gerenciar relações" onClick={onOpenEdgeManager}>
             <LinkIcon className="size-4" />
           </SideButton>
+          {onOpenImportJson && (
+            <SideButton label="Importar JSON" onClick={onOpenImportJson}>
+              <BracesIcon className="size-4" />
+            </SideButton>
+          )}
 
           <div className="h-px w-5 bg-border" />
 
