@@ -84,6 +84,8 @@ export const RELATION_COLORS: Record<string, { light: string; dark: string }> = 
   // Flashcard ↔ Conceito / Nota
   HERDA: { light: "#ca8a04", dark: "#facc15" },
   TESTA: { light: "#b45309", dark: "#f4a72f" },
+  // Baralho → Flashcard
+  CONTEM: { light: "#c2410c", dark: "#ffb877" },
   // Legadas
   GERA: { light: "#ef4444", dark: "#fca5a5" },
   REFERENCIA: { light: "#eab308", dark: "#fef08a" },

@@ -36,6 +36,36 @@ export async function startStudySession(): Promise<{
   return { sessionId, cards: interleaved };
 }
 
+// Inicia o estudo de um baralho: cria uma sessão e retorna TODOS os flashcards
+// do deck. A sessão só termina quando o usuário responde todos eles.
+export async function startDeckStudy(baralhoId: string): Promise<{
+  sessionId: string;
+  titulo: string;
+  cards: FlashcardData[];
+} | null> {
+  const userId = await requireUserId();
+  const baralho = await prisma.baralho.findFirst({
+    where: { id: baralhoId, usuarioId: userId },
+    include: {
+      flashcards: {
+        include: { conceito: { select: { nome: true } } },
+        orderBy: { dataCriacao: "asc" },
+      },
+    },
+  });
+  if (!baralho) return null;
+
+  const cards: FlashcardData[] = baralho.flashcards.map((fc) => ({
+    id: fc.id,
+    pergunta: fc.pergunta,
+    resposta: fc.resposta,
+    conceito: fc.conceito?.nome ?? null,
+  }));
+
+  const sessionId = await libStartStudySession(userId);
+  return { sessionId, titulo: baralho.titulo, cards };
+}
+
 // Carrega um único flashcard para estudo avulso (ex.: a partir do grafo).
 export async function getFlashcardForStudy(flashcardId: string): Promise<{
   id: string;

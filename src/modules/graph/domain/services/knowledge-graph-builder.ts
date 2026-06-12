@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 export type GraphNode = {
   id: string
   label: string
-  type: "ASSUNTO" | "TOPICO" | "CONCEITO" | "FLASHCARD" | "NOTA" | "TEXTO_BRUTO"
+  type: "ASSUNTO" | "TOPICO" | "CONCEITO" | "FLASHCARD" | "NOTA" | "TEXTO_BRUTO" | "BARALHO"
   nivelDominio: number
   prioridadeRevisao: number
   parentId?: string
@@ -27,7 +27,7 @@ export type TipoRelacao =
   | "MEDIDO_POR" | "OBJETIVO_DE"
   | "PERTENCE_A" | "FUNDAMENTA" | "APLICADO_EM"
   | "SUBTOPICO_DE" | "RELACIONADO" | "DEPENDE_DE"
-  | "HERDA" | "TESTA"
+  | "HERDA" | "TESTA" | "CONTEM"
   | "TESTA_DEFINICAO" | "TESTA_EXEMPLO" | "TESTA_APLICACAO"
   | "TESTA_ANALISE" | "TESTA_SINTESE"
 
@@ -65,13 +65,14 @@ async function buildKnowledgeGraph(
     const topicoIds = nodeRefsByType["TOPICO"] ? [...nodeRefsByType["TOPICO"]] : ["__none__"];
     const conceitoIds = nodeRefsByType["CONCEITO"] ? [...nodeRefsByType["CONCEITO"]] : ["__none__"];
     const textoBrutoIds = nodeRefsByType["TEXTO_BRUTO"] ? [...nodeRefsByType["TEXTO_BRUTO"]] : ["__none__"];
+    const baralhoIds = nodeRefsByType["BARALHO"] ? [...nodeRefsByType["BARALHO"]] : ["__none__"];
 
     const safeIn = (ids: string[]) => ids.length > 0 ? ids : ["__none__"];
 
     // Only fetch the referenced entities.
     // Tópicos e conceitos são buscados diretamente por id (não via assunto)
     // porque podem não ter pai — o nó precisa do nome mesmo assim.
-    const [subjects, topicos, conceitos, notas, flashcards, textosBrutos] = await Promise.all([
+    const [subjects, topicos, conceitos, notas, flashcards, textosBrutos, baralhos] = await Promise.all([
       prisma.assunto.findMany({
         where: { id: { in: safeIn(assuntoIds) } },
       }),
@@ -91,6 +92,9 @@ async function buildKnowledgeGraph(
       prisma.textoBruto.findMany({
         where: { id: { in: safeIn(textoBrutoIds) } },
       }),
+      prisma.baralho.findMany({
+        where: { id: { in: safeIn(baralhoIds) } },
+      }),
     ]);
 
     // Build flat node+edge list from graph data
@@ -100,7 +104,7 @@ async function buildKnowledgeGraph(
     for (const n of graphNodes) {
       nodes.push({
         id: n.referenciaId,
-        label: resolveLabel(n.tipoNode, n.referenciaId, subjects, topicos, conceitos, notas, flashcards, textosBrutos),
+        label: resolveLabel(n.tipoNode, n.referenciaId, subjects, topicos, conceitos, notas, flashcards, textosBrutos, baralhos),
         type: n.tipoNode as GraphNode["type"],
         nivelDominio: n.nivelDominio,
         prioridadeRevisao: 5,
@@ -370,6 +374,7 @@ function resolveLabel(
   notas: any[],
   flashcards: any[],
   textosBrutos: any[] = [],
+  baralhos: any[] = [],
 ): string {
   switch (tipoNode) {
     case "ASSUNTO":
@@ -392,6 +397,8 @@ function resolveLabel(
       if (tb?.titulo && tb.titulo !== "Texto sem título") return tb.titulo;
       const tbText = tb?.texto ?? refId;
       return tbText.length > 60 ? `${tbText.slice(0, 60)}…` : tbText;
+    case "BARALHO":
+      return baralhos.find((x) => x.id === refId)?.titulo ?? refId;
     default:
       return refId;
   }

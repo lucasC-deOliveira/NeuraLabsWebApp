@@ -77,6 +77,7 @@ interface PropertiesPanelProps {
   onEditNode?: () => void;
   onViewNota?: () => void;
   onStudyFlashcard?: () => void;
+  onStudyDeck?: () => void;
 
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -96,6 +97,7 @@ export function PropertiesPanel({
   onEditNode,
   onViewNota,
   onStudyFlashcard,
+  onStudyDeck,
   collapsed,
   onToggleCollapse,
 }: PropertiesPanelProps) {
@@ -217,6 +219,17 @@ export function PropertiesPanel({
                 >
                   <BookOpenIcon className="size-4" />
                   Estudar Flashcard
+                </Button>
+                <Separator />
+              </>
+            )}
+
+            {/* Deck Study Button */}
+            {selectedNode.tipoReal === "BARALHO" && onStudyDeck && (
+              <>
+                <Button size="sm" className="w-full gap-2" onClick={onStudyDeck}>
+                  <BookOpenIcon className="size-4" />
+                  Estudar Baralho
                 </Button>
                 <Separator />
               </>

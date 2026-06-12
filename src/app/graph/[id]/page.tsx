@@ -29,6 +29,7 @@ import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";
 import { EditNodeModal } from "@/components/graph/EditNodeModal";
 import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
 import { StudyFlashcardModal } from "@/components/graph/StudyFlashcardModal";
+import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 
 export default function GraphPage() {
@@ -54,6 +55,7 @@ export default function GraphPage() {
   const [editingNode, setEditingNode] = useState<any>(null);
   const [viewingNotaId, setViewingNotaId] = useState<string | null>(null);
   const [studyFlashcardId, setStudyFlashcardId] = useState<string | null>(null);
+  const [studyDeckId, setStudyDeckId] = useState<string | null>(null);
   const [editEdge, setEditEdge] = useState<any>(null);
   const [addEdgeSourceId, setAddEdgeSourceId] = useState<string | null>(null);
 
@@ -333,6 +335,7 @@ export default function GraphPage() {
           onEditNode={() => setEditingNode(controller.state.selectedNode)}
           onViewNota={() => setViewingNotaId(controller.state.selectedNode?.id ?? null)}
           onStudyFlashcard={() => setStudyFlashcardId(controller.state.selectedNode?.id ?? null)}
+          onStudyDeck={() => setStudyDeckId(controller.state.selectedNode?.id ?? null)}
           collapsed={rightPanelCollapsed}
           onToggleCollapse={() =>
             setRightPanelCollapsed((v) => !v)
@@ -416,6 +419,11 @@ export default function GraphPage() {
         open={!!studyFlashcardId}
         onOpenChange={(open) => !open && setStudyFlashcardId(null)}
         flashcardId={studyFlashcardId}
+      />
+      <StudyDeckModal
+        open={!!studyDeckId}
+        onOpenChange={(open) => !open && setStudyDeckId(null)}
+        baralhoId={studyDeckId}
       />
       <EdgeManagerModal
         open={isEdgeManagerOpen}

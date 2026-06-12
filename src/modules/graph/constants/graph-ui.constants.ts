@@ -29,6 +29,7 @@ export const RELATION_LABELS: Record<string, string> = {
   DEPENDE_DE: "depende de",
   HERDA: "herda",
   TESTA: "testa",
+  CONTEM: "contém",
   TESTA_DEFINICAO: "testa definição",
   TESTA_EXEMPLO: "testa exemplo",
   TESTA_APLICACAO: "testa aplicação",
@@ -65,6 +66,10 @@ export const RELATION_GROUPS = [
   {
     title: "Flashcard → Nota / Conceito",
     types: ["TESTA", "HERDA"],
+  },
+  {
+    title: "Baralho → Flashcard",
+    types: ["CONTEM"],
   },
 ];
 
@@ -104,6 +109,11 @@ export const NODE_TYPE_COLORS = {
     light: { bg: "#f1f5f9", border: "#475569", text: "#1e293b" },
     dark:  { bg: "#1e293b", border: "#94a3b8", text: "#e2e8f0" },
   },
+  // Laranja — baralho (coleção de flashcards para estudo)
+  BARALHO: {
+    light: { bg: "#fff7ed", border: "#ea580c", text: "#7c2d12" },
+    dark:  { bg: "#3a1a08", border: "#fb923c", text: "#fed7aa" },
+  },
 };
 
 // NODE LABELS
@@ -114,4 +124,5 @@ export const NODE_TYPE_DISPLAY = {
   FLASHCARD: { label: "Flashcard" },
   NOTA: { label: "Nota" },
   TEXTO_BRUTO: { label: "Texto bruto" },
+  BARALHO: { label: "Baralho" },
 };

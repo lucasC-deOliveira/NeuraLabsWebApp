@@ -24,7 +24,8 @@ import { toast } from "sonner";
 import { PlusIcon, Loader2Icon, SparklesIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { suggestNotaRelations, type NotaRelationSuggestion } from "@/actions/ai-graph";
-import { importGraphNotas } from "@/actions/graph";
+import { importGraphNotas, createBaralhoNode } from "@/actions/graph";
+import { getFlashcards } from "@/actions/flashcard";
 import { getAllowedRelations, isRelationAllowed } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { useRouter } from "next/navigation";
@@ -451,6 +452,11 @@ export function CreateNodeModal({
   >([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // BARALHO (deck): flashcards do usuário e seleção
+  const [deckFlashcards, setDeckFlashcards] = useState<Array<{ id: string; pergunta: string; conceito: string | null }>>([]);
+  const [deckSelected, setDeckSelected] = useState<Set<string>>(new Set());
+  const [deckSearch, setDeckSearch] = useState("");
+  const [deckLoading, setDeckLoading] = useState(false);
 
   const [formData, setFormData] = useState<{
     nome: string;
@@ -492,6 +498,18 @@ export function CreateNodeModal({
     }
   }, [selectedType]);
 
+  // Carrega os flashcards do usuário ao escolher criar um BARALHO
+  useEffect(() => {
+    if (!open || selectedType !== "BARALHO") return;
+    setDeckLoading(true);
+    getFlashcards()
+      .then((fcs) =>
+        setDeckFlashcards(fcs.map((f) => ({ id: f.id, pergunta: f.pergunta, conceito: f.conceito })))
+      )
+      .catch(() => toast.error("Erro ao carregar flashcards"))
+      .finally(() => setDeckLoading(false));
+  }, [open, selectedType]);
+
   const loadAvailableItems = async () => {
     try {
       const response = await fetch(`/api/graph/available-items?grafoId=${grafoId}`);
@@ -521,6 +539,8 @@ export function CreateNodeModal({
     setJsonInput("");
     setJsonGuardarTexto(true);
     setJsonGerarFlashcards(true);
+    setDeckSelected(new Set());
+    setDeckSearch("");
     setFormData({
       nome: "",
       descricao: "",
@@ -605,6 +625,37 @@ export function CreateNodeModal({
       // Original create flow
       if (!selectedType) {
         toast.error("Selecione um tipo de nó");
+        return;
+      }
+
+      // BARALHO tem fluxo próprio (entidade + nó + arestas CONTEM, numa transação)
+      if (selectedType === "BARALHO") {
+        if (!formData.nome.trim()) {
+          toast.error("Digite um título para o baralho");
+          return;
+        }
+        setLoading(true);
+        try {
+          const r = await createBaralhoNode(
+            grafoId,
+            formData.nome.trim(),
+            Array.from(deckSelected)
+          );
+          toast.success(
+            deckSelected.size > 0
+              ? `Baralho criado com ${deckSelected.size} flashcard(s)!`
+              : "Baralho criado (vazio)!"
+          );
+          resetForm();
+          onOpenChange(false);
+          if (onSuccess) onSuccess();
+          router.refresh();
+          void r;
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Erro ao criar baralho");
+        } finally {
+          setLoading(false);
+        }
         return;
       }
 
@@ -1083,9 +1134,91 @@ export function CreateNodeModal({
                         <span>Nota</span>
                       </div>
                     </SelectItem>
+                    <SelectItem value="BARALHO">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-[#fff7ed] border border-[#ea580c] rounded" />
+                        <span>Baralho</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* BARALHO form */}
+              {selectedType === "BARALHO" && (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="baralho-titulo">Título do baralho</Label>
+                    <Input
+                      id="baralho-titulo"
+                      placeholder="Ex: Revisão de Redes"
+                      value={formData.nome}
+                      onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label>Flashcards do baralho (opcional)</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {deckSelected.size} selecionado(s)
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Buscar flashcards..."
+                      value={deckSearch}
+                      onChange={(e) => setDeckSearch(e.target.value)}
+                      className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
+                    />
+                    <div className="max-h-60 space-y-1 overflow-y-auto rounded-md border border-zinc-200 p-1 dark:border-zinc-800">
+                      {deckLoading ? (
+                        <p className="py-6 text-center text-xs text-muted-foreground">Carregando...</p>
+                      ) : deckFlashcards.length === 0 ? (
+                        <p className="py-6 text-center text-xs text-muted-foreground">
+                          Você ainda não tem flashcards. O baralho pode ser criado vazio.
+                        </p>
+                      ) : (
+                        deckFlashcards
+                          .filter((fc) => deckSearch === "" || fc.pergunta.toLowerCase().includes(deckSearch.toLowerCase()))
+                          .map((fc) => (
+                            <label
+                              key={fc.id}
+                              className={`flex cursor-pointer items-start gap-2 rounded p-2 text-sm transition-colors ${
+                                deckSelected.has(fc.id)
+                                  ? "bg-primary/10 border border-primary"
+                                  : "border border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="mt-0.5"
+                                checked={deckSelected.has(fc.id)}
+                                onChange={() =>
+                                  setDeckSelected((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(fc.id)) next.delete(fc.id);
+                                    else next.add(fc.id);
+                                    return next;
+                                  })
+                                }
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate font-medium">{fc.pergunta}</div>
+                                {fc.conceito && (
+                                  <div className="truncate text-xs text-muted-foreground">{fc.conceito}</div>
+                                )}
+                              </div>
+                            </label>
+                          ))
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Um flashcard pode estar em vários baralhos. Você pode adicionar mais depois.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* ASSUNTO form */}
               {selectedType === "ASSUNTO" && (

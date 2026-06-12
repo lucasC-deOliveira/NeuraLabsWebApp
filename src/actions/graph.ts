@@ -9,7 +9,7 @@ import { getAllowedRelations, isRelationAllowed } from "@/modules/graph/domain/s
 export interface GraphNodeType {
   id: string;
   label: string;
-  type: "ASSUNTO" | "TOPICO" | "CONCEITO" | "FLASHCARD" | "NOTA" | "TEXTO_BRUTO";
+  type: "ASSUNTO" | "TOPICO" | "CONCEITO" | "FLASHCARD" | "NOTA" | "TEXTO_BRUTO" | "BARALHO";
   nivelDominio: number;
   prioridadeRevisao: number;
   parentId?: string;
@@ -421,6 +421,15 @@ export async function getNodeDetails(
         ? { titulo: t.titulo, texto: t.texto, dataCriacao: t.dataCriacao.toISOString() }
         : null;
     }
+    case "BARALHO": {
+      const b = await prisma.baralho.findFirst({
+        where: { id: referenciaId, usuarioId: userId },
+        include: { _count: { select: { flashcards: true } } },
+      });
+      return b
+        ? { titulo: b.titulo, flashcards: String(b._count.flashcards), dataCriacao: b.dataCriacao.toISOString() }
+        : null;
+    }
     default:
       return null;
   }
@@ -706,6 +715,10 @@ async function resolveNodeLabel(node: any): Promise<string> {
       if (tb?.titulo && tb.titulo !== "Texto sem título") return tb.titulo;
       return tb?.texto?.slice(0, 50) ?? referenciaId;
     }
+    case "BARALHO": {
+      const b = await prisma.baralho.findUnique({ where: { id: referenciaId } });
+      return b?.titulo ?? referenciaId;
+    }
     default:
       return referenciaId;
   }
@@ -900,6 +913,103 @@ export async function addNodeToGraph(
 
   revalidatePath(`/graph/${grafoId}`);
   return { success: true, nodeId: entityId };
+}
+
+// ---------------------------------------------------------------------------
+// Baralho (deck): cria a entidade, o nó no grafo e as arestas CONTEM para os
+// flashcards selecionados (adicionando-os como nós se necessário) — atômico.
+// O deck pode ser criado vazio.
+// ---------------------------------------------------------------------------
+export async function createBaralhoNode(
+  grafoId: string,
+  titulo: string,
+  flashcardIds: string[]
+): Promise<{ success: boolean; nodeId: string }> {
+  const userId = await requireUserId();
+
+  const grafo = await prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+  if (!grafo) throw new Error("Grafo não encontrado ou não pertence ao usuário");
+
+  const tituloTrim = titulo?.trim();
+  if (!tituloTrim) throw new Error("O título do baralho é obrigatório");
+  assertFieldLimits({ titulo: tituloTrim });
+
+  const ids = Array.from(new Set(flashcardIds ?? []));
+  if (ids.length > 1000) throw new Error("Máximo de 1000 flashcards por baralho");
+
+  // garante que todos os flashcards pertencem ao usuário
+  if (ids.length > 0) {
+    const count = await prisma.flashcard.count({ where: { id: { in: ids }, usuarioId: userId } });
+    if (count !== ids.length) throw new Error("Um ou mais flashcards não pertencem ao usuário");
+  }
+
+  const now = new Date();
+
+  const baralhoId = await prisma.$transaction(async (tx) => {
+    // entidade Baralho com os flashcards conectados (fonte de verdade da composição)
+    const baralho = await tx.baralho.create({
+      data: {
+        titulo: tituloTrim,
+        usuarioId: userId,
+        dataCriacao: now,
+        flashcards: ids.length > 0 ? { connect: ids.map((id) => ({ id })) } : undefined,
+      },
+    });
+
+    // nó do baralho no grafo
+    const baralhoNode = await tx.nodeConhecimento.create({
+      data: { grafoId, tipoNode: "BARALHO", referenciaId: baralho.id, usuarioId: userId },
+    });
+
+    // garante o nó de cada flashcard no grafo e cria a aresta CONTEM
+    for (const fcId of ids) {
+      let fcNode = await tx.nodeConhecimento.findFirst({
+        where: { grafoId, usuarioId: userId, tipoNode: "FLASHCARD", referenciaId: fcId },
+        select: { id: true },
+      });
+      if (!fcNode) {
+        fcNode = await tx.nodeConhecimento.create({
+          data: { grafoId, tipoNode: "FLASHCARD", referenciaId: fcId, usuarioId: userId },
+          select: { id: true },
+        });
+      }
+      await tx.conhecimentoAresta.create({
+        data: { grafoId, nodeOrigemId: baralhoNode.id, nodeDestinoId: fcNode.id, tipoRelacao: "CONTEM", peso: 1.0 },
+      });
+    }
+
+    return baralho.id;
+  });
+
+  revalidatePath(`/graph/${grafoId}`);
+  return { success: true, nodeId: baralhoId };
+}
+
+// Carrega um baralho para estudo: título + todos os seus flashcards.
+export async function getDeckForStudy(baralhoId: string): Promise<{
+  titulo: string;
+  cards: { id: string; pergunta: string; resposta: string; conceito: string | null }[];
+} | null> {
+  const userId = await requireUserId();
+  const baralho = await prisma.baralho.findFirst({
+    where: { id: baralhoId, usuarioId: userId },
+    include: {
+      flashcards: {
+        include: { conceito: { select: { nome: true } } },
+        orderBy: { dataCriacao: "asc" },
+      },
+    },
+  });
+  if (!baralho) return null;
+  return {
+    titulo: baralho.titulo,
+    cards: baralho.flashcards.map((fc) => ({
+      id: fc.id,
+      pergunta: fc.pergunta,
+      resposta: fc.resposta,
+      conceito: fc.conceito?.nome ?? null,
+    })),
+  };
 }
 
 // ---------------------------------------------------------------------------

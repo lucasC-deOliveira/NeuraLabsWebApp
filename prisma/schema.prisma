@@ -25,6 +25,7 @@ model Usuario {
   desempenhoNos     DesempenhoNo[]
   notas             Nota[]
   textosBrutos      TextoBruto[]
+  baralhos          Baralho[]
   configAI          ConfigAI?
   assuntos          Assunto[]
   nodesConhecimento NodeConhecimento[]
@@ -95,8 +96,22 @@ model Flashcard {
   usuario     Usuario                @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   revisoes    RevisaoFlashcard[]
   aprendizado AprendizadoFlashcard[]
+  baralhos    Baralho[]              @relation("BaralhoFlashcards")
 
   @@map("flashcards")
+}
+
+// BARALHO (deck) — conjunto de flashcards (um flashcard pode estar em vários decks)
+model Baralho {
+  id          String   @id @default(cuid())
+  usuarioId   String   @map("id_usuario")
+  titulo      String
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+
+  usuario    Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  flashcards Flashcard[] @relation("BaralhoFlashcards")
+
+  @@map("baralhos")
 }
 
 // NOTA
@@ -167,6 +182,7 @@ enum TipoNode {
   FLASHCARD
   NOTA
   TEXTO_BRUTO
+  BARALHO
   QUESTION
 }
 
@@ -250,6 +266,7 @@ enum TipoRelacao {
   MEDIDO_POR
   OBJETIVO_DE
   HERDA
+  CONTEM
   COMPLEMENTAR
 }
 

@@ -33,6 +33,8 @@ export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }
   // Flashcard testa uma nota e herda os conceitos dela
   { a: "FLASHCARD", b: "NOTA", relations: ["TESTA"] },
   { a: "FLASHCARD", b: "CONCEITO", relations: ["HERDA"] },
+  // Baralho contém flashcards
+  { a: "BARALHO", b: "FLASHCARD", relations: ["CONTEM"] },
 ];
 
 const RELATION_RULES: Record<string, string[]> = Object.fromEntries(
