@@ -15,7 +15,7 @@ import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRend
 import { GraphLegend } from "@/modules/graph/presentation/components/GraphLegend";
 import { GraphToolbar } from "@/modules/graph/presentation/components/GraphToolbar";
 import { GraphSideToolbar } from "@/modules/graph/presentation/components/GraphSideToolbar";
-import { GraphSettingsModal } from "@/modules/graph/presentation/components/GraphSettingsModal";
+import { GraphSettingsModal, DEFAULT_FOCUS_DEPTH } from "@/modules/graph/presentation/components/GraphSettingsModal";
 
 import {
   deleteGraphNode,
@@ -50,6 +50,8 @@ export default function GraphPage() {
   const [isImportJsonOpen, setIsImportJsonOpen] = useState(false);
   const [legendVisible, setLegendVisible] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [focusDepth, setFocusDepth] = useState(DEFAULT_FOCUS_DEPTH);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEdgeManagerOpen, setIsEdgeManagerOpen] = useState(false);
   const [graphEdges, setGraphEdges] = useState<any[]>([]);
@@ -282,6 +284,8 @@ export default function GraphPage() {
             }
             highContrast={highContrast}
             onToggleHighContrast={() => setHighContrast((v) => !v)}
+            focusMode={focusMode}
+            onToggleFocus={() => setFocusMode((v) => !v)}
             onOpenSettings={() => setIsSettingsOpen(true)}
           />
           <GraphRenderer
@@ -295,6 +299,8 @@ export default function GraphPage() {
             selectedNodeIds={controller.state.selectedNodeIds}
             marquee={controller.interactions.marquee}
             highContrast={highContrast}
+            focusMode={focusMode}
+            focusDepth={focusDepth}
             onNodeClick={controller.actions.selectNode}
             onNodeContextMenu={(node, x, y) => setNodeMenu({ node, x, y })}
             onNodeHover={controller.actions.setHoveredNodeId}
@@ -399,6 +405,8 @@ export default function GraphPage() {
         onOpenChange={setIsSettingsOpen}
         options={controller.state.physicsOptions}
         onChange={controller.actions.setPhysicsOptions}
+        focusDepth={focusDepth}
+        onFocusDepthChange={setFocusDepth}
       />
       <CreateNodeModal
         open={isCreateModalOpen}

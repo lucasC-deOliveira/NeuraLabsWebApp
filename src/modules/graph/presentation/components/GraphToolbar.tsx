@@ -4,6 +4,7 @@ import {
   ContrastIcon,
   EyeIcon,
   EyeOffIcon,
+  FocusIcon,
   OrbitIcon,
   SettingsIcon,
   ZoomInIcon,
@@ -26,6 +27,8 @@ type Props = {
   onTogglePhysics: () => void;
   highContrast: boolean;
   onToggleHighContrast: () => void;
+  focusMode: boolean;
+  onToggleFocus: () => void;
   onOpenSettings: () => void;
 };
 
@@ -68,6 +71,8 @@ export function GraphToolbar({
   onTogglePhysics,
   highContrast,
   onToggleHighContrast,
+  focusMode,
+  onToggleFocus,
   onOpenSettings,
 }: Props) {
   return (
@@ -96,6 +101,14 @@ export function GraphToolbar({
           onClick={onToggleHighContrast}
         >
           <ContrastIcon className="size-4" />
+        </ToolbarButton>
+
+        <ToolbarButton
+          label={focusMode ? "Desligar destaque de conexões" : "Destacar conexões (ofusca o resto ao selecionar)"}
+          active={focusMode}
+          onClick={onToggleFocus}
+        >
+          <FocusIcon className="size-4" />
         </ToolbarButton>
 
         <div className="w-px h-5 bg-border" />

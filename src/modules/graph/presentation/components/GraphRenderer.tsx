@@ -84,6 +84,10 @@ type Props = {
   marquee: MarqueeRect | null;
   // alto contraste: nós e arestas todos na cor primária do tema
   highContrast?: boolean;
+  // destaque de conexões: ao selecionar um nó, ofusca o que não é vizinho
+  focusMode?: boolean;
+  // quantos saltos a cadeia de relações percorre a partir do nó selecionado
+  focusDepth?: number;
 
   onNodeClick: (node: any, additive?: boolean) => void;
   onNodeContextMenu?: (node: any, clientX: number, clientY: number) => void;
@@ -105,6 +109,8 @@ export function GraphRenderer({
   selectedNodeIds,
   marquee,
   highContrast = false,
+  focusMode = false,
+  focusDepth = 1,
   onNodeClick,
   onNodeContextMenu,
   onNodeDragStart,
@@ -130,6 +136,39 @@ export function GraphRenderer({
     () => new Map<string, any>(nodes.map((n: any) => [n.id, n])),
     [nodes]
   );
+
+  // destaque de conexões: ativo só quando há nó selecionado
+  const focusActive = focusMode && selectedNodeIds.size > 0;
+  // cadeia = nós alcançáveis a partir dos selecionados em até `focusDepth` saltos (BFS)
+  const reachableIds = useMemo(() => {
+    if (!focusActive) return null;
+    const depth = Math.max(1, Math.floor(focusDepth));
+    const adj = new Map<string, string[]>();
+    for (const e of edges) {
+      (adj.get(e.source) ?? adj.set(e.source, []).get(e.source)!).push(e.target);
+      (adj.get(e.target) ?? adj.set(e.target, []).get(e.target)!).push(e.source);
+    }
+    const dist = new Map<string, number>();
+    const queue: string[] = [];
+    for (const id of selectedNodeIds) {
+      dist.set(id, 0);
+      queue.push(id);
+    }
+    let head = 0;
+    while (head < queue.length) {
+      const cur = queue[head++];
+      const d = dist.get(cur)!;
+      if (d >= depth) continue;
+      for (const nb of adj.get(cur) ?? []) {
+        if (!dist.has(nb)) {
+          dist.set(nb, d + 1);
+          queue.push(nb);
+        }
+      }
+    }
+    return new Set(dist.keys());
+  }, [focusActive, selectedNodeIds, edges, focusDepth]);
+  const DIM = 0.12;
 
   // distingue clique de arrasto: só limpa a seleção em clique parado no vazio
   const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
@@ -213,8 +252,14 @@ export function GraphRenderer({
           const perpY = endTangent.x;
           const arrowPoints = `${p2.x},${p2.y} ${baseX + perpX * ARROW_W},${baseY + perpY * ARROW_W} ${baseX - perpX * ARROW_W},${baseY - perpY * ARROW_W}`;
 
+          // no modo destaque, só arestas dentro da cadeia (ambas as pontas alcançáveis) ficam visíveis
+          const edgeActive = !focusActive || (reachableIds!.has(edge.source) && reachableIds!.has(edge.target));
+
           return (
-            <g key={`${edge.source}-${edge.target}-${i}`}>
+            <g
+              key={`${edge.source}-${edge.target}-${i}`}
+              style={{ opacity: edgeActive ? 1 : DIM, transition: "opacity 0.15s" }}
+            >
               <path
                 d={`M ${p0.x} ${p0.y} Q ${cx} ${cy} ${baseX} ${baseY}`}
                 fill="none"
@@ -246,12 +291,15 @@ export function GraphRenderer({
           const colors = getNodeColors(node.group, isDark);
           const shape = getNodeShape(node.group);
           const isSelected = selectedNodeIds.has(node.id);
+          // ofusca nós fora da cadeia quando o destaque está ativo
+          const dimmed = focusActive && !reachableIds!.has(node.id);
 
           return (
             <g
               key={node.id}
               data-node="true"
               transform={`translate(${node.x},${node.y})`}
+              style={{ opacity: dimmed ? DIM : 1, transition: "opacity 0.15s" }}
 
               // =========================
               // DRAG NODE (FIX ESTABILIZADO)

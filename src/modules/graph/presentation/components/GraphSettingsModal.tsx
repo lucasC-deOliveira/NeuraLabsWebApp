@@ -15,11 +15,16 @@ import {
   type PhysicsOptions,
 } from "../services/graph-physics.service";
 
+export const DEFAULT_FOCUS_DEPTH = 1;
+export const MAX_FOCUS_DEPTH = 6;
+
 interface GraphSettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   options: PhysicsOptions;
   onChange: (options: PhysicsOptions) => void;
+  focusDepth: number;
+  onFocusDepthChange: (depth: number) => void;
 }
 
 function GapSlider({
@@ -61,6 +66,8 @@ export function GraphSettingsModal({
   onOpenChange,
   options,
   onChange,
+  focusDepth,
+  onFocusDepthChange,
 }: GraphSettingsModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -88,6 +95,27 @@ export function GraphSettingsModal({
             value={options.clusterGap}
             onChange={(v) => onChange({ ...options, clusterGap: v })}
           />
+
+          <div className="space-y-1.5 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="focus-depth">Destaque de conexões — saltos</Label>
+              <span className="text-sm font-mono text-primary">{focusDepth}</span>
+            </div>
+            <input
+              id="focus-depth"
+              type="range"
+              min={1}
+              max={MAX_FOCUS_DEPTH}
+              step={1}
+              value={focusDepth}
+              onChange={(e) => onFocusDepthChange(Number(e.target.value))}
+              className="w-full accent-[var(--primary)]"
+            />
+            <p className="text-xs text-muted-foreground">
+              Ao selecionar um nó com o destaque ativo, quantos níveis da cadeia de
+              relações ficam visíveis (1 = só os vizinhos diretos).
+            </p>
+          </div>
         </div>
 
         <DialogFooter>
