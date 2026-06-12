@@ -30,6 +30,7 @@ import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";
 import { EditNodeModal } from "@/components/graph/EditNodeModal";
 import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
 import { StudyFlashcardModal } from "@/components/graph/StudyFlashcardModal";
+import { ViewFlashcardModal } from "@/components/graph/ViewFlashcardModal";
 import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 
@@ -59,6 +60,7 @@ export default function GraphPage() {
   const [editingNode, setEditingNode] = useState<any>(null);
   const [viewingNotaId, setViewingNotaId] = useState<string | null>(null);
   const [studyFlashcardId, setStudyFlashcardId] = useState<string | null>(null);
+  const [viewFlashcardId, setViewFlashcardId] = useState<string | null>(null);
   const [studyDeckId, setStudyDeckId] = useState<string | null>(null);
   const [editEdge, setEditEdge] = useState<any>(null);
   const [addEdgeSourceId, setAddEdgeSourceId] = useState<string | null>(null);
@@ -344,6 +346,7 @@ export default function GraphPage() {
           onEditNode={() => setEditingNode(controller.state.selectedNode)}
           onViewNota={() => setViewingNotaId(controller.state.selectedNode?.id ?? null)}
           onStudyFlashcard={() => setStudyFlashcardId(controller.state.selectedNode?.id ?? null)}
+          onViewFlashcard={() => setViewFlashcardId(controller.state.selectedNode?.id ?? null)}
           onStudyDeck={() => setStudyDeckId(controller.state.selectedNode?.id ?? null)}
           collapsed={rightPanelCollapsed}
           onToggleCollapse={() =>
@@ -442,6 +445,11 @@ export default function GraphPage() {
           }
         }}
         flashcardId={studyFlashcardId}
+      />
+      <ViewFlashcardModal
+        open={!!viewFlashcardId}
+        onOpenChange={(open) => !open && setViewFlashcardId(null)}
+        flashcardId={viewFlashcardId}
       />
       <StudyDeckModal
         open={!!studyDeckId}

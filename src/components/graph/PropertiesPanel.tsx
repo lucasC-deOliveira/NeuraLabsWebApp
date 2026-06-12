@@ -10,6 +10,7 @@ import {
   ChevronLeftIcon,
   Link2Icon,
   BookOpenIcon,
+  EyeIcon,
   XIcon,
   PencilIcon,
   PlusIcon,
@@ -77,6 +78,7 @@ interface PropertiesPanelProps {
   onEditNode?: () => void;
   onViewNota?: () => void;
   onStudyFlashcard?: () => void;
+  onViewFlashcard?: () => void;
   onStudyDeck?: () => void;
 
   collapsed: boolean;
@@ -97,6 +99,7 @@ export function PropertiesPanel({
   onEditNode,
   onViewNota,
   onStudyFlashcard,
+  onViewFlashcard,
   onStudyDeck,
   collapsed,
   onToggleCollapse,
@@ -209,17 +212,30 @@ export function PropertiesPanel({
 
             <Separator />
 
-            {/* Flashcard Study Button */}
-            {selectedNode.tipoReal === "FLASHCARD" && onStudyFlashcard && (
+            {/* Flashcard: estudar (com repetição espaçada) ou só ver o conteúdo */}
+            {selectedNode.tipoReal === "FLASHCARD" && (onStudyFlashcard || onViewFlashcard) && (
               <>
-                <Button
-                  size="sm"
-                  className="w-full gap-2"
-                  onClick={onStudyFlashcard}
-                >
-                  <BookOpenIcon className="size-4" />
-                  Estudar Flashcard
-                </Button>
+                {onStudyFlashcard && (
+                  <Button
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={onStudyFlashcard}
+                  >
+                    <BookOpenIcon className="size-4" />
+                    Estudar Flashcard
+                  </Button>
+                )}
+                {onViewFlashcard && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={onViewFlashcard}
+                  >
+                    <EyeIcon className="size-4" />
+                    Ver conteúdo
+                  </Button>
+                )}
                 <Separator />
               </>
             )}
