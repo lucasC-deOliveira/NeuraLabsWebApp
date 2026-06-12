@@ -902,6 +902,202 @@ export async function addNodeToGraph(
   return { success: true, nodeId: entityId };
 }
 
+// ---------------------------------------------------------------------------
+// Importação em lote (texto bruto + notas + relações + flashcards)
+// Tudo numa única transação atômica: ou cria tudo, ou nada (sem import parcial).
+// ---------------------------------------------------------------------------
+
+const IMPORT_NOTA_TIPOS = ["LITERATURA", "PERMANENTE", "ESTRUTURA"];
+const IMPORT_RELATABLE = ["CONCEITO", "TOPICO", "ASSUNTO"];
+const IMPORT_MAX = { notas: 500, relacoes: 100, flashcards: 100 };
+
+export interface ImportAssuntoRef { nome: string; descricao: string | null }
+export interface ImportTopicoRef { nome: string; descricao: string | null; assunto: ImportAssuntoRef }
+export interface ImportRelacao {
+  relacao: string;
+  peso: number;
+  alvo: {
+    tipoNode: "CONCEITO" | "TOPICO" | "ASSUNTO";
+    nome: string;
+    descricao: string | null;
+    topico?: ImportTopicoRef;
+    assunto?: ImportAssuntoRef;
+  };
+}
+export interface ImportNota {
+  titulo: string;
+  conteudo: string;
+  tipoNota: string;
+  subtipo: string;
+  fonte: string | null;
+  relacoes: ImportRelacao[];
+  flashcards: { pergunta: string; resposta: string }[];
+}
+export interface ImportNotasPayload {
+  textoOriginal: { titulo: string; texto: string } | null;
+  notas: ImportNota[];
+}
+
+export async function importGraphNotas(
+  grafoId: string,
+  payload: ImportNotasPayload
+): Promise<{ textoBruto: boolean; notas: number; flashcards: number; edges: number }> {
+  const userId = await requireUserId();
+
+  const grafo = await prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+  if (!grafo) throw new Error("Grafo não encontrado ou não pertence ao usuário");
+
+  const notas = payload?.notas ?? [];
+  if (notas.length === 0) throw new Error("Forneça ao menos uma nota.");
+  if (notas.length > IMPORT_MAX.notas) throw new Error(`Máximo de ${IMPORT_MAX.notas} notas por importação.`);
+
+  const now = new Date();
+
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // referenciaId -> { nodeConhecimento.id, tipoNode } para resolver arestas sem novas queries
+      const refToNode = new Map<string, { id: string; tipoNode: string }>();
+      const nodeCache = new Map<string, string>(); // tipoNode::nome (lower) -> referenciaId
+      const edgeSeen = new Set<string>();
+      let edges = 0;
+      let flashcardsCount = 0;
+
+      const linkNode = async (tipoNode: string, referenciaId: string) => {
+        const node = await tx.nodeConhecimento.create({
+          data: { grafoId, tipoNode: tipoNode as any, referenciaId, usuarioId: userId },
+        });
+        refToNode.set(referenciaId, { id: node.id, tipoNode });
+      };
+
+      const ensureNode = async (
+        tipoNode: "CONCEITO" | "TOPICO" | "ASSUNTO",
+        nomeRaw: string,
+        descricao: string | null
+      ): Promise<string> => {
+        const nome = nomeRaw.trim();
+        if (!nome) throw new Error("Nome do nó é obrigatório");
+        assertFieldLimits({ nome, descricao: descricao ?? undefined });
+        const key = `${tipoNode}::${nome.toLowerCase()}`;
+        const cached = nodeCache.get(key);
+        if (cached) return cached;
+        let id: string;
+        if (tipoNode === "ASSUNTO") id = (await tx.assunto.create({ data: { nome, descricao, usuarioId: userId } })).id;
+        else if (tipoNode === "TOPICO") id = (await tx.topico.create({ data: { nome, descricao, usuarioId: userId } })).id;
+        else id = (await tx.conceito.create({ data: { nome, descricao, usuarioId: userId } })).id;
+        await linkNode(tipoNode, id);
+        nodeCache.set(key, id);
+        return id;
+      };
+
+      const ensureEdge = async (srcRef: string, tgtRef: string, rel: string, peso = 1.0) => {
+        const k = `${srcRef}->${tgtRef}->${rel}`;
+        if (edgeSeen.has(k)) return;
+        const s = refToNode.get(srcRef);
+        const t = refToNode.get(tgtRef);
+        if (!s || !t) throw new Error("Nó não encontrado no grafo durante a importação");
+        if (!isRelationAllowed(s.tipoNode, t.tipoNode, rel)) {
+          const allowed = getAllowedRelations(s.tipoNode, t.tipoNode);
+          throw new Error(
+            `Relação ${rel} não é permitida entre ${s.tipoNode} e ${t.tipoNode}. Permitidas: ${allowed.join(", ")}`
+          );
+        }
+        await tx.conhecimentoAresta.create({
+          data: { grafoId, nodeOrigemId: s.id, nodeDestinoId: t.id, tipoRelacao: rel as any, peso },
+        });
+        edgeSeen.add(k);
+        edges++;
+      };
+
+      // texto original (fonte)
+      let textoBrutoRef: string | null = null;
+      if (payload.textoOriginal) {
+        const titulo = payload.textoOriginal.titulo?.trim() || "Texto sem título";
+        const texto = payload.textoOriginal.texto ?? "";
+        assertFieldLimits({ titulo, texto });
+        if (!texto.trim()) throw new Error("O texto original é obrigatório");
+        const tb = await tx.textoBruto.create({ data: { titulo, texto, usuarioId: userId, dataCriacao: now } });
+        textoBrutoRef = tb.id;
+        await linkNode("TEXTO_BRUTO", tb.id);
+      }
+
+      for (const [i, nota] of notas.entries()) {
+        const pos = ` (nota #${i + 1})`;
+        const titulo = nota.titulo?.trim();
+        if (!titulo) throw new Error(`O título da nota é obrigatório${pos}`);
+        const conteudo = nota.conteudo ?? "";
+        if (!conteudo.trim()) throw new Error(`O conteúdo da nota é obrigatório${pos}`);
+        const tipoNota = nota.tipoNota || "PERMANENTE";
+        if (!IMPORT_NOTA_TIPOS.includes(tipoNota)) throw new Error(`tipoNota inválido${pos}`);
+        if (!NOTA_SUBTIPOS.includes(nota.subtipo as any)) throw new Error(`subtipo inválido${pos}`);
+        const fonte = nota.fonte?.trim() || null;
+        if (tipoNota === "LITERATURA" && !fonte) throw new Error(`Notas de referência exigem fonte${pos}`);
+        assertFieldLimits({ titulo, conteudo, fonte: fonte ?? undefined });
+
+        const created = await tx.nota.create({
+          data: { titulo, conteudo, tipoNota, subtipo: nota.subtipo, fonte, slug: buildNotaSlug(titulo, now), usuarioId: userId, dataCriacao: now },
+        });
+        await linkNode("NOTA", created.id);
+        if (textoBrutoRef) await ensureEdge(textoBrutoRef, created.id, "GERA");
+
+        const relacoes = nota.relacoes ?? [];
+        if (relacoes.length > IMPORT_MAX.relacoes) throw new Error(`Máximo de ${IMPORT_MAX.relacoes} relações por nota${pos}`);
+
+        const conceitoRefs: string[] = [];
+        for (const rel of relacoes) {
+          const a = rel.alvo;
+          if (!a || !IMPORT_RELATABLE.includes(a.tipoNode)) throw new Error(`alvo.tipoNode inválido${pos}`);
+          if (typeof rel.peso !== "number" || !Number.isFinite(rel.peso) || rel.peso <= 0 || rel.peso > 2) {
+            throw new Error(`peso inválido (0–2)${pos}`);
+          }
+          if (!isRelationAllowed("NOTA", a.tipoNode, rel.relacao)) {
+            throw new Error(`Relação ${rel.relacao} não permitida entre NOTA e ${a.tipoNode}${pos}`);
+          }
+
+          let alvoRef: string;
+          if (a.tipoNode === "ASSUNTO") {
+            alvoRef = await ensureNode("ASSUNTO", a.nome, a.descricao);
+          } else if (a.tipoNode === "TOPICO") {
+            if (!a.assunto?.nome?.trim()) throw new Error(`tópico exige assunto${pos}`);
+            const assuntoRef = await ensureNode("ASSUNTO", a.assunto.nome, a.assunto.descricao);
+            alvoRef = await ensureNode("TOPICO", a.nome, a.descricao);
+            await ensureEdge(alvoRef, assuntoRef, "PERTENCE_A");
+          } else {
+            const t = a.topico;
+            if (!t?.nome?.trim() || !t.assunto?.nome?.trim()) throw new Error(`conceito exige tópico e assunto${pos}`);
+            const assuntoRef = await ensureNode("ASSUNTO", t.assunto.nome, t.assunto.descricao);
+            const topicoRef = await ensureNode("TOPICO", t.nome, t.descricao);
+            await ensureEdge(topicoRef, assuntoRef, "PERTENCE_A");
+            alvoRef = await ensureNode("CONCEITO", a.nome, a.descricao);
+            await ensureEdge(alvoRef, topicoRef, "PERTENCE_A");
+            conceitoRefs.push(alvoRef);
+          }
+          await ensureEdge(created.id, alvoRef, rel.relacao, rel.peso);
+        }
+
+        const flashcards = nota.flashcards ?? [];
+        if (flashcards.length > IMPORT_MAX.flashcards) throw new Error(`Máximo de ${IMPORT_MAX.flashcards} flashcards por nota${pos}`);
+        for (const fc of flashcards) {
+          const pergunta = fc.pergunta?.trim();
+          const resposta = fc.resposta?.trim();
+          if (!pergunta || !resposta) throw new Error(`flashcard exige pergunta e resposta${pos}`);
+          assertFieldLimits({ pergunta, resposta });
+          const f = await tx.flashcard.create({ data: { pergunta, resposta, usuarioId: userId, dataCriacao: now } });
+          await linkNode("FLASHCARD", f.id);
+          await ensureEdge(f.id, created.id, "TESTA");
+          for (const cRef of conceitoRefs) await ensureEdge(f.id, cRef, "HERDA");
+          flashcardsCount++;
+        }
+      }
+
+      return { textoBruto: textoBrutoRef != null, notas: notas.length, flashcards: flashcardsCount, edges };
+    },
+    { maxWait: 10_000, timeout: 120_000 }
+  );
+
+  revalidatePath(`/graph/${grafoId}`);
+  return result;
+}
+
 
 export async function getParentOptions(userId?: string): Promise<ParentOptions> {
   const uid = userId ?? (await requireUserId());

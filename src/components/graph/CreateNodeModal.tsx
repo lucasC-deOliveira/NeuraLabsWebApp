@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { PlusIcon, Loader2Icon, SparklesIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { suggestNotaRelations, type NotaRelationSuggestion } from "@/actions/ai-graph";
+import { importGraphNotas } from "@/actions/graph";
 import { getAllowedRelations, isRelationAllowed } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { useRouter } from "next/navigation";
@@ -573,130 +574,18 @@ export function CreateNodeModal({
         ? parsed.notas
         : parsed.notas.map((n) => ({ ...n, flashcards: [] }));
 
-      const addNode = async (tipoNode: string, payload: Record<string, unknown>): Promise<string> => {
-        const response = await fetch("/api/graph/add-node", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ grafoId, tipoNode, ...payload }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Erro ao criar nó");
-        return data.nodeId as string;
-      };
-
-      const addEdge = async (sourceNodeId: string, targetNodeId: string, tipoRelacao: string, ctx: string, peso = 1.0) => {
-        const edgeRes = await fetch("/api/graph/edge", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ grafoId, sourceNodeId, targetNodeId, tipoRelacao, peso }),
-        });
-        if (!edgeRes.ok) {
-          const edgeData = await edgeRes.json().catch(() => ({}));
-          throw new Error(edgeData.error || `Erro ao criar relação ${ctx}`);
-        }
-      };
-
       setLoading(true);
-      let createdNotas = 0;
-      let createdEdges = 0;
-      let createdFlashcards = 0;
-      let createdTexto = false;
-
-      // dedup dentro deste import: reutiliza assunto/tópico/conceito de mesmo nome
-      const nodeCache = new Map<string, string>();
-      const ensureNode = async (
-        tipoNode: string,
-        nome: string,
-        descricao: string | null
-      ): Promise<string> => {
-        const key = `${tipoNode}::${nome.toLowerCase()}`;
-        const cached = nodeCache.get(key);
-        if (cached) return cached;
-        const id = await addNode(tipoNode, { nome, descricao });
-        nodeCache.set(key, id);
-        return id;
-      };
-      // arestas idempotentes: não recria a mesma relação (origem→destino→tipo)
-      const edgeSeen = new Set<string>();
-      const ensureEdge = async (src: string, tgt: string, rel: string, ctx: string, peso = 1.0) => {
-        const k = `${src}->${tgt}->${rel}`;
-        if (edgeSeen.has(k)) return;
-        await addEdge(src, tgt, rel, ctx, peso);
-        edgeSeen.add(k);
-        createdEdges++;
-      };
-
       try {
-        // texto original (fonte) — vira nó TEXTO_BRUTO que gera as notas
-        let textoBrutoId: string | null = null;
-        if (textoOriginal) {
-          textoBrutoId = await addNode("TEXTO_BRUTO", {
-            titulo: textoOriginal.titulo,
-            texto: textoOriginal.texto,
-          });
-          createdTexto = true;
-        }
+        // importação atômica em uma única requisição (transação no servidor):
+        // ou cria tudo, ou nada — sem importação parcial.
+        const r = await importGraphNotas(grafoId, { textoOriginal, notas });
 
-        for (const nota of notas) {
-          const { relacoes, flashcards, ...notaFields } = nota;
-          const notaId = await addNode("NOTA", notaFields);
-          createdNotas++;
-
-          // liga o texto fonte → nota (GERA)
-          if (textoBrutoId) {
-            await ensureEdge(textoBrutoId, notaId, "GERA", `texto bruto → "${nota.titulo}"`);
-          }
-
-          // conceitos a que esta nota se liga — herdados pelos flashcards
-          const notaConceitoIds: string[] = [];
-          for (const rel of relacoes) {
-            const a = rel.alvo;
-            let alvoId: string;
-
-            if (a.tipoNode === "ASSUNTO") {
-              alvoId = await ensureNode("ASSUNTO", a.nome, a.descricao);
-            } else if (a.tipoNode === "TOPICO") {
-              // tópico obrigatoriamente pertence a um assunto
-              const assuntoId = await ensureNode("ASSUNTO", a.assunto!.nome, a.assunto!.descricao);
-              alvoId = await ensureNode("TOPICO", a.nome, a.descricao);
-              await ensureEdge(alvoId, assuntoId, "PERTENCE_A", `tópico "${a.nome}" → assunto "${a.assunto!.nome}"`);
-            } else {
-              // conceito obrigatoriamente pertence a um tópico, e o tópico a um assunto
-              const t = a.topico!;
-              const assuntoId = await ensureNode("ASSUNTO", t.assunto.nome, t.assunto.descricao);
-              const topicoId = await ensureNode("TOPICO", t.nome, t.descricao);
-              await ensureEdge(topicoId, assuntoId, "PERTENCE_A", `tópico "${t.nome}" → assunto "${t.assunto.nome}"`);
-              alvoId = await ensureNode("CONCEITO", a.nome, a.descricao);
-              await ensureEdge(alvoId, topicoId, "PERTENCE_A", `conceito "${a.nome}" → tópico "${t.nome}"`);
-              notaConceitoIds.push(alvoId);
-            }
-
-            // liga a nota ao alvo com o tipo/peso informados
-            await ensureEdge(notaId, alvoId, rel.relacao, `"${nota.titulo}" → "${a.nome}"`, rel.peso);
-          }
-
-          // flashcards que testam a nota e herdam os conceitos dela
-          for (const fc of flashcards) {
-            const flashcardId = await addNode("FLASHCARD", {
-              pergunta: fc.pergunta,
-              resposta: fc.resposta,
-            });
-            // flashcard TESTA a nota (um flashcard ↔ uma única nota)
-            await ensureEdge(flashcardId, notaId, "TESTA", `flashcard → "${nota.titulo}"`);
-            // herda os conceitos da nota (HERDA)
-            for (const conceitoId of notaConceitoIds) {
-              await ensureEdge(flashcardId, conceitoId, "HERDA", `flashcard herda conceito de "${nota.titulo}"`);
-            }
-            createdFlashcards++;
-          }
-        }
-
-        const notaMsg = createdNotas === 1 ? "1 nota" : `${createdNotas} notas`;
-        const fonteMsg = createdTexto ? "texto fonte, " : "";
-        const fcMsg = createdFlashcards > 0 ? `, ${createdFlashcards} flashcard(s)` : "";
+        const notaMsg = r.notas === 1 ? "1 nota" : `${r.notas} notas`;
+        const fonteMsg = r.textoBruto ? "texto fonte, " : "";
+        const fcMsg = r.flashcards > 0 ? `, ${r.flashcards} flashcard(s)` : "";
         toast.success(
-          createdEdges > 0
-            ? `${fonteMsg}${notaMsg}${fcMsg} e ${createdEdges} relação(ões) criadas via JSON!`
+          r.edges > 0
+            ? `${fonteMsg}${notaMsg}${fcMsg} e ${r.edges} relação(ões) criadas via JSON!`
             : `${fonteMsg}${notaMsg} criada(s) via JSON!`
         );
         resetForm();
@@ -704,12 +593,8 @@ export function CreateNodeModal({
         if (onSuccess) onSuccess();
         router.refresh();
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "Erro ao importar notas";
-        toast.error(
-          createdNotas > 0 || createdTexto
-            ? `Parcial (${createdNotas} nota(s)/${createdFlashcards} flashcard(s)/${createdEdges} relação(ões)) antes do erro: ${msg}`
-            : msg
-        );
+        // transação revertida — nada foi criado
+        toast.error(e instanceof Error ? e.message : "Erro ao importar notas");
       } finally {
         setLoading(false);
       }
