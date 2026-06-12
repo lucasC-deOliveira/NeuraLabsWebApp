@@ -231,7 +231,7 @@ export function ImportJsonModal({ open, onOpenChange, grafoId, onSuccess }: Impo
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl flex max-h-[85vh] flex-col gap-0">
+      <DialogContent className="max-w-2xl flex max-h-[85dvh] flex-col overflow-hidden gap-0">
         <DialogHeader className="shrink-0">
           <DialogTitle>Importar JSON</DialogTitle>
           <DialogDescription>

@@ -80,6 +80,7 @@ interface PropertiesPanelProps {
   onStudyFlashcard?: () => void;
   onViewFlashcard?: () => void;
   onStudyDeck?: () => void;
+  onViewDeck?: () => void;
 
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -101,6 +102,7 @@ export function PropertiesPanel({
   onStudyFlashcard,
   onViewFlashcard,
   onStudyDeck,
+  onViewDeck,
   collapsed,
   onToggleCollapse,
 }: PropertiesPanelProps) {
@@ -240,13 +242,21 @@ export function PropertiesPanel({
               </>
             )}
 
-            {/* Deck Study Button */}
-            {selectedNode.tipoReal === "BARALHO" && onStudyDeck && (
+            {/* Deck: estudar (com repetição espaçada) ou ver os flashcards */}
+            {selectedNode.tipoReal === "BARALHO" && (onStudyDeck || onViewDeck) && (
               <>
-                <Button size="sm" className="w-full gap-2" onClick={onStudyDeck}>
-                  <BookOpenIcon className="size-4" />
-                  Estudar Baralho
-                </Button>
+                {onStudyDeck && (
+                  <Button size="sm" className="w-full gap-2" onClick={onStudyDeck}>
+                    <BookOpenIcon className="size-4" />
+                    Estudar Baralho
+                  </Button>
+                )}
+                {onViewDeck && (
+                  <Button size="sm" variant="outline" className="w-full gap-2" onClick={onViewDeck}>
+                    <EyeIcon className="size-4" />
+                    Ver conteúdo
+                  </Button>
+                )}
                 <Separator />
               </>
             )}

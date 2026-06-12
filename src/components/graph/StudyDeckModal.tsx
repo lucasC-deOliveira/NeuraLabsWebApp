@@ -114,7 +114,7 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg flex max-h-[85vh] flex-col gap-0">
+      <DialogContent className="max-w-lg flex max-h-[85dvh] flex-col overflow-hidden gap-0">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center justify-between gap-2">
             <span className="truncate">Estudar: {titulo || "baralho"}</span>

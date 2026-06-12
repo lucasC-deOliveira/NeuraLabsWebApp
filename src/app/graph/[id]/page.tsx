@@ -32,6 +32,7 @@ import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
 import { StudyFlashcardModal } from "@/components/graph/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/components/graph/ViewFlashcardModal";
 import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
+import { ViewDeckModal } from "@/components/graph/ViewDeckModal";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 
 export default function GraphPage() {
@@ -62,6 +63,7 @@ export default function GraphPage() {
   const [studyFlashcardId, setStudyFlashcardId] = useState<string | null>(null);
   const [viewFlashcardId, setViewFlashcardId] = useState<string | null>(null);
   const [studyDeckId, setStudyDeckId] = useState<string | null>(null);
+  const [viewDeckId, setViewDeckId] = useState<string | null>(null);
   const [editEdge, setEditEdge] = useState<any>(null);
   const [addEdgeSourceId, setAddEdgeSourceId] = useState<string | null>(null);
 
@@ -348,6 +350,7 @@ export default function GraphPage() {
           onStudyFlashcard={() => setStudyFlashcardId(controller.state.selectedNode?.id ?? null)}
           onViewFlashcard={() => setViewFlashcardId(controller.state.selectedNode?.id ?? null)}
           onStudyDeck={() => setStudyDeckId(controller.state.selectedNode?.id ?? null)}
+          onViewDeck={() => setViewDeckId(controller.state.selectedNode?.id ?? null)}
           collapsed={rightPanelCollapsed}
           onToggleCollapse={() =>
             setRightPanelCollapsed((v) => !v)
@@ -460,6 +463,11 @@ export default function GraphPage() {
           }
         }}
         baralhoId={studyDeckId}
+      />
+      <ViewDeckModal
+        open={!!viewDeckId}
+        onOpenChange={(open) => !open && setViewDeckId(null)}
+        baralhoId={viewDeckId}
       />
       <EdgeManagerModal
         open={isEdgeManagerOpen}

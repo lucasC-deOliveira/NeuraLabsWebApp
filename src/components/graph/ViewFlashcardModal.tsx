@@ -41,7 +41,7 @@ export function ViewFlashcardModal({ open, onOpenChange, flashcardId }: ViewFlas
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg flex max-h-[85vh] flex-col gap-0">
+      <DialogContent className="max-w-lg flex max-h-[85dvh] flex-col overflow-hidden gap-0">
         <DialogHeader className="shrink-0">
           <DialogTitle>Conteúdo do flashcard</DialogTitle>
           <DialogDescription>Apenas exibição — não conta como revisão.</DialogDescription>
