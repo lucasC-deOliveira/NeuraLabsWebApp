@@ -8,6 +8,13 @@ export type ColorTheme =
   | "cyber-ultraviolet"
   | "chroma-teal"
   | "acid-toxic"
+  | "purple-haze"
+  | "subzero"
+  | "rose-quartz"
+  | "white-wolf"
+  | "cyberpunk-neon"
+  | "jinx"
+  | "hackerman"
   | "light-gx-core"
   | "neon-frost"
   | "cyber-quartz"
@@ -16,6 +23,8 @@ export type ColorTheme =
 
 const DARK_THEMES = new Set<ColorTheme>([
   "classic-gx", "cyber-ultraviolet", "chroma-teal", "acid-toxic",
+  "purple-haze", "subzero", "rose-quartz", "white-wolf",
+  "cyberpunk-neon", "jinx", "hackerman",
 ]);
 
 const STORAGE_KEY = "color-theme";

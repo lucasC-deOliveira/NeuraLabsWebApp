@@ -382,6 +382,228 @@ html[data-color-theme="digital-mint"] {
   --sidebar-ring: oklch(0.49 0.155 170);
   color-scheme: light;
 }
+
+/* =========================================================
+   OPERA GX THEMES — extra dark presets
+   ========================================================= */
+
+/* ── DARK: Purple Haze — #4E387E ── */
+html[data-color-theme="purple-haze"] {
+  --background: oklch(0.203 0.016 302);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.243 0.027 301);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.243 0.027 301);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.499 0.145 295);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.26 0.02 300);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.26 0.01 300);
+  --muted-foreground: oklch(0.64 0.03 300);
+  --accent: oklch(0.499 0.145 295);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.499 0.145 295);
+  --sidebar: oklch(0.18 0.018 301);
+  --sidebar-foreground: oklch(0.90 0 0);
+  --sidebar-primary: oklch(0.499 0.145 295);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.24 0.012 300);
+  --sidebar-accent-foreground: oklch(0.90 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.499 0.145 295);
+  color-scheme: dark;
+}
+
+/* ── DARK: Subzero — #00C8FF ── */
+html[data-color-theme="subzero"] {
+  --background: oklch(0.199 0.015 262);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.254 0.028 257);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.254 0.028 257);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.776 0.149 227);
+  --primary-foreground: oklch(0.16 0.03 240);
+  --secondary: oklch(0.26 0.02 260);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.26 0.01 260);
+  --muted-foreground: oklch(0.64 0.03 250);
+  --accent: oklch(0.776 0.149 227);
+  --accent-foreground: oklch(0.16 0.03 240);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.776 0.149 227);
+  --sidebar: oklch(0.18 0.016 261);
+  --sidebar-foreground: oklch(0.90 0 0);
+  --sidebar-primary: oklch(0.776 0.149 227);
+  --sidebar-primary-foreground: oklch(0.16 0.03 240);
+  --sidebar-accent: oklch(0.24 0.01 260);
+  --sidebar-accent-foreground: oklch(0.90 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.776 0.149 227);
+  color-scheme: dark;
+}
+
+/* ── DARK: Rose Quartz — #F7CAC9 ── */
+html[data-color-theme="rose-quartz"] {
+  --background: oklch(0.210 0.009 318);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.251 0.016 308);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.251 0.016 308);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.878 0.051 20);
+  --primary-foreground: oklch(0.18 0.02 350);
+  --secondary: oklch(0.26 0.012 315);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.26 0.008 315);
+  --muted-foreground: oklch(0.66 0.02 350);
+  --accent: oklch(0.878 0.051 20);
+  --accent-foreground: oklch(0.18 0.02 350);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.878 0.051 20);
+  --sidebar: oklch(0.18 0.01 317);
+  --sidebar-foreground: oklch(0.90 0 0);
+  --sidebar-primary: oklch(0.878 0.051 20);
+  --sidebar-primary-foreground: oklch(0.18 0.02 350);
+  --sidebar-accent: oklch(0.24 0.008 315);
+  --sidebar-accent-foreground: oklch(0.90 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.878 0.051 20);
+  color-scheme: dark;
+}
+
+/* ── DARK: White Wolf — #E6E6E6 ── */
+html[data-color-theme="white-wolf"] {
+  --background: oklch(0.182 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.226 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.226 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.925 0 0);
+  --primary-foreground: oklch(0.16 0 0);
+  --secondary: oklch(0.26 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.26 0 0);
+  --muted-foreground: oklch(0.66 0 0);
+  --accent: oklch(0.925 0 0);
+  --accent-foreground: oklch(0.16 0 0);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.925 0 0);
+  --sidebar: oklch(0.16 0 0);
+  --sidebar-foreground: oklch(0.90 0 0);
+  --sidebar-primary: oklch(0.925 0 0);
+  --sidebar-primary-foreground: oklch(0.16 0 0);
+  --sidebar-accent: oklch(0.24 0 0);
+  --sidebar-accent-foreground: oklch(0.90 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.925 0 0);
+  color-scheme: dark;
+}
+
+/* ── DARK: Cyberpunk Neon — #FF008C ── */
+html[data-color-theme="cyberpunk-neon"] {
+  --background: oklch(0.170 0.024 269);
+  --foreground: oklch(0.95 0.01 250);
+  --card: oklch(0.227 0.036 272);
+  --card-foreground: oklch(0.95 0.01 250);
+  --popover: oklch(0.227 0.036 272);
+  --popover-foreground: oklch(0.95 0.01 250);
+  --primary: oklch(0.649 0.264 359);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.24 0.03 270);
+  --secondary-foreground: oklch(0.95 0.01 250);
+  --muted: oklch(0.24 0.015 270);
+  --muted-foreground: oklch(0.66 0.04 280);
+  --accent: oklch(0.81 0.135 215);
+  --accent-foreground: oklch(0.16 0.03 250);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.649 0.264 359);
+  --sidebar: oklch(0.15 0.024 269);
+  --sidebar-foreground: oklch(0.90 0.01 250);
+  --sidebar-primary: oklch(0.649 0.264 359);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.22 0.02 270);
+  --sidebar-accent-foreground: oklch(0.90 0.01 250);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.649 0.264 359);
+  color-scheme: dark;
+}
+
+/* ── DARK: Jinx — #00AEEF ── */
+html[data-color-theme="jinx"] {
+  --background: oklch(0.187 0.015 267);
+  --foreground: oklch(0.95 0.01 250);
+  --card: oklch(0.240 0.024 267);
+  --card-foreground: oklch(0.95 0.01 250);
+  --popover: oklch(0.240 0.024 267);
+  --popover-foreground: oklch(0.95 0.01 250);
+  --primary: oklch(0.708 0.149 234);
+  --primary-foreground: oklch(0.16 0.03 250);
+  --secondary: oklch(0.25 0.02 267);
+  --secondary-foreground: oklch(0.95 0.01 250);
+  --muted: oklch(0.25 0.012 267);
+  --muted-foreground: oklch(0.66 0.03 255);
+  --accent: oklch(0.66 0.20 357);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.708 0.149 234);
+  --sidebar: oklch(0.16 0.015 267);
+  --sidebar-foreground: oklch(0.90 0.01 250);
+  --sidebar-primary: oklch(0.708 0.149 234);
+  --sidebar-primary-foreground: oklch(0.16 0.03 250);
+  --sidebar-accent: oklch(0.23 0.012 267);
+  --sidebar-accent-foreground: oklch(0.90 0.01 250);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.708 0.149 234);
+  color-scheme: dark;
+}
+
+/* ── DARK: Hackerman — #28C23C ── */
+html[data-color-theme="hackerman"] {
+  --background: oklch(0.159 0.021 279);
+  --foreground: oklch(0.93 0.03 150);
+  --card: oklch(0.235 0.027 275);
+  --card-foreground: oklch(0.93 0.03 150);
+  --popover: oklch(0.235 0.027 275);
+  --popover-foreground: oklch(0.93 0.03 150);
+  --primary: oklch(0.712 0.213 144);
+  --primary-foreground: oklch(0.14 0.02 150);
+  --secondary: oklch(0.24 0.02 277);
+  --secondary-foreground: oklch(0.93 0.03 150);
+  --muted: oklch(0.24 0.012 277);
+  --muted-foreground: oklch(0.66 0.03 150);
+  --accent: oklch(0.712 0.213 144);
+  --accent-foreground: oklch(0.14 0.02 150);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.712 0.213 144);
+  --sidebar: oklch(0.14 0.02 279);
+  --sidebar-foreground: oklch(0.88 0.03 150);
+  --sidebar-primary: oklch(0.712 0.213 144);
+  --sidebar-primary-foreground: oklch(0.14 0.02 150);
+  --sidebar-accent: oklch(0.22 0.015 277);
+  --sidebar-accent-foreground: oklch(0.88 0.03 150);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.712 0.213 144);
+  color-scheme: dark;
+}
+
 /* ==========================================
    EFEITO NEON NA SIDEBAR
    Ativado pela checkbox na seção de tema (html[data-neon="true"]).
