@@ -36,6 +36,58 @@ export async function startStudySession(): Promise<{
   return { sessionId, cards: interleaved };
 }
 
+// Carrega um único flashcard para estudo avulso (ex.: a partir do grafo).
+export async function getFlashcardForStudy(flashcardId: string): Promise<{
+  id: string;
+  pergunta: string;
+  resposta: string;
+  conceito: string | null;
+} | null> {
+  const userId = await requireUserId();
+  const fc = await prisma.flashcard.findFirst({
+    where: { id: flashcardId, usuarioId: userId },
+    include: { conceito: { select: { nome: true } } },
+  });
+  if (!fc) return null;
+  return {
+    id: fc.id,
+    pergunta: fc.pergunta,
+    resposta: fc.resposta,
+    conceito: fc.conceito?.nome ?? null,
+  };
+}
+
+// Registra a revisão de um único flashcard (cria e encerra uma sessão pontual).
+// Usado pelo estudo via modal no grafo, sem entrar numa sessão completa.
+export async function reviewSingleCard(data: {
+  flashcardId: string;
+  acertou: boolean;
+  nivelConfianca: number;
+  respostaUsuario?: string;
+  tempoResposta?: number;
+}): Promise<{ success: boolean }> {
+  const userId = await requireUserId();
+
+  const fc = await prisma.flashcard.findFirst({
+    where: { id: data.flashcardId, usuarioId: userId },
+    select: { id: true },
+  });
+  if (!fc) throw new Error("Flashcard não encontrado ou não pertence ao usuário");
+
+  const sessionId = await libStartStudySession(userId);
+  await libSubmitReview({
+    flashcardId: data.flashcardId,
+    sessaoId: sessionId,
+    respostaUsuario: data.respostaUsuario ?? "",
+    acertou: data.acertou,
+    nivelConfianca: data.nivelConfianca,
+    tempoResposta: data.tempoResposta,
+  });
+  await libEndStudySession(sessionId);
+
+  return { success: true };
+}
+
 export async function submitCardReview(data: {
   flashcardId: string;
   respostaUsuario: string;

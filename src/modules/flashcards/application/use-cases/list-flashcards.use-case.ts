@@ -12,7 +12,7 @@ export interface FlashcardDto {
   id: string;
   pergunta: string;
   resposta: string;
-  conceito: string;
+  conceito: string | null;
   dataCriacao: Date;
   spacedRepetition: {
     dificuldade: number;

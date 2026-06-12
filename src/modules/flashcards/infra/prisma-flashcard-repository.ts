@@ -78,7 +78,7 @@ export class PrismaFlashcardRepository implements FlashcardRepository {
       pergunta: record.pergunta,
       resposta: record.resposta,
       conceitoId: record.conceitoId,
-      conceitoNome: record.conceito.nome,
+      conceitoNome: record.conceito?.nome ?? null,
       spacedRepetition: sr,
       dataCriacao: record.dataCriacao,
     });
@@ -125,7 +125,7 @@ export class PrismaFlashcardRepository implements FlashcardRepository {
         pergunta: fc.pergunta,
         resposta: fc.resposta,
         conceitoId: fc.conceitoId,
-        conceitoNome: fc.conceito.nome,
+        conceitoNome: fc.conceito?.nome ?? null,
         spacedRepetition: sr,
         dataCriacao: fc.dataCriacao,
       });

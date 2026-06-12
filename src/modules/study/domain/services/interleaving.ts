@@ -21,9 +21,9 @@ export function applyInterleaving(
   // Group cards by concept
   const byConcept = new Map<string, FlashcardData[]>();
   for (const card of cards) {
-    const group = byConcept.get(card.conceito) ?? [];
+    const group = byConcept.get(card.conceito ?? "") ?? [];
     group.push(card);
-    byConcept.set(card.conceito, group);
+    byConcept.set(card.conceito ?? "", group);
   }
 
   const result: FlashcardData[] = [];
@@ -87,14 +87,14 @@ export function getNextCardAlgorithm(
   // Build weakness score per concept (lower accuracy = weaker)
   const conceptStats = new Map<string, { correct: number; total: number }>();
   for (const card of availableCards) {
-    if (!conceptStats.has(card.conceito)) {
-      conceptStats.set(card.conceito, { correct: 0, total: 0 });
+    if (!conceptStats.has(card.conceito ?? "")) {
+      conceptStats.set(card.conceito ?? "", { correct: 0, total: 0 });
     }
   }
   for (const rev of performanceHistory) {
     const card = availableCards.find((c) => c.id === rev.flashcardId);
     if (!card) continue;
-    const stats = conceptStats.get(card.conceito);
+    const stats = conceptStats.get(card.conceito ?? "");
     if (stats) {
       stats.total++;
       if (rev.acertou) stats.correct++;
@@ -103,8 +103,8 @@ export function getNextCardAlgorithm(
 
   // Sort candidates: weakest concept first, then shuffle within same-weakness
   candidates.sort((a, b) => {
-    const statsA = conceptStats.get(a.conceito);
-    const statsB = conceptStats.get(b.conceito);
+    const statsA = conceptStats.get(a.conceito ?? "");
+    const statsB = conceptStats.get(b.conceito ?? "");
 
     const rateA = statsA && statsA.total > 0 ? statsA.correct / statsA.total : 0.5;
     const rateB = statsB && statsB.total > 0 ? statsB.correct / statsB.total : 0.5;

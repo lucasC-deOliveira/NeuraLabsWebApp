@@ -11,8 +11,9 @@ interface FlashcardProps {
   userId: string;
   pergunta: string;
   resposta: string;
-  conceitoId: string;
-  conceitoNome: string;
+  // null quando o flashcard não está associado a um conceito (ex.: criado via importação)
+  conceitoId: string | null;
+  conceitoNome: string | null;
   spacedRepetition: SpacedRepetitionData | null;
   dataCriacao: Date;
 }
@@ -23,8 +24,8 @@ export class Flashcard {
   static create(
     pergunta: string,
     resposta: string,
-    conceitoId: string,
-    conceitoNome: string,
+    conceitoId: string | null,
+    conceitoNome: string | null,
     userId: string,
   ): Flashcard {
     if (!pergunta.trim()) throw new Error("Flashcard pergunta cannot be empty");
@@ -64,11 +65,11 @@ export class Flashcard {
     return this.props.resposta;
   }
 
-  get conceitoId(): string {
+  get conceitoId(): string | null {
     return this.props.conceitoId;
   }
 
-  get conceitoNome(): string {
+  get conceitoNome(): string | null {
     return this.props.conceitoNome;
   }
 

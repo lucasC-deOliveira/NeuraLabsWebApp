@@ -24,7 +24,7 @@ import {
   Loader2Icon,
 } from "lucide-react";
 
-type Phase = "loading" | "question" | "answer" | "elaboration" | "feedback" | "complete";
+type Phase = "loading" | "question" | "answer" | "elaboration" | "confidence" | "feedback" | "complete";
 
 interface SessionStats {
   totalCards: number;
@@ -56,6 +56,8 @@ export default function StudyPage() {
   // User input state
   const [confidence, setConfidence] = useState<number>(0);
   const [userAnswer, setUserAnswer] = useState("");
+  // resultado pendente: o usuário marca acertou/errou e SÓ DEPOIS informa a confiança
+  const [pendingAcertou, setPendingAcertou] = useState<boolean | null>(null);
 
   // Timing state
   const [startTime, setStartTime] = useState<Date>(new Date());
@@ -119,14 +121,15 @@ export default function StudyPage() {
   cardStartTimeRef.current = cardStartTime;
   const statsRef = useRef(stats);
   statsRef.current = stats;
+  const pendingAcertouRef = useRef(pendingAcertou);
+  pendingAcertouRef.current = pendingAcertou;
 
   const handleRevealAnswerRef = useRef(() => {
     setPhase("answer");
     setCardStartTime(new Date());
   });
 
-  const triggerAnswer = useRef(async (acertou: boolean) => {
-    const cfConfidence = confidenceRef.current;
+  const triggerAnswer = useRef(async (acertou: boolean, cfConfidence: number) => {
     const card = cards[currentIndexRef.current];
     if (!card) return;
     const elapsedMs = Date.now() - cardStartTimeRef.current.getTime();
@@ -166,6 +169,7 @@ export default function StudyPage() {
       } else {
         setCurrentIndex(nextIndex);
         setConfidence(0);
+        setPendingAcertou(null);
         setUserAnswer("");
         setCardStartTime(new Date());
         setPhase("question");
@@ -174,26 +178,37 @@ export default function StudyPage() {
     }, 1500);
   });
 
+  // marca acertou/errou e avança para a etapa de confiança (não envia ainda)
+  const goToConfidenceRef = useRef((acertou: boolean) => {
+    setPendingAcertou(acertou);
+    setPhase("confidence");
+  });
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLTextAreaElement) return;
-      if (e.code === "Space") {
+      // Espaço revela a resposta (sem exigir confiança antes)
+      if (e.code === "Space" && phaseRef.current === "question") {
         e.preventDefault();
-        if (phaseRef.current === "question" && confidenceRef.current > 0) {
-          handleRevealAnswerRef.current();
-        } else if (phaseRef.current === "elaboration" && userAnswerRef.current.trim()) {
-          triggerAnswer.current(true);
-        }
+        handleRevealAnswerRef.current();
+        return;
       }
-      if (phaseRef.current === "answer") {
+      // Após ver a resposta: 1 = Errei, 2 = Acertei → vai para a confiança
+      if (phaseRef.current === "answer" || phaseRef.current === "elaboration") {
         if (e.key === "1") {
           e.preventDefault();
-          triggerAnswer.current(false);
+          goToConfidenceRef.current(false);
         }
         if (e.key === "2") {
           e.preventDefault();
-          triggerAnswer.current(true);
+          goToConfidenceRef.current(true);
         }
+      }
+      // Etapa de confiança: 1–5 envia a revisão
+      if (phaseRef.current === "confidence" && ["1", "2", "3", "4", "5"].includes(e.key)) {
+        e.preventDefault();
+        const acertou = pendingAcertouRef.current;
+        if (acertou !== null) triggerAnswer.current(acertou, Number(e.key));
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -206,12 +221,16 @@ export default function StudyPage() {
     setCardStartTime(new Date());
   };
 
-  const handleAnswer = async (acertou: boolean) => {
-    triggerAnswer.current(acertou);
+  // marca o resultado e pede a confiança em seguida
+  const handleAnswer = (acertou: boolean) => {
+    setPendingAcertou(acertou);
+    setPhase("confidence");
   };
 
-  const handleElaborationSubmit = async (acertou: boolean) => {
-    triggerAnswer.current(acertou);
+  // envia a revisão com o resultado pendente + a confiança escolhida
+  const handleConfidence = (level: number) => {
+    if (pendingAcertou === null) return;
+    triggerAnswer.current(pendingAcertou, level);
   };
 
   const completeSession = async () => {
@@ -383,35 +402,6 @@ export default function StudyPage() {
       {/* Card Area */}
       <main className="flex flex-1 items-center justify-center px-3 sm:px-5 py-6 sm:py-8">
         <div className="mx-auto w-full max-w-2xl">
-          {/* Confidence Selector - only in question phase */}
-          {phase === "question" && (
-            <div className="mb-3 sm:mb-4">
-              <label className="mb-1.5 sm:mb-2 block text-xs sm:text-sm font-medium text-muted-foreground">
-                Quao confiante voce e antes de ver a resposta?
-              </label>
-              <div className="flex gap-1.5 sm:gap-2">
-                {[1, 2, 3, 4, 5].map((level) => (
-                  <button
-                    key={level}
-                    onClick={() => setConfidence(level)}
-                    className={`
-                      flex flex-1 flex-col items-center justify-center rounded-lg border py-2 sm:py-2.5 text-xs sm:text-sm transition-all
-                      ${
-                        confidence === level
-                          ? "border-primary bg-primary/10 text-primary ring-2 ring-primary/30"
-                          : "border-border bg-card text-muted-foreground hover:bg-muted"
-                      }
-                    `}
-                  >
-                    <span className="text-sm sm:text-base font-semibold">{level}</span>
-                    <span className="mt-0.5 text-[0.6rem] sm:text-[0.65rem] leading-tight text-center hidden sm:inline">
-                      {CONFIDENCE_LABELS[level].split(" ")[0]}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Main Card */}
           <Card className="text-center">
@@ -447,7 +437,7 @@ export default function StudyPage() {
           </Card>
 
           {/* Answer Actions */}
-          {phase === "question" && confidence > 0 && (
+          {phase === "question" && (
             <div className="mt-4 sm:mt-6 flex justify-center">
               <Button size="lg" onClick={handleRevealAnswer} className="gap-2 w-full sm:w-auto">
                 <EyeIcon className="size-4" />
@@ -520,7 +510,7 @@ export default function StudyPage() {
                       size="sm"
                       variant="destructive"
                       disabled={!userAnswer.trim()}
-                      onClick={() => handleElaborationSubmit(false)}
+                      onClick={() => handleAnswer(false)}
                       className="flex-1 sm:flex-none"
                     >
                       Errei
@@ -528,7 +518,7 @@ export default function StudyPage() {
                     <Button
                       size="sm"
                       disabled={!userAnswer.trim()}
-                      onClick={() => handleElaborationSubmit(true)}
+                      onClick={() => handleAnswer(true)}
                       className="bg-green-600 text-white hover:bg-green-700 flex-1 sm:flex-none"
                     >
                       Acertei
@@ -536,6 +526,29 @@ export default function StudyPage() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Confidence — só DEPOIS de responder */}
+          {phase === "confidence" && (
+            <div className="mt-4 sm:mt-6">
+              <label className="mb-1.5 sm:mb-2 block text-center text-xs sm:text-sm font-medium text-muted-foreground">
+                Quão confiante você estava nessa resposta?
+              </label>
+              <div className="flex gap-1.5 sm:gap-2">
+                {[1, 2, 3, 4, 5].map((level) => (
+                  <button
+                    key={level}
+                    onClick={() => handleConfidence(level)}
+                    className="flex flex-1 flex-col items-center justify-center rounded-lg border border-border bg-card py-2 sm:py-2.5 text-xs sm:text-sm text-muted-foreground transition-all hover:border-primary hover:bg-primary/10 hover:text-primary"
+                  >
+                    <span className="text-sm sm:text-base font-semibold">{level}</span>
+                    <span className="mt-0.5 text-[0.6rem] sm:text-[0.65rem] leading-tight text-center hidden sm:inline">
+                      {CONFIDENCE_LABELS[level].split(" ")[0]}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

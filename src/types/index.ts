@@ -6,7 +6,8 @@ export interface FlashcardData {
   id: string;
   pergunta: string;
   resposta: string;
-  conceito: string;
+  // pode ser null: flashcards criados via importação não têm conceito associado
+  conceito: string | null;
 }
 
 export interface ReviewResult {

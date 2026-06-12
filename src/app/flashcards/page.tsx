@@ -211,7 +211,7 @@ export default function FlashcardsPage() {
       result = result.filter((fc) =>
         fc.pergunta.toLowerCase().includes(lower) ||
         fc.resposta.toLowerCase().includes(lower) ||
-        fc.conceito.toLowerCase().includes(lower) ||
+        (fc.conceito ?? "").toLowerCase().includes(lower) ||
         fc.topico.toLowerCase().includes(lower) ||
         fc.assunto.toLowerCase().includes(lower)
       );
@@ -248,7 +248,7 @@ export default function FlashcardsPage() {
     result.sort((a, b) => {
       switch (sortBy) {
         case "alpha":
-          return a.conceito.localeCompare(b.conceito);
+          return (a.conceito ?? "").localeCompare(b.conceito ?? "");
         case "difficulty": {
           const dA = a.spacedRepetition?.dificuldade ?? 999;
           const dB = b.spacedRepetition?.dificuldade ?? 999;

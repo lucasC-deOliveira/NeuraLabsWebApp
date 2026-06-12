@@ -142,7 +142,7 @@ export async function getFlashcards(options?: {
     id: string;
     pergunta: string;
     resposta: string;
-    conceito: string;
+    conceito: string | null;
     spacedRepetition: {
       dificuldade: number;
       intervalo: number;
@@ -167,7 +167,7 @@ export async function getFlashcardById(id: string): Promise<{
   id: string;
   pergunta: string;
   resposta: string;
-  conceito: string;
+  conceito: string | null;
   spacedRepetition: {
     dificuldade: number;
     intervalo: number;

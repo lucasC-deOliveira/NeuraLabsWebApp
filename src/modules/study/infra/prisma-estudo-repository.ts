@@ -39,7 +39,7 @@ export async function getCardsForStudySession(
     id: r.flashcard.id,
     pergunta: r.flashcard.pergunta,
     resposta: r.flashcard.resposta,
-    conceito: r.flashcard.conceito.nome,
+    conceito: r.flashcard.conceito?.nome ?? null,
     spacedRepetition: {
       dificuldade: r.dificuldade,
       intervalo: r.intervalo,
@@ -72,7 +72,7 @@ export async function getNewCardsForStudy(
     id: fc.id,
     pergunta: fc.pergunta,
     resposta: fc.resposta,
-    conceito: fc.conceito.nome,
+    conceito: fc.conceito?.nome ?? null,
   }));
 }
 

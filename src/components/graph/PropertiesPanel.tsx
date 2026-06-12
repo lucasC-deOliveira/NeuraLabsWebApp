@@ -76,6 +76,7 @@ interface PropertiesPanelProps {
   onAddEdge?: () => void;
   onEditNode?: () => void;
   onViewNota?: () => void;
+  onStudyFlashcard?: () => void;
 
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -94,6 +95,7 @@ export function PropertiesPanel({
   onAddEdge,
   onEditNode,
   onViewNota,
+  onStudyFlashcard,
   collapsed,
   onToggleCollapse,
 }: PropertiesPanelProps) {
@@ -206,12 +208,12 @@ export function PropertiesPanel({
             <Separator />
 
             {/* Flashcard Study Button */}
-            {selectedNode.tipoReal === "FLASHCARD" && (
+            {selectedNode.tipoReal === "FLASHCARD" && onStudyFlashcard && (
               <>
                 <Button
                   size="sm"
                   className="w-full gap-2"
-                  onClick={() => router.push(`/study?flashcard=${selectedNode.id}`)}
+                  onClick={onStudyFlashcard}
                 >
                   <BookOpenIcon className="size-4" />
                   Estudar Flashcard
