@@ -767,6 +767,16 @@ export function CreateNodeModal({
                     ) : (
                       <>
                         {topicoAssuntos.map((link, idx) => {
+                          // um assunto já escolhido em outra linha não aparece de novo
+                          const usados = new Set(
+                            topicoAssuntos
+                              .filter((_, i) => i !== idx)
+                              .map((l) => l.assuntoId)
+                              .filter(Boolean)
+                          );
+                          const opcoes = parentIds.assuntos.filter(
+                            (a) => a.id === link.assuntoId || !usados.has(a.id)
+                          );
                           return (
                             <div key={idx} className="flex items-center gap-1.5">
                               <Select
@@ -783,7 +793,7 @@ export function CreateNodeModal({
                                   <SelectValue placeholder="Assunto" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {parentIds.assuntos.map((a) => (
+                                  {opcoes.map((a) => (
                                     <SelectItem key={a.id} value={a.id}>
                                       {a.nome}
                                     </SelectItem>
@@ -836,21 +846,24 @@ export function CreateNodeModal({
                             </div>
                           );
                         })}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() =>
-                            setTopicoAssuntos((prev) => [
-                              ...prev,
-                              { assuntoId: "", relacao: TOPICO_ASSUNTO_RELATIONS[0], peso: 1 },
-                            ])
-                          }
-                        >
-                          <PlusIcon className="size-3.5" />
-                          Adicionar assunto
-                        </Button>
+                        {/* só dá pra adicionar enquanto houver assunto ainda não usado */}
+                        {topicoAssuntos.length < parentIds.assuntos.length && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() =>
+                              setTopicoAssuntos((prev) => [
+                                ...prev,
+                                { assuntoId: "", relacao: TOPICO_ASSUNTO_RELATIONS[0], peso: 1 },
+                              ])
+                            }
+                          >
+                            <PlusIcon className="size-3.5" />
+                            Adicionar assunto
+                          </Button>
+                        )}
                       </>
                     )}
                   </div>
