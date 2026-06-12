@@ -45,10 +45,10 @@ export type PhysicsOptions = {
 };
 
 export const DEFAULT_PHYSICS_OPTIONS: PhysicsOptions = {
-  gravitationalConstant: 2400,
-  centralGravity: 0.4,
-  springLength: 140,
-  springConstant: 0.05,
+  gravitationalConstant: 6000,
+  centralGravity: 0.06,
+  springLength: 200,
+  springConstant: 0.04,
   damping: 0.4,
   avoidOverlap: 0.6,
 };
