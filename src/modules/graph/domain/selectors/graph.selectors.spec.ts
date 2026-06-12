@@ -22,23 +22,25 @@ const edges = [
 ];
 
 describe("getFilteredNodes", () => {
-  it("returns all nodes when filterGroup is null", () => {
-    expect(getFilteredNodes(nodes, null)).toHaveLength(4);
+  it("returns all nodes when no type is hidden", () => {
+    expect(getFilteredNodes(nodes, new Set())).toHaveLength(4);
   });
 
-  it("filters to only matching group", () => {
-    const result = getFilteredNodes(nodes, "CONCEITO");
+  it("hides nodes of the deactivated type", () => {
+    const result = getFilteredNodes(nodes, new Set(["CONCEITO"]));
     expect(result).toHaveLength(2);
-    expect(result.every((n) => n.group === "CONCEITO")).toBe(true);
+    expect(result.every((n) => n.group !== "CONCEITO")).toBe(true);
   });
 
-  it("returns empty array when no nodes match group", () => {
-    expect(getFilteredNodes(nodes, "FLASHCARD")).toHaveLength(0);
+  it("can hide multiple types at once", () => {
+    const result = getFilteredNodes(nodes, new Set(["CONCEITO", "TOPICO"]));
+    expect(result).toHaveLength(1);
+    expect(result[0].group).toBe("ASSUNTO");
   });
 
-  // Mutation: ensure filter is exact match, not partial
-  it("does not match partial group names", () => {
-    expect(getFilteredNodes(nodes, "ASSUN")).toHaveLength(0);
+  // Mutation: ensure visibility check is exact match, not partial
+  it("does not hide on partial type names", () => {
+    expect(getFilteredNodes(nodes, new Set(["ASSUN"]))).toHaveLength(4);
   });
 });
 

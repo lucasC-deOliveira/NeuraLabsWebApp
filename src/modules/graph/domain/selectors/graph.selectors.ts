@@ -1,14 +1,14 @@
 import type { GraphNodeType, GraphEdgeType } from "@/actions/graph";
 
 /**
- * Filtra nós por grupo (ASSUNTO, TOPICO, CONCEITO, etc)
+ * Esconde os nós cujos tipos o usuário desativou (todos visíveis por padrão).
  */
 export function getFilteredNodes(
   layout: any[],
-  filterGroup: string | null
+  hiddenTypes: Set<string>
 ) {
-  if (!filterGroup) return layout;
-  return layout.filter((n) => n.group === filterGroup);
+  if (!hiddenTypes || hiddenTypes.size === 0) return layout;
+  return layout.filter((n) => !hiddenTypes.has(n.group));
 }
 
 /**

@@ -30,7 +30,15 @@ export function useGraphController(graphId: string) {
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [filterGroup, setFilterGroup] = useState<string | null>(null);
+  // tipos de nó ocultados pelo usuário (todos visíveis por padrão)
+  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
+  const toggleNodeType = (type: string) =>
+    setHiddenTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
   const [activeTool, setActiveTool] = useState<"select" | "marquee" | "hand">("select");
   const [physicsEnabled, setPhysicsEnabled] = useState(true);
   const [physicsOptions, setPhysicsOptions] = useState<PhysicsOptions>(DEFAULT_PHYSICS_OPTIONS);
@@ -124,14 +132,15 @@ export function useGraphController(graphId: string) {
     });
   }, [nodes]);
 
-  const visibleNodeIds = useMemo(
-    () => new Set(layout.map(n => n.id)),
-    [layout]
+  const filteredNodes = useMemo(
+    () => getFilteredNodes(layout, hiddenTypes),
+    [layout, hiddenTypes]
   );
 
-  const filteredNodes = useMemo(
-    () => getFilteredNodes(layout, filterGroup),
-    [layout, filterGroup]
+  // só os nós visíveis contam para as arestas (esconde arestas de tipos ocultos)
+  const visibleNodeIds = useMemo(
+    () => new Set(filteredNodes.map((n) => n.id)),
+    [filteredNodes]
   );
 
   const filteredEdges = useMemo(
@@ -148,7 +157,7 @@ export function useGraphController(graphId: string) {
       selectedNode,
       selectedNodeIds,
       hoveredNodeId,
-      filterGroup,
+      hiddenTypes,
       zoom,
       pan,
       loading,
@@ -162,7 +171,8 @@ export function useGraphController(graphId: string) {
       selectNode,
       setSelectedNodeIds,
       setHoveredNodeId,
-      setFilterGroup,
+      toggleNodeType,
+      setHiddenTypes,
       setLayout,
       setGrafoNome,
       setZoom,

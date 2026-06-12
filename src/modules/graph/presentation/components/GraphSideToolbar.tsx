@@ -4,6 +4,8 @@ import { useState } from "react";
 import {
   BoxSelectIcon,
   BracesIcon,
+  EyeIcon,
+  EyeOffIcon,
   HandIcon,
   LayersIcon,
   LinkIcon,
@@ -43,8 +45,8 @@ type Props = {
   onFocusNode: (node: any) => void;
 
   nodeStats: Record<string, number>;
-  filterGroup: string | null;
-  onToggleFilter: (type: string | null) => void;
+  hiddenTypes: Set<string>;
+  onToggleType: (type: string) => void;
 };
 
 const TOOLS: Array<{ id: GraphTool; icon: typeof MousePointer2Icon; label: string }> = [
@@ -98,8 +100,8 @@ export function GraphSideToolbar({
   searchResults,
   onFocusNode,
   nodeStats,
-  filterGroup,
-  onToggleFilter,
+  hiddenTypes,
+  onToggleType,
 }: Props) {
   const [openPanel, setOpenPanel] = useState<"search" | "layers" | null>(null);
 
@@ -145,9 +147,9 @@ export function GraphSideToolbar({
             <SearchIcon className="size-4" />
           </SideButton>
           <SideButton
-            label="Tipos de nó (filtro)"
+            label="Tipos de nó (camadas)"
             active={openPanel === "layers"}
-            ringed={!!filterGroup}
+            ringed={hiddenTypes.size > 0}
             onClick={() => togglePanel("layers")}
           >
             <LayersIcon className="size-4" />
@@ -225,34 +227,53 @@ export function GraphSideToolbar({
           </div>
         )}
 
-        {/* PAINEL DE CAMADAS / FILTRO */}
+        {/* PAINEL DE CAMADAS — desative os tipos que não quer ver */}
         {openPanel === "layers" && (
-          <div className="graph-toolbar absolute left-full bottom-0 ml-2 w-56 rounded-md border bg-background/95 backdrop-blur-sm p-3 shadow-md">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              Tipos de nó
-            </h4>
+          <div className="graph-toolbar absolute left-full bottom-0 ml-2 w-60 rounded-md border bg-background/95 backdrop-blur-sm p-3 shadow-md">
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Camadas (tipos de nó)
+              </h4>
+              {hiddenTypes.size > 0 && (
+                <button
+                  onClick={() => Object.keys(nodeStats).filter((t) => hiddenTypes.has(t)).forEach(onToggleType)}
+                  className="text-[11px] text-primary hover:underline"
+                >
+                  Mostrar todos
+                </button>
+              )}
+            </div>
             {Object.keys(nodeStats).length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-3">Nenhum nó no grafo</p>
             ) : (
               <div className="space-y-1">
-                {Object.entries(nodeStats).map(([type, count]) => (
-                  <button
-                    key={type}
-                    onClick={() => onToggleFilter(type === filterGroup ? null : type)}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors ${
-                      type === filterGroup ? "bg-primary/10 text-primary" : "hover:bg-accent"
-                    }`}
-                  >
-                    <div
-                      className="size-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: getNodeColors(type, isDark).border }}
-                    />
-                    <span className="flex-1 truncate text-left">
-                      {NODE_TYPE_DISPLAY[type as keyof typeof NODE_TYPE_DISPLAY]?.label ?? type}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{count}</span>
-                  </button>
-                ))}
+                {Object.entries(nodeStats).map(([type, count]) => {
+                  const hidden = hiddenTypes.has(type);
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => onToggleType(type)}
+                      title={hidden ? "Mostrar este tipo" : "Ocultar este tipo"}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors hover:bg-accent ${
+                        hidden ? "opacity-45" : ""
+                      }`}
+                    >
+                      <div
+                        className="size-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: getNodeColors(type, isDark).border }}
+                      />
+                      <span className={`flex-1 truncate text-left ${hidden ? "line-through" : ""}`}>
+                        {NODE_TYPE_DISPLAY[type as keyof typeof NODE_TYPE_DISPLAY]?.label ?? type}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{count}</span>
+                      {hidden ? (
+                        <EyeOffIcon className="size-3.5 text-muted-foreground" />
+                      ) : (
+                        <EyeIcon className="size-3.5 text-primary" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

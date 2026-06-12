@@ -270,8 +270,8 @@ export default function GraphPage() {
             searchResults={searchResults}
             onFocusNode={controller.interactions.focusNode}
             nodeStats={nodeStats}
-            filterGroup={controller.state.filterGroup}
-            onToggleFilter={controller.actions.setFilterGroup}
+            hiddenTypes={controller.state.hiddenTypes}
+            onToggleType={controller.actions.toggleNodeType}
           />
           <GraphToolbar
             legendVisible={legendVisible}
