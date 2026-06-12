@@ -5,7 +5,7 @@ export interface GetNotaOutput {
   id: string;
   userId: string;
   titulo: string | null;
-  textoBruto: string;
+  conteudo: string;
   conceitoIds: ReadonlyArray<string>;
   flashcardIds: ReadonlyArray<string>;
   createdAt: Date;
@@ -22,7 +22,7 @@ export class GetNotaUseCase {
       id: nota.id,
       userId: nota.userId,
       titulo: nota.titulo,
-      textoBruto: nota.textoBruto,
+      conteudo: nota.conteudo,
       conceitoIds: nota.conceitoIds,
       flashcardIds: nota.flashcardIds,
       createdAt: nota.createdAt,

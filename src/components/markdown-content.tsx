@@ -3,12 +3,27 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+// Sanitização explícita de URLs de links/imagens: bloqueia esquemas perigosos
+// (javascript:, data:, vbscript:, file:...) que poderiam causar XSS. Permite
+// relativo, âncora e apenas http/https/mailto/tel. Reforça o padrão do
+// react-markdown e protege contra regressões (ex.: alguém habilitar rehype-raw).
+const SAFE_URL_SCHEMES = ["http", "https", "mailto", "tel"];
+function safeUrl(url: string): string {
+  const v = (url ?? "").trim();
+  const scheme = v.match(/^([a-z][a-z0-9+.-]*):/i);
+  // sem esquema (relativo/âncora) é permitido; com esquema, só os da allowlist
+  if (scheme && !SAFE_URL_SCHEMES.includes(scheme[1].toLowerCase())) return "";
+  return v;
+}
+
 // Renderizador compartilhado de markdown (GFM: tabelas, listas de tarefas,
-// riscado, links automáticos) com a tipografia do tema.
+// riscado, links automáticos) com a tipografia do tema. Não habilita rehype-raw,
+// então HTML cru no markdown NÃO é renderizado (mitiga XSS).
 export function MarkdownContent({ children }: { children: string }) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
+      urlTransform={safeUrl}
       components={{
         h1: ({ children }) => (
           <h1 className="text-xl sm:text-2xl font-bold mt-6 mb-3 text-primary">{children}</h1>

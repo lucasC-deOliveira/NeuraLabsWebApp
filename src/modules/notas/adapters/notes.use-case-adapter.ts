@@ -78,7 +78,7 @@ export async function getNotas(): Promise<
 
       return {
         id: nota.id,
-        preview: nota.textoBruto.slice(0, 200),
+        preview: nota.conteudo.slice(0, 200),
         dataCriacao: nota.dataCriacao,
         conceitosRelacionados,
         flashcardCount: flashcardsCount,
@@ -89,7 +89,7 @@ export async function getNotas(): Promise<
 
 export async function getNotaById(notaId: string): Promise<{
   id: string;
-  textoBruto: string;
+  conteudo: string;
   dataCriacao: Date;
   conceitosRelacionados: { nome: string; tipoRelacao: string }[];
 } | null> {
@@ -116,7 +116,7 @@ export async function getNotaById(notaId: string): Promise<{
 
   return {
     id: result.id,
-    textoBruto: result.textoBruto,
+    conteudo: result.conteudo,
     dataCriacao: result.createdAt,
     conceitosRelacionados,
   };

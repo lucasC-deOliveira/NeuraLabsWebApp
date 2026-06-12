@@ -24,6 +24,7 @@ model Usuario {
   aprendizagens     AprendizadoFlashcard[]
   desempenhoNos     DesempenhoNo[]
   notas             Nota[]
+  textosBrutos      TextoBruto[]
   configAI          ConfigAI?
   assuntos          Assunto[]
   nodesConhecimento NodeConhecimento[]
@@ -112,7 +113,7 @@ model Nota {
   fonte       String?  // origem da nota de literatura (livro, artigo, vídeo...)
   // identificador único estilo Zettelkasten: timestamp de criação + título
   slug        String?
-  textoBruto  String   @map("texto_bruto")
+  conteudo    String
   dataCriacao DateTime @default(now()) @map("data_criacao")
   dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao")
 
@@ -121,6 +122,19 @@ model Nota {
   arestasDestino ConhecimentoAresta[] @relation("ArestaNotaDestino")
 
   @@map("notas")
+}
+
+// TEXTO_BRUTO — texto original/fonte do qual notas são geradas (relação GERA)
+model TextoBruto {
+  id          String   @id @default(cuid())
+  usuarioId   String   @map("id_usuario")
+  titulo      String   @default("Texto sem título")
+  texto       String
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("textos_brutos")
 }
 
 // ==========================================
@@ -152,6 +166,7 @@ enum TipoNode {
   CONCEITO
   FLASHCARD
   NOTA
+  TEXTO_BRUTO
   QUESTION
 }
 
@@ -221,6 +236,7 @@ enum TipoRelacao {
   EVOLUI_PARA
   REFORCA
   RELACIONADO
+  TESTA
   TESTA_DEFINICAO
   PERTENCE_A
   SUBTOPICO_DE

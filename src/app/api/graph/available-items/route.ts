@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/auth";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
+    const limited = await enforceApiRateLimit("graph:read", "read");
+    if (limited) return limited;
+
     const userId = await requireUserId();
     const { searchParams } = new URL(request.url);
     const grafoId = searchParams.get("grafoId");
@@ -78,8 +82,8 @@ export async function GET(request: NextRequest) {
     // Format notas
     const formattedNotas = notas.map((nota) => ({
       id: nota.id,
-      label: nota.textoBruto.slice(0, 50) + (nota.textoBruto.length > 50 ? "..." : ""),
-      fullText: nota.textoBruto,
+      label: nota.conteudo.slice(0, 50) + (nota.conteudo.length > 50 ? "..." : ""),
+      fullText: nota.conteudo,
       tipo: "NOTA",
       hierarquia: "Nota direta",
     }));

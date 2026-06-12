@@ -28,6 +28,7 @@ export const RELATION_LABELS: Record<string, string> = {
   RELACIONADO: "relacionado",
   DEPENDE_DE: "depende de",
   HERDA: "herda",
+  TESTA: "testa",
   TESTA_DEFINICAO: "testa definição",
   TESTA_EXEMPLO: "testa exemplo",
   TESTA_APLICACAO: "testa aplicação",
@@ -37,6 +38,10 @@ export const RELATION_LABELS: Record<string, string> = {
 
 // RELATION GROUPS
 export const RELATION_GROUPS = [
+  {
+    title: "Texto bruto → Nota",
+    types: ["GERA"],
+  },
   {
     title: "Nota → Conceito",
     types: ["DEFINE", "EXPLICA", "APROFUNDA", "EXEMPLIFICA", "CONTRASTA", "SINTETIZA", "ALERTA_ERRO"],
@@ -56,6 +61,10 @@ export const RELATION_GROUPS = [
   {
     title: "Tópico ↔ Matéria",
     types: ["PERTENCE_A", "APLICADO_EM"],
+  },
+  {
+    title: "Flashcard → Nota / Conceito",
+    types: ["TESTA", "HERDA"],
   },
 ];
 
@@ -90,6 +99,11 @@ export const NODE_TYPE_COLORS = {
     light: { bg: "#fdf4ff", border: "#9333ea", text: "#4a044e" },
     dark:  { bg: "#2e0540", border: "#e879f9", text: "#f5d0fe" },
   },
+  // Slate/cinza — texto original (fonte), neutro e documental
+  TEXTO_BRUTO: {
+    light: { bg: "#f1f5f9", border: "#475569", text: "#1e293b" },
+    dark:  { bg: "#1e293b", border: "#94a3b8", text: "#e2e8f0" },
+  },
 };
 
 // NODE LABELS
@@ -99,4 +113,5 @@ export const NODE_TYPE_DISPLAY = {
   CONCEITO: { label: "Conceito" },
   FLASHCARD: { label: "Flashcard" },
   NOTA: { label: "Nota" },
+  TEXTO_BRUTO: { label: "Texto bruto" },
 };

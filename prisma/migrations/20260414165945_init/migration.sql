@@ -89,7 +89,7 @@ CREATE TABLE "aprendizado_flashcard" (
 CREATE TABLE "notas" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "id_usuario" TEXT NOT NULL,
-    "texto_bruto" TEXT NOT NULL,
+    "conteudo" TEXT NOT NULL,
     "data_criacao" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "notas_id_usuario_fkey" FOREIGN KEY ("id_usuario") REFERENCES "usuarios" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );

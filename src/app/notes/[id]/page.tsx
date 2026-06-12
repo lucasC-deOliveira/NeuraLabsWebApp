@@ -14,7 +14,7 @@ import { getNotaById, generateFlashcardsFromNota } from "@/actions/notes";
 
 interface NotaDetail {
   id: string;
-  textoBruto: string;
+  conteudo: string;
   dataCriacao: Date;
   conceitosRelacionados: { nome: string; tipoRelacao: string }[];
 }
@@ -143,7 +143,7 @@ export default function NotaDetailPage() {
           <CardTitle className="text-sm sm:text-base">Conteúdo</CardTitle>
         </CardHeader>
         <CardContent className="space-y-1 pt-1 px-3 sm:px-6">
-          <MarkdownContent>{nota.textoBruto}</MarkdownContent>
+          <MarkdownContent>{nota.conteudo}</MarkdownContent>
         </CardContent>
       </Card>
 

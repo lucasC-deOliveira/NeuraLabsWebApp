@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownContent } from "@/components/markdown-content";
 import {
   ArrowLeftIcon,
   CheckCircle2Icon,
@@ -422,18 +423,18 @@ export default function StudyPage() {
 
             <CardContent className="px-4 sm:px-6">
               {phase === "question" ? (
-                <p className="text-lg sm:text-2xl font-medium leading-relaxed">
-                  {card.pergunta}
-                </p>
+                <div className="text-lg sm:text-2xl font-medium leading-relaxed">
+                  <MarkdownContent>{card.pergunta}</MarkdownContent>
+                </div>
               ) : (
                 <div>
-                  <p className="mb-4 sm:mb-6 text-lg sm:text-2xl font-medium leading-relaxed">
-                    {card.pergunta}
-                  </p>
+                  <div className="mb-4 sm:mb-6 text-lg sm:text-2xl font-medium leading-relaxed">
+                    <MarkdownContent>{card.pergunta}</MarkdownContent>
+                  </div>
                   <div className="rounded-xl bg-muted/50 px-4 py-3 sm:px-6 sm:py-4">
-                    <p className="text-sm sm:text-lg leading-relaxed text-foreground">
-                      {card.resposta}
-                    </p>
+                    <div className="text-sm sm:text-lg leading-relaxed text-foreground">
+                      <MarkdownContent>{card.resposta}</MarkdownContent>
+                    </div>
                     {card.conceito && (
                       <p className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-muted-foreground">
                         Conceito: {card.conceito}

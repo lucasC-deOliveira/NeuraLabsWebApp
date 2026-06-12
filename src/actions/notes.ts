@@ -39,7 +39,7 @@ export async function createNotaManual(
     // 1. Create nota
     const rawText = `# ${input.titulo}\n\n${input.conteudo}`;
     const nota = await tx.nota.create({
-      data: { usuarioId: userId, titulo: input.titulo, textoBruto: rawText },
+      data: { usuarioId: userId, titulo: input.titulo, conteudo: rawText },
     });
     const notaNode = await tx.nodeConhecimento.create({ data: { tipoNode: "NOTA", referenciaId: nota.id, usuarioId: userId } });
 
@@ -967,7 +967,7 @@ export async function createNota(
     const nota = await tx.nota.create({
       data: {
         usuarioId: userId,
-        textoBruto: notaText,
+        conteudo: notaText,
         ...(titulo ? { titulo } : {}),
       },
     });
@@ -1288,13 +1288,13 @@ export async function getNotas(): Promise<
       }
     }
 
-    const textoBruto = nota.textoBruto || "";
-    const titulo = textoBruto
+    const conteudo = nota.conteudo || "";
+    const titulo = conteudo
       .split("\n")[0]
       .replace(/^#+\s*/, "")
       .slice(0, 80) || "Sem titulo";
-    const preview = textoBruto.replace(/^#+\s.*\n?/, "").slice(0, 200).trim();
-    const wordCount = textoBruto.trim().split(/\s+/).filter(Boolean).length;
+    const preview = conteudo.replace(/^#+\s.*\n?/, "").slice(0, 200).trim();
+    const wordCount = conteudo.trim().split(/\s+/).filter(Boolean).length;
 
     return {
       id: nota.id,
@@ -1310,7 +1310,7 @@ export async function getNotas(): Promise<
 
 export async function getNotaById(notaId: string): Promise<{
   id: string;
-  textoBruto: string;
+  conteudo: string;
   dataCriacao: Date;
   conceitosRelacionados: { nome: string; tipoRelacao: string }[];
 } | null> {
@@ -1341,7 +1341,7 @@ export async function getNotaById(notaId: string): Promise<{
 
   return {
     id: nota.id,
-    textoBruto: nota.textoBruto,
+    conteudo: nota.conteudo,
     dataCriacao: nota.dataCriacao,
     conceitosRelacionados,
   };
@@ -1401,7 +1401,7 @@ export async function generateFlashcardsFromNota(
     }
 
     // Parse sections to extract definitions as Q&A pairs
-    const sections = parseRawTextIntoSections(nota.textoBruto);
+    const sections = parseRawTextIntoSections(nota.conteudo);
     const flashcards: Array<{ id: string; pergunta: string; conceitoId: string }> = [];
 
     // Build concept map from nota edges (which concepts this nota is about)

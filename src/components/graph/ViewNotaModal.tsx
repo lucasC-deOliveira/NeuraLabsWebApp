@@ -91,7 +91,7 @@ export function ViewNotaModal({ open, onOpenChange, notaId }: ViewNotaModalProps
         ) : (
           nota && (
             <div className="max-h-[60vh] overflow-y-auto pr-1">
-              <MarkdownContent>{nota.textoBruto ?? ""}</MarkdownContent>
+              <MarkdownContent>{nota.conteudo ?? ""}</MarkdownContent>
             </div>
           )
         )}

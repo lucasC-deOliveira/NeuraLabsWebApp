@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createEdge, updateEdge, deleteEdge, getGraphEdges } from "@/actions/graph";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = await enforceApiRateLimit("graph:write", "write");
+    if (limited) return limited;
+
     const body = await request.json();
     const { grafoId, sourceNodeId, targetNodeId, tipoRelacao, peso } = body;
 
@@ -32,6 +36,9 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const limited = await enforceApiRateLimit("graph:write", "write");
+    if (limited) return limited;
+
     const body = await request.json();
     const { grafoId, edgeId, tipoRelacao, peso } = body;
 
@@ -60,6 +67,9 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const limited = await enforceApiRateLimit("graph:write", "write");
+    if (limited) return limited;
+
     const { searchParams } = new URL(request.url);
     const grafoId = searchParams.get("grafoId");
     const edgeId = searchParams.get("edgeId");
@@ -85,6 +95,9 @@ export async function DELETE(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const limited = await enforceApiRateLimit("graph:read", "read");
+    if (limited) return limited;
+
     const { searchParams } = new URL(request.url);
     const grafoId = searchParams.get("grafoId");
 

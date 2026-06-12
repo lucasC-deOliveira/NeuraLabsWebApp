@@ -9,7 +9,7 @@ function makeNota(userId = "u1"): Nota {
     id: "nota-1",
     userId,
     titulo: "Aula 1",
-    textoBruto: "# Soberania\nSoberania: O poder supremo",
+    conteudo: "# Soberania\nSoberania: O poder supremo",
     sections: [],
     conceitoIds: ["c1"],
     flashcardIds: [],
@@ -80,7 +80,7 @@ describe("GetNotaUseCase", () => {
     expect(result).toMatchObject({
       id: expect.any(String),
       userId: "u1",
-      textoBruto: expect.any(String),
+      conteudo: expect.any(String),
       conceitoIds: expect.any(Array),
       flashcardIds: expect.any(Array),
       createdAt: expect.any(Date),

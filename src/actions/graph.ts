@@ -9,7 +9,7 @@ import { getAllowedRelations, isRelationAllowed } from "@/modules/graph/domain/s
 export interface GraphNodeType {
   id: string;
   label: string;
-  type: "ASSUNTO" | "TOPICO" | "CONCEITO" | "FLASHCARD" | "NOTA";
+  type: "ASSUNTO" | "TOPICO" | "CONCEITO" | "FLASHCARD" | "NOTA" | "TEXTO_BRUTO";
   nivelDominio: number;
   prioridadeRevisao: number;
   parentId?: string;
@@ -405,7 +405,7 @@ export async function getNodeDetails(
       return n
         ? {
             titulo: n.titulo,
-            textoBruto: n.textoBruto,
+            conteudo: n.conteudo,
             tipoNota: n.tipoNota,
             subtipo: n.subtipo,
             fonte: n.fonte,
@@ -413,6 +413,12 @@ export async function getNodeDetails(
             dataCriacao: n.dataCriacao.toISOString(),
             dataAtualizacao: n.dataAtualizacao.toISOString(),
           }
+        : null;
+    }
+    case "TEXTO_BRUTO": {
+      const t = await prisma.textoBruto.findFirst({ where: { id: referenciaId, usuarioId: userId } });
+      return t
+        ? { titulo: t.titulo, texto: t.texto, dataCriacao: t.dataCriacao.toISOString() }
         : null;
     }
     default:
@@ -423,10 +429,12 @@ export async function getNodeDetails(
 export async function updateGraphNode(
   tipoNode: string,
   referenciaId: string,
-  data: { nome?: string; descricao?: string | null; pergunta?: string; resposta?: string; textoBruto?: string; titulo?: string; tipoNota?: string; fonte?: string | null; subtipo?: string },
+  data: { nome?: string; descricao?: string | null; pergunta?: string; resposta?: string; conteudo?: string; titulo?: string; tipoNota?: string; fonte?: string | null; subtipo?: string; texto?: string },
   grafoId?: string
 ): Promise<{ success: boolean }> {
   const userId = await requireUserId();
+  // defense-in-depth: limita o tamanho dos campos
+  assertFieldLimits(data as Record<string, unknown>);
   // updateMany com usuarioId garante que só o dono altera
   const where = { id: referenciaId, usuarioId: userId };
 
@@ -461,10 +469,23 @@ export async function updateGraphNode(
         where,
         data: {
           titulo: data.titulo?.trim(),
-          textoBruto: data.textoBruto,
+          conteudo: data.conteudo,
           tipoNota: data.tipoNota,
           subtipo: data.subtipo,
           fonte: data.fonte === undefined ? undefined : data.fonte?.trim() || null,
+        },
+      })).count;
+      break;
+    }
+    case "TEXTO_BRUTO": {
+      if (data.texto !== undefined && !data.texto.trim()) {
+        throw new Error("O texto original é obrigatório");
+      }
+      count = (await prisma.textoBruto.updateMany({
+        where,
+        data: {
+          titulo: data.titulo?.trim(),
+          texto: data.texto?.trim(),
         },
       })).count;
       break;
@@ -510,6 +531,11 @@ export async function createEdge(grafoId: string, data: {
   peso?: number;
 }): Promise<{ success: boolean; edgeId: string }> {
   const userId = await requireUserId();
+
+  // valida o peso (força da relação): número finito em 0..2
+  if (data.peso !== undefined && (typeof data.peso !== "number" || !Number.isFinite(data.peso) || data.peso <= 0 || data.peso > 2)) {
+    throw new Error("Peso da relação inválido (use um número entre 0 e 2)");
+  }
 
   // Verify both nodes belong to the user and are in the same graph
   const [sourceNode, targetNode] = await Promise.all([
@@ -673,7 +699,12 @@ async function resolveNodeLabel(node: any): Promise<string> {
     case "NOTA": {
       const nota = await prisma.nota.findUnique({ where: { id: referenciaId } });
       if (nota?.titulo && nota.titulo !== "Sem título") return nota.titulo;
-      return nota?.textoBruto?.slice(0, 50) ?? referenciaId;
+      return nota?.conteudo?.slice(0, 50) ?? referenciaId;
+    }
+    case "TEXTO_BRUTO": {
+      const tb = await prisma.textoBruto.findUnique({ where: { id: referenciaId } });
+      if (tb?.titulo && tb.titulo !== "Texto sem título") return tb.titulo;
+      return tb?.texto?.slice(0, 50) ?? referenciaId;
     }
     default:
       return referenciaId;
@@ -692,6 +723,23 @@ const NOTA_SUBTIPOS = [
   "DEFINICAO", "EXPLICACAO", "EXEMPLO", "COMPARACAO",
   "SINTESE", "PREREQUISITO", "ERRO_COMUM", "APLICACAO",
 ] as const;
+
+// Limites de tamanho por campo — validados no servidor (defense-in-depth),
+// pois a API pode ser chamada diretamente, ignorando a validação do cliente.
+const FIELD_MAX_LEN: Record<string, number> = {
+  titulo: 500, conteudo: 50_000, texto: 200_000, nome: 500,
+  descricao: 5_000, pergunta: 10_000, resposta: 10_000, fonte: 1_000,
+};
+
+// Lança erro se um campo string ultrapassar o limite definido.
+function assertFieldLimits(data: Record<string, unknown>) {
+  for (const [field, max] of Object.entries(FIELD_MAX_LEN)) {
+    const v = data[field];
+    if (typeof v === "string" && v.length > max) {
+      throw new Error(`O campo "${field}" excede o limite de ${max} caracteres`);
+    }
+  }
+}
 
 // slug único estilo Zettelkasten: timestamp de criação + título normalizado
 function buildNotaSlug(titulo: string, when: Date): string {
@@ -724,6 +772,9 @@ export async function addNodeToGraph(
   if (!grafo) {
     throw new Error("Grafo não encontrado ou não pertence ao usuário");
   }
+
+  // defense-in-depth: limita o tamanho dos campos vindos do cliente/API
+  assertFieldLimits(data);
 
   let entityId: string;
 
@@ -771,12 +822,27 @@ export async function addNodeToGraph(
             subtipo: data.subtipo,
             fonte: data.fonte?.trim() || null,
             slug: buildNotaSlug(data.titulo.trim(), now),
-            textoBruto: data.textoBruto,
+            conteudo: data.conteudo,
             usuarioId: userId,
             dataCriacao: now,
           },
         });
         entityId = nota.id;
+        break;
+      }
+      case "TEXTO_BRUTO": {
+        if (!data.texto?.trim()) {
+          throw new Error("O texto original é obrigatório");
+        }
+        const textoBruto = await prisma.textoBruto.create({
+          data: {
+            titulo: data.titulo?.trim() || "Texto sem título",
+            texto: data.texto.trim(),
+            usuarioId: userId,
+            dataCriacao: now,
+          },
+        });
+        entityId = textoBruto.id;
         break;
       }
       case "ASSUNTO": {

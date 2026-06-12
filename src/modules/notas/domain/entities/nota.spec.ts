@@ -9,7 +9,7 @@ describe("Nota Entity", () => {
 
     expect(nota.id).toBeDefined();
     expect(nota.userId).toBe("user-123");
-    expect(nota.textoBruto).toBe("texto bruto aqui");
+    expect(nota.conteudo).toBe("texto bruto aqui");
     expect(nota.titulo).toBeNull();
     expect(nota.hasContent()).toBe(true);
   });
@@ -77,7 +77,7 @@ describe("Nota Entity", () => {
       id: "nota-1",
       userId: "user-1",
       titulo: "Teste",
-      textoBruto: "raw text",
+      conteudo: "raw text",
       sections: [],
       conceitoIds: ["c-1"],
       flashcardIds: ["f-1"],

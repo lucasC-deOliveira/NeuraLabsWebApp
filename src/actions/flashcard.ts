@@ -401,7 +401,7 @@ export async function previewFlashcardsFromNota(notaId: string): Promise<Array<{
 
   const allConcepts = await prisma.conceito.findMany();
   const { resolveFallback } = resolveContext(nota, allConcepts);
-  const sections = parseNoteSections(nota.textoBruto);
+  const sections = parseNoteSections(nota.conteudo);
 
   const preview: Array<{
     id: string;
@@ -557,7 +557,7 @@ ${conceptContext}`,
       },
       {
         role: "user",
-        content: nota.textoBruto.slice(0, 15000),
+        content: nota.conteudo.slice(0, 15000),
       },
     ],
   });

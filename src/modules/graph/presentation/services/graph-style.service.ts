@@ -81,8 +81,9 @@ export const RELATION_COLORS: Record<string, { light: string; dark: string }> = 
   SUBTOPICO_DE: { light: "#06b6d4", dark: "#a5f3fc" },
   RELACIONADO: { light: "#8b5cf6", dark: "#ddd6fe" },
   DEPENDE_DE: { light: "#6d28d9", dark: "#c4b5fd" },
-  // Flashcard ↔ Conceito
+  // Flashcard ↔ Conceito / Nota
   HERDA: { light: "#ca8a04", dark: "#facc15" },
+  TESTA: { light: "#b45309", dark: "#f4a72f" },
   // Legadas
   GERA: { light: "#ef4444", dark: "#fca5a5" },
   REFERENCIA: { light: "#eab308", dark: "#fef08a" },

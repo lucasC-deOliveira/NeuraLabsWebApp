@@ -33,7 +33,7 @@ export class GenerateFlashcardsFromNotaUseCase {
 
     // If nota has no parsed sections yet, parse it
     if (nota.sections.length === 0) {
-      const sections = NotaParser.parse(nota.textoBruto);
+      const sections = NotaParser.parse(nota.conteudo);
       nota.attachSections(sections);
     }
 

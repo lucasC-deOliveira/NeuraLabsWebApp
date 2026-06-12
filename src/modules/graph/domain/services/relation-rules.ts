@@ -6,6 +6,12 @@ const pairKey = (a: string, b: string) => [a, b].sort().join("|");
 
 /** Pares de tipos e suas relações permitidas — também alimenta a legenda do grafo. */
 export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }> = [
+  // Texto original (fonte) gera notas
+  {
+    a: "TEXTO_BRUTO",
+    b: "NOTA",
+    relations: ["GERA"],
+  },
   {
     a: "NOTA",
     b: "CONCEITO",
@@ -24,6 +30,8 @@ export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }
   { a: "TOPICO", b: "ASSUNTO", relations: ["PERTENCE_A", "APLICADO_EM"] },
   { a: "NOTA", b: "TOPICO", relations: ["PERTENCE_A"] },
   { a: "NOTA", b: "ASSUNTO", relations: ["PERTENCE_A"] },
+  // Flashcard testa uma nota e herda os conceitos dela
+  { a: "FLASHCARD", b: "NOTA", relations: ["TESTA"] },
   { a: "FLASHCARD", b: "CONCEITO", relations: ["HERDA"] },
 ];
 

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGraphNodes } from "@/actions/graph";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
+    const limited = await enforceApiRateLimit("graph:read", "read");
+    if (limited) return limited;
+
     const { searchParams } = new URL(request.url);
     const grafoId = searchParams.get("grafoId");
 

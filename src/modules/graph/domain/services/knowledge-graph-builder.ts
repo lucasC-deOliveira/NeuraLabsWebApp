@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 export type GraphNode = {
   id: string
   label: string
-  type: "ASSUNTO" | "TOPICO" | "CONCEITO" | "FLASHCARD" | "NOTA"
+  type: "ASSUNTO" | "TOPICO" | "CONCEITO" | "FLASHCARD" | "NOTA" | "TEXTO_BRUTO"
   nivelDominio: number
   prioridadeRevisao: number
   parentId?: string
@@ -27,7 +27,7 @@ export type TipoRelacao =
   | "MEDIDO_POR" | "OBJETIVO_DE"
   | "PERTENCE_A" | "FUNDAMENTA" | "APLICADO_EM"
   | "SUBTOPICO_DE" | "RELACIONADO" | "DEPENDE_DE"
-  | "HERDA"
+  | "HERDA" | "TESTA"
   | "TESTA_DEFINICAO" | "TESTA_EXEMPLO" | "TESTA_APLICACAO"
   | "TESTA_ANALISE" | "TESTA_SINTESE"
 
@@ -64,13 +64,14 @@ async function buildKnowledgeGraph(
     const assuntoIds = nodeRefsByType["ASSUNTO"] ? [...nodeRefsByType["ASSUNTO"]] : ["__none__"];
     const topicoIds = nodeRefsByType["TOPICO"] ? [...nodeRefsByType["TOPICO"]] : ["__none__"];
     const conceitoIds = nodeRefsByType["CONCEITO"] ? [...nodeRefsByType["CONCEITO"]] : ["__none__"];
+    const textoBrutoIds = nodeRefsByType["TEXTO_BRUTO"] ? [...nodeRefsByType["TEXTO_BRUTO"]] : ["__none__"];
 
     const safeIn = (ids: string[]) => ids.length > 0 ? ids : ["__none__"];
 
     // Only fetch the referenced entities.
     // Tópicos e conceitos são buscados diretamente por id (não via assunto)
     // porque podem não ter pai — o nó precisa do nome mesmo assim.
-    const [subjects, topicos, conceitos, notas, flashcards] = await Promise.all([
+    const [subjects, topicos, conceitos, notas, flashcards, textosBrutos] = await Promise.all([
       prisma.assunto.findMany({
         where: { id: { in: safeIn(assuntoIds) } },
       }),
@@ -87,6 +88,9 @@ async function buildKnowledgeGraph(
         where: { id: { in: safeIn(flashcardIds) } },
         include: { aprendizado: true },
       }),
+      prisma.textoBruto.findMany({
+        where: { id: { in: safeIn(textoBrutoIds) } },
+      }),
     ]);
 
     // Build flat node+edge list from graph data
@@ -96,7 +100,7 @@ async function buildKnowledgeGraph(
     for (const n of graphNodes) {
       nodes.push({
         id: n.referenciaId,
-        label: resolveLabel(n.tipoNode, n.referenciaId, subjects, topicos, conceitos, notas, flashcards),
+        label: resolveLabel(n.tipoNode, n.referenciaId, subjects, topicos, conceitos, notas, flashcards, textosBrutos),
         type: n.tipoNode as GraphNode["type"],
         nivelDominio: n.nivelDominio,
         prioridadeRevisao: 5,
@@ -244,12 +248,12 @@ async function buildKnowledgeGraph(
   // ---- Nota nodes ----
   for (const nota of notas) {
     const nid = `nota:${nota.id}`
-    nodes.push({ id: nid, label: nota.textoBruto.length > 60 ? `${nota.textoBruto.slice(0, 60)}…` : nota.textoBruto, type: "NOTA", nivelDominio: 0, prioridadeRevisao: 5 })
+    nodes.push({ id: nid, label: nota.conteudo.length > 60 ? `${nota.conteudo.slice(0, 60)}…` : nota.conteudo, type: "NOTA", nivelDominio: 0, prioridadeRevisao: 5 })
 
     // Auto-link first Nota to first concept of subject 1 as DEFINE
     if (nodes.filter((n) => n.type === "CONCEITO").length > 0) {
       const firstConcept = nodes.find((n) => n.type === "CONCEITO")
-      if (firstConcept && nota.textoBruto.toLowerCase().includes(firstConcept.label.toLowerCase().split(" ")[0])) {
+      if (firstConcept && nota.conteudo.toLowerCase().includes(firstConcept.label.toLowerCase().split(" ")[0])) {
         edgeTuples.push([nid, firstConcept.id, "DEFINE", 1.0])
       }
     }
@@ -365,6 +369,7 @@ function resolveLabel(
   conceitos: any[],
   notas: any[],
   flashcards: any[],
+  textosBrutos: any[] = [],
 ): string {
   switch (tipoNode) {
     case "ASSUNTO":
@@ -380,8 +385,13 @@ function resolveLabel(
     case "NOTA":
       const n = notas.find((x) => x.id === refId);
       if (n?.titulo && n.titulo !== "Sem título") return n.titulo;
-      const t = n?.textoBruto ?? refId;
+      const t = n?.conteudo ?? refId;
       return t.length > 60 ? `${t.slice(0, 60)}…` : t;
+    case "TEXTO_BRUTO":
+      const tb = textosBrutos.find((x) => x.id === refId);
+      if (tb?.titulo && tb.titulo !== "Texto sem título") return tb.titulo;
+      const tbText = tb?.texto ?? refId;
+      return tbText.length > 60 ? `${tbText.slice(0, 60)}…` : tbText;
     default:
       return refId;
   }

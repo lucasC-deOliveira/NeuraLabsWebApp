@@ -11,7 +11,7 @@ interface NotaProps {
   id: string;
   userId: string;
   titulo: string | null;
-  textoBruto: string;
+  conteudo: string;
   sections: NotaSection[];
   conceitoIds: string[];
   flashcardIds: string[];
@@ -26,7 +26,7 @@ export class Nota {
       id: crypto.randomUUID(),
       userId,
       titulo: titulo ?? null,
-      textoBruto: rawText,
+      conteudo: rawText,
       sections: [],
       conceitoIds: [],
       flashcardIds: [],
@@ -52,8 +52,8 @@ export class Nota {
     return this.props.titulo;
   }
 
-  get textoBruto(): string {
-    return this.props.textoBruto;
+  get conteudo(): string {
+    return this.props.conteudo;
   }
 
   get sections(): ReadonlyArray<NotaSection> {
@@ -74,8 +74,8 @@ export class Nota {
 
   get preview(): string {
     return this.props.titulo
-      ? `# ${this.props.titulo}\n\n${this.props.textoBruto}`
-      : this.props.textoBruto;
+      ? `# ${this.props.titulo}\n\n${this.props.conteudo}`
+      : this.props.conteudo;
   }
 
   // --- Commands ---
@@ -99,7 +99,7 @@ export class Nota {
   // --- Invariants ---
 
   hasContent(): boolean {
-    return this.props.textoBruto.trim().length > 0;
+    return this.props.conteudo.trim().length > 0;
   }
 
   extractTerms(): string[] {

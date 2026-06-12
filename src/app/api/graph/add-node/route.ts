@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addNodeToGraph } from "@/actions/graph";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = await enforceApiRateLimit("graph:write", "write");
+    if (limited) return limited;
+
     const body = await request.json();
     const { grafoId, tipoNode, ...data } = body;
 

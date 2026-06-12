@@ -11,11 +11,11 @@ export class PrismaNotaRepository implements NotaRepository {
         create: {
           id: nota.id,
           usuarioId: nota.userId,
-          textoBruto: nota.preview,
+          conteudo: nota.preview,
           ...(nota.titulo ? { titulo: nota.titulo } : {}),
         },
         update: {
-          textoBruto: nota.preview,
+          conteudo: nota.preview,
           ...(nota.titulo ? { titulo: nota.titulo } : {}),
         },
       });
@@ -178,8 +178,8 @@ export class PrismaNotaRepository implements NotaRepository {
     return Nota.restore({
       id: raw.id,
       userId: raw.usuarioId,
-      titulo: null, // Title is embedded in textoBruto
-      textoBruto: raw.textoBruto,
+      titulo: null, // Title is embedded in conteudo
+      conteudo: raw.conteudo,
       sections: [],
       conceitoIds,
       flashcardIds,
@@ -198,7 +198,7 @@ export class PrismaNotaRepository implements NotaRepository {
         id: raw.id,
         userId: raw.usuarioId,
         titulo: null,
-        textoBruto: raw.textoBruto,
+        conteudo: raw.conteudo,
         sections: [],
         conceitoIds: [],
         flashcardIds: [],

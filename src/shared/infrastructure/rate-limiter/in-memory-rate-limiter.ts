@@ -19,19 +19,24 @@ setInterval(() => {
   }
 }, 60_000)
 
-export function checkRateLimit(key: string): {
+export function checkRateLimit(
+  key: string,
+  opts: { windowMs?: number; max?: number } = {}
+): {
   allowed: boolean
   retryAfter?: number
 } {
+  const windowMs = opts.windowMs ?? WINDOW_MS
+  const max = opts.max ?? MAX_ATTEMPTS
   const now = Date.now()
   const bucket = store.get(key)
 
   if (!bucket || bucket.resetAt <= now) {
-    store.set(key, { count: 1, resetAt: now + WINDOW_MS })
+    store.set(key, { count: 1, resetAt: now + windowMs })
     return { allowed: true }
   }
 
-  if (bucket.count >= MAX_ATTEMPTS) {
+  if (bucket.count >= max) {
     return { allowed: false, retryAfter: Math.ceil((bucket.resetAt - now) / 1000) }
   }
 

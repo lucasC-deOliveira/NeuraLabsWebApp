@@ -9,6 +9,12 @@ import {
 } from "@/modules/graph/presentation/services/graph-style.service";
 import { computeEdgeCurve } from "@/modules/graph/presentation/services/edge-geometry.service";
 
+// formata o peso da relação compacto: 1 → "1", 0.6 → "0.6", 0.75 → "0.75"
+function formatPeso(peso: unknown): string | null {
+  if (typeof peso !== "number" || !Number.isFinite(peso)) return null;
+  return String(Number(peso.toFixed(2)));
+}
+
 function NodeShapeElement({
   shape,
   width,
@@ -225,6 +231,11 @@ export function GraphRenderer({
                 fill={color}
               >
                 {edge.label ?? edge.type?.toLowerCase()}
+                {formatPeso(edge.peso) && (
+                  <tspan dx={3} fontSize={7.5} fillOpacity={0.65} fontStyle="italic">
+                    ({formatPeso(edge.peso)})
+                  </tspan>
+                )}
               </text>
             </g>
           );

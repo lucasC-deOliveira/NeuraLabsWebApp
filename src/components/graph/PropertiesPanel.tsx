@@ -110,6 +110,17 @@ export function PropertiesPanel({
       .catch(() => setNotaMeta(null));
   }, [isNota, selectedNode?.id]);
 
+  // texto original (fonte) do nó TEXTO_BRUTO selecionado
+  const [textoBruto, setTextoBruto] = useState<Record<string, string | null> | null>(null);
+  const isTextoBruto = selectedNode?.tipoReal === "TEXTO_BRUTO";
+  useEffect(() => {
+    setTextoBruto(null);
+    if (!isTextoBruto || !selectedNode) return;
+    getNodeDetails("TEXTO_BRUTO", selectedNode.id)
+      .then(setTextoBruto)
+      .catch(() => setTextoBruto(null));
+  }, [isTextoBruto, selectedNode?.id]);
+
   const formatDate = (iso: string | null | undefined) =>
     iso
       ? new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
@@ -209,6 +220,21 @@ export function PropertiesPanel({
               </>
             )}
 
+            {/* Texto original (fonte) */}
+            {isTextoBruto && textoBruto?.texto && (
+              <>
+                <div className="space-y-1.5">
+                  <h4 className="text-xs font-semibold text-primary uppercase tracking-wide">
+                    Texto original
+                  </h4>
+                  <div className="max-h-64 overflow-y-auto rounded-md border border-primary/30 bg-muted/40 p-2 text-xs leading-relaxed whitespace-pre-wrap">
+                    {textoBruto.texto}
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
+
             {/* Metadados da nota (slug + datas) */}
             {isNota && notaMeta && (
               <>
@@ -274,8 +300,13 @@ export function PropertiesPanel({
                             <span className="text-muted-foreground">{isOutgoing ? "→" : "←"}</span>
                             <span className="truncate">{otherNode}</span>
                           </div>
-                          <div className="text-[10px] text-muted-foreground capitalize">
-                            {RELATION_LABELS[edge.tipoRelacao] || edge.tipoRelacao}
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <span className="capitalize">
+                              {RELATION_LABELS[edge.tipoRelacao] || edge.tipoRelacao}
+                            </span>
+                            <span className="rounded bg-muted px-1 font-mono not-italic tabular-nums">
+                              peso {Number(edge.peso.toFixed(2))}
+                            </span>
                           </div>
                         </div>
                         {onEditEdge && (

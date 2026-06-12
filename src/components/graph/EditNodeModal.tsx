@@ -76,7 +76,7 @@ export function EditNodeModal({ open, onOpenChange, grafoId, node, onSuccess }: 
         toast.error("Notas de referência exigem a fonte");
         return;
       }
-      if (!fields.textoBruto?.trim()) {
+      if (!fields.conteudo?.trim()) {
         toast.error("O texto da nota é obrigatório");
         return;
       }
@@ -92,7 +92,7 @@ export function EditNodeModal({ open, onOpenChange, grafoId, node, onSuccess }: 
         descricao: fields.descricao?.trim() || null,
         pergunta: fields.pergunta?.trim(),
         resposta: fields.resposta?.trim(),
-        textoBruto: fields.textoBruto?.trim(),
+        conteudo: fields.conteudo?.trim(),
         titulo: fields.titulo?.trim(),
         tipoNota: fields.tipoNota,
         subtipo: fields.subtipo || undefined,
@@ -234,8 +234,8 @@ export function EditNodeModal({ open, onOpenChange, grafoId, node, onSuccess }: 
                   <Textarea
                     id="edit-texto"
                     rows={6}
-                    value={fields.textoBruto ?? ""}
-                    onChange={(e) => setFields((f) => ({ ...f, textoBruto: e.target.value }))}
+                    value={fields.conteudo ?? ""}
+                    onChange={(e) => setFields((f) => ({ ...f, conteudo: e.target.value }))}
                   />
                 </div>
               </>
