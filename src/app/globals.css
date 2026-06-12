@@ -416,3 +416,42 @@ html[data-neon="true"] .app-infopanel {
     -4px 0 18px -4px var(--primary),
     inset 2px 0 10px -6px var(--primary);
 }
+
+/* ===========================================================
+   Scrollbars — finas, arredondadas e na cor principal do app
+   =========================================================== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--primary) 45%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border: none;
+}
+
+/* fina, arredondada e sutil na cor principal; mais visível no hover */
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklch, var(--primary) 40%, transparent);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklch, var(--primary) 70%, transparent);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* No painel de propriedades, ainda mais fina */
+.app-infopanel ::-webkit-scrollbar,
+.app-infopanel::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
