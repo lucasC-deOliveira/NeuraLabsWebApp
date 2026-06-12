@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, EyeIcon, CheckCircle2Icon, XCircleIcon, ClockIcon } from "lucide-react";
 import { toast } from "sonner";
-import { getFlashcardForStudy, reviewSingleCard } from "@/actions/study";
+import { startSingleCardStudy, submitCardReview, finalizeStudySession } from "@/actions/study";
 import { MarkdownContent } from "@/components/markdown-content";
 
 interface StudyFlashcardModalProps {
@@ -40,26 +40,42 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId }: StudyFl
   const [proximaRevisao, setProximaRevisao] = useState<string | null>(null);
   const [pendingAcertou, setPendingAcertou] = useState<boolean | null>(null);
   const [startedAt, setStartedAt] = useState<number>(Date.now());
+  // sessão de estudo criada ao abrir; finalizada ao terminar ou abandonar
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const finalizedRef = useRef(false);
 
-  // carrega o flashcard ao abrir
+  // abre a sessão de estudo ao clicar em "Estudar" (carrega o card)
   useEffect(() => {
     if (!open || !flashcardId) return;
     let active = true;
+    let createdSession: string | null = null;
     setPhase("loading");
     setCard(null);
     setPendingAcertou(null);
-    getFlashcardForStudy(flashcardId)
-      .then((fc) => {
-        if (!active) return;
-        if (!fc) {
+    setSessionId(null);
+    finalizedRef.current = false;
+    startSingleCardStudy(flashcardId)
+      .then((res) => {
+        if (res?.sessionId) createdSession = res.sessionId;
+        if (!active) {
+          // modal fechou durante o carregamento: limpa a sessão recém-criada
+          if (createdSession) finalizeStudySession(createdSession).catch(() => {});
+          return;
+        }
+        if (!res) {
           setPhase("error");
           return;
         }
-        setCard(fc);
-        setProximaRevisao(fc.proximaRevisao);
+        setCard(res.card);
+        setProximaRevisao(res.proximaRevisao);
         setStartedAt(Date.now());
         // repetição espaçada: só pode estudar se estiver vencido
-        setPhase(fc.due ? "question" : "notdue");
+        if (res.due && res.sessionId) {
+          setSessionId(res.sessionId);
+          setPhase("question");
+        } else {
+          setPhase("notdue");
+        }
       })
       .catch(() => active && setPhase("error"));
     return () => {
@@ -68,15 +84,20 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId }: StudyFl
   }, [open, flashcardId]);
 
   const handleConfidence = async (level: number) => {
-    if (!card || pendingAcertou === null) return;
+    if (!card || pendingAcertou === null || !sessionId) return;
     setPhase("saving");
     try {
-      await reviewSingleCard({
+      await submitCardReview({
         flashcardId: card.id,
+        respostaUsuario: "",
         acertou: pendingAcertou,
         nivelConfianca: level,
         tempoResposta: Date.now() - startedAt,
+        sessaoId: sessionId,
       });
+      // termina a sessão (encerra, pois teve revisão)
+      finalizedRef.current = true;
+      await finalizeStudySession(sessionId).catch(() => {});
       setPhase("done");
       toast.success(pendingAcertou ? "Acerto registrado!" : "Revisão registrada — volte nele em breve.");
     } catch (e) {
@@ -85,8 +106,17 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId }: StudyFl
     }
   };
 
+  // ao fechar antes de responder, finaliza a sessão (vazia → é apagada)
+  const handleOpenChange = (o: boolean) => {
+    if (!o && sessionId && !finalizedRef.current) {
+      finalizedRef.current = true;
+      finalizeStudySession(sessionId).catch(() => {});
+    }
+    onOpenChange(o);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg flex max-h-[85dvh] flex-col overflow-hidden gap-0">
         <DialogHeader className="shrink-0">
           <DialogTitle>Estudar flashcard</DialogTitle>

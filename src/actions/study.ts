@@ -110,8 +110,63 @@ export async function getFlashcardForStudy(flashcardId: string): Promise<{
   };
 }
 
+// Inicia o estudo de UM flashcard avulso (ex.: a partir do grafo): cria a
+// sessão de estudo no momento em que o usuário clica em "Estudar" e a mantém
+// aberta até ele terminar (a sessão é finalizada por finalizeStudySession).
+// Só cria a sessão se o card estiver vencido (repetição espaçada).
+export async function startSingleCardStudy(flashcardId: string): Promise<{
+  sessionId: string | null;
+  card: { id: string; pergunta: string; resposta: string; conceito: string | null };
+  due: boolean;
+  proximaRevisao: string | null;
+} | null> {
+  const userId = await requireUserId();
+  const fc = await prisma.flashcard.findFirst({
+    where: { id: flashcardId, usuarioId: userId },
+    include: {
+      conceito: { select: { nome: true } },
+      aprendizado: { where: { usuarioId: userId } },
+    },
+  });
+  if (!fc) return null;
+
+  const ap = fc.aprendizado[0];
+  const due = !ap || ap.proximaRevisao <= new Date();
+  const card = {
+    id: fc.id,
+    pergunta: fc.pergunta,
+    resposta: fc.resposta,
+    conceito: fc.conceito?.nome ?? null,
+  };
+  const proximaRevisao = ap ? ap.proximaRevisao.toISOString() : null;
+
+  // só abre uma sessão quando há de fato o que estudar
+  const sessionId = due ? await libStartStudySession(userId) : null;
+  return { sessionId, card, due, proximaRevisao };
+}
+
+// Finaliza uma sessão de estudo: se ela não teve nenhuma revisão (abandonada),
+// é apagada para não poluir o histórico; caso contrário, é encerrada (dataFim).
+export async function finalizeStudySession(sessionId: string): Promise<{ success: boolean }> {
+  const userId = await requireUserId();
+  const session = await prisma.sessaoEstudo.findFirst({
+    where: { id: sessionId, usuarioId: userId },
+    select: { id: true, dataFim: true, _count: { select: { revisoes: true } } },
+  });
+  if (!session) return { success: false };
+
+  if (session._count.revisoes === 0) {
+    await prisma.sessaoEstudo.delete({ where: { id: sessionId } });
+  } else if (!session.dataFim) {
+    await prisma.sessaoEstudo.update({ where: { id: sessionId }, data: { dataFim: new Date() } });
+  }
+  revalidatePath("/study", "layout");
+  return { success: true };
+}
+
 // Registra a revisão de um único flashcard (cria e encerra uma sessão pontual).
-// Usado pelo estudo via modal no grafo, sem entrar numa sessão completa.
+// Mantido para compatibilidade; o estudo via modal agora usa
+// startSingleCardStudy + submitCardReview + finalizeStudySession.
 export async function reviewSingleCard(data: {
   flashcardId: string;
   acertou: boolean;
@@ -154,14 +209,16 @@ export async function submitCardReview(data: {
   nivelConfianca: number;
   tipoErro?: string;
   tempoResposta?: number;
+  // sessão alvo (estudo de card avulso); se omitido, usa a sessão aberta mais recente
+  sessaoId?: string;
 }): Promise<{ success: boolean }> {
   const userId = await requireUserId();
 
+  // sessão alvo: a informada (validada por dono) ou a aberta mais recente
   const activeSession = await prisma.sessaoEstudo.findFirst({
-    where: {
-      usuarioId: userId,
-      dataFim: null,
-    },
+    where: data.sessaoId
+      ? { id: data.sessaoId, usuarioId: userId }
+      : { usuarioId: userId, dataFim: null },
     orderBy: { dataInicio: "desc" },
     select: { id: true },
   });

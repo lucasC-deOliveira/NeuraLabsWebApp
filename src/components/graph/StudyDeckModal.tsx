@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, EyeIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
 import { toast } from "sonner";
-import { startDeckStudy, submitCardReview, endStudySession } from "@/actions/study";
+import { startDeckStudy, submitCardReview, finalizeStudySession } from "@/actions/study";
 import type { FlashcardData } from "@/types";
 import { MarkdownContent } from "@/components/markdown-content";
 
@@ -35,18 +35,28 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
   const [startedAt, setStartedAt] = useState(Date.now());
   const [correct, setCorrect] = useState(0);
   const [totalNoDeck, setTotalNoDeck] = useState(0);
+  // sessão criada ao abrir o baralho; finalizada ao concluir ou abandonar
+  const finalizedRef = useRef(false);
 
   useEffect(() => {
     if (!open || !baralhoId) return;
     let active = true;
+    let createdSession: string | null = null;
     setPhase("loading");
     setCards([]);
     setIndex(0);
     setCorrect(0);
     setPendingAcertou(null);
+    setSessionId(null);
+    finalizedRef.current = false;
     startDeckStudy(baralhoId)
       .then((deck) => {
-        if (!active) return;
+        if (deck?.sessionId) createdSession = deck.sessionId;
+        if (!active) {
+          // modal fechou durante o carregamento: limpa a sessão recém-criada
+          if (createdSession) finalizeStudySession(createdSession).catch(() => {});
+          return;
+        }
         if (!deck) {
           setPhase("error");
           return;
@@ -56,8 +66,9 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
         setCards(deck.cards);
         setTotalNoDeck(deck.totalNoDeck);
         if (deck.cards.length === 0) {
-          // nada para revisar agora (deck vazio ou tudo em dia): encerra a sessão
-          endStudySession(deck.sessionId).catch(() => {});
+          // nada para revisar agora (deck vazio ou tudo em dia): sessão vazia é apagada
+          finalizedRef.current = true;
+          finalizeStudySession(deck.sessionId).catch(() => {});
           setPhase("complete");
         } else {
           setStartedAt(Date.now());
@@ -88,7 +99,10 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
       const next = index + 1;
       if (next >= cards.length) {
         // acabou: o estudo do deck só termina quando todos os flashcards foram respondidos
-        if (sessionId) await endStudySession(sessionId).catch(() => {});
+        if (sessionId) {
+          finalizedRef.current = true;
+          await finalizeStudySession(sessionId).catch(() => {});
+        }
         setPhase("complete");
       } else {
         setIndex(next);
@@ -108,6 +122,10 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
     if (!o && !canClose) {
       toast.info("Termine os flashcards do baralho para finalizar.");
       return;
+    }
+    if (!o && sessionId && !finalizedRef.current) {
+      finalizedRef.current = true;
+      finalizeStudySession(sessionId).catch(() => {});
     }
     onOpenChange(o);
   };
