@@ -148,13 +148,20 @@ export function useGraphController(graphId: string) {
     [edges, layout, visibleNodeIds]
   );
 
+  // nó selecionado "vivo": reflete o layout atual (ex.: domínio recalculado)
+  // em vez do snapshot guardado no clique
+  const liveSelectedNode = useMemo(
+    () => (selectedNode ? layout.find((n) => n.id === selectedNode.id) ?? null : null),
+    [selectedNode, layout]
+  );
+
   return {
     svgRef,
     state: {
       layout,
       filteredNodes,
       filteredEdges,
-      selectedNode,
+      selectedNode: liveSelectedNode,
       selectedNodeIds,
       hoveredNodeId,
       hiddenTypes,

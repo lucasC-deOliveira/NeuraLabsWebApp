@@ -156,18 +156,18 @@ export default function GraphPage() {
     // o controller mescla os nós novos preservando as posições dos existentes
     controller.actions.setRawNodes(result.nodes);
     controller.actions.setRawEdges(result.edges);
-    controller.actions.setSelectedNode(null);
+    // mantém a seleção: o nó selecionado é derivado do layout, então mostra os
+    // dados atualizados (ex.: domínio recalculado). Some sozinho se o nó foi removido.
     await loadEdges();
   };
 
   // ======================
   // RELAÇÕES DO NÓ SELECIONADO (painel de propriedades)
   // ======================
-  const selectedNodeEdges = controller.state.selectedNode
+  const selectedNodeId = controller.state.selectedNode?.id;
+  const selectedNodeEdges = selectedNodeId
     ? graphEdges.filter(
-        (e: any) =>
-          e.source === controller.state.selectedNode.id ||
-          e.target === controller.state.selectedNode.id
+        (e: any) => e.source === selectedNodeId || e.target === selectedNodeId
       )
     : [];
 
@@ -434,12 +434,23 @@ export default function GraphPage() {
       />
       <StudyFlashcardModal
         open={!!studyFlashcardId}
-        onOpenChange={(open) => !open && setStudyFlashcardId(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setStudyFlashcardId(null);
+            // a revisão pode ter mudado a maestria → recalcula o domínio
+            refreshGraph();
+          }
+        }}
         flashcardId={studyFlashcardId}
       />
       <StudyDeckModal
         open={!!studyDeckId}
-        onOpenChange={(open) => !open && setStudyDeckId(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setStudyDeckId(null);
+            refreshGraph();
+          }
+        }}
         baralhoId={studyDeckId}
       />
       <EdgeManagerModal

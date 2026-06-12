@@ -137,6 +137,15 @@ async function buildKnowledgeGraph(
       edges.push({ source: s, target: t, type, peso });
     }
 
+    // Maestria de cada flashcard (1 - dificuldade/10; 0 se nunca revisado) e
+    // propagação pelas relações até assunto/tópico/conceito/nota.
+    const flashcardMastery = new Map<string, number>();
+    for (const fc of flashcards) {
+      const ap = fc.aprendizado.find((a: any) => a.usuarioId === userId);
+      flashcardMastery.set(fc.id, ap ? clamp01(1 - ap.dificuldade / 10) : 0);
+    }
+    applyDomainFromFlashcards(nodes, edges, flashcardMastery);
+
     return { nodes, edges };
   }
 
@@ -401,6 +410,74 @@ function resolveLabel(
       return baralhos.find((x) => x.id === refId)?.titulo ?? refId;
     default:
       return refId;
+  }
+}
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+// Relações que carregam maestria no sentido origem→destino:
+// flashcard → nota/conceito, e a hierarquia nota/conceito/tópico → pai.
+const DOMAIN_CARRYING = new Set<string>([
+  "TESTA",
+  "HERDA",
+  "DEFINE", "EXPLICA", "APROFUNDA", "EXEMPLIFICA", "CONTRASTA", "SINTETIZA", "ALERTA_ERRO",
+  "PERTENCE_A", "FUNDAMENTA", "APLICADO_EM",
+]);
+
+const DOMAIN_TARGET_TYPES = new Set(["ASSUNTO", "TOPICO", "CONCEITO", "NOTA"]);
+
+/**
+ * Calcula o nível de domínio de assunto/tópico/conceito/nota a partir da
+ * maestria dos flashcards relacionados (única forma de testar o conhecimento).
+ * Cada flashcard propaga sua maestria pelas relações (BFS); a influência decai
+ * ou amplifica pelo PESO das relações ao longo do caminho (produto dos pesos).
+ * O domínio do nó é a média PONDERADA dessas maestrias. Com todos os pesos = 1
+ * equivale à média simples. Os próprios flashcards recebem sua maestria.
+ */
+function applyDomainFromFlashcards(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  flashcardMastery: Map<string, number>,
+) {
+  // adjacência só com as relações que carregam domínio (origem→destino), com peso
+  const adj = new Map<string, Array<{ to: string; peso: number }>>();
+  for (const e of edges) {
+    if (!DOMAIN_CARRYING.has(e.type)) continue;
+    const peso = typeof e.peso === "number" && e.peso > 0 ? e.peso : 1;
+    (adj.get(e.source) ?? adj.set(e.source, []).get(e.source)!).push({ to: e.target, peso });
+  }
+
+  // por nó: soma ponderada das maestrias e soma dos pesos (para a média ponderada)
+  const acc = new Map<string, { weighted: number; weight: number }>();
+  for (const [fcId, mastery] of flashcardMastery) {
+    // BFS com a "força" do caminho = produto dos pesos das arestas percorridas
+    const strength = new Map<string, number>([[fcId, 1]]);
+    const queue = [fcId];
+    let head = 0;
+    while (head < queue.length) {
+      const cur = queue[head++];
+      const s = strength.get(cur)!;
+      for (const { to, peso } of adj.get(cur) ?? []) {
+        if (strength.has(to)) continue; // primeiro caminho (mais curto) vence
+        const sNext = s * peso;
+        strength.set(to, sNext);
+        queue.push(to);
+        const a = acc.get(to) ?? { weighted: 0, weight: 0 };
+        a.weighted += mastery * sNext;
+        a.weight += sNext;
+        acc.set(to, a);
+      }
+    }
+  }
+
+  for (const node of nodes) {
+    if (node.type === "FLASHCARD") {
+      node.nivelDominio = flashcardMastery.get(node.id) ?? node.nivelDominio;
+      continue;
+    }
+    if (!DOMAIN_TARGET_TYPES.has(node.type)) continue;
+    const a = acc.get(node.id);
+    node.nivelDominio = a && a.weight > 0 ? clamp01(a.weighted / a.weight) : 0;
   }
 }
 
