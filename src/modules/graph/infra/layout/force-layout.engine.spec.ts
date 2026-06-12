@@ -16,66 +16,55 @@ function layoutSingle(type: string, label?: string) {
   return nodes[0];
 }
 
-describe("runForceLayout — dimensões por forma do nó", () => {
+describe("runForceLayout — dimensões por forma do nó (fixas e uniformes)", () => {
+  const TYPES = ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA", "FLASHCARD"];
+
   it("ASSUNTO é círculo: largura === altura (diâmetro)", () => {
     const n = layoutSingle("ASSUNTO");
     expect(n.width).toBe(n.height);
   });
 
-  it("ASSUNTO tem diâmetro entre 70 e 160 mesmo com rótulos extremos", () => {
-    const curto = layoutSingle("ASSUNTO", "ab");
-    const longo = layoutSingle("ASSUNTO", "x".repeat(80));
-    expect(curto.width).toBeGreaterThanOrEqual(70);
-    expect(longo.width).toBeLessThanOrEqual(160);
-  });
-
-  it("TOPICO (elipse) tem folga horizontal além do rótulo e altura 50", () => {
-    const label = "Topico Grande";
-    const n = layoutSingle("TOPICO", label);
-    const labelW = Math.max(60, Math.min(200, label.length * 7 + 24));
-    expect(n.width).toBeGreaterThan(labelW);
-    expect(n.height).toBe(50);
-  });
-
-  it("CONCEITO é retângulo horizontal: largura do rótulo e altura 40", () => {
-    const label = "Conceito Grande";
-    const n = layoutSingle("CONCEITO", label);
-    expect(n.width).toBe(Math.max(60, Math.min(200, label.length * 7 + 24)));
-    expect(n.height).toBe(40);
+  it("TOPICO (elipse) é mais largo que alto", () => {
+    const n = layoutSingle("TOPICO");
     expect(n.width).toBeGreaterThan(n.height);
   });
 
-  it("NOTA é retângulo vertical: altura > largura", () => {
+  it("CONCEITO é retângulo horizontal: mais largo que alto", () => {
+    const n = layoutSingle("CONCEITO");
+    expect(n.width).toBeGreaterThan(n.height);
+  });
+
+  it("NOTA é retângulo vertical: mais alto que largo", () => {
     const n = layoutSingle("NOTA");
     expect(n.height).toBeGreaterThan(n.width);
   });
 
-  it("FLASHCARD é quadrado perfeito de lado fixo 96, independente do rótulo", () => {
-    const curto = layoutSingle("FLASHCARD", "ab");
-    const longo = layoutSingle("FLASHCARD", "x".repeat(80));
-    for (const n of [curto, longo]) {
-      expect(n.width).toBe(96);
-      expect(n.height).toBe(96);
+  it("FLASHCARD é quadrado perfeito", () => {
+    const n = layoutSingle("FLASHCARD");
+    expect(n.width).toBe(n.height);
+  });
+
+  it("o tamanho NÃO varia com o rótulo (uniforme)", () => {
+    for (const type of TYPES) {
+      const curto = layoutSingle(type, "ab");
+      const longo = layoutSingle(type, "x".repeat(80));
+      expect(curto.width).toBe(longo.width);
+      expect(curto.height).toBe(longo.height);
     }
   });
 
-  it("NOTA tem largura entre 64 e 120", () => {
-    const curto = layoutSingle("NOTA", "ab");
-    const longo = layoutSingle("NOTA", "x".repeat(80));
-    expect(curto.width).toBeGreaterThanOrEqual(64);
-    expect(longo.width).toBeLessThanOrEqual(120);
+  it("a NOTA é compacta: nenhuma dimensão passa de 84", () => {
+    const n = layoutSingle("NOTA");
+    expect(Math.max(n.width, n.height)).toBeLessThanOrEqual(84);
   });
 
-  // Mutação: teto de largura da elipse
-  it("TOPICO não passa de 240 de largura", () => {
-    const t = layoutSingle("TOPICO", "x".repeat(100));
-    expect(t.width).toBeLessThanOrEqual(240);
-  });
-
-  it("largura derivada do rótulo cresce com o tamanho do texto (até o teto)", () => {
-    const curto = layoutSingle("CONCEITO", "abc");
-    const medio = layoutSingle("CONCEITO", "a".repeat(15));
-    expect(medio.width).toBeGreaterThan(curto.width);
+  it("todos os nós têm tamanho uniforme entre si (maior lado entre 56 e 104)", () => {
+    for (const type of TYPES) {
+      const n = layoutSingle(type);
+      const maxSide = Math.max(n.width, n.height);
+      expect(maxSide).toBeGreaterThanOrEqual(56);
+      expect(maxSide).toBeLessThanOrEqual(104);
+    }
   });
 });
 

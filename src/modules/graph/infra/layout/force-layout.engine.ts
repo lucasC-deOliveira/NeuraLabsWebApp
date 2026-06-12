@@ -65,29 +65,24 @@ export interface SimEdge {
   targetX: number;
   targetY: number;
 }
-// Dimensões por forma do nó:
+// Dimensões por forma do nó — tamanhos FIXOS para que os nós tenham um
+// tamanho uniforme entre si (não variam pelo rótulo, que é truncado na
+// renderização). Apenas a proporção muda conforme a forma:
 // ASSUNTO = círculo, TOPICO = elipse, CONCEITO = retângulo horizontal,
 // NOTA = retângulo vertical, FLASHCARD = quadrado
-function getNodeDimensions(type: string, labelW: number): { width: number; height: number } {
+function getNodeDimensions(type: string): { width: number; height: number } {
   switch (type) {
-    case "ASSUNTO": {
-      // círculo: diâmetro dimensionado pelo rótulo
-      const d = Math.max(70, Math.min(160, labelW + 16));
-      return { width: d, height: d };
-    }
+    case "ASSUNTO":
+      return { width: 84, height: 84 }; // círculo
     case "TOPICO":
-      // elipse precisa de folga horizontal para o texto não tocar a borda
-      return { width: Math.min(240, labelW * 1.3), height: 50 };
-    case "NOTA": {
-      const w = Math.max(64, Math.min(120, labelW));
-      return { width: w, height: Math.max(84, w * 1.35) };
-    }
+      return { width: 104, height: 56 }; // elipse
+    case "NOTA":
+      return { width: 68, height: 84 }; // retângulo vertical (menor)
     case "FLASHCARD":
-      // quadrado perfeito de lado fixo
-      return { width: 96, height: 96 };
+      return { width: 84, height: 84 }; // quadrado
     case "CONCEITO":
     default:
-      return { width: labelW, height: 40 };
+      return { width: 104, height: 46 }; // retângulo horizontal
   }
 }
 
@@ -98,9 +93,7 @@ export function runForceLayout(
   height: number,
 ): { nodes: SimNode[]; edges: SimEdge[] } {
   const nodes: SimNode[] = rawNodes.map((n) => {
-    const labelLen = n.label.length;
-    const labelW = Math.max(60, Math.min(200, labelLen * 7 + 24));
-    const { width: nodeW, height: nodeH } = getNodeDimensions(n.type, labelW);
+    const { width: nodeW, height: nodeH } = getNodeDimensions(n.type);
     return {
       id: n.id,
       label: n.label,
