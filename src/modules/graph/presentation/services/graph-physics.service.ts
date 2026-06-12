@@ -1,170 +1,205 @@
-// Física orbital do grafo: em cada relação origem→destino, o nó DESTINO
-// orbita lentamente o nó ORIGEM. A origem fica parada — a não ser que ela
-// mesma seja destino de outra relação (aí orbita a origem dela, e quem a
-// orbita acompanha). Nós que não são destino de ninguém são âncoras fixas.
-// Função pura — o hook só aplica o resultado por frame.
+// Física do grafo inspirada no modelo barnesHut do vis-network
+// (https://visjs.github.io/vis-network/docs/network/physics.html).
+// Apenas a física foi reaproveitada — nada da biblioteca é importado.
+//
+// Modelo de forças aplicado a cada frame:
+//   • Repulsão  — todos os pares de nós se repelem (gravitationalConstant),
+//                 com massa proporcional ao tamanho do nó.
+//   • Molas     — cada aresta é uma mola que tende ao comprimento ideal
+//                 (springLength / springConstant), reforçada pelo peso.
+//   • Gravidade — uma mola fraca puxa todos os nós para o centro (centroide),
+//                 mantendo o grafo coeso e sem deriva (centralGravity).
+//   • avoidOverlap — encurta a distância efetiva pelos raios dos nós, fazendo
+//                 a repulsão disparar quando dois nós se sobrepõem.
+// A integração usa velocidade + damping (atrito): o sistema ESTABILIZA e
+// para sozinho — quando a energia fica desprezível devolvemos o mesmo array
+// (mesma referência) para não disparar re-render. Função pura.
 
 export type PhysicsNode = {
   id: string;
   x: number;
   y: number;
+  vx?: number;
+  vy?: number;
   width?: number;
   height?: number;
 };
 
-export type PhysicsEdge = { source: string; target: string };
+export type PhysicsEdge = { source: string; target: string; peso?: number };
 
-const ORBIT_SPEED = 0.004; // rad/frame (~26s por volta a 60fps)
-const MAX_ARC = 0.5; // arco máximo px/frame — raios grandes giram mais devagar
-const ORBIT_MIN = 80; // raio mínimo da órbita
-const ORBIT_MAX = 600; // raio máximo da órbita
-const RADIUS_STEP = 0.8; // ajuste máximo do raio por frame (convergência suave)
-const MAX_PUSH = 2.0; // empurrão máximo por nó por frame (separação suave)
-
-// parâmetros ajustáveis pelo usuário (modal de configurações do grafo)
+// parâmetros ajustáveis pelo usuário (modal de configurações do grafo).
+// Nomes e papéis espelham o solver barnesHut do vis-network.
 export type PhysicsOptions = {
-  /** folga mínima entre as bordas de dois nós (repulsão) */
-  repulsionGap: number;
-  /** folga usada na distância preferida dos aglomerados (atração) */
-  clusterGap: number;
+  /** força de repulsão entre nós (quanto maior, mais espalhado) */
+  gravitationalConstant: number;
+  /** atração de todos os nós para o centro (0 = nenhuma, 1 = forte) */
+  centralGravity: number;
+  /** comprimento ideal das arestas (px) */
+  springLength: number;
+  /** rigidez das arestas — quão forte elas puxam para o comprimento ideal */
+  springConstant: number;
+  /** atrito: 0 = sem atrito (oscila), 1 = para na hora */
+  damping: number;
+  /** evita sobreposição: 0 = ignora tamanho, 1 = afasta totalmente os nós */
+  avoidOverlap: number;
 };
 
 export const DEFAULT_PHYSICS_OPTIONS: PhysicsOptions = {
-  repulsionGap: 200,
-  clusterGap: 200,
+  gravitationalConstant: 2400,
+  centralGravity: 0.4,
+  springLength: 140,
+  springConstant: 0.05,
+  damping: 0.4,
+  avoidOverlap: 0.6,
 };
+
+const TIMESTEP = 0.85; // passo de integração por frame
+const MAX_VELOCITY = 28; // limite de velocidade por nó (evita "explosões")
+const MAX_PAIR_FORCE = 1200; // limite da força de repulsão por par
+const MIN_KINETIC = 0.06; // abaixo disto o nó é considerado parado
 
 // raio de colisão aproximado pelo tamanho do nó
 const collisionRadius = (n: PhysicsNode) =>
   Math.max(n.width ?? 60, n.height ?? 40) / 2;
+
+// massa: nós maiores são mais "pesados" (movem menos, repelem mais)
+const nodeMass = (n: PhysicsNode) => 1 + collisionRadius(n) / 45;
 
 export function physicsStep<T extends PhysicsNode>(
   nodes: T[],
   edges: PhysicsEdge[],
   options: PhysicsOptions = DEFAULT_PHYSICS_OPTIONS,
 ): T[] {
-  if (nodes.length < 2 || edges.length === 0) return nodes;
+  const n = nodes.length;
+  if (n < 2) return nodes;
 
-  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const {
+    gravitationalConstant,
+    centralGravity,
+    springLength,
+    springConstant,
+    damping,
+    avoidOverlap,
+  } = options;
 
-  // para cada destino, as origens que ele orbita (arestas órfãs são ignoradas)
-  const sourcesOf = new Map<string, string[]>();
-  for (const e of edges) {
-    if (!byId.has(e.source) || !byId.has(e.target)) continue;
-    if (e.source === e.target) continue;
-    const list = sourcesOf.get(e.target);
-    if (list) list.push(e.source);
-    else sourcesOf.set(e.target, [e.source]);
+  const idx = new Map<string, number>();
+  for (let i = 0; i < n; i++) idx.set(nodes[i].id, i);
+
+  const fx = new Float64Array(n);
+  const fy = new Float64Array(n);
+  const mass = new Float64Array(n);
+  const radius = new Float64Array(n);
+
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < n; i++) {
+    const node = nodes[i];
+    mass[i] = nodeMass(node);
+    radius[i] = collisionRadius(node);
+    cx += node.x;
+    cy += node.y;
   }
-  if (sourcesOf.size === 0) return nodes;
+  cx /= n;
+  cy /= n;
 
-  const rotated = nodes.map((n) => {
-    const sources = sourcesOf.get(n.id);
-    // não é destino de ninguém: âncora parada
-    if (!sources || sources.length === 0) return n;
-
-    // âncora = centro das origens (com múltiplas origens, orbita o conjunto)
-    let ax = 0;
-    let ay = 0;
-    for (const id of sources) {
-      const s = byId.get(id)!;
-      ax += s.x;
-      ay += s.y;
+  // ── Repulsão entre todos os pares (O(n²) — suficiente para estes grafos)
+  for (let i = 0; i < n; i++) {
+    const ai = nodes[i];
+    for (let j = i + 1; j < n; j++) {
+      const bj = nodes[j];
+      let dx = ai.x - bj.x;
+      let dy = ai.y - bj.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 1e-4) {
+        // exatamente sobrepostos: separa numa direção pseudo-aleatória estável
+        const ang = (((i * 727 + j * 131) % 628) / 100);
+        dx = Math.cos(ang);
+        dy = Math.sin(ang);
+        dist = 1e-4;
+      }
+      // avoidOverlap encurta a distância efetiva pelos raios — a repulsão
+      // dispara quando os nós encostam
+      let eff = dist;
+      if (avoidOverlap > 0) {
+        eff = dist - avoidOverlap * (radius[i] + radius[j]);
+        if (eff < 1) eff = 1;
+      }
+      let force = (gravitationalConstant * mass[i] * mass[j]) / (eff * eff);
+      if (force > MAX_PAIR_FORCE) force = MAX_PAIR_FORCE;
+      const ux = dx / dist;
+      const uy = dy / dist;
+      const fxv = ux * force;
+      const fyv = uy * force;
+      fx[i] += fxv;
+      fy[i] += fyv;
+      fx[j] -= fxv;
+      fy[j] -= fyv;
     }
-    ax /= sources.length;
-    ay /= sources.length;
+  }
 
-    const dx = n.x - ax;
-    const dy = n.y - ay;
-    const d = Math.hypot(dx, dy);
+  // ── Molas nas arestas (atração para o comprimento ideal)
+  for (const e of edges) {
+    const i = idx.get(e.source);
+    const j = idx.get(e.target);
+    if (i === undefined || j === undefined || i === j) continue;
+    const a = nodes[i];
+    const b = nodes[j];
+    let dx = b.x - a.x;
+    let dy = b.y - a.y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 1e-4) dist = 1e-4;
+    const peso = e.peso && e.peso > 0 ? e.peso : 1;
+    const k = springConstant * (0.5 + 0.5 * peso);
+    const force = k * (dist - springLength);
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const fxv = ux * force;
+    const fyv = uy * force;
+    fx[i] += fxv;
+    fy[i] += fyv;
+    fx[j] -= fxv;
+    fy[j] -= fyv;
+  }
 
-    // sobreposto à âncora: desloca para o raio mínimo para poder orbitar
-    if (d < 1e-6) return { ...n, x: ax + ORBIT_MIN, y: ay };
-
-    // aglomeração: nós relacionados tendem a ficar o mais perto possível,
-    // convergindo para o limite da repulsão (raios dos dois + folga)
-    let anchorRad = 0;
-    for (const id of sources) {
-      anchorRad = Math.max(anchorRad, collisionRadius(byId.get(id)!));
+  // ── Gravidade central: mola fraca de cada nó para o centroide
+  if (centralGravity > 0) {
+    for (let i = 0; i < n; i++) {
+      fx[i] += (cx - nodes[i].x) * centralGravity * 0.05;
+      fy[i] += (cy - nodes[i].y) * centralGravity * 0.05;
     }
-    const preferred = anchorRad + collisionRadius(n) + options.clusterGap;
-    const targetRadius = Math.min(ORBIT_MAX, Math.max(ORBIT_MIN, preferred));
-    const radiusDelta = Math.max(-RADIUS_STEP, Math.min(RADIUS_STEP, targetRadius - d));
-    const newRadius = d + radiusDelta;
-    const ux = dx / d;
-    const uy = dy / d;
-    const rx = ux * newRadius;
-    const ry = uy * newRadius;
+  }
 
-    // raios grandes giram em ângulo menor para o arco não passar de MAX_ARC
-    const omega = Math.min(ORBIT_SPEED, MAX_ARC / newRadius);
-    const cos = Math.cos(omega);
-    const sin = Math.sin(omega);
+  // ── Integração com velocidade + damping
+  const retain = 1 - Math.max(0, Math.min(1, damping));
+  let moved = false;
+
+  const next = nodes.map((node, i) => {
+    let vx = ((node.vx ?? 0) + (fx[i] / mass[i]) * TIMESTEP) * retain;
+    let vy = ((node.vy ?? 0) + (fy[i] / mass[i]) * TIMESTEP) * retain;
+
+    const speed = Math.hypot(vx, vy);
+    if (speed > MAX_VELOCITY) {
+      const s = MAX_VELOCITY / speed;
+      vx *= s;
+      vy *= s;
+    }
+
+    // nó praticamente parado: zera a velocidade e fica onde está
+    if (Math.abs(vx) < MIN_KINETIC && Math.abs(vy) < MIN_KINETIC) {
+      if ((node.vx ?? 0) === 0 && (node.vy ?? 0) === 0) return node;
+      moved = true;
+      return { ...node, vx: 0, vy: 0 };
+    }
+
+    moved = true;
     return {
-      ...n,
-      x: ax + rx * cos - ry * sin,
-      y: ay + rx * sin + ry * cos,
+      ...node,
+      x: node.x + vx * TIMESTEP,
+      y: node.y + vy * TIMESTEP,
+      vx,
+      vy,
     };
   });
 
-  // ── repulsão: nenhum nó pode sobrepor ou entrar dentro de outro.
-  // Só nós em órbita são empurrados (âncoras e isolados ficam onde estão);
-  // pares âncora↔próprio destino são regulados pelo raio da órbita, não aqui.
-  const anchorPairs = new Set<string>();
-  for (const [target, sources] of sourcesOf) {
-    for (const s of sources) {
-      anchorPairs.add(target < s ? `${target}|${s}` : `${s}|${target}`);
-    }
-  }
-
-  for (let i = 0; i < rotated.length; i++) {
-    for (let j = i + 1; j < rotated.length; j++) {
-      const a = rotated[i];
-      const b = rotated[j];
-
-      const movableA = sourcesOf.has(a.id);
-      const movableB = sourcesOf.has(b.id);
-      if (!movableA && !movableB) continue;
-
-      const pairKey = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
-      if (anchorPairs.has(pairKey)) continue;
-
-      const minDist = collisionRadius(a) + collisionRadius(b) + options.repulsionGap;
-      let dx = b.x - a.x;
-      let dy = b.y - a.y;
-      let d = Math.hypot(dx, dy);
-      if (d >= minDist) continue;
-
-      // sobrepostos exatamente: separa num eixo determinístico
-      if (d < 1e-6) {
-        dx = 1;
-        dy = 0;
-        d = 1;
-      }
-
-      const overlap = minDist - d;
-      const ux = dx / d;
-      const uy = dy / d;
-
-      if (movableA && movableB) {
-        const push = Math.min(overlap / 2, MAX_PUSH);
-        a.x -= ux * push;
-        a.y -= uy * push;
-        b.x += ux * push;
-        b.y += uy * push;
-      } else {
-        // só um se move: ele leva todo o empurrão (capado)
-        const push = Math.min(overlap, MAX_PUSH);
-        if (movableA) {
-          a.x -= ux * push;
-          a.y -= uy * push;
-        } else {
-          b.x += ux * push;
-          b.y += uy * push;
-        }
-      }
-    }
-  }
-
-  return rotated;
+  return moved ? next : nodes;
 }

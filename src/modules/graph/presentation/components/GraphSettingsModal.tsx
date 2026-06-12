@@ -27,31 +27,41 @@ interface GraphSettingsModalProps {
   onFocusDepthChange: (depth: number) => void;
 }
 
-function GapSlider({
+function PhysicsSlider({
   id,
   label,
   description,
   value,
+  min,
+  max,
+  step,
+  format,
   onChange,
 }: {
   id: string;
   label: string;
   description: string;
   value: number;
+  min: number;
+  max: number;
+  step: number;
+  format?: (v: number) => string;
   onChange: (value: number) => void;
 }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <Label htmlFor={id}>{label}</Label>
-        <span className="text-sm font-mono text-primary">{value}px</span>
+        <span className="text-sm font-mono text-primary">
+          {format ? format(value) : value}
+        </span>
       </div>
       <input
         id={id}
         type="range"
-        min={0}
-        max={400}
-        step={10}
+        min={min}
+        max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full accent-[var(--primary)]"
@@ -69,31 +79,89 @@ export function GraphSettingsModal({
   focusDepth,
   onFocusDepthChange,
 }: GraphSettingsModalProps) {
+  const set = (patch: Partial<PhysicsOptions>) => onChange({ ...options, ...patch });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85dvh] max-w-md flex-col overflow-hidden gap-0">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Configurações do gráfico</DialogTitle>
           <DialogDescription>
-            Ajustes da física. As mudanças valem na hora, com a física ligada.
+            Física inspirada no vis-network. As mudanças valem na hora, com a
+            física ligada.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
-          <GapSlider
-            id="repulsion-gap"
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto py-4">
+          <PhysicsSlider
+            id="gravitational-constant"
             label="Repulsão entre nós"
-            description="Folga mínima entre as bordas de dois nós — nenhum nó invade esse espaço."
-            value={options.repulsionGap}
-            onChange={(v) => onChange({ ...options, repulsionGap: v })}
+            description="Quão forte os nós se afastam uns dos outros. Maior = grafo mais espalhado."
+            value={options.gravitationalConstant}
+            min={0}
+            max={8000}
+            step={100}
+            onChange={(v) => set({ gravitationalConstant: v })}
           />
 
-          <GapSlider
-            id="cluster-gap"
-            label="Distância mínima dos aglomerados"
-            description="Quão perto os nós relacionados tentam ficar das suas origens."
-            value={options.clusterGap}
-            onChange={(v) => onChange({ ...options, clusterGap: v })}
+          <PhysicsSlider
+            id="central-gravity"
+            label="Gravidade central"
+            description="Atração de todos os nós para o centro. Maior = grafo mais compacto e coeso."
+            value={options.centralGravity}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(v) => v.toFixed(2)}
+            onChange={(v) => set({ centralGravity: v })}
+          />
+
+          <PhysicsSlider
+            id="spring-length"
+            label="Comprimento das arestas"
+            description="Distância ideal entre dois nós conectados por uma relação."
+            value={options.springLength}
+            min={40}
+            max={400}
+            step={10}
+            format={(v) => `${v}px`}
+            onChange={(v) => set({ springLength: v })}
+          />
+
+          <PhysicsSlider
+            id="spring-constant"
+            label="Rigidez das arestas"
+            description="Quão forte as relações puxam os nós para o comprimento ideal."
+            value={options.springConstant}
+            min={0}
+            max={0.2}
+            step={0.005}
+            format={(v) => v.toFixed(3)}
+            onChange={(v) => set({ springConstant: v })}
+          />
+
+          <PhysicsSlider
+            id="damping"
+            label="Atrito"
+            description="Quão rápido o movimento desacelera. Maior = estabiliza mais rápido."
+            value={options.damping}
+            min={0.05}
+            max={0.95}
+            step={0.05}
+            format={(v) => v.toFixed(2)}
+            onChange={(v) => set({ damping: v })}
+          />
+
+          <PhysicsSlider
+            id="avoid-overlap"
+            label="Evitar sobreposição"
+            description="Quanto o tamanho dos nós empurra a repulsão para que não se sobreponham."
+            value={options.avoidOverlap}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(v) => v.toFixed(2)}
+            onChange={(v) => set({ avoidOverlap: v })}
           />
 
           <div className="space-y-1.5 border-t pt-4">
@@ -118,7 +186,7 @@ export function GraphSettingsModal({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button
             variant="outline"
             onClick={() => onChange({ ...DEFAULT_PHYSICS_OPTIONS })}
