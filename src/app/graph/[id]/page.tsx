@@ -16,6 +16,7 @@ import { GraphLegend } from "@/modules/graph/presentation/components/GraphLegend
 import { GraphToolbar } from "@/modules/graph/presentation/components/GraphToolbar";
 import { GraphSideToolbar } from "@/modules/graph/presentation/components/GraphSideToolbar";
 import { useGraphSearch } from "@/modules/graph/presentation/hooks/useGraphSearch";
+import { RoadmapPanel } from "@/modules/graph/presentation/components/RoadmapPanel";
 import { GraphSettingsModal, DEFAULT_FOCUS_DEPTH } from "@/modules/graph/presentation/components/GraphSettingsModal";
 
 import {
@@ -52,6 +53,7 @@ export default function GraphPage() {
     controller.state.filteredEdges,
     graphId,
   );
+  const [roadmapOpen, setRoadmapOpen] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -271,6 +273,21 @@ export default function GraphPage() {
             nodeStats={nodeStats}
             hiddenTypes={controller.state.hiddenTypes}
             onToggleType={controller.actions.toggleNodeType}
+            roadmapOpen={roadmapOpen}
+            onToggleRoadmap={() => setRoadmapOpen((v) => !v)}
+          />
+
+          <RoadmapPanel
+            open={roadmapOpen}
+            onClose={() => setRoadmapOpen(false)}
+            nodes={controller.state.layout}
+            edges={controller.state.edges}
+            onFocusNode={(n) => {
+              const full = controller.state.layout.find((x) => x.id === n.id);
+              if (!full) return;
+              controller.interactions.focusNode(full);
+              controller.actions.selectNode(full);
+            }}
           />
           <GraphToolbar
             legendVisible={legendVisible}

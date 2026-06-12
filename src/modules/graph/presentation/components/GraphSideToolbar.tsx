@@ -13,6 +13,7 @@ import {
   Loader2Icon,
   MousePointer2Icon,
   PlusIcon,
+  RouteIcon,
   SearchIcon,
   Trash2Icon,
   XIcon,
@@ -47,6 +48,9 @@ type Props = {
   nodeStats: Record<string, number>;
   hiddenTypes: Set<string>;
   onToggleType: (type: string) => void;
+
+  roadmapOpen: boolean;
+  onToggleRoadmap: () => void;
 };
 
 const DEGREE_OPTIONS: Array<{ id: DegreeFilter; label: string; title: string }> = [
@@ -159,6 +163,8 @@ export function GraphSideToolbar({
   nodeStats,
   hiddenTypes,
   onToggleType,
+  roadmapOpen,
+  onToggleRoadmap,
 }: Props) {
   const [openPanel, setOpenPanel] = useState<"search" | "layers" | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -215,6 +221,13 @@ export function GraphSideToolbar({
             onClick={() => togglePanel("layers")}
           >
             <LayersIcon className="size-4" />
+          </SideButton>
+          <SideButton
+            label="Roadmap de estudo"
+            active={roadmapOpen}
+            onClick={onToggleRoadmap}
+          >
+            <RouteIcon className="size-4" />
           </SideButton>
 
           {onDeleteGraph && (

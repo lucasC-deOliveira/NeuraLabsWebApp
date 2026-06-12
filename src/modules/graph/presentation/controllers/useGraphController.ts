@@ -242,6 +242,7 @@ export function useGraphController(graphId: string) {
     svgRef,
     state: {
       layout,
+      edges,
       filteredNodes,
       filteredEdges,
       selectedNode: liveSelectedNode,
