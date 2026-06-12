@@ -34,6 +34,7 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
   const [pendingAcertou, setPendingAcertou] = useState<boolean | null>(null);
   const [startedAt, setStartedAt] = useState(Date.now());
   const [correct, setCorrect] = useState(0);
+  const [totalNoDeck, setTotalNoDeck] = useState(0);
 
   useEffect(() => {
     if (!open || !baralhoId) return;
@@ -53,8 +54,9 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
         setTitulo(deck.titulo);
         setSessionId(deck.sessionId);
         setCards(deck.cards);
+        setTotalNoDeck(deck.totalNoDeck);
         if (deck.cards.length === 0) {
-          // deck vazio: encerra a sessão e mostra conclusão
+          // nada para revisar agora (deck vazio ou tudo em dia): encerra a sessão
           endStudySession(deck.sessionId).catch(() => {});
           setPhase("complete");
         } else {
@@ -148,10 +150,14 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
           ) : phase === "complete" ? (
             <div className="flex flex-col items-center gap-3 py-10">
               <CheckCircle2Icon className="size-10 text-green-600 dark:text-green-500" />
-              <p className="text-sm font-medium">Baralho concluído!</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm font-medium">
+                {cards.length === 0 ? "Nada para revisar agora" : "Baralho concluído!"}
+              </p>
+              <p className="text-xs text-muted-foreground text-center">
                 {cards.length === 0
-                  ? "Este baralho não tem flashcards."
+                  ? totalNoDeck === 0
+                    ? "Este baralho não tem flashcards."
+                    : "Todos os flashcards deste baralho estão em dia. Volte quando algum vencer."
                   : `${correct} de ${cards.length} corretas.`}
               </p>
               <Button onClick={() => onOpenChange(false)}>Fechar</Button>

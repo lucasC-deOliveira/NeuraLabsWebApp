@@ -36,26 +36,38 @@ export async function startStudySession(): Promise<{
   return { sessionId, cards: interleaved };
 }
 
-// Inicia o estudo de um baralho: cria uma sessão e retorna TODOS os flashcards
-// do deck. A sessão só termina quando o usuário responde todos eles.
+// Inicia o estudo de um baralho com repetição espaçada: só entram os flashcards
+// do deck que PRECISAM ser revisados (nunca estudados ou já vencidos). A sessão
+// termina quando todos esses forem respondidos.
 export async function startDeckStudy(baralhoId: string): Promise<{
   sessionId: string;
   titulo: string;
   cards: FlashcardData[];
+  totalNoDeck: number;
 } | null> {
   const userId = await requireUserId();
   const baralho = await prisma.baralho.findFirst({
     where: { id: baralhoId, usuarioId: userId },
     include: {
       flashcards: {
-        include: { conceito: { select: { nome: true } } },
+        include: {
+          conceito: { select: { nome: true } },
+          aprendizado: { where: { usuarioId: userId } },
+        },
         orderBy: { dataCriacao: "asc" },
       },
     },
   });
   if (!baralho) return null;
 
-  const cards: FlashcardData[] = baralho.flashcards.map((fc) => ({
+  const now = new Date();
+  // só os que precisam de revisão: sem agendamento (novos) ou já vencidos
+  const dueCards = baralho.flashcards.filter((fc) => {
+    const ap = fc.aprendizado[0];
+    return !ap || ap.proximaRevisao <= now;
+  });
+
+  const cards: FlashcardData[] = dueCards.map((fc) => ({
     id: fc.id,
     pergunta: fc.pergunta,
     resposta: fc.resposta,
@@ -63,27 +75,38 @@ export async function startDeckStudy(baralhoId: string): Promise<{
   }));
 
   const sessionId = await libStartStudySession(userId);
-  return { sessionId, titulo: baralho.titulo, cards };
+  return { sessionId, titulo: baralho.titulo, cards, totalNoDeck: baralho.flashcards.length };
 }
 
 // Carrega um único flashcard para estudo avulso (ex.: a partir do grafo).
+// Inclui o status de repetição espaçada: só pode ser estudado se estiver vencido
+// (novo ou proximaRevisao <= agora).
 export async function getFlashcardForStudy(flashcardId: string): Promise<{
   id: string;
   pergunta: string;
   resposta: string;
   conceito: string | null;
+  due: boolean;
+  proximaRevisao: string | null;
 } | null> {
   const userId = await requireUserId();
   const fc = await prisma.flashcard.findFirst({
     where: { id: flashcardId, usuarioId: userId },
-    include: { conceito: { select: { nome: true } } },
+    include: {
+      conceito: { select: { nome: true } },
+      aprendizado: { where: { usuarioId: userId } },
+    },
   });
   if (!fc) return null;
+  const ap = fc.aprendizado[0];
+  const due = !ap || ap.proximaRevisao <= new Date();
   return {
     id: fc.id,
     pergunta: fc.pergunta,
     resposta: fc.resposta,
     conceito: fc.conceito?.nome ?? null,
+    due,
+    proximaRevisao: ap ? ap.proximaRevisao.toISOString() : null,
   };
 }
 
@@ -100,9 +123,15 @@ export async function reviewSingleCard(data: {
 
   const fc = await prisma.flashcard.findFirst({
     where: { id: data.flashcardId, usuarioId: userId },
-    select: { id: true },
+    select: { id: true, aprendizado: { where: { usuarioId: userId }, select: { proximaRevisao: true } } },
   });
   if (!fc) throw new Error("Flashcard não encontrado ou não pertence ao usuário");
+
+  // repetição espaçada: só revisa se estiver vencido (novo ou prazo passou)
+  const ap = fc.aprendizado[0];
+  if (ap && ap.proximaRevisao > new Date()) {
+    throw new Error("Este flashcard ainda não está disponível para revisão.");
+  }
 
   const sessionId = await libStartStudySession(userId);
   await libSubmitReview({

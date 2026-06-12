@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2Icon, EyeIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
+import { Loader2Icon, EyeIcon, CheckCircle2Icon, XCircleIcon, ClockIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getFlashcardForStudy, reviewSingleCard } from "@/actions/study";
 import { MarkdownContent } from "@/components/markdown-content";
@@ -21,13 +21,23 @@ interface StudyFlashcardModalProps {
 }
 
 type Card = { id: string; pergunta: string; resposta: string; conceito: string | null };
-type Phase = "loading" | "question" | "answer" | "confidence" | "saving" | "done" | "error";
+type Phase = "loading" | "question" | "answer" | "confidence" | "saving" | "done" | "notdue" | "error";
 
 const CONFIDENCE_LABELS = ["Nada", "Pouco", "Neutro", "Confiante", "Muito"];
+
+function formatProxima(iso: string): string {
+  const d = new Date(iso);
+  const diffMs = d.getTime() - Date.now();
+  const dias = Math.ceil(diffMs / 86400000);
+  const data = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  if (dias <= 1) return `amanhã (${data})`;
+  return `em ${dias} dias (${data})`;
+}
 
 export function StudyFlashcardModal({ open, onOpenChange, flashcardId }: StudyFlashcardModalProps) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [card, setCard] = useState<Card | null>(null);
+  const [proximaRevisao, setProximaRevisao] = useState<string | null>(null);
   const [pendingAcertou, setPendingAcertou] = useState<boolean | null>(null);
   const [startedAt, setStartedAt] = useState<number>(Date.now());
 
@@ -46,8 +56,10 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId }: StudyFl
           return;
         }
         setCard(fc);
+        setProximaRevisao(fc.proximaRevisao);
         setStartedAt(Date.now());
-        setPhase("question");
+        // repetição espaçada: só pode estudar se estiver vencido
+        setPhase(fc.due ? "question" : "notdue");
       })
       .catch(() => active && setPhase("error"));
     return () => {
@@ -105,6 +117,16 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId }: StudyFl
             <div className="flex flex-col items-center gap-3 py-10">
               <CheckCircle2Icon className="size-10 text-green-600 dark:text-green-500" />
               <p className="text-sm text-muted-foreground">Revisão registrada com sucesso.</p>
+              <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+            </div>
+          ) : phase === "notdue" ? (
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <ClockIcon className="size-10 text-muted-foreground" />
+              <p className="text-sm font-medium">Ainda não é hora de revisar</p>
+              <p className="text-xs text-muted-foreground">
+                Pela repetição espaçada, este flashcard estará disponível{" "}
+                {proximaRevisao ? formatProxima(proximaRevisao) : "em breve"}.
+              </p>
               <Button onClick={() => onOpenChange(false)}>Fechar</Button>
             </div>
           ) : card ? (
