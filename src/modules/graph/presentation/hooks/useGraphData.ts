@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   getGraphNodes,
+  getGraphEdges,
   getGrafoInfo,
   loadGraphVisualState,
 } from "@/lib/graph-api";
@@ -33,9 +34,9 @@ export function useGraphData(graphId: string) {
         setRawNodes(result.nodes);
         setRawEdges(result.edges);
 
-        const edgesResult = await fetch(`/api/graph/edge?grafoId=${graphId}`).then(r => r.json());
-        if (edgesResult.edges) {
-          setGraphEdges(edgesResult.edges);
+        const edges = await getGraphEdges(graphId);
+        if (edges) {
+          setGraphEdges(edges);
         }
       } catch (e) {
         console.error(e);
