@@ -258,6 +258,102 @@ export class GraphService {
     return { success: true };
   }
 
+  // ---- Adicionar entidade existente ao grafo (só cria o vínculo) ----
+  async addExistingNode(userId: string, grafoId: string, tipoNode: TipoNode, entityId: string) {
+    const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    if (!grafo) throw new NotFoundException('Grafo não encontrado');
+    await this.prisma.nodeConhecimento.create({
+      data: { grafoId, tipoNode: tipoNode as any, referenciaId: entityId, usuarioId: userId, nivelDominio: 0 },
+    });
+    return { success: true, nodeId: entityId };
+  }
+
+  // ---- Itens existentes (não estão no grafo) para "Adicionar existentes" ----
+  async availableItems(userId: string, grafoId: string) {
+    const existing = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { referenciaId: true, tipoNode: true } });
+    const inGraph: Record<string, string[]> = {};
+    for (const n of existing) (inGraph[n.tipoNode] ??= []).push(n.referenciaId);
+
+    const [flashcards, notas] = await Promise.all([
+      this.prisma.flashcard.findMany({
+        where: { usuarioId: userId, id: { notIn: inGraph.FLASHCARD ?? [] } },
+        include: { conceito: { include: { topico: { include: { assunto: true } } } } },
+        orderBy: { dataCriacao: 'desc' },
+        take: 50,
+      }),
+      this.prisma.nota.findMany({ where: { usuarioId: userId, id: { notIn: inGraph.NOTA ?? [] } }, orderBy: { dataCriacao: 'desc' }, take: 50 }),
+    ]);
+
+    return {
+      flashcards: flashcards.map((fc) => {
+        const topico = fc.conceito?.topico;
+        const assunto = topico?.assunto;
+        return {
+          id: fc.id,
+          label: fc.pergunta.slice(0, 50) + (fc.pergunta.length > 50 ? '...' : ''),
+          fullText: fc.pergunta,
+          tipo: 'FLASHCARD',
+          conceitoId: fc.conceitoId,
+          hierarquia: assunto ? `${assunto.nome} → ${topico!.nome} → ${fc.conceito!.nome}` : fc.conceito ? `${fc.conceito.nome} (sem tópico)` : 'Sem conceito',
+        };
+      }),
+      notas: notas.map((n) => ({ id: n.id, label: n.conteudo.slice(0, 50) + (n.conteudo.length > 50 ? '...' : ''), fullText: n.conteudo, tipo: 'NOTA', hierarquia: 'Nota direta' })),
+    };
+  }
+
+  // flashcards do usuário (picker do baralho)
+  async listFlashcardsForDeck(userId: string) {
+    const fcs = await this.prisma.flashcard.findMany({ where: { usuarioId: userId }, include: { conceito: true }, orderBy: { dataCriacao: 'desc' } });
+    return fcs.map((f) => ({ id: f.id, pergunta: f.pergunta, conceito: f.conceito?.nome ?? null }));
+  }
+
+  // ---- Baralho ----
+  async createBaralho(userId: string, grafoId: string, titulo: string, flashcardIds: string[]) {
+    const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    if (!grafo) throw new NotFoundException('Grafo não encontrado');
+    const tituloTrim = titulo?.trim();
+    if (!tituloTrim) throw new BadRequestException('O título do baralho é obrigatório');
+    const ids = Array.from(new Set(flashcardIds ?? []));
+    if (ids.length > 1000) throw new BadRequestException('Máximo de 1000 flashcards por baralho');
+    if (ids.length > 0) {
+      const count = await this.prisma.flashcard.count({ where: { id: { in: ids }, usuarioId: userId } });
+      if (count !== ids.length) throw new BadRequestException('Um ou mais flashcards não pertencem ao usuário');
+    }
+    const now = new Date();
+    const baralhoId = await this.prisma.$transaction(async (tx) => {
+      const baralho = await tx.baralho.create({ data: { titulo: tituloTrim, usuarioId: userId, dataCriacao: now, flashcards: ids.length ? { connect: ids.map((id) => ({ id })) } : undefined } });
+      const baralhoNode = await tx.nodeConhecimento.create({ data: { grafoId, tipoNode: 'BARALHO', referenciaId: baralho.id, usuarioId: userId } });
+      for (const fcId of ids) {
+        let fcNode = await tx.nodeConhecimento.findFirst({ where: { grafoId, usuarioId: userId, tipoNode: 'FLASHCARD', referenciaId: fcId }, select: { id: true } });
+        if (!fcNode) fcNode = await tx.nodeConhecimento.create({ data: { grafoId, tipoNode: 'FLASHCARD', referenciaId: fcId, usuarioId: userId }, select: { id: true } });
+        await tx.conhecimentoAresta.create({ data: { grafoId, nodeOrigemId: baralhoNode.id, nodeDestinoId: fcNode.id, tipoRelacao: 'CONTEM', peso: 1 } });
+      }
+      return baralho.id;
+    });
+    return { success: true, nodeId: baralhoId };
+  }
+
+  // ---- Busca por conteúdo (devolve refIds que casam) ----
+  async searchNodeContent(userId: string, grafoId: string, query: string): Promise<string[]> {
+    const term = (query ?? '').trim().slice(0, 200);
+    if (!term || !grafoId) return [];
+    const graphNodes = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { referenciaId: true, tipoNode: true } });
+    const byType: Record<string, string[]> = {};
+    for (const n of graphNodes) (byType[n.tipoNode] ??= []).push(n.referenciaId);
+    const matched = new Set<string>();
+    const add = (rows: { id: string }[]) => rows.forEach((r) => matched.add(r.id));
+    const c = { contains: term, mode: 'insensitive' as const };
+    await Promise.all([
+      byType.NOTA?.length && this.prisma.nota.findMany({ where: { id: { in: byType.NOTA }, conteudo: c }, select: { id: true } }).then(add),
+      byType.FLASHCARD?.length && this.prisma.flashcard.findMany({ where: { id: { in: byType.FLASHCARD }, OR: [{ pergunta: c }, { resposta: c }] }, select: { id: true } }).then(add),
+      byType.TEXTO_BRUTO?.length && this.prisma.textoBruto.findMany({ where: { id: { in: byType.TEXTO_BRUTO }, texto: c }, select: { id: true } }).then(add),
+      byType.CONCEITO?.length && this.prisma.conceito.findMany({ where: { id: { in: byType.CONCEITO }, descricao: c }, select: { id: true } }).then(add),
+      byType.ASSUNTO?.length && this.prisma.assunto.findMany({ where: { id: { in: byType.ASSUNTO }, descricao: c }, select: { id: true } }).then(add),
+      byType.TOPICO?.length && this.prisma.topico.findMany({ where: { id: { in: byType.TOPICO }, descricao: c }, select: { id: true } }).then(add),
+    ]);
+    return [...matched];
+  }
+
   // ---- Posições ----
   async savePositions(userId: string, grafoId: string, positions: Record<string, { x: number; y: number }>) {
     const typeMap: Record<string, string> = { flashcard: 'FLASHCARD', nota: 'NOTA', assunto: 'ASSUNTO', topico: 'TOPICO', conceito: 'CONCEITO' };

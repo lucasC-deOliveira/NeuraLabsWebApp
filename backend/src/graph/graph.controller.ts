@@ -57,10 +57,36 @@ export class GraphController {
     return this.graph.getEdges(userId, grafoId);
   }
 
+  @Get('search')
+  search(@CurrentUser() userId: string, @Query('grafoId') grafoId: string, @Query('q') q: string) {
+    return this.graph.searchNodeContent(userId, grafoId, q ?? '');
+  }
+
+  @Get('available-items')
+  availableItems(@CurrentUser() userId: string, @Query('grafoId') grafoId: string) {
+    return this.graph.availableItems(userId, grafoId);
+  }
+
+  @Get('flashcards')
+  flashcards(@CurrentUser() userId: string) {
+    return this.graph.listFlashcardsForDeck(userId);
+  }
+
   // ---- Nós ----
   @Post('graphs/:grafoId/nodes')
   createNode(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: CreateNodeInput) {
     return this.graph.createNode(userId, grafoId, body);
+  }
+
+  // vincula uma entidade já existente ao grafo
+  @Post('graphs/:grafoId/nodes/link')
+  addExisting(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { tipoNode: TipoNode; entityId: string }) {
+    return this.graph.addExistingNode(userId, grafoId, body.tipoNode, body.entityId);
+  }
+
+  @Post('graphs/:grafoId/baralho')
+  createBaralho(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { titulo: string; flashcardIds: string[] }) {
+    return this.graph.createBaralho(userId, grafoId, body.titulo, body.flashcardIds ?? []);
   }
 
   @Patch('nodes/:refId')

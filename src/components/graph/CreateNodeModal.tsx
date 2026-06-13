@@ -24,9 +24,7 @@ import { toast } from "sonner";
 import { PlusIcon, Loader2Icon, SparklesIcon, XIcon, SearchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { suggestNotaRelations, type NotaRelationSuggestion } from "@/actions/ai-graph";
-import { createBaralhoNode } from "@/actions/graph";
-import { addNodeToGraph, createEdge } from "@/lib/graph-api";
-import { getFlashcards } from "@/actions/flashcard";
+import { addNodeToGraph, createEdge, createBaralhoNode, getAvailableItems, listUserFlashcards } from "@/lib/graph-api";
 import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { useRouter } from "next/navigation";
@@ -147,7 +145,7 @@ export function CreateNodeModal({
     if (!open || selectedType !== "BARALHO") return;
     setDeckLoading(true);
     const noGrafo = new Set(parentIds.flashcards.map((f) => f.id));
-    getFlashcards()
+    listUserFlashcards()
       .then((fcs) =>
         setDeckFlashcards(
           fcs
@@ -161,21 +159,8 @@ export function CreateNodeModal({
 
   const loadAvailableItems = async () => {
     try {
-      const response = await fetch(`/api/graph/available-items?grafoId=${grafoId}`);
-      if (!response.ok) {
-        const text = await response.text();
-        let msg = `Erro HTTP ${response.status}`;
-        try {
-          const json = JSON.parse(text);
-          msg = json.error || msg;
-        } catch {}
-        throw new Error(msg);
-      }
-      const data = await response.json();
-      setAvailableItems({
-        flashcards: data.flashcards ?? [],
-        notas: data.notas ?? [],
-      });
+      const data = await getAvailableItems(grafoId);
+      setAvailableItems({ flashcards: data.flashcards ?? [], notas: data.notas ?? [] });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Erro desconhecido";
       console.error("Erro ao carregar itens disponíveis:", e);
@@ -445,22 +430,7 @@ export function CreateNodeModal({
             continue; // Skip unknown items
           }
 
-          const response = await fetch("/api/graph/add-node", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              grafoId,
-              tipoNode,
-              ...data,
-            }),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Erro ao adicionar item ${itemId}`);
-          }
-
-          const resData = await response.json().catch(() => null);
+          const resData = await addNodeToGraph(grafoId, tipoNode, data);
           if (flashcard) addedFlashcardIds.push(resData?.nodeId ?? itemId);
           else if (nota) addedNotaIds.push(resData?.nodeId ?? itemId);
         }
@@ -473,12 +443,8 @@ export function CreateNodeModal({
           peso: number
         ): Promise<boolean> => {
           try {
-            const edgeRes = await fetch("/api/graph/edge", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ grafoId, sourceNodeId, targetNodeId, tipoRelacao, peso }),
-            });
-            return edgeRes.ok;
+            await createEdge(grafoId, { sourceNodeId, targetNodeId, tipoRelacao, peso });
+            return true;
           } catch {
             return false;
           }

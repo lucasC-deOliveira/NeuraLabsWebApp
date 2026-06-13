@@ -81,7 +81,31 @@ export function getGraphEdges(grafoId: string): Promise<EdgeView[]> {
 
 // ---- Nós ----
 export function addNodeToGraph(grafoId: string, tipoNode: string, data: Record<string, unknown>): Promise<{ success: boolean; nodeId: string }> {
+  // entidade existente → só vincula; nova → cria
+  if (data.entityId) {
+    return apiFetch(`/graph/graphs/${grafoId}/nodes/link`, { method: "POST", body: JSON.stringify({ tipoNode, entityId: data.entityId }) });
+  }
   return apiFetch(`/graph/graphs/${grafoId}/nodes`, { method: "POST", body: JSON.stringify({ tipoNode, ...data }) });
+}
+
+export function createBaralhoNode(grafoId: string, titulo: string, flashcardIds: string[]): Promise<{ success: boolean; nodeId: string }> {
+  return apiFetch(`/graph/graphs/${grafoId}/baralho`, { method: "POST", body: JSON.stringify({ titulo, flashcardIds }) });
+}
+
+export interface AvailableItem {
+  id: string;
+  label: string;
+  fullText: string;
+  tipo: string;
+  hierarquia: string;
+  conceitoId?: string | null;
+}
+export function getAvailableItems(grafoId: string): Promise<{ flashcards: AvailableItem[]; notas: AvailableItem[] }> {
+  return apiFetch(`/graph/available-items${qs({ grafoId })}`);
+}
+
+export function listUserFlashcards(): Promise<Array<{ id: string; pergunta: string; conceito: string | null }>> {
+  return apiFetch("/graph/flashcards");
 }
 export function updateGraphNode(
   tipoNode: string,
@@ -124,9 +148,9 @@ export async function deleteEdge(edgeId: string, grafoId: string): Promise<{ suc
   return { success: true };
 }
 
-// ---- Busca por conteúdo (TODO: endpoint no backend; por ora retorna vazio) ----
-export async function searchGraphNodeContent(_grafoId: string, _query: string): Promise<string[]> {
-  return [];
+// ---- Busca por conteúdo (devolve refIds que casam) ----
+export function searchGraphNodeContent(grafoId: string, query: string): Promise<string[]> {
+  return apiFetch<string[]>(`/graph/search${qs({ grafoId, q: query })}`);
 }
 
 // ---- Posições ----
