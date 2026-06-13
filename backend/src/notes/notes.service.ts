@@ -1,9 +1,51 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { createReviewSchedule } from '../study/spaced-repetition';
+import { buildRulePreview } from '../content/flashcard-gen';
 
 @Injectable()
 export class NotesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // Cria a nota (conteúdo). Relações com conceitos/grafo são feitas pela UI do grafo.
+  async createNotaManual(userId: string, input: { titulo: string; conteudo: string }) {
+    const rawText = `# ${input.titulo}\n\n${input.conteudo}`;
+    const nota = await this.prisma.nota.create({ data: { usuarioId: userId, titulo: input.titulo, conteudo: rawText } });
+    return { notaId: nota.id };
+  }
+
+  // Gera flashcards por regras a partir da nota e salva (com SRS).
+  async generateFlashcardsFromNota(userId: string, notaId: string) {
+    const nota = await this.prisma.nota.findFirst({ where: { id: notaId, usuarioId: userId } });
+    if (!nota) throw new NotFoundException('Nota não encontrada');
+    const allConcepts = await this.prisma.conceito.findMany({ where: { usuarioId: userId }, select: { id: true, nome: true } });
+    const preview = buildRulePreview(nota.conteudo, allConcepts);
+
+    const flashcards: { id: string; pergunta: string }[] = [];
+    await this.prisma.$transaction(async (tx) => {
+      for (const p of preview) {
+        const fc = await tx.flashcard.create({
+          data: { pergunta: p.pergunta, resposta: p.resposta, conceitoId: p.conceitoId, usuarioId: userId },
+        });
+        const schedule = createReviewSchedule(3);
+        const next = new Date();
+        next.setDate(next.getDate() + schedule.interval);
+        await tx.aprendizadoFlashcard.create({
+          data: {
+            flashcardId: fc.id,
+            usuarioId: userId,
+            dificuldade: schedule.ease > 0 ? Math.max(1, Math.round((5 - schedule.ease) * 2)) : 5,
+            intervalo: schedule.interval,
+            proximaRevisao: next,
+            ultimaRevisao: new Date(),
+            estagioAprendizado: schedule.stage,
+          },
+        });
+        flashcards.push({ id: fc.id, pergunta: fc.pergunta });
+      }
+    });
+    return { flashcards };
+  }
 
   async getNotas(userId: string) {
     const notas = await this.prisma.nota.findMany({ where: { usuarioId: userId }, orderBy: { dataCriacao: 'desc' } });

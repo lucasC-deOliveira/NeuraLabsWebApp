@@ -30,6 +30,19 @@ export function generateFlashcardsViaIA(notaId: string): Promise<FlashcardPrevie
   return apiFetch(`/ai/graph/notas/${notaId}/flashcards`, { method: "POST" });
 }
 
+export interface NotaCandidata {
+  titulo: string;
+  conteudo: string;
+  conceitosPrevistos: string[];
+  conceitosDetalhe?: Array<{ nome: string }>;
+}
+export async function analyzeRawText(rawText: string): Promise<{ candidatas: NotaCandidata[] }> {
+  return apiFetch("/ai/graph/notas/analyze", { method: "POST", body: JSON.stringify({ rawText }) });
+}
+export function saveSelectedNotas(candidatas: Array<{ titulo: string; conteudo: string }>): Promise<{ notaIds: string[] }> {
+  return apiFetch("/ai/graph/notas/save", { method: "POST", body: JSON.stringify({ candidatas }) });
+}
+
 export function generateNodeInsights(grafoId: string, nodeId: string): Promise<NodeInsightsResult> {
   return apiFetch(`/ai/graph/graphs/${grafoId}/nodes/${nodeId}/insights`, { method: "POST" });
 }

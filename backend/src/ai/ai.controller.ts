@@ -32,4 +32,14 @@ export class AiController {
   generateFlashcards(@CurrentUser() userId: string, @Param('notaId') notaId: string) {
     return this.ai.generateFlashcardsViaIA(userId, notaId);
   }
+
+  @Post('notas/analyze')
+  analyzeRawText(@CurrentUser() userId: string, @Body() body: { rawText: string }) {
+    return this.ai.analyzeRawText(userId, body.rawText ?? '');
+  }
+
+  @Post('notas/save')
+  saveSelectedNotas(@CurrentUser() userId: string, @Body() body: { candidatas: Array<{ titulo: string; conteudo: string }> }) {
+    return this.ai.saveSelectedNotas(userId, body.candidatas ?? []);
+  }
 }

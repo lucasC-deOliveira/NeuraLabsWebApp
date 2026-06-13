@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Param, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { NotesService } from './notes.service';
@@ -16,6 +16,16 @@ export class NotesController {
   @Get('filters')
   filters(@CurrentUser() userId: string) {
     return this.notes.getNotasFilterData(userId);
+  }
+
+  @Post()
+  create(@CurrentUser() userId: string, @Body() body: { titulo: string; conteudo: string }) {
+    return this.notes.createNotaManual(userId, body);
+  }
+
+  @Post(':id/flashcards')
+  generateFlashcards(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.notes.generateFlashcardsFromNota(userId, id);
   }
 
   @Delete()

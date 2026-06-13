@@ -38,6 +38,125 @@ export class AiService {
     return { client: new OpenAI({ apiKey: cfg.apiKey, baseURL: cfg.baseUrl }), model: cfg.model };
   }
 
+  private async callAI(userId: string, messages: Array<{ role: 'system' | 'user'; content: string }>): Promise<string> {
+    const { client, model } = await this.openai(userId);
+    const response = await client.chat.completions.create({ model, temperature: 0.3, response_format: { type: 'json_object' }, messages });
+    return response.choices[0]?.message?.content ?? '';
+  }
+
+  // Estágio 1: divide texto bruto em notas candidatas.
+  async analyzeRawText(userId: string, rawText: string): Promise<{ candidatas: Array<{ titulo: string; conteudo: string; conceitosPrevistos: string[] }> }> {
+    if (!rawText.trim()) return { candidatas: [] };
+    const content = await this.callAI(userId, [
+      { role: 'system', content: `Você é um assistente de análise de texto educacional. Dado um texto bruto, identifique QUANTAS NOTAS fizerem sentido. Cada nota deve ter titulo e conteudo organizado.\nResponda APENAS JSON: {"notas":[{"titulo":"Nome","conteudo":"Conteúdo organizado"}]}` },
+      { role: 'user', content: rawText.slice(0, 15000) },
+    ]);
+    if (!content) return { candidatas: [] };
+    try {
+      const parsed = JSON.parse(content);
+      return { candidatas: (parsed.notas || []).map((n: any) => ({ titulo: n.titulo || 'Nota sem título', conteudo: n.conteudo || '', conceitosPrevistos: [] })) };
+    } catch {
+      return { candidatas: [{ titulo: 'Nota', conteudo: rawText, conceitosPrevistos: [] }] };
+    }
+  }
+
+  // Estágio 2: extrai hierarquia (assunto→tópico→conceito) e cria notas. Arestas semânticas ficam para a UI do grafo.
+  async saveSelectedNotas(userId: string, candidatas: Array<{ titulo: string; conteudo: string }>): Promise<{ notaIds: string[] }> {
+    if (candidatas.length === 0) return { notaIds: [] };
+
+    const [existingConcepts, existingTopicos, existingAssuntos] = await Promise.all([
+      this.prisma.conceito.findMany({ where: { usuarioId: userId } }),
+      this.prisma.topico.findMany({ where: { usuarioId: userId } }),
+      this.prisma.assunto.findMany({ where: { usuarioId: userId } }),
+    ]);
+    const contextText = [
+      existingAssuntos.length ? `ASSUNTOS: ${existingAssuntos.map((a) => a.nome).join(', ')}` : '',
+      existingTopicos.length ? `TÓPICOS: ${existingTopicos.map((t) => t.nome).join(', ')}` : '',
+      existingConcepts.length ? `CONCEITOS: ${existingConcepts.map((c) => c.nome).join(', ')}` : '',
+    ].filter(Boolean).join('\n');
+    const texts = candidatas.map((n) => `NOTA: "${n.titulo}"\n${n.conteudo}`).join('\n\n---\n\n');
+
+    const content = await this.callAI(userId, [
+      { role: 'system', content: `Você é especialista em organização curricular. Dado um conjunto de notas, identifique CONCEITOS, TÓPICOS (com seus conceitos) e ASSUNTOS (com seus tópicos).\nContexto existente:\n${contextText || '(nenhum)'}\nResponda APENAS JSON: {"conceitos":[{"nome":"..."}],"topicos":[{"nome":"...","conceitos":["..."]}],"assuntos":[{"nome":"...","topicos":["..."]}]}` },
+      { role: 'user', content: texts.slice(0, 15000) },
+    ]);
+
+    let parsed: any = {};
+    try { parsed = JSON.parse(content); } catch { parsed = {}; }
+    const aiAssuntos: Array<{ nome: string; topicos: string[] }> = (parsed.assuntos || []).map((a: any) => ({ nome: a.nome || 'Assunto', topicos: a.topicos || [] }));
+    const aiTopicos: Array<{ nome: string; conceitos: string[] }> = (parsed.topicos || []).map((t: any) => ({ nome: t.nome || 'Tópico', conceitos: t.conceitos || [] }));
+    const aiConceitos: Array<{ nome: string }> = (parsed.conceitos || []).map((c: any) => ({ nome: c.nome || 'Conceito' }));
+
+    // Resolve/cria assuntos
+    const assuntoByName = new Map<string, string>();
+    for (const a of existingAssuntos) assuntoByName.set(a.nome.toLowerCase(), a.id);
+    for (const a of aiAssuntos) {
+      const key = a.nome.toLowerCase();
+      if (!assuntoByName.has(key)) {
+        const created = await this.prisma.assunto.create({ data: { usuarioId: userId, nome: a.nome } });
+        assuntoByName.set(key, created.id);
+      }
+    }
+    const ensureAssunto = async (): Promise<string> => {
+      const first = [...assuntoByName.values()][0];
+      if (first) return first;
+      const ga = await this.prisma.assunto.create({ data: { usuarioId: userId, nome: 'Geral' } });
+      assuntoByName.set('geral', ga.id);
+      return ga.id;
+    };
+
+    // Resolve/cria tópicos (mapeando ao assunto da agrupação da IA)
+    const topicoByName = new Map<string, string>();
+    for (const t of existingTopicos) topicoByName.set(t.nome.toLowerCase(), t.id);
+    for (const t of aiTopicos) {
+      const key = t.nome.toLowerCase();
+      if (topicoByName.has(key)) continue;
+      let assuntoId: string | null = null;
+      for (const a of aiAssuntos) if (a.topicos.some((tn) => tn.toLowerCase() === key)) { assuntoId = assuntoByName.get(a.nome.toLowerCase()) ?? null; break; }
+      if (!assuntoId) assuntoId = await ensureAssunto();
+      const created = await this.prisma.topico.create({ data: { assuntoId, nome: t.nome, usuarioId: userId } });
+      topicoByName.set(key, created.id);
+    }
+    const ensureTopico = async (): Promise<string> => {
+      const first = [...topicoByName.values()][0];
+      if (first) return first;
+      const assuntoId = await ensureAssunto();
+      const gt = await this.prisma.topico.create({ data: { assuntoId, nome: 'Geral', usuarioId: userId } });
+      topicoByName.set('geral', gt.id);
+      return gt.id;
+    };
+
+    // Resolve/cria conceitos (sob o tópico que os contém, ou um fallback)
+    const conceitoByName = new Map<string, string>();
+    for (const c of existingConcepts) conceitoByName.set(c.nome.toLowerCase(), c.id);
+    for (const t of aiTopicos) {
+      const tid = topicoByName.get(t.nome.toLowerCase());
+      if (!tid) continue;
+      for (const cName of t.conceitos) {
+        const cKey = cName.toLowerCase();
+        if (conceitoByName.has(cKey)) continue;
+        const created = await this.prisma.conceito.create({ data: { topicoId: tid, nome: cName, usuarioId: userId } });
+        conceitoByName.set(cKey, created.id);
+      }
+    }
+    for (const c of aiConceitos) {
+      const cKey = c.nome.toLowerCase();
+      if (conceitoByName.has(cKey)) continue;
+      const tid = await ensureTopico();
+      const created = await this.prisma.conceito.create({ data: { topicoId: tid, nome: c.nome, usuarioId: userId } });
+      conceitoByName.set(cKey, created.id);
+    }
+
+    // Cria as notas
+    const notaIds: string[] = [];
+    for (const candidata of candidatas) {
+      const rawText = `# ${candidata.titulo}\n\n${candidata.conteudo}`;
+      const nota = await this.prisma.nota.create({ data: { usuarioId: userId, titulo: candidata.titulo, conteudo: rawText } });
+      notaIds.push(nota.id);
+    }
+    return { notaIds };
+  }
+
   async generateNodeInsights(userId: string, grafoId: string, nodeId: string) {
     const target = await this.prisma.nodeConhecimento.findFirst({ where: { grafoId, usuarioId: userId, referenciaId: nodeId }, select: { tipoNode: true } });
     if (!target) throw new NotFoundException('Nó não encontrado neste grafo.');

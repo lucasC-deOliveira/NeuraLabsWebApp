@@ -15,19 +15,15 @@ import {
   ArrowRightIcon, LinkIcon, SearchIcon, LayersIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  analyzeRawText,
-  saveSelectedNotas,
-  createNotaManual,
-  type NotaCandidata,
-} from "@/actions/notes";
+import { analyzeRawText, saveSelectedNotas, type NotaCandidata } from "@/lib/ai-api";
+import { createNotaManual } from "@/lib/notes-api";
 import {
   getHierarquiaConceitos,
   createFullConcept,
   createTopico,
   createAssunto,
   type ConceitoArvore,
-} from "@/actions/settings";
+} from "@/lib/content-api";
 
 type PageMode = "ia" | "manual";
 type IAStep = "input" | "analyzing" | "review" | "saving";

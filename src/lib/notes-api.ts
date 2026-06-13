@@ -26,6 +26,20 @@ export async function getNotaById(notaId: string): Promise<NotaDetail | null> {
   return n ? { ...n, dataCriacao: new Date(n.dataCriacao) } : null;
 }
 
+export function createNotaManual(input: {
+  titulo: string;
+  conteudo: string;
+  selectedConceitoIds?: string[];
+  notaConceitoRels?: Array<{ conceitoId: string; tipoRelacao: string }>;
+  conceitoConceitoRels?: Array<{ origemId: string; destinoId: string; tipoRelacao: string }>;
+}): Promise<{ notaId: string }> {
+  return apiFetch("/notes", { method: "POST", body: JSON.stringify({ titulo: input.titulo, conteudo: input.conteudo }) });
+}
+
+export function generateFlashcardsFromNota(notaId: string): Promise<{ flashcards: { id: string; pergunta: string }[] }> {
+  return apiFetch(`/notes/${notaId}/flashcards`, { method: "POST" });
+}
+
 export function deleteNota(id: string): Promise<{ success: boolean }> {
   return apiFetch(`/notes/${id}`, { method: "DELETE" });
 }

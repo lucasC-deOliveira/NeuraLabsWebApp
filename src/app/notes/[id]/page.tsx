@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { MarkdownContent } from "@/components/markdown-content";
 import { Loader2Icon, ArrowLeftIcon, BrainIcon, ArrowRightIcon } from "lucide-react";
 import { toast } from "sonner";
-import { getNotaById, generateFlashcardsFromNota } from "@/actions/notes";
+import { getNotaById, generateFlashcardsFromNota } from "@/lib/notes-api";
 
 interface NotaDetail {
   id: string;
