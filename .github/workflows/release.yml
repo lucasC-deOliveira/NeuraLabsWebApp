@@ -29,16 +29,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Prisma generate (engines Linux + Windows)
+      # gera o client Prisma (src/generated/prisma é gitignored) que o next build
+      # inclui no bundle standalone via outputFileTracingIncludes
+      - name: Prisma generate
         run: npx prisma generate
 
-      - name: Build desktop bundle (Next standalone + DB template)
+      # thin client: next build (standalone) + copia static/public. Sem banco
+      # nem segredos — os dados vêm do backend via JWT em runtime.
+      - name: Build desktop bundle (Next standalone)
         run: npm run desktop:build
-        env:
-          DATABASE_URL: "file:./build/app.db"
-          # placeholder só para satisfazer o guard de produção durante o build;
-          # o secret real é gerado pelo Electron por instalação, em runtime.
-          JWT_SECRET: "build-time-placeholder-not-used-at-runtime"
 
       - name: Build and publish installers
         run: npx electron-builder --publish always
