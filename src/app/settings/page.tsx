@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon, DatabaseIcon, FolderTreeIcon } from "lucide-react";
 import { toast } from "sonner";
-import { getConfigAI, saveConfigAI } from "@/actions/settings";
+import { getConfigAI, saveConfigAI } from "@/lib/settings-api";
 import { getStorageConfig, setStorageConfig, exportToVault, importFromVault, browseDirectory, isDesktopRuntime, type StorageMode, type DirListing } from "@/actions/storage-config";
 import { getOAuthConfig, setOAuthConfig, type OAuthConfigStatus } from "@/actions/oauth-config";
 import { useColorTheme, type ColorTheme } from "@/components/color-theme-provider";
