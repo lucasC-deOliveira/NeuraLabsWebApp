@@ -39,7 +39,7 @@ import {
   deleteAllFlashcards,
   getFlashcards,
   getFlashcardFilterData,
-} from "@/actions/flashcard";
+} from "@/lib/content-api";
 import type { FlashcardData, SpacedRepetitionData } from "@/types";
 
 interface FlashcardWithMeta extends FlashcardData {
@@ -147,8 +147,8 @@ export default function FlashcardsPage() {
     setFilterData(hier);
 
     // Load concepts for dialog dropdown
-    const { getSubjects } = await import("@/actions/subjects");
-    const subjects = await getSubjects();
+    const { getConceptHierarchy } = await import("@/lib/content-api");
+    const subjects = await getConceptHierarchy();
     const flatConcepts: ConceptOption[] = [];
     for (const subject of subjects) {
       for (const topico of subject.topicos) {
