@@ -30,9 +30,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      # vault Markdown (PARA) acessível pela API — mantém a funcionalidade
-      - ./vault:/data/vault
 
 volumes:
   pgdata:

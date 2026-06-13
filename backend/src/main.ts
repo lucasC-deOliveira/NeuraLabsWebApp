@@ -9,8 +9,8 @@ async function bootstrap(): Promise<void> {
   // todas as rotas sob /api
   app.setGlobalPrefix('api');
 
-  // valida e remove campos não declarados nos DTOs
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  // valida os DTOs decorados (auth) e converte tipos
+  app.useGlobalPipes(new ValidationPipe({ transform: true }));
 
   // CORS para o frontend (Next). Origem configurável; * em dev.
   const origin = process.env.FRONTEND_ORIGIN?.split(',').map((s) => s.trim()) ?? true;
