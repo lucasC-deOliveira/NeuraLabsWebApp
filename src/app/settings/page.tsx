@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon, DatabaseIcon, FolderTreeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getConfigAI, saveConfigAI } from "@/actions/settings";
-import { getStorageConfig, setStorageConfig, exportToVault, type StorageMode } from "@/actions/storage-config";
+import { getStorageConfig, setStorageConfig, exportToVault, importFromVault, type StorageMode } from "@/actions/storage-config";
 import { useColorTheme, type ColorTheme } from "@/components/color-theme-provider";
 import { useCardStyle } from "@/components/flashcard/CardStyleProvider";
 import { CARD_STYLES, CARD_CSS_CLASSES } from "@/components/flashcard/card-styles";
@@ -99,6 +99,7 @@ export default function SettingsPage() {
   const [savingStorage, setSavingStorage] = useState(false);
   const [storageSaved, setStorageSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -171,6 +172,18 @@ export default function SettingsPage() {
       toast.error(err instanceof Error ? err.message : "Erro ao exportar.");
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleImport = async () => {
+    setImporting(true);
+    try {
+      const r = await importFromVault();
+      toast.success(`${r.nodes} nó(s) e ${r.edges} relação(ões) importados para o banco`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao importar.");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -509,8 +522,24 @@ export default function SettingsPage() {
                   "Exportar grafo atual para a pasta"
                 )}
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleImport}
+                disabled={importing || !vaultPath.trim()}
+                className="w-full"
+              >
+                {importing ? (
+                  <>
+                    <Loader2Icon className="size-4 mr-1 animate-spin" />
+                    Importando...
+                  </>
+                ) : (
+                  "Importar a pasta para o banco"
+                )}
+              </Button>
               <p className="text-[10px] text-muted-foreground">
-                Gera os .md do seu grafo (do banco) na pasta, para inspecionar/migrar. Salve a pasta antes.
+                Exportar = banco → pasta. Importar = pasta → banco (preserva ids; útil ao voltar para o banco). Salve a pasta antes.
               </p>
             </div>
           )}

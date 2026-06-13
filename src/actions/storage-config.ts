@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/auth";
 import { exportGraphToVault } from "@/modules/graph/infra/store/vault-export";
+import { importVaultToDatabase } from "@/modules/graph/infra/store/vault-import";
 
 export type StorageMode = "DATABASE" | "MARKDOWN";
 
@@ -75,4 +76,19 @@ export async function exportToVault(): Promise<{ nodes: number; vaultPath: strin
   }
   const result = await exportGraphToVault(userId, vaultPath);
   return { nodes: result.nodes, vaultPath };
+}
+
+/**
+ * Importa o vault Markdown de volta para o banco (migração arquivos → banco).
+ * Idempotente — preserva ids. Útil ao voltar do modo arquivos para o banco.
+ */
+export async function importFromVault(): Promise<{ nodes: number; edges: number; vaultPath: string }> {
+  const userId = await requireUserId();
+  const config = await getStorageConfig();
+  const vaultPath = config.vaultPath?.trim();
+  if (!vaultPath) {
+    throw new Error("Configure a pasta do vault (modo Markdown) antes de importar.");
+  }
+  const result = await importVaultToDatabase(userId, vaultPath);
+  return { ...result, vaultPath };
 }
