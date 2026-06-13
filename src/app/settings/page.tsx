@@ -488,7 +488,10 @@ export default function SettingsPage() {
                 Caminho absoluto. As pastas Projects/Areas/Resources/Archives são criadas dentro dela.
               </p>
               <div className="rounded-md border border-amber-300/50 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-400">
-                Em implementação: a opção já fica salva, mas por enquanto o grafo continua sendo lido/gravado no banco. O backend de arquivos chega nas próximas fases.
+                Neste modo, nós/arestas/posições do grafo são lidos e gravados nos arquivos.
+                Ainda no banco: lista de grafos, zoom/pan e o estudo (SRS). Baralhos,
+                importação por JSON e &quot;adicionar existente&quot; ainda não funcionam no modo arquivos.
+                Dica: clique em &quot;Exportar&quot; para popular a pasta a partir do banco antes de alternar.
               </div>
               <Button
                 type="button"

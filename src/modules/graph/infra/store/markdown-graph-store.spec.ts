@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
 import { MarkdownGraphStore } from "./markdown-graph-store";
+import { parseNode } from "./vault-format";
 
 // Slice da fase 4: cria um nó no vault e lê de volta — sem tocar no banco
 // (usa tipos sem flashcard, então loadGraph não consulta o SRS).
@@ -99,6 +100,18 @@ describe("MarkdownGraphStore — createNode + loadGraph", () => {
 
     const { nodes } = await store.loadGraph("u1", "g1");
     expect(nodes[0].label).toBe("Novo");
+  });
+
+  it("savePositions grava a posição no frontmatter", async () => {
+    const store = new MarkdownGraphStore(vault);
+    const { nodeId } = await store.createNode("u1", "g1", "CONCEITO", { nome: "C" });
+    await store.savePositions("u1", "g1", { [nodeId]: { x: 42, y: 99 } });
+
+    const files = await fs.readdir(path.join(vault, "Resources"));
+    const raw = await fs.readFile(path.join(vault, "Resources", files[0]), "utf8");
+    const node = parseNode(raw)!;
+    expect(node.posicaoX).toBe(42);
+    expect(node.posicaoY).toBe(99);
   });
 
   it("deleteNode remove o arquivo e as relações de entrada", async () => {

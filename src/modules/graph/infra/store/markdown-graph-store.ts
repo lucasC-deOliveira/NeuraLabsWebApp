@@ -360,4 +360,32 @@ export class MarkdownGraphStore implements GraphStore {
         return null;
     }
   }
+
+  async savePositions(
+    userId: string,
+    grafoId: string,
+    positions: Record<string, { x: number; y: number }>,
+  ): Promise<void> {
+    void userId;
+    for (const [key, pos] of Object.entries(positions)) {
+      const id = key.includes(":") ? key.split(":").slice(1).join(":") : key;
+      const target = await this.readNodeWithPath(id);
+      if (!target || target.node.grafoId !== grafoId) continue;
+      target.node.posicaoX = pos.x;
+      target.node.posicaoY = pos.y;
+      await fs.writeFile(target.full, serializeNode(target.node), "utf8");
+    }
+  }
+
+  async getPositions(userId: string, grafoId: string): Promise<Record<string, { x: number; y: number }>> {
+    void userId;
+    const out: Record<string, { x: number; y: number }> = {};
+    for (const n of await this.readAllNodes()) {
+      if (n.grafoId !== grafoId) continue;
+      if (n.posicaoX != null || n.posicaoY != null) {
+        out[n.id] = { x: n.posicaoX ?? 0, y: n.posicaoY ?? 0 };
+      }
+    }
+    return out;
+  }
 }

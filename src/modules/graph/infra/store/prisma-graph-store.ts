@@ -361,4 +361,46 @@ export class PrismaGraphStore implements GraphStore {
         return null;
     }
   }
+
+  async savePositions(
+    userId: string,
+    grafoId: string,
+    positions: Record<string, { x: number; y: number }>,
+  ): Promise<void> {
+    if (!grafoId || Object.keys(positions).length === 0) return;
+    const typeMap: Record<string, string> = {
+      flashcard: "FLASHCARD", nota: "NOTA", assunto: "ASSUNTO", topico: "TOPICO", conceito: "CONCEITO",
+    };
+    await prisma.$transaction(async (tx) => {
+      for (const [refId, pos] of Object.entries(positions)) {
+        const nodeId = refId.includes(":") ? refId.split(":").slice(1).join(":") : refId;
+        const typePrefix = refId.includes(":") ? refId.split(":")[0].toLowerCase() : null;
+        if (!typePrefix) continue;
+        const tipoNode = typeMap[typePrefix];
+        if (!tipoNode) continue;
+        const existing = await tx.nodeConhecimento.findFirst({
+          where: { grafoId, usuarioId: userId, tipoNode: tipoNode as never, referenciaId: nodeId },
+          select: { id: true },
+        });
+        if (existing) {
+          await tx.nodeConhecimento.update({ where: { id: existing.id }, data: { posicaoX: pos.x, posicaoY: pos.y } });
+        } else {
+          await tx.nodeConhecimento.create({
+            data: { usuarioId: userId, grafoId, tipoNode: tipoNode as never, referenciaId: nodeId, posicaoX: pos.x, posicaoY: pos.y },
+          });
+        }
+      }
+    });
+  }
+
+  async getPositions(userId: string, grafoId: string): Promise<Record<string, { x: number; y: number }>> {
+    void userId;
+    const rows = await prisma.nodeConhecimento.findMany({
+      where: { grafoId },
+      select: { referenciaId: true, posicaoX: true, posicaoY: true },
+    });
+    const out: Record<string, { x: number; y: number }> = {};
+    for (const r of rows) out[r.referenciaId] = { x: r.posicaoX ?? 0, y: r.posicaoY ?? 0 };
+    return out;
+  }
 }

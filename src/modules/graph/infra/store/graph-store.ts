@@ -114,4 +114,14 @@ export interface GraphStore {
     tipoNode: TipoNode,
     refId: string,
   ): Promise<Record<string, string | null> | null>;
+
+  /** Salva as posições (x,y) dos nós. Chaves podem vir como "tipo:refId" ou refId. */
+  savePositions(
+    userId: string,
+    grafoId: string,
+    positions: Record<string, { x: number; y: number }>,
+  ): Promise<void>;
+
+  /** Posições salvas dos nós (por referenciaId). */
+  getPositions(userId: string, grafoId: string): Promise<Record<string, { x: number; y: number }>>;
 }

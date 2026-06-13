@@ -5,7 +5,11 @@ import { requireUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildKnowledgeGraph, getCriticalNodes as libGetCriticalNodes, type GraphNode, type GraphEdge, type TipoRelacao } from "@/lib/graph";
 import { getAllowedRelations, isRelationAllowed } from "@/modules/graph/domain/services/relation-rules";
-import { getGraphStore } from "@/modules/graph/infra/store";
+import { getGraphStore, isMarkdownMode } from "@/modules/graph/infra/store";
+
+// fluxos ainda não migrados para o backend de arquivos
+const MARKDOWN_NOT_SUPPORTED =
+  "Esta operação ainda não está disponível no modo de armazenamento em arquivos (Markdown).";
 
 export interface GraphNodeType {
   id: string;
@@ -78,33 +82,8 @@ export async function deleteGrafo(grafoId: string): Promise<void> {
 export async function saveGraphPositions(grafoId: string, positions: Record<string, { x: number; y: number }>): Promise<void> {
   const userId = await requireUserId();
   if (!grafoId || Object.keys(positions).length === 0) return;
-
-  await prisma.$transaction(async (tx) => {
-    for (const [refId, pos] of Object.entries(positions)) {
-      const nodeId = refId.includes(":") ? refId.split(":").slice(1).join(":") : refId;
-      const typePrefix = refId.includes(":") ? refId.split(":")[0].toLowerCase() : null;
-      if (!typePrefix) continue;
-
-      const typeMap: Record<string, string> = {
-        flashcard: "FLASHCARD", nota: "NOTA", assunto: "ASSUNTO", topico: "TOPICO", conceito: "CONCEITO",
-      };
-      const tipoNode = typeMap[typePrefix];
-      if (!tipoNode) continue;
-
-      const existing = await tx.nodeConhecimento.findFirst({
-        where: { grafoId, usuarioId: userId, tipoNode: tipoNode as any, referenciaId: nodeId },
-        select: { id: true },
-      });
-
-      if (existing) {
-        await tx.nodeConhecimento.update({ where: { id: existing.id }, data: { posicaoX: pos.x, posicaoY: pos.y } });
-      } else {
-        await tx.nodeConhecimento.create({
-          data: { usuarioId: userId, grafoId, tipoNode: tipoNode as any, referenciaId: nodeId, posicaoX: pos.x, posicaoY: pos.y },
-        });
-      }
-    }
-  });
+  const store = await getGraphStore();
+  await store.savePositions(userId, grafoId, positions);
 }
 
 // Also save visual state (zoom, pan, positions) as JSON
@@ -154,17 +133,8 @@ export async function getGraphNodes(grafoId?: string): Promise<{
   const store = await getGraphStore();
   const result = await store.loadGraph(userId, grafoId);
 
-  // If grafoId is provided, load saved positions
-  const savedPositions: Record<string, { x: number; y: number }> = {};
-  if (grafoId) {
-    const nodesWithPositions = await prisma.nodeConhecimento.findMany({
-      where: { grafoId },
-      select: { referenciaId: true, posicaoX: true, posicaoY: true },
-    });
-    for (const n of nodesWithPositions) {
-      savedPositions[n.referenciaId] = { x: n.posicaoX ?? 0, y: n.posicaoY ?? 0 };
-    }
-  }
+  // posições salvas (banco: coluna do nó; markdown: frontmatter)
+  const savedPositions = grafoId ? await store.getPositions(userId, grafoId) : {};
 
   const nodes: GraphNodeType[] = result.nodes.map((n) => {
     const refId = n.id.includes(":") ? n.id.split(":").slice(1).join(":") : n.id;
@@ -537,6 +507,7 @@ export async function addNodeToGraph(
   // Entidade já existente (ex.: adicionar flashcard/nota existente) — só cria o
   // vínculo no grafo. Caminho de banco (entidades existentes vivem no banco).
   if (data.entityId) {
+    if (await isMarkdownMode()) throw new Error(MARKDOWN_NOT_SUPPORTED);
     await prisma.nodeConhecimento.create({
       data: {
         grafoId,
@@ -615,6 +586,7 @@ export async function createBaralhoNode(
   flashcardIds: string[]
 ): Promise<{ success: boolean; nodeId: string }> {
   const userId = await requireUserId();
+  if (await isMarkdownMode()) throw new Error(MARKDOWN_NOT_SUPPORTED);
 
   const grafo = await prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
   if (!grafo) throw new Error("Grafo não encontrado ou não pertence ao usuário");
@@ -741,6 +713,7 @@ export async function importGraph(
   payload: ImportGraphPayload
 ): Promise<{ nodes: number; edges: number; reused: number }> {
   const userId = await requireUserId();
+  if (await isMarkdownMode()) throw new Error(MARKDOWN_NOT_SUPPORTED);
 
   const grafo = await prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
   if (!grafo) throw new Error("Grafo não encontrado ou não pertence ao usuário");
@@ -1018,6 +991,7 @@ export async function importGraphNotas(
   payload: ImportNotasPayload
 ): Promise<{ textoBruto: boolean; notas: number; flashcards: number; edges: number }> {
   const userId = await requireUserId();
+  if (await isMarkdownMode()) throw new Error(MARKDOWN_NOT_SUPPORTED);
 
   const grafo = await prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
   if (!grafo) throw new Error("Grafo não encontrado ou não pertence ao usuário");
