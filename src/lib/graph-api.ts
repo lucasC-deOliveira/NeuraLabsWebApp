@@ -182,6 +182,26 @@ export function importGraph(grafoId: string, payload: ImportGraphPayload): Promi
   return apiFetch(`/graph/graphs/${grafoId}/import`, { method: "POST", body: JSON.stringify(payload) });
 }
 
+// Export no mesmo formato do import, com posição/nível (usado pelo vault/Pull).
+export interface ExportGraphNode extends ImportGraphNode {
+  posicaoX?: number | null;
+  posicaoY?: number | null;
+  nivelDominio?: number;
+}
+export interface ExportGraphPayload {
+  grafo: { id: string; nome: string };
+  nodes: ExportGraphNode[];
+  edges: ImportGraphEdge[];
+}
+export function exportGraph(grafoId: string): Promise<ExportGraphPayload> {
+  return apiFetch(`/graph/graphs/${grafoId}/export`);
+}
+
+// Sync por id (Push do vault): upsert de conteúdo + substitui arestas.
+export function syncGraphFromVault(grafoId: string, payload: { nodes: ExportGraphNode[]; edges: ImportGraphEdge[] }): Promise<{ created: number; updated: number; edges: number }> {
+  return apiFetch(`/graph/graphs/${grafoId}/sync`, { method: "POST", body: JSON.stringify(payload) });
+}
+
 // ---- Posições ----
 export async function saveGraphPositions(grafoId: string, positions: Record<string, { x: number; y: number }>): Promise<void> {
   await apiFetch(`/graph/graphs/${grafoId}/positions`, { method: "POST", body: JSON.stringify({ positions }) });

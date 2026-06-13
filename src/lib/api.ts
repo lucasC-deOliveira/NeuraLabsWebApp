@@ -1,7 +1,16 @@
 // Cliente HTTP do frontend para a API NestJS (backend separado).
 // Auth por Bearer JWT — o token fica no localStorage. Usado por client components.
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+// URL do backend. No desktop (Electron) é injetada em runtime via preload
+// (window.__NEURALABS_API_URL__), pois o build embutido não pode usar
+// NEXT_PUBLIC_* (fixado em build-time). Na web, usa o env/padrão.
+export function resolveApiUrl(): string {
+  if (typeof window !== "undefined") {
+    const injected = (window as unknown as { __NEURALABS_API_URL__?: string }).__NEURALABS_API_URL__;
+    if (injected) return injected;
+  }
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+}
 const TOKEN_KEY = "neuralabs_token";
 
 export function getToken(): string | null {
@@ -27,7 +36,7 @@ export async function apiFetch<T = unknown>(path: string, options: RequestInit =
   if (!headers.has("Content-Type") && options.body) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const res = await fetch(`${resolveApiUrl()}${path}`, { ...options, headers });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
 

@@ -99,6 +99,16 @@ export class GraphController {
     return this.graph.importGraph(userId, grafoId, body as never);
   }
 
+  @Get('graphs/:grafoId/export')
+  exportGraph(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
+    return this.graph.exportGraph(userId, grafoId);
+  }
+
+  @Post('graphs/:grafoId/sync')
+  syncFromVault(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { nodes: any[]; edges: any[] }) {
+    return this.graph.syncGraphFromVault(userId, grafoId, body as never);
+  }
+
   @Patch('nodes/:refId')
   updateNode(@CurrentUser() userId: string, @Param('refId') refId: string, @Body() body: Partial<CreateNodeInput> & { tipoNode: TipoNode }) {
     return this.graph.updateNode(userId, body.tipoNode, refId, body);

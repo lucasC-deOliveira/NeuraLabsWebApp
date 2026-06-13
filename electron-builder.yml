@@ -19,8 +19,6 @@ files:
 extraResources:
   - from: .next/standalone
     to: standalone
-  - from: build/app.db
-    to: app.db
 
 asar: true
 npmRebuild: false

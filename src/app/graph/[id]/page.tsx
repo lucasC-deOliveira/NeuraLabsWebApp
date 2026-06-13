@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
-import { ArrowLeftIcon, Loader2Icon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon } from "lucide-react";
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
@@ -36,6 +36,8 @@ import { ViewFlashcardModal } from "@/components/graph/ViewFlashcardModal";
 import { NodeInsightsModal } from "@/components/graph/NodeInsightsModal";
 import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
 import { ViewDeckModal } from "@/components/graph/ViewDeckModal";
+import { VaultSyncModal } from "@/components/graph/VaultSyncModal";
+import { isDesktop } from "@/lib/vault-bridge";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 
 export default function GraphPage() {
@@ -78,6 +80,8 @@ export default function GraphPage() {
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportJsonOpen, setIsImportJsonOpen] = useState(false);
+  const [isVaultOpen, setIsVaultOpen] = useState(false);
+  const desktopApp = isDesktop();
   const [legendVisible, setLegendVisible] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
@@ -273,6 +277,12 @@ export default function GraphPage() {
         <div className="flex-1 text-center font-semibold text-primary">
           {controller.state.grafoNome}
         </div>
+
+        {desktopApp && (
+          <Button variant="ghost" className="text-primary gap-1.5" onClick={() => setIsVaultOpen(true)} title="Sincronizar com vault Markdown">
+            <FolderTreeIcon className="size-4" /> Vault
+          </Button>
+        )}
       </header>
 
       {/* BODY */}
@@ -461,6 +471,14 @@ export default function GraphPage() {
         grafoId={graphId}
         onSuccess={refreshGraph}
       />
+      {desktopApp && (
+        <VaultSyncModal
+          open={isVaultOpen}
+          onOpenChange={setIsVaultOpen}
+          grafoId={graphId}
+          onSynced={refreshGraph}
+        />
+      )}
       <EditNodeModal
         open={!!editingNode}
         onOpenChange={(open) => !open && setEditingNode(null)}

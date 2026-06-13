@@ -1,70 +1,47 @@
-// Processo principal do Electron.
-// Sobe o servidor Next (build standalone) num processo Node próprio e abre uma
-// janela apontando para http://127.0.0.1:<porta>. O banco SQLite e o segredo de
-// sessão ficam na pasta de dados do usuário (userData), graváveis e por máquina.
+// Processo principal do Electron (modelo novo — backend separado).
+// O app é um THIN CLIENT: sobe o servidor Next standalone (só serve a UI) e a
+// página fala com o backend NestJS via JWT. O backend é configurável (config.json)
+// e o app hospeda o VAULT: operações de sistema de arquivos (ler/gravar .md) via
+// IPC, para edição externa (Obsidian/Claude Code) e sync manual Pull/Push.
 const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
 const { fork } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const net = require("net");
 const http = require("http");
-const crypto = require("crypto");
 
 const isDev = !app.isPackaged;
-// Em dev, assume `next dev` rodando nesta porta (npm run electron:dev).
 const DEV_URL = process.env.ELECTRON_DEV_URL || "http://localhost:3000";
+const DEFAULT_API_URL = process.env.NEURALABS_API_URL || "http://localhost:3001/api";
 
-// Login social (OAuth) no desktop: segredo por execução que só o app conhece,
-// e porta de loopback fixa para capturar o retorno do provedor.
-const DESKTOP_AUTH_SECRET = crypto.randomBytes(24).toString("hex");
-const OAUTH_LOOPBACK_PORT = 8765;
-const SESSION_COOKIE = "neuralabs_session";
+// Pastas PARA do vault (espelha src/lib/vault-format.ts).
+const PARA_FOLDERS = ["Projects", "Areas", "Resources", "Archives"];
 
 let serverProcess = null;
 let mainWindow = null;
-let serverPort = null; // porta do servidor Next (definida em startServer)
-let serverOrigin = null; // http://127.0.0.1:<porta> (dev: DEV_URL)
+let serverOrigin = null;
 
 // ---------------------------------------------------------------------------
-// Caminhos e configuração persistente (userData)
+// Config persistente (userData/config.json): { apiUrl, vaultPath }
 // ---------------------------------------------------------------------------
-function userDataFile(name) {
-  return path.join(app.getPath("userData"), name);
+function configFile() {
+  return path.join(app.getPath("userData"), "config.json");
 }
-
-// Segredo de sessão (JWT) gerado uma vez por instalação e reutilizado.
-function getOrCreateJwtSecret() {
-  const file = userDataFile("config.json");
+function readConfig() {
   try {
-    const cfg = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (cfg.jwtSecret) return cfg.jwtSecret;
+    return JSON.parse(fs.readFileSync(configFile(), "utf8")) || {};
   } catch {
-    // arquivo ausente/corrompido — recria abaixo
+    return {};
   }
-  const secret = crypto.randomBytes(48).toString("hex");
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify({ jwtSecret: secret }, null, 2));
-  return secret;
 }
-
-// Garante o banco em userData. No primeiro boot, copia o template vazio
-// (schema já aplicado) empacotado em resources.
-function ensureDatabase() {
-  const dbPath = userDataFile("app.db");
-  if (!fs.existsSync(dbPath)) {
-    const template = isDev
-      ? path.join(__dirname, "..", "build", "app.db")
-      : path.join(process.resourcesPath, "app.db");
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    if (fs.existsSync(template)) {
-      fs.copyFileSync(template, dbPath);
-    } else {
-      // sem template: cria arquivo vazio (o Prisma aplicará o schema via push
-      // só se houver migrações em runtime — aqui esperamos o template existir)
-      fs.writeFileSync(dbPath, "");
-    }
-  }
-  return dbPath;
+function writeConfig(patch) {
+  const cfg = { ...readConfig(), ...patch };
+  fs.mkdirSync(path.dirname(configFile()), { recursive: true });
+  fs.writeFileSync(configFile(), JSON.stringify(cfg, null, 2));
+  return cfg;
+}
+function getApiUrl() {
+  return readConfig().apiUrl || DEFAULT_API_URL;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,45 +82,31 @@ function waitForServer(port, timeoutMs = 30000) {
 }
 
 // ---------------------------------------------------------------------------
-// Servidor Next (standalone)
+// Servidor Next (standalone) — só serve a UI; sem banco/segredos.
 // ---------------------------------------------------------------------------
 async function startServer() {
   const port = await findFreePort();
-  serverPort = port;
   serverOrigin = `http://127.0.0.1:${port}`;
   const serverDir = path.join(process.resourcesPath, "standalone");
   const serverEntry = path.join(serverDir, "server.js");
-
-  if (!fs.existsSync(serverEntry)) {
-    throw new Error(`server.js não encontrado em ${serverEntry}`);
-  }
-
-  const env = {
-    ...process.env,
-    ELECTRON_RUN_AS_NODE: "1",
-    NODE_ENV: "production",
-    PORT: String(port),
-    HOSTNAME: "127.0.0.1",
-    DATABASE_URL: `file:${ensureDatabase()}`,
-    JWT_SECRET: getOrCreateJwtSecret(),
-    // habilita o modo de armazenamento em arquivos (vault Markdown) — só no desktop
-    DESKTOP_APP: "1",
-    // segredo que autoriza o endpoint de OAuth desktop a ser chamado pelo app
-    DESKTOP_AUTH_SECRET,
-  };
+  if (!fs.existsSync(serverEntry)) throw new Error(`server.js não encontrado em ${serverEntry}`);
 
   serverProcess = fork(serverEntry, [], {
     cwd: serverDir,
-    env,
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
+      NODE_ENV: "production",
+      PORT: String(port),
+      HOSTNAME: "127.0.0.1",
+      DESKTOP_APP: "1",
+    },
     stdio: ["ignore", "pipe", "pipe", "ipc"],
     execPath: process.execPath,
   });
   serverProcess.stdout?.on("data", (d) => console.log("[next]", d.toString().trim()));
   serverProcess.stderr?.on("data", (d) => console.error("[next]", d.toString().trim()));
-  serverProcess.on("exit", (code) => {
-    console.log("[next] saiu com código", code);
-    serverProcess = null;
-  });
+  serverProcess.on("exit", (code) => { console.log("[next] saiu com código", code); serverProcess = null; });
 
   await waitForServer(port);
   return port;
@@ -166,27 +129,16 @@ function createWindow(url) {
       preload: path.join(__dirname, "preload.js"),
     },
   });
-
   mainWindow.once("ready-to-show", () => mainWindow.show());
   mainWindow.loadURL(url);
-
-  // links externos abrem no navegador padrão, não dentro do app
   mainWindow.webContents.setWindowOpenHandler(({ url: target }) => {
-    if (target.startsWith("http://127.0.0.1") || target.startsWith("http://localhost")) {
-      return { action: "allow" };
-    }
+    if (target.startsWith("http://127.0.0.1") || target.startsWith("http://localhost")) return { action: "allow" };
     shell.openExternal(target);
     return { action: "deny" };
   });
-
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
+  mainWindow.on("closed", () => { mainWindow = null; });
 }
 
-// ---------------------------------------------------------------------------
-// Ciclo de vida
-// ---------------------------------------------------------------------------
 async function boot() {
   try {
     if (isDev) {
@@ -204,94 +156,79 @@ async function boot() {
 }
 
 // ---------------------------------------------------------------------------
-// Login social (OAuth) no desktop: navegador externo + loopback
+// IPC: backend configurável
 // ---------------------------------------------------------------------------
-async function callDesktopAuth(payload) {
-  const res = await fetch(`${serverOrigin}/api/auth/desktop`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-desktop-secret": DESKTOP_AUTH_SECRET },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
-  return data;
-}
-
-// espera o provedor redirecionar para http://127.0.0.1:8765/callback
-function waitForOAuthCallback(expectedState, timeoutMs = 180000) {
-  return new Promise((resolve, reject) => {
-    const server = http.createServer((req, res) => {
-      const url = new URL(req.url, `http://127.0.0.1:${OAUTH_LOOPBACK_PORT}`);
-      if (url.pathname !== "/callback") {
-        res.writeHead(404).end();
-        return;
-      }
-      const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state");
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end("<html><body style='font-family:sans-serif;text-align:center;padding:3rem'>"
-        + "<h2>Login concluído</h2><p>Você já pode voltar para o NeuraLabs.</p></body></html>");
-      cleanup();
-      if (!code || state !== expectedState) reject(new Error("Retorno OAuth inválido"));
-      else resolve(code);
-    });
-    const timer = setTimeout(() => { cleanup(); reject(new Error("Tempo esgotado no login")); }, timeoutMs);
-    function cleanup() {
-      clearTimeout(timer);
-      try { server.close(); } catch { /* ignora */ }
-    }
-    server.on("error", (err) => { cleanup(); reject(err); });
-    server.listen(OAUTH_LOOPBACK_PORT, "127.0.0.1");
-  });
-}
-
-async function runDesktopOAuth(provider) {
-  if (!serverOrigin) throw new Error("Servidor não está pronto");
-  // 1. inicia o fluxo no servidor (monta a URL com state/PKCE)
-  const { authUrl, state } = await callDesktopAuth({ action: "start", provider });
-  // 2. abre o navegador padrão e espera o retorno no loopback
-  const callbackPromise = waitForOAuthCallback(state);
-  await shell.openExternal(authUrl);
-  const code = await callbackPromise;
-  // 3. troca o code por sessão e injeta o cookie na janela do app
-  const { sessionToken } = await callDesktopAuth({ action: "finish", provider, code, state });
-  await mainWindow.webContents.session.cookies.set({
-    url: serverOrigin,
-    name: SESSION_COOKIE,
-    value: sessionToken,
-    path: "/",
-    httpOnly: true,
-  });
-  await mainWindow.loadURL(`${serverOrigin}/`);
+ipcMain.on("neuralabs:get-api-url-sync", (e) => { e.returnValue = getApiUrl(); });
+ipcMain.handle("neuralabs:get-api-url", () => getApiUrl());
+ipcMain.handle("neuralabs:set-api-url", (_e, url) => {
+  if (typeof url === "string" && url.trim()) writeConfig({ apiUrl: url.trim() });
   return { ok: true };
-}
+});
 
-ipcMain.handle("desktop-oauth:login", async (_e, provider) => {
-  if (provider !== "google" && provider !== "github") return { ok: false, error: "Provedor inválido" };
-  try {
-    return await runDesktopOAuth(provider);
-  } catch (err) {
-    console.error("[oauth]", err);
-    return { ok: false, error: err?.message || "Falha no login social" };
+// ---------------------------------------------------------------------------
+// IPC: vault (sistema de arquivos)
+// ---------------------------------------------------------------------------
+ipcMain.handle("vault:get-path", () => readConfig().vaultPath || null);
+
+ipcMain.handle("vault:pick-folder", async () => {
+  const res = await dialog.showOpenDialog(mainWindow, {
+    title: "Escolher pasta do vault",
+    properties: ["openDirectory", "createDirectory"],
+  });
+  if (res.canceled || !res.filePaths[0]) return null;
+  const dir = res.filePaths[0];
+  writeConfig({ vaultPath: dir });
+  return dir;
+});
+
+// grava a lista de arquivos {relPath, content} dentro de dir (cria pastas).
+ipcMain.handle("vault:write", async (_e, { dir, files }) => {
+  if (!dir || !Array.isArray(files)) throw new Error("Argumentos inválidos");
+  const root = path.resolve(dir);
+  for (const folder of PARA_FOLDERS) fs.mkdirSync(path.join(root, folder), { recursive: true });
+  let written = 0;
+  for (const f of files) {
+    if (!f || typeof f.relPath !== "string") continue;
+    const target = path.resolve(root, f.relPath);
+    // segurança: não escrever fora da pasta do vault
+    if (!target.startsWith(root + path.sep) && target !== root) continue;
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, String(f.content ?? ""), "utf8");
+    written++;
   }
+  return { written };
 });
 
-app.whenReady().then(boot);
-
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) boot();
-});
-
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
-
-app.on("quit", () => {
-  if (serverProcess) {
-    try {
-      serverProcess.kill();
-    } catch {
-      // ignora
+// lê todos os .md sob as pastas PARA, retornando {relPath, content}.
+ipcMain.handle("vault:read", async (_e, dir) => {
+  if (!dir) throw new Error("Pasta não informada");
+  const root = path.resolve(dir);
+  const out = [];
+  const walk = (abs) => {
+    let entries = [];
+    try { entries = fs.readdirSync(abs, { withFileTypes: true }); } catch { return; }
+    for (const ent of entries) {
+      const full = path.join(abs, ent.name);
+      if (ent.isDirectory()) walk(full);
+      else if (ent.isFile() && ent.name.toLowerCase().endsWith(".md")) {
+        out.push({ relPath: path.relative(root, full), content: fs.readFileSync(full, "utf8") });
+      }
     }
-  }
+  };
+  for (const folder of PARA_FOLDERS) walk(path.join(root, folder));
+  return out;
+});
+
+ipcMain.handle("vault:open-folder", async (_e, dir) => {
+  if (dir) await shell.openPath(path.resolve(dir));
+});
+
+// ---------------------------------------------------------------------------
+// Ciclo de vida
+// ---------------------------------------------------------------------------
+app.whenReady().then(boot);
+app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) boot(); });
+app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
+app.on("quit", () => {
+  if (serverProcess) { try { serverProcess.kill(); } catch { /* ignora */ } }
 });

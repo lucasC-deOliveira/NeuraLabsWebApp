@@ -308,6 +308,126 @@ export class GraphService {
     return fcs.map((f) => ({ id: f.id, pergunta: f.pergunta, conceito: f.conceito?.nome ?? null }));
   }
 
+  // Exporta o grafo no MESMO formato do importGraph (ref = referenciaId),
+  // com conteúdo completo + posição/nível. Usado pelo vault (Pull no desktop).
+  async exportGraph(userId: string, grafoId: string) {
+    const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    if (!grafo) throw new NotFoundException('Grafo não encontrado');
+    const nodeRows = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId } });
+    const nodes: Array<Record<string, unknown>> = [];
+    for (const nr of nodeRows) {
+      const d = await this.getNodeDetails(userId, nr.tipoNode as TipoNode, nr.referenciaId);
+      if (!d) continue;
+      nodes.push({
+        ref: nr.referenciaId,
+        tipo: nr.tipoNode,
+        posicaoX: nr.posicaoX,
+        posicaoY: nr.posicaoY,
+        nivelDominio: nr.nivelDominio,
+        ...d,
+      });
+    }
+    const edgeRows = await this.getEdges(userId, grafoId);
+    const edges = edgeRows.map((e) => ({ origem: e.source, destino: e.target, relacao: e.tipoRelacao, peso: e.peso }));
+    return { grafo: { id: grafo.id, nome: grafo.nome }, nodes, edges };
+  }
+
+  // Sincroniza o grafo a partir do vault (Push do desktop): faz UPSERT por id
+  // (atualiza conteúdo se existe, cria com o id dado se novo) e SUBSTITUI as
+  // arestas do grafo pelas do vault. Não apaga nós ausentes (evita perda; um
+  // nó removido do vault permanece no backend).
+  async syncGraphFromVault(
+    userId: string,
+    grafoId: string,
+    payload: {
+      nodes: Array<{ ref: string; tipo: TipoNode; nome?: string; descricao?: string | null; pergunta?: string; resposta?: string; titulo?: string; conteudo?: string; tipoNota?: string; subtipo?: string; fonte?: string | null; texto?: string; posicaoX?: number | null; posicaoY?: number | null; nivelDominio?: number }>;
+      edges: Array<{ origem: string; destino: string; relacao: string; peso?: number }>;
+    },
+  ) {
+    const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    if (!grafo) throw new NotFoundException('Grafo não encontrado');
+    const nodes = payload?.nodes ?? [];
+    const edges = payload?.edges ?? [];
+    const result = { created: 0, updated: 0, edges: 0 };
+
+    await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      for (const n of nodes) {
+        await this.upsertEntityFromVault(tx, userId, n, now);
+        const existing = await tx.nodeConhecimento.findFirst({ where: { grafoId, referenciaId: n.ref, usuarioId: userId } });
+        const nodeData = { posicaoX: n.posicaoX ?? 0, posicaoY: n.posicaoY ?? 0, nivelDominio: n.nivelDominio ?? 0 };
+        if (existing) {
+          await tx.nodeConhecimento.update({ where: { id: existing.id }, data: nodeData });
+          result.updated++;
+        } else {
+          await tx.nodeConhecimento.create({ data: { grafoId, tipoNode: n.tipo as any, referenciaId: n.ref, usuarioId: userId, ...nodeData } });
+          result.created++;
+        }
+      }
+
+      // substitui as arestas do grafo pelas do vault (trata remoções de relação)
+      const nodeRows = await tx.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { id: true, referenciaId: true, tipoNode: true } });
+      const byRef = new Map(nodeRows.map((r) => [r.referenciaId, r]));
+      await tx.conhecimentoAresta.deleteMany({ where: { grafoId } });
+      const seen = new Set<string>();
+      for (const e of edges) {
+        const s = byRef.get(e.origem);
+        const t = byRef.get(e.destino);
+        if (!s || !t || s.id === t.id) continue;
+        if (!isRelationAllowed(s.tipoNode, t.tipoNode, e.relacao)) continue;
+        const key = `${s.id}->${t.id}->${e.relacao}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const peso = e.peso !== undefined && Number.isFinite(e.peso) && e.peso > 0 && e.peso <= 2 ? e.peso : 1;
+        await tx.conhecimentoAresta.create({ data: { grafoId, nodeOrigemId: s.id, nodeDestinoId: t.id, tipoRelacao: e.relacao as any, peso } });
+        result.edges++;
+      }
+    });
+    return result;
+  }
+
+  // upsert da entidade subjacente por id (= ref do vault), por tipo.
+  private async upsertEntityFromVault(tx: any, userId: string, n: { ref: string; tipo: TipoNode; nome?: string; descricao?: string | null; pergunta?: string; resposta?: string; titulo?: string; conteudo?: string; tipoNota?: string; subtipo?: string; fonte?: string | null; texto?: string }, now: Date) {
+    const id = n.ref;
+    switch (n.tipo) {
+      case 'ASSUNTO':
+      case 'TOPICO':
+      case 'CONCEITO': {
+        const model: any = n.tipo === 'ASSUNTO' ? tx.assunto : n.tipo === 'TOPICO' ? tx.topico : tx.conceito;
+        const nome = (n.nome ?? '').trim() || 'Sem título';
+        await model.upsert({ where: { id }, create: { id, nome, descricao: n.descricao ?? null, usuarioId: userId }, update: { nome, descricao: n.descricao ?? null } });
+        break;
+      }
+      case 'FLASHCARD': {
+        const pergunta = (n.pergunta ?? '').trim();
+        const resposta = (n.resposta ?? '').trim();
+        await tx.flashcard.upsert({ where: { id }, create: { id, pergunta, resposta, usuarioId: userId, dataCriacao: now }, update: { pergunta, resposta } });
+        break;
+      }
+      case 'NOTA': {
+        const titulo = (n.titulo ?? '').trim() || 'Sem título';
+        const conteudo = n.conteudo ?? '';
+        await tx.nota.upsert({
+          where: { id },
+          create: { id, titulo, conteudo, tipoNota: n.tipoNota || 'PERMANENTE', subtipo: n.subtipo ?? '', fonte: n.fonte ?? null, slug: `${id}`, usuarioId: userId, dataCriacao: now },
+          update: { titulo, conteudo, tipoNota: n.tipoNota || 'PERMANENTE', subtipo: n.subtipo ?? '', fonte: n.fonte ?? null },
+        });
+        break;
+      }
+      case 'TEXTO_BRUTO': {
+        const titulo = (n.titulo ?? '').trim() || 'Texto sem título';
+        const texto = n.texto ?? '';
+        await tx.textoBruto.upsert({ where: { id }, create: { id, titulo, texto, usuarioId: userId, dataCriacao: now }, update: { titulo, texto } });
+        break;
+      }
+      case 'BARALHO': {
+        const titulo = (n.titulo ?? n.nome ?? '').trim() || 'Baralho';
+        await tx.baralho.upsert({ where: { id }, create: { id, titulo, usuarioId: userId, dataCriacao: now }, update: { titulo } });
+        break;
+      }
+    }
+  }
+
   // baralho para visualização (ViewDeckModal): todos os cards do deck
   async getDeckForStudy(userId: string, baralhoId: string) {
     const baralho = await this.prisma.baralho.findFirst({
