@@ -1,13 +1,22 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import {
   applyDomainFromFlashcards,
   type GraphNode,
   type GraphEdge,
 } from "@/modules/graph/domain/services/knowledge-graph-builder";
-import type { GraphStore } from "./graph-store";
-import { PARA_FOLDERS, parseNode, vaultNodeLabel, type VaultNode } from "./vault-format";
+import type { CreateNodeInput, GraphStore } from "./graph-store";
+import {
+  PARA_FOLDERS,
+  nodeRelPath,
+  parseNode,
+  serializeNode,
+  vaultNodeLabel,
+  type TipoNode,
+  type VaultNode,
+} from "./vault-format";
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
@@ -89,5 +98,40 @@ export class MarkdownGraphStore implements GraphStore {
     applyDomainFromFlashcards(nodes, edges, mastery);
 
     return { nodes, edges };
+  }
+
+  async createNode(
+    userId: string,
+    grafoId: string,
+    tipoNode: TipoNode,
+    input: CreateNodeInput,
+  ): Promise<{ nodeId: string }> {
+    void userId; // entidades vivem no vault; o id é local ao arquivo
+    const id = randomUUID();
+    const node: VaultNode = {
+      id,
+      tipo: tipoNode,
+      grafoId,
+      nivelDominio: input.nivelDominio ?? 0,
+      posicaoX: input.posicaoX ?? null,
+      posicaoY: input.posicaoY ?? null,
+      criadoEm: new Date().toISOString(),
+      relacoes: [],
+      nome: input.nome,
+      descricao: input.descricao ?? null,
+      pergunta: input.pergunta,
+      resposta: input.resposta,
+      titulo: input.titulo,
+      conteudo: input.conteudo,
+      tipoNota: input.tipoNota,
+      subtipo: input.subtipo,
+      fonte: input.fonte ?? null,
+      texto: input.texto,
+    };
+    const rel = nodeRelPath(node);
+    const full = path.join(this.vaultPath, rel);
+    await fs.mkdir(path.dirname(full), { recursive: true });
+    await fs.writeFile(full, serializeNode(node), "utf8");
+    return { nodeId: id };
   }
 }

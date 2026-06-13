@@ -854,130 +854,74 @@ export async function addNodeToGraph(
   // defense-in-depth: limita o tamanho dos campos vindos do cliente/API
   assertFieldLimits(data);
 
-  let entityId: string;
-
-  // Check if this is adding an existing entity (entityId provided) or creating a new one
+  // Entidade já existente (ex.: adicionar flashcard/nota existente) — só cria o
+  // vínculo no grafo. Caminho de banco (entidades existentes vivem no banco).
   if (data.entityId) {
-    // Adding existing entity - just create the nodeConhecimento link
-    entityId = data.entityId;
-  } else {
-    // Create a new entity based on type
-    const now = new Date();
-
-    switch (tipoNode) {
-      case "FLASHCARD": {
-        const flashcard = await prisma.flashcard.create({
-          data: {
-            pergunta: data.pergunta,
-            resposta: data.resposta,
-            usuarioId: userId,
-            dataCriacao: now,
-          },
-        });
-        entityId = flashcard.id;
-        break;
-      }
-      case "NOTA": {
-        if (!data.titulo?.trim()) {
-          throw new Error("O título da nota é obrigatório");
-        }
-        const tiposNota = ["LITERATURA", "PERMANENTE", "ESTRUTURA"];
-        const tipoNota = data.tipoNota ?? "PERMANENTE";
-        if (!tiposNota.includes(tipoNota)) {
-          throw new Error(`Tipo de nota inválido: ${tipoNota}`);
-        }
-        // nota de literatura fica próxima da fonte original — fonte obrigatória
-        if (tipoNota === "LITERATURA" && !data.fonte?.trim()) {
-          throw new Error("Notas de referência (literatura) exigem a fonte");
-        }
-        if (!data.subtipo || !NOTA_SUBTIPOS.includes(data.subtipo)) {
-          throw new Error("Selecione o subtipo da nota");
-        }
-        const nota = await prisma.nota.create({
-          data: {
-            titulo: data.titulo.trim(),
-            tipoNota,
-            subtipo: data.subtipo,
-            fonte: data.fonte?.trim() || null,
-            slug: buildNotaSlug(data.titulo.trim(), now),
-            conteudo: data.conteudo,
-            usuarioId: userId,
-            dataCriacao: now,
-          },
-        });
-        entityId = nota.id;
-        break;
-      }
-      case "TEXTO_BRUTO": {
-        if (!data.texto?.trim()) {
-          throw new Error("O texto original é obrigatório");
-        }
-        const textoBruto = await prisma.textoBruto.create({
-          data: {
-            titulo: data.titulo?.trim() || "Texto sem título",
-            texto: data.texto.trim(),
-            usuarioId: userId,
-            dataCriacao: now,
-          },
-        });
-        entityId = textoBruto.id;
-        break;
-      }
-      case "ASSUNTO": {
-        const assunto = await prisma.assunto.create({
-          data: {
-            nome: data.nome,
-            descricao: data.descricao,
-            usuarioId: userId,
-          },
-        });
-        entityId = assunto.id;
-        break;
-      }
-      case "TOPICO": {
-        const topico = await prisma.topico.create({
-          data: {
-            nome: data.nome,
-            descricao: data.descricao,
-            assuntoId: data.assuntoId || null,
-            usuarioId: userId,
-          },
-        });
-        entityId = topico.id;
-        break;
-      }
-      case "CONCEITO": {
-        const conceito = await prisma.conceito.create({
-          data: {
-            nome: data.nome,
-            descricao: data.descricao,
-            topicoId: data.topicoId || null,
-            usuarioId: userId,
-          },
-        });
-        entityId = conceito.id;
-        break;
-      }
-      default:
-        throw new Error(`Tipo de nó desconhecido: ${tipoNode}`);
-    }
+    await prisma.nodeConhecimento.create({
+      data: {
+        grafoId,
+        tipoNode: tipoNode as any,
+        referenciaId: data.entityId,
+        usuarioId: userId,
+        posicaoX: data.posicaoX ?? null,
+        posicaoY: data.posicaoY ?? null,
+        nivelDominio: data.nivelDominio ?? 0,
+      },
+    });
+    revalidatePath(`/graph/${grafoId}`);
+    return { success: true, nodeId: data.entityId };
   }
 
-  // Create the nodeConhecimento linking the entity to the graph
-  await prisma.nodeConhecimento.create({
-    data: {
-      grafoId,
-      tipoNode: tipoNode as any,
-      referenciaId: entityId,
-      usuarioId: userId,
-      posicaoX: data.posicaoX ?? null,
-      posicaoY: data.posicaoY ?? null,
-      nivelDominio: data.nivelDominio ?? 0,
-    },
+  // Nova entidade: valida por tipo, depois persiste pelo store ativo
+  // (banco ou vault Markdown). A criação da entidade + nó fica no store.
+  switch (tipoNode) {
+    case "NOTA": {
+      if (!data.titulo?.trim()) throw new Error("O título da nota é obrigatório");
+      const tiposNota = ["LITERATURA", "PERMANENTE", "ESTRUTURA"];
+      const tipoNota = data.tipoNota ?? "PERMANENTE";
+      if (!tiposNota.includes(tipoNota)) throw new Error(`Tipo de nota inválido: ${tipoNota}`);
+      if (tipoNota === "LITERATURA" && !data.fonte?.trim()) {
+        throw new Error("Notas de referência (literatura) exigem a fonte");
+      }
+      if (!data.subtipo || !NOTA_SUBTIPOS.includes(data.subtipo)) {
+        throw new Error("Selecione o subtipo da nota");
+      }
+      break;
+    }
+    case "TEXTO_BRUTO":
+      if (!data.texto?.trim()) throw new Error("O texto original é obrigatório");
+      break;
+    case "FLASHCARD":
+    case "ASSUNTO":
+    case "TOPICO":
+    case "CONCEITO":
+    case "BARALHO":
+      break;
+    default:
+      throw new Error(`Tipo de nó desconhecido: ${tipoNode}`);
+  }
+
+  const store = await getGraphStore();
+  const { nodeId } = await store.createNode(userId, grafoId, tipoNode as any, {
+    posicaoX: data.posicaoX ?? null,
+    posicaoY: data.posicaoY ?? null,
+    nivelDominio: data.nivelDominio ?? 0,
+    nome: data.nome,
+    descricao: data.descricao ?? null,
+    pergunta: data.pergunta,
+    resposta: data.resposta,
+    titulo: data.titulo?.trim(),
+    conteudo: data.conteudo,
+    tipoNota: data.tipoNota ?? "PERMANENTE",
+    subtipo: data.subtipo,
+    fonte: data.fonte ?? null,
+    texto: data.texto?.trim(),
+    assuntoId: data.assuntoId ?? null,
+    topicoId: data.topicoId ?? null,
   });
 
   revalidatePath(`/graph/${grafoId}`);
-  return { success: true, nodeId: entityId };
+  return { success: true, nodeId };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,26 @@
 import type { GraphNode, GraphEdge } from "@/lib/graph";
+import type { TipoNode } from "./vault-format";
+
+// Payload de criação de um nó (entidade + nó no grafo). Os campos relevantes
+// variam por tipo; a validação é feita na action antes de chamar o store.
+export interface CreateNodeInput {
+  posicaoX?: number | null;
+  posicaoY?: number | null;
+  nivelDominio?: number;
+  nome?: string;
+  descricao?: string | null;
+  pergunta?: string;
+  resposta?: string;
+  titulo?: string;
+  conteudo?: string;
+  tipoNota?: string;
+  subtipo?: string;
+  fonte?: string | null;
+  texto?: string;
+  // pai opcional (banco) — no modo Markdown a hierarquia é por arestas
+  assuntoId?: string | null;
+  topicoId?: string | null;
+}
 
 // ---------------------------------------------------------------------------
 // GraphStore — abstração da persistência do GRAFO (estrutura: nós + arestas).
@@ -18,4 +40,12 @@ import type { GraphNode, GraphEdge } from "@/lib/graph";
 export interface GraphStore {
   /** Monta o grafo completo (nós + arestas) de um usuário, opcionalmente de um grafo. */
   loadGraph(userId: string, grafoId?: string): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }>;
+
+  /** Cria uma nova entidade + nó no grafo. Devolve o id da entidade (= id do nó). */
+  createNode(
+    userId: string,
+    grafoId: string,
+    tipoNode: TipoNode,
+    input: CreateNodeInput,
+  ): Promise<{ nodeId: string }>;
 }
