@@ -86,7 +86,9 @@ o app a rejeita no Push.
 ## Operações
 - **Criar nó**: novo \`.md\` na pasta do tipo, com \`id\` único, \`tipo\`, \`grafo\` e \`titulo\`.
 - **Editar nó**: altere frontmatter/corpo. **Não mude o \`id\`**.
-- **Excluir nó**: apague o arquivo e remova as \`relacoes\` que apontam para o \`id\` dele.
+- **Excluir nó**: apague o arquivo \`.md\`. No próximo Push o nó é removido do grafo
+  (a entidade e os dados de estudo são preservados no backend). Remova também as
+  \`relacoes\` em outros arquivos que apontem para o \`id\` dele.
 - **Criar/editar aresta**: edite \`relacoes\` no nó de origem.
 
 _(Arquivo gerado pelo app — pode ser regenerado a cada Pull.)_

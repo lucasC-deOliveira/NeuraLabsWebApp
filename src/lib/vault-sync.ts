@@ -36,7 +36,7 @@ export async function pullVault(grafoId: string, dir: string): Promise<{ files: 
 }
 
 // Push: lê os .md da pasta e envia ao backend (upsert + substitui arestas).
-export async function pushVault(grafoId: string): Promise<{ created: number; updated: number; edges: number }> {
+export async function pushVault(grafoId: string): Promise<{ created: number; updated: number; edges: number; removed: number }> {
   const dir = await desktop.vault.getPath();
   if (!dir) throw new Error("Pasta do vault não configurada.");
   const files = await desktop.vault.read(dir);

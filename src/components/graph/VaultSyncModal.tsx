@@ -53,7 +53,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, onSynced }: {
     setBusy("push");
     try {
       const r = await pushVault(grafoId);
-      toast.success(`Enviado: ${r.created} criado(s), ${r.updated} atualizado(s), ${r.edges} relação(ões).`);
+      toast.success(`Enviado: ${r.created} criado(s), ${r.updated} atualizado(s), ${r.removed} removido(s), ${r.edges} relação(ões).`);
       onSynced?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro no Push.");
@@ -104,9 +104,9 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, onSynced }: {
 
           <p className="text-[11px] text-muted-foreground">
             <strong>Pull</strong> sobrescreve os <code>.md</code> da pasta com o estado do backend.
-            <strong> Push</strong> faz upsert por <code>id</code> (atualiza conteúdo, cria novos) e
-            substitui as relações do grafo pelas do vault. Nós removidos da pasta não são apagados
-            no backend.
+            <strong> Push</strong> faz upsert por <code>id</code> (atualiza conteúdo, cria novos),
+            substitui as relações do grafo pelas do vault e <strong>remove do grafo</strong> os nós
+            cujo <code>.md</code> sumiu (a entidade e o SRS são preservados).
           </p>
         </div>
       </DialogContent>

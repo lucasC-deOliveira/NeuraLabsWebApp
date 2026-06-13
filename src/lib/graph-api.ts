@@ -198,7 +198,7 @@ export function exportGraph(grafoId: string): Promise<ExportGraphPayload> {
 }
 
 // Sync por id (Push do vault): upsert de conteúdo + substitui arestas.
-export function syncGraphFromVault(grafoId: string, payload: { nodes: ExportGraphNode[]; edges: ImportGraphEdge[] }): Promise<{ created: number; updated: number; edges: number }> {
+export function syncGraphFromVault(grafoId: string, payload: { nodes: ExportGraphNode[]; edges: ImportGraphEdge[] }): Promise<{ created: number; updated: number; edges: number; removed: number }> {
   return apiFetch(`/graph/graphs/${grafoId}/sync`, { method: "POST", body: JSON.stringify(payload) });
 }
 

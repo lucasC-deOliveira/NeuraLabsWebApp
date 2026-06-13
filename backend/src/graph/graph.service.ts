@@ -334,8 +334,9 @@ export class GraphService {
 
   // Sincroniza o grafo a partir do vault (Push do desktop): faz UPSERT por id
   // (atualiza conteúdo se existe, cria com o id dado se novo) e SUBSTITUI as
-  // arestas do grafo pelas do vault. Não apaga nós ausentes (evita perda; um
-  // nó removido do vault permanece no backend).
+  // arestas do grafo pelas do vault. Nós cujo .md sumiu da pasta são REMOVIDOS
+  // do grafo (desvincula o NodeConhecimento); a entidade e o SRS são preservados.
+  // Guarda: se o vault vier sem nós, não remove nada (evita apagar tudo por engano).
   async syncGraphFromVault(
     userId: string,
     grafoId: string,
@@ -348,10 +349,25 @@ export class GraphService {
     if (!grafo) throw new NotFoundException('Grafo não encontrado');
     const nodes = payload?.nodes ?? [];
     const edges = payload?.edges ?? [];
-    const result = { created: 0, updated: 0, edges: 0 };
+    const result = { created: 0, updated: 0, edges: 0, removed: 0 };
 
     await this.prisma.$transaction(async (tx) => {
       const now = new Date();
+
+      // remove do grafo os nós cujo .md sumiu (só se o vault tiver nós)
+      if (nodes.length > 0) {
+        const vaultRefs = new Set(nodes.map((n) => n.ref));
+        const current = await tx.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { id: true, referenciaId: true } });
+        const toRemove = current.filter((c) => !vaultRefs.has(c.referenciaId));
+        if (toRemove.length) {
+          const ids = toRemove.map((c) => c.id);
+          await tx.conhecimentoAresta.deleteMany({ where: { OR: [{ nodeOrigemId: { in: ids } }, { nodeDestinoId: { in: ids } }] } });
+          await tx.desempenhoNo.deleteMany({ where: { nodeId: { in: ids } } });
+          await tx.nodeConhecimento.deleteMany({ where: { id: { in: ids } } });
+          result.removed = toRemove.length;
+        }
+      }
+
       for (const n of nodes) {
         await this.upsertEntityFromVault(tx, userId, n, now);
         const existing = await tx.nodeConhecimento.findFirst({ where: { grafoId, referenciaId: n.ref, usuarioId: userId } });
