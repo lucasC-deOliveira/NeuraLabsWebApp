@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/auth";
 import { exportGraphToVault } from "@/modules/graph/infra/store/vault-export";
 import { importVaultToDatabase } from "@/modules/graph/infra/store/vault-import";
+import { initVault } from "@/modules/graph/infra/store/vault-guide";
 
 export type StorageMode = "DATABASE" | "MARKDOWN";
 
@@ -51,6 +52,8 @@ export async function setStorageConfig(input: StorageConfig): Promise<{ success:
     } catch {
       throw new Error(`Não foi possível usar a pasta "${vaultPath}" (verifique permissões).`);
     }
+    // cria as pastas PARA e escreve o guia para o Claude Code modelar o grafo
+    await initVault(vaultPath);
   }
 
   await prisma.appConfig.upsert({
