@@ -12,7 +12,8 @@ import {
   BarChart3Icon, EyeIcon, LayersIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getNotas, deleteNota, deleteAllNotas, generateFlashcardsFromNota, getNotasFilterData } from "@/actions/notes";
+import { getNotas, deleteNota, deleteAllNotas, getNotasFilterData } from "@/lib/notes-api";
+import { generateFlashcardsFromNota } from "@/actions/notes";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,

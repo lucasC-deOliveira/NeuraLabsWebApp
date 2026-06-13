@@ -7,6 +7,7 @@ import { ContentModule } from './content/content.module';
 import { StudyModule } from './study/study.module';
 import { SettingsModule } from './settings/settings.module';
 import { AiModule } from './ai/ai.module';
+import { NotesModule } from './notes/notes.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -19,6 +20,7 @@ import { HealthController } from './health.controller';
     StudyModule,
     SettingsModule,
     AiModule,
+    NotesModule,
   ],
   controllers: [HealthController],
 })
