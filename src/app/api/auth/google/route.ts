@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 
 export async function GET(request: NextRequest) {
+  // sem credenciais configuradas (ex.: app desktop) não há OAuth — evita
+  // redirecionar ao Google com client_id vazio (erro "invalid_client").
+  if (!process.env.AUTH_GOOGLE_ID) {
+    return NextResponse.redirect(
+      new URL("/login?error=oauth_indisponivel", request.nextUrl.origin),
+    );
+  }
+
   const rawCallback =
     request.nextUrl.searchParams.get("callbackUrl") ?? "/";
   const callbackUrl =

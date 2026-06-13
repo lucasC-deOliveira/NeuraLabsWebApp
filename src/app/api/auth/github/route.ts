@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Initiate GitHub OAuth flow — redirect to GitHub
 export async function GET(request: NextRequest) {
+  // sem credenciais configuradas (ex.: app desktop) não há OAuth
+  if (!process.env.AUTH_GITHUB_ID) {
+    return NextResponse.redirect(
+      new URL("/login?error=oauth_indisponivel", request.nextUrl.origin),
+    );
+  }
   const rawCallback =
     request.nextUrl.searchParams.get("callbackUrl") ?? "/";
   const callbackUrl =

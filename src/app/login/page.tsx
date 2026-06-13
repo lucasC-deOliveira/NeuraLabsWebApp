@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useRef, type FormEvent } from "react";
+import { Suspense, useState, useRef, useEffect, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BrainIcon, Loader2Icon } from "lucide-react";
@@ -15,27 +15,58 @@ const ALL_PROVIDERS: { name: string; icon: string; color: string; provider: stri
   { name: "Google", icon: "G", color: "bg-white text-zinc-800 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-600", provider: "google" },
 ];
 
+// Só mostra os botões de provedores realmente configurados (env presente no
+// servidor). No app desktop não há credenciais OAuth, então nenhum aparece e
+// fica só o login por e-mail/senha. Retorna null enquanto carrega ou se nenhum.
 function OAuthButtons() {
+  const [enabled, setEnabled] = useState<Record<string, boolean> | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/providers")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data) => active && setEnabled(data))
+      .catch(() => active && setEnabled({}));
+    return () => {
+      active = false;
+    };
+  }, []);
+
   function handleOAuth(provider: string) {
     window.location.href = `/api/auth/${provider}`;
   }
 
+  if (!enabled) return null;
+  const providers = ALL_PROVIDERS.filter((p) => enabled[p.provider]);
+  if (providers.length === 0) return null;
+
   return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        {ALL_PROVIDERS.map((p) => (
-          <button
-            key={p.provider}
-            type="button"
-            onClick={() => handleOAuth(p.provider)}
-            className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:opacity-90 ${p.color}`}
-          >
-            <span className="text-sm">{p.icon}</span>
-            <span>{p.name}</span>
-          </button>
-        ))}
+    <>
+      <div className="space-y-2">
+        <div className={`grid gap-2 ${providers.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {providers.map((p) => (
+            <button
+              key={p.provider}
+              type="button"
+              onClick={() => handleOAuth(p.provider)}
+              className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:opacity-90 ${p.color}`}
+            >
+              <span className="text-sm">{p.icon}</span>
+              <span>{p.name}</span>
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <Separator />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-zinc-50 dark:bg-zinc-950 px-2 text-muted-foreground">ou continue com email</span>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -95,15 +126,6 @@ function LoginForm() {
         <CardContent>
           <div className="space-y-4">
             <OAuthButtons />
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-zinc-50 dark:bg-zinc-950 px-2 text-muted-foreground">ou continue com email</span>
-              </div>
-            </div>
 
             {error && (
               <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
