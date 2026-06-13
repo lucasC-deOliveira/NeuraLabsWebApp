@@ -1,6 +1,7 @@
 "use server";
 
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -64,6 +65,33 @@ export async function setStorageConfig(input: StorageConfig): Promise<{ success:
 
   revalidatePath("/settings");
   return { success: true };
+}
+
+export interface DirListing {
+  path: string;
+  parent: string | null;
+  dirs: { name: string; path: string }[];
+}
+
+/**
+ * Navegador de pastas do servidor (a máquina onde o app roda) para o picker do
+ * vault. Lista as subpastas de `dirPath` (padrão: home do usuário do SO).
+ */
+export async function browseDirectory(dirPath?: string): Promise<DirListing> {
+  await requireUserId();
+  const target = dirPath && dirPath.trim() && path.isAbsolute(dirPath) ? path.resolve(dirPath) : os.homedir();
+  let entries: import("fs").Dirent[] = [];
+  try {
+    entries = await fs.readdir(target, { withFileTypes: true });
+  } catch {
+    throw new Error(`Não foi possível abrir "${target}".`);
+  }
+  const dirs = entries
+    .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+    .map((e) => ({ name: e.name, path: path.join(target, e.name) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const parent = path.dirname(target);
+  return { path: target, parent: parent === target ? null : parent, dirs };
 }
 
 /**

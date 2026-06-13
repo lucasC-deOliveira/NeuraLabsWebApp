@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon, DatabaseIcon, FolderTreeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getConfigAI, saveConfigAI } from "@/actions/settings";
-import { getStorageConfig, setStorageConfig, exportToVault, importFromVault, type StorageMode } from "@/actions/storage-config";
+import { getStorageConfig, setStorageConfig, exportToVault, importFromVault, browseDirectory, type StorageMode, type DirListing } from "@/actions/storage-config";
 import { useColorTheme, type ColorTheme } from "@/components/color-theme-provider";
 import { useCardStyle } from "@/components/flashcard/CardStyleProvider";
 import { CARD_STYLES, CARD_CSS_CLASSES } from "@/components/flashcard/card-styles";
@@ -100,6 +100,10 @@ export default function SettingsPage() {
   const [storageSaved, setStorageSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  // navegador de pastas (picker do vault)
+  const [browsing, setBrowsing] = useState(false);
+  const [browseListing, setBrowseListing] = useState<DirListing | null>(null);
+  const [browseLoading, setBrowseLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -173,6 +177,27 @@ export default function SettingsPage() {
     } finally {
       setExporting(false);
     }
+  };
+
+  const loadBrowse = async (dir?: string) => {
+    setBrowseLoading(true);
+    try {
+      setBrowseListing(await browseDirectory(dir));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao abrir a pasta.");
+    } finally {
+      setBrowseLoading(false);
+    }
+  };
+
+  const openBrowser = async () => {
+    setBrowsing(true);
+    await loadBrowse(vaultPath.trim() || undefined);
+  };
+
+  const useCurrentFolder = () => {
+    if (browseListing) setVaultPath(browseListing.path);
+    setBrowsing(false);
   };
 
   const handleImport = async () => {
@@ -491,14 +516,73 @@ export default function SettingsPage() {
           {storageMode === "MARKDOWN" && (
             <div className="space-y-2">
               <Label htmlFor="vaultPath">Pasta do vault</Label>
-              <Input
-                id="vaultPath"
-                placeholder="/home/voce/Documentos/MeuVault"
-                value={vaultPath}
-                onChange={(e) => setVaultPath(e.target.value)}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="vaultPath"
+                  placeholder="/home/voce/Documentos/MeuVault"
+                  value={vaultPath}
+                  onChange={(e) => setVaultPath(e.target.value)}
+                  className="flex-1"
+                />
+                <Button type="button" variant="outline" onClick={openBrowser} className="shrink-0 gap-1.5">
+                  <FolderTreeIcon className="size-4" />
+                  Procurar
+                </Button>
+              </div>
+
+              {browsing && (
+                <div className="rounded-md border border-zinc-200 dark:border-zinc-800 p-2 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-xs font-mono text-muted-foreground" title={browseListing?.path}>
+                      {browseListing?.path ?? "..."}
+                    </span>
+                    <button type="button" onClick={() => setBrowsing(false)} className="text-xs text-muted-foreground hover:text-foreground shrink-0">
+                      Fechar
+                    </button>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto rounded border border-zinc-100 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {browseLoading ? (
+                      <div className="flex items-center gap-2 px-2 py-3 text-xs text-muted-foreground">
+                        <Loader2Icon className="size-3.5 animate-spin" /> Carregando...
+                      </div>
+                    ) : (
+                      <>
+                        {browseListing?.parent && (
+                          <button
+                            type="button"
+                            onClick={() => loadBrowse(browseListing.parent!)}
+                            className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent/40 flex items-center gap-2"
+                          >
+                            <FolderTreeIcon className="size-3.5 text-muted-foreground" /> .. (subir)
+                          </button>
+                        )}
+                        {browseListing && browseListing.dirs.length === 0 && (
+                          <div className="px-2 py-3 text-xs text-muted-foreground">Sem subpastas aqui.</div>
+                        )}
+                        {browseListing?.dirs.map((d) => (
+                          <button
+                            key={d.path}
+                            type="button"
+                            onClick={() => loadBrowse(d.path)}
+                            className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent/40 flex items-center gap-2 truncate"
+                            title={d.name}
+                          >
+                            <FolderTreeIcon className="size-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate">{d.name}</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                  <Button type="button" size="sm" onClick={useCurrentFolder} disabled={!browseListing} className="w-full">
+                    Usar esta pasta
+                  </Button>
+                </div>
+              )}
+
               <p className="text-[10px] text-muted-foreground">
                 Caminho absoluto. As pastas Projects/Areas/Resources/Archives são criadas dentro dela.
+                Use &quot;Procurar&quot; para escolher uma pasta existente (e edite o caminho para criar uma subpasta nova).
               </p>
               <div className="rounded-md border border-amber-300/50 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-400">
                 Neste modo, nós/arestas/posições do grafo são lidos e gravados nos arquivos.
