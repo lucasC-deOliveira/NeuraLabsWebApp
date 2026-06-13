@@ -18,6 +18,26 @@ export class ContentController {
     return this.content.getConceptHierarchy(userId);
   }
 
+  @Get('subjects/tree')
+  hierarchyTree(@CurrentUser() userId: string) {
+    return this.content.getHierarquiaConceitos(userId);
+  }
+
+  @Post('subjects')
+  createAssunto(@CurrentUser() userId: string, @Body() body: { nome: string }) {
+    return this.content.createAssunto(userId, body.nome);
+  }
+
+  @Post('subjects/:assuntoId/topicos')
+  createTopico(@CurrentUser() userId: string, @Param('assuntoId') assuntoId: string, @Body() body: { nome: string }) {
+    return this.content.createTopico(userId, body.nome, assuntoId);
+  }
+
+  @Post('conceitos')
+  createFullConcept(@CurrentUser() userId: string, @Body() body: { nome: string; assuntoId: string; topicoId: string }) {
+    return this.content.createFullConcept(userId, body);
+  }
+
   @Get('flashcards')
   flashcards(@CurrentUser() userId: string, @Query('conceptId') conceptId?: string, @Query('topicId') topicId?: string) {
     return this.content.getFlashcards(userId, { conceptId, topicId });
@@ -46,6 +66,20 @@ export class ContentController {
   @Delete('flashcards/:id')
   deleteFlashcard(@CurrentUser() userId: string, @Param('id') id: string) {
     return this.content.deleteFlashcard(userId, id);
+  }
+
+  @Get('notas/:notaId/flashcard-preview')
+  previewFromNota(@CurrentUser() userId: string, @Param('notaId') notaId: string) {
+    return this.content.previewFlashcardsFromNota(userId, notaId);
+  }
+
+  @Post('notas/:notaId/flashcards')
+  saveFromNota(
+    @CurrentUser() userId: string,
+    @Param('notaId') notaId: string,
+    @Body() body: { flashcards: Array<{ pergunta: string; resposta: string; conceitoId: string }> },
+  ) {
+    return this.content.saveFlashcardPreviewsFromNota(userId, notaId, body.flashcards ?? []);
   }
 
   @Get('study/history')

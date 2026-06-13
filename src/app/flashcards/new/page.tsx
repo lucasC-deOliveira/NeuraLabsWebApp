@@ -18,23 +18,19 @@ import {
   ClockIcon, CalendarDaysIcon, ChevronLeftIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  getNotas,
-} from "@/actions/notes";
+import { getNotas } from "@/lib/notes-api";
 import {
   getHierarquiaConceitos,
   createFullConcept,
   createTopico,
   createAssunto,
-  type ConceitoArvore,
-} from "@/actions/settings";
-import {
   createFlashcard,
   previewFlashcardsFromNota,
-  generateFlashcardsViaIA,
   saveFlashcardPreviewsFromNota,
+  type ConceitoArvore,
   type FlashcardSourceType,
-} from "@/actions/flashcard";
+} from "@/lib/content-api";
+import { generateFlashcardsViaIA } from "@/lib/ai-api";
 
 type PageMode = "from-nota" | "manual";
 type AnalysisMode = "content" | "ia";

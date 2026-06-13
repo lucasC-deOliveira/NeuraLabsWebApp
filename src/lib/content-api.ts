@@ -63,6 +63,48 @@ export function deleteAllFlashcards(): Promise<{ count: number }> {
   return apiFetch("/flashcards", { method: "DELETE" });
 }
 
+// árvore Assunto → (rel) → Tópico → (rel) → Conceito (usada em /flashcards/new)
+export interface ConceitoNode {
+  id: string;
+  nome: string;
+  topicoNome?: string;
+  topicoId?: string;
+  assuntoNome?: string;
+  assuntoId?: string;
+}
+export interface RelTopicoConceitoGroup {
+  tipoRelacao: string;
+  conceitos: ConceitoNode[];
+}
+export interface TopicoEntry {
+  id: string;
+  nome: string;
+  assuntoId?: string;
+  relacoesTopicoConceito: RelTopicoConceitoGroup[];
+}
+export interface RelAssuntoTopicoGroup {
+  tipoRelacao: string;
+  topicos: TopicoEntry[];
+}
+export interface ConceitoArvore {
+  id: string;
+  nome: string;
+  relAssuntoTopico: RelAssuntoTopicoGroup[];
+}
+export function getHierarquiaConceitos(): Promise<ConceitoArvore[]> {
+  return apiFetch<ConceitoArvore[]>("/subjects/tree");
+}
+
+export function createAssunto(nome: string): Promise<{ id: string; nome: string }> {
+  return apiFetch("/subjects", { method: "POST", body: JSON.stringify({ nome }) });
+}
+export function createTopico(nome: string, assuntoId: string): Promise<{ id: string; nome: string }> {
+  return apiFetch(`/subjects/${assuntoId}/topicos`, { method: "POST", body: JSON.stringify({ nome }) });
+}
+export function createFullConcept(input: { nome: string; assuntoId: string; topicoId: string }): Promise<{ id: string; nome: string }> {
+  return apiFetch("/conceitos", { method: "POST", body: JSON.stringify(input) });
+}
+
 export interface SubjectFilter {
   id: string;
   nome: string;
@@ -70,6 +112,41 @@ export interface SubjectFilter {
 }
 export function getFlashcardFilterData(): Promise<SubjectFilter[]> {
   return apiFetch<SubjectFilter[]>("/flashcards/filters");
+}
+
+export type FlashcardSourceType =
+  | "pergunta_resposta"
+  | "cloze"
+  | "bidirecional"
+  | "explicacao_profunda"
+  | "comparacao"
+  | "lista_fragmentada"
+  | "aplicacao_problema"
+  | "identificacao_imagem"
+  | "erro_comum"
+  | "definicao"
+  | "finalidade"
+  | "importancia"
+  | "caracteristicas"
+  | "diferenca"
+  | "conteudo";
+
+export interface FlashcardPreview {
+  id: string;
+  pergunta: string;
+  resposta: string;
+  conceitoId: string;
+  conceptNome?: string;
+  source: FlashcardSourceType;
+}
+export function previewFlashcardsFromNota(notaId: string): Promise<FlashcardPreview[]> {
+  return apiFetch(`/notas/${notaId}/flashcard-preview`);
+}
+export function saveFlashcardPreviewsFromNota(
+  notaId: string,
+  flashcards: Array<{ pergunta: string; resposta: string; conceitoId: string }>,
+): Promise<{ count: number }> {
+  return apiFetch(`/notas/${notaId}/flashcards`, { method: "POST", body: JSON.stringify({ flashcards }) });
 }
 
 export interface StudySession {

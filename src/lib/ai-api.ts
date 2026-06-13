@@ -25,6 +25,11 @@ export function suggestNotaRelations(grafoId: string, titulo: string, conteudo: 
   return apiFetch(`/ai/graph/graphs/${grafoId}/nota-relations`, { method: "POST", body: JSON.stringify({ titulo, conteudo }) });
 }
 
+import type { FlashcardPreview } from "./content-api";
+export function generateFlashcardsViaIA(notaId: string): Promise<FlashcardPreview[]> {
+  return apiFetch(`/ai/graph/notas/${notaId}/flashcards`, { method: "POST" });
+}
+
 export function generateNodeInsights(grafoId: string, nodeId: string): Promise<NodeInsightsResult> {
   return apiFetch(`/ai/graph/graphs/${grafoId}/nodes/${nodeId}/insights`, { method: "POST" });
 }

@@ -1,10 +1,50 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { createReviewSchedule } from '../study/spaced-repetition';
+import { buildRulePreview } from './flashcard-gen';
 
 @Injectable()
 export class ContentService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // SRS inicial (qualidade 3) usado ao criar flashcards.
+  private async seedSrs(tx: any, userId: string, flashcardId: string) {
+    const schedule = createReviewSchedule(3);
+    const next = new Date();
+    next.setDate(next.getDate() + schedule.interval);
+    await tx.aprendizadoFlashcard.create({
+      data: {
+        flashcardId,
+        usuarioId: userId,
+        dificuldade: schedule.ease > 0 ? Math.max(1, Math.round((5 - schedule.ease) * 2)) : 5,
+        intervalo: schedule.interval,
+        proximaRevisao: next,
+        ultimaRevisao: new Date(),
+        estagioAprendizado: schedule.stage,
+      },
+    });
+  }
+
+  // Preview de flashcards (regras) a partir de uma nota.
+  async previewFlashcardsFromNota(userId: string, notaId: string) {
+    const nota = await this.prisma.nota.findFirst({ where: { id: notaId, usuarioId: userId } });
+    if (!nota) throw new NotFoundException('Nota não encontrada');
+    const allConcepts = await this.prisma.conceito.findMany({ where: { usuarioId: userId }, select: { id: true, nome: true } });
+    return buildRulePreview(nota.conteudo, allConcepts);
+  }
+
+  // Salva previews selecionados como flashcards (com SRS). Vínculo ao grafo é feito pela UI por-grafo.
+  async saveFlashcardPreviewsFromNota(userId: string, _notaId: string, data: Array<{ pergunta: string; resposta: string; conceitoId: string }>) {
+    await this.prisma.$transaction(async (tx) => {
+      for (const fc of data) {
+        const created = await tx.flashcard.create({
+          data: { pergunta: fc.pergunta, resposta: fc.resposta, conceitoId: fc.conceitoId, usuarioId: userId },
+        });
+        await this.seedSrs(tx, userId, created.id);
+      }
+    });
+    return { count: data.length };
+  }
 
   // ---- Flashcards (CRUD) ----
   async createFlashcard(userId: string, data: { pergunta: string; resposta: string; conceitoId?: string | null }) {
@@ -61,6 +101,67 @@ export class ContentService {
       await tx.flashcard.deleteMany({ where: { usuarioId: userId } });
     });
     return { count };
+  }
+
+  // ---- Hierarquia (criação) ----
+  async createAssunto(userId: string, nome: string) {
+    const created = await this.prisma.assunto.create({ data: { nome, usuarioId: userId } });
+    return { id: created.id, nome: created.nome };
+  }
+
+  async createTopico(userId: string, nome: string, assuntoId: string) {
+    const assunto = await this.prisma.assunto.findFirst({ where: { id: assuntoId, usuarioId: userId } });
+    if (!assunto) throw new Error('Assunto não encontrado');
+    const created = await this.prisma.topico.create({ data: { nome, assuntoId, usuarioId: userId } });
+    return { id: created.id, nome: created.nome };
+  }
+
+  // conceito sob um tópico (cria assunto/tópico antes via createAssunto/createTopico quando necessário)
+  async createFullConcept(userId: string, input: { nome: string; assuntoId: string; topicoId: string }) {
+    const topico = await this.prisma.topico.findFirst({
+      where: { id: input.topicoId, assunto: { usuarioId: userId } },
+    });
+    if (!topico) throw new Error('Tópico não encontrado');
+    const created = await this.prisma.conceito.create({ data: { nome: input.nome, topicoId: input.topicoId, usuarioId: userId } });
+    return { id: created.id, nome: created.nome };
+  }
+
+  // árvore: Assunto → (PERTENCE_A) → Tópico → (FUNDAMENTA) → Conceito
+  async getHierarquiaConceitos(userId: string) {
+    const userAssuntos = await this.prisma.assunto.findMany({
+      where: { usuarioId: userId },
+      include: { topicos: { include: { conceitos: true } } },
+    });
+
+    return userAssuntos.map((assunto) => ({
+      id: assunto.id,
+      nome: assunto.nome,
+      relAssuntoTopico: [
+        {
+          tipoRelacao: 'PERTENCE_A',
+          topicos: assunto.topicos.map((t) => ({
+            id: t.id,
+            nome: t.nome,
+            assuntoId: assunto.id,
+            relacoesTopicoConceito: t.conceitos.length
+              ? [
+                  {
+                    tipoRelacao: 'FUNDAMENTA',
+                    conceitos: t.conceitos.map((c) => ({
+                      id: c.id,
+                      nome: c.nome,
+                      topicoId: t.id,
+                      topicoNome: t.nome,
+                      assuntoId: assunto.id,
+                      assuntoNome: assunto.nome,
+                    })),
+                  },
+                ]
+              : [],
+          })),
+        },
+      ],
+    }));
   }
 
   // hierarquia completa: assunto → tópico → conceito (dropdown de conceito)

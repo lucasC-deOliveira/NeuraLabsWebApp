@@ -27,4 +27,9 @@ export class AiController {
   notaRelations(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { titulo: string; conteudo: string }) {
     return this.ai.suggestNotaRelations(userId, grafoId, body.titulo ?? '', body.conteudo ?? '');
   }
+
+  @Post('notas/:notaId/flashcards')
+  generateFlashcards(@CurrentUser() userId: string, @Param('notaId') notaId: string) {
+    return this.ai.generateFlashcardsViaIA(userId, notaId);
+  }
 }
