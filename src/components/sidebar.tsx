@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BrainIcon, LayersIcon, FlameIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon, LogOutIcon, UserIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
+import { authApi } from "@/lib/api";
 import {
   Tooltip,
   TooltipContent,
@@ -91,11 +92,7 @@ function UserSection({
   const router = useRouter();
 
   async function handleLogout() {
-    await fetch("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "logout" }),
-    });
+    await authApi.logout();
     router.push("/login");
     router.refresh();
   }
@@ -154,9 +151,9 @@ export function Sidebar({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/user")
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setUser)
+    authApi
+      .me()
+      .then((u) => setUser(u ? { id: u.id, name: u.nome, email: u.email } : null))
       .finally(() => setLoading(false));
   }, []);
 

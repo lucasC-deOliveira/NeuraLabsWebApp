@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getOAuthConfig } from "@/actions/oauth-config";
+import { authApi, ApiError } from "@/lib/api";
 
 // API exposta pelo preload do Electron (só existe no app desktop)
 type DesktopAuth = { isDesktop: boolean; login: (p: string) => Promise<{ ok: boolean; error?: string }> };
@@ -136,23 +137,12 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "login", email, senha }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error ?? "Erro ao fazer login");
-        return;
-      }
-
+      await authApi.login({ email, senha });
       router.push(callbackUrl);
       router.refresh();
-    } catch {
-      setError("Erro ao conectar. Tente novamente.");
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+      else setError("Erro ao conectar. Tente novamente.");
     } finally {
       setLoading(false);
     }

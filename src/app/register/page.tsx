@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { authApi, ApiError } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -41,28 +42,12 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "register",
-          nome,
-          email,
-          senha,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error ?? "Erro ao criar conta");
-        return;
-      }
-
+      await authApi.register({ nome, email, senha });
       router.push("/");
       router.refresh();
-    } catch {
-      setError("Erro ao conectar. Tente novamente.");
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+      else setError("Erro ao conectar. Tente novamente.");
     } finally {
       setLoading(false);
     }
