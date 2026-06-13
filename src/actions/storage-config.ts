@@ -9,6 +9,14 @@ import { requireUserId } from "@/lib/auth";
 import { exportGraphToVault } from "@/modules/graph/infra/store/vault-export";
 import { importVaultToDatabase } from "@/modules/graph/infra/store/vault-import";
 import { initVault } from "@/modules/graph/infra/store/vault-guide";
+import { isDesktopApp } from "@/lib/runtime";
+
+const DESKTOP_ONLY = "O armazenamento em arquivos (Markdown) só está disponível no app desktop.";
+
+/** Para a UI saber se o modo de arquivos pode ser oferecido. */
+export async function isDesktopRuntime(): Promise<boolean> {
+  return isDesktopApp();
+}
 
 export type StorageMode = "DATABASE" | "MARKDOWN";
 
@@ -42,6 +50,7 @@ export async function setStorageConfig(input: StorageConfig): Promise<{ success:
   let vaultPath: string | null = null;
 
   if (storageMode === "MARKDOWN") {
+    if (!isDesktopApp()) throw new Error(DESKTOP_ONLY);
     const raw = (input.vaultPath ?? "").trim();
     if (!raw) throw new Error("Escolha a pasta onde o grafo será guardado (Markdown).");
     if (!path.isAbsolute(raw)) throw new Error("O caminho da pasta deve ser absoluto.");
@@ -79,6 +88,7 @@ export interface DirListing {
  */
 export async function browseDirectory(dirPath?: string): Promise<DirListing> {
   await requireUserId();
+  if (!isDesktopApp()) throw new Error(DESKTOP_ONLY);
   const target = dirPath && dirPath.trim() && path.isAbsolute(dirPath) ? path.resolve(dirPath) : os.homedir();
   let entries: import("fs").Dirent[] = [];
   try {
@@ -100,6 +110,7 @@ export async function browseDirectory(dirPath?: string): Promise<DirListing> {
  */
 export async function exportToVault(): Promise<{ nodes: number; vaultPath: string }> {
   const userId = await requireUserId();
+  if (!isDesktopApp()) throw new Error(DESKTOP_ONLY);
   const config = await getStorageConfig();
   const vaultPath = config.vaultPath?.trim();
   if (!vaultPath) {
@@ -115,6 +126,7 @@ export async function exportToVault(): Promise<{ nodes: number; vaultPath: strin
  */
 export async function importFromVault(): Promise<{ nodes: number; edges: number; vaultPath: string }> {
   const userId = await requireUserId();
+  if (!isDesktopApp()) throw new Error(DESKTOP_ONLY);
   const config = await getStorageConfig();
   const vaultPath = config.vaultPath?.trim();
   if (!vaultPath) {

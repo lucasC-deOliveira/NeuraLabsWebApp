@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon, DatabaseIcon, FolderTreeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getConfigAI, saveConfigAI } from "@/actions/settings";
-import { getStorageConfig, setStorageConfig, exportToVault, importFromVault, browseDirectory, type StorageMode, type DirListing } from "@/actions/storage-config";
+import { getStorageConfig, setStorageConfig, exportToVault, importFromVault, browseDirectory, isDesktopRuntime, type StorageMode, type DirListing } from "@/actions/storage-config";
 import { useColorTheme, type ColorTheme } from "@/components/color-theme-provider";
 import { useCardStyle } from "@/components/flashcard/CardStyleProvider";
 import { CARD_STYLES, CARD_CSS_CLASSES } from "@/components/flashcard/card-styles";
@@ -96,6 +96,7 @@ export default function SettingsPage() {
   // Armazenamento do grafo (banco x sistema de arquivos Markdown PARA)
   const [storageMode, setStorageMode] = useState<StorageMode>("DATABASE");
   const [vaultPath, setVaultPath] = useState("");
+  const [isDesktop, setIsDesktop] = useState(false);
   const [savingStorage, setSavingStorage] = useState(false);
   const [storageSaved, setStorageSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -118,8 +119,11 @@ export default function SettingsPage() {
         setBaseUrl("https://openrouter.ai/api/v1");
         setModelo("qwen/qwen3.6-plus:free");
       }
+      const desktop = await isDesktopRuntime();
+      setIsDesktop(desktop);
       const storage = await getStorageConfig();
-      setStorageMode(storage.storageMode);
+      // fora do desktop o modo arquivos não é permitido — mostra como banco
+      setStorageMode(desktop ? storage.storageMode : "DATABASE");
       setVaultPath(storage.vaultPath ?? "");
     } catch (err) {
       console.error(err);
@@ -498,22 +502,31 @@ export default function SettingsPage() {
                 <div className="text-[11px] text-muted-foreground">Padrão. Guarda no banco do sistema.</div>
               </div>
             </button>
-            <button
-              type="button"
-              onClick={() => setStorageMode("MARKDOWN")}
-              className={`flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-colors ${
-                storageMode === "MARKDOWN" ? "border-primary bg-primary/[0.04]" : "border-border hover:bg-accent/40"
-              }`}
-            >
-              <FolderTreeIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-              <div>
-                <div className="text-sm font-medium">Sistema de arquivos (Markdown)</div>
-                <div className="text-[11px] text-muted-foreground">Arquivos .md no formato PARA, na sua máquina.</div>
-              </div>
-            </button>
+            {isDesktop && (
+              <button
+                type="button"
+                onClick={() => setStorageMode("MARKDOWN")}
+                className={`flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-colors ${
+                  storageMode === "MARKDOWN" ? "border-primary bg-primary/[0.04]" : "border-border hover:bg-accent/40"
+                }`}
+              >
+                <FolderTreeIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+                <div>
+                  <div className="text-sm font-medium">Sistema de arquivos (Markdown)</div>
+                  <div className="text-[11px] text-muted-foreground">Arquivos .md no formato PARA, na sua máquina.</div>
+                </div>
+              </button>
+            )}
           </div>
 
-          {storageMode === "MARKDOWN" && (
+          {!isDesktop && (
+            <p className="text-[11px] text-muted-foreground">
+              O armazenamento em arquivos (Markdown/PARA) está disponível apenas no app desktop —
+              na web, o &quot;sistema de arquivos&quot; seria o do servidor, não o seu.
+            </p>
+          )}
+
+          {isDesktop && storageMode === "MARKDOWN" && (
             <div className="space-y-2">
               <Label htmlFor="vaultPath">Pasta do vault</Label>
               <div className="flex gap-2">

@@ -116,6 +116,8 @@ async function startServer() {
     HOSTNAME: "127.0.0.1",
     DATABASE_URL: `file:${ensureDatabase()}`,
     JWT_SECRET: getOrCreateJwtSecret(),
+    // habilita o modo de armazenamento em arquivos (vault Markdown) — só no desktop
+    DESKTOP_APP: "1",
   };
 
   serverProcess = fork(serverEntry, [], {
