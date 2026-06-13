@@ -99,6 +99,12 @@ export function deleteGraphNode(graphNodeId: string, grafoId?: string): Promise<
 export function getNodeDetails(tipoNode: string, referenciaId: string): Promise<Record<string, string | null> | null> {
   return apiFetch(`/graph/nodes/${referenciaId}/details${qs({ tipoNode })}`);
 }
+// remove só o vínculo com o grafo (mantém a entidade)
+export async function removeNodeFromGraph(graphNodeId: string, grafoId: string): Promise<{ success: boolean }> {
+  const refId = graphNodeId.includes(":") ? graphNodeId.slice(graphNodeId.indexOf(":") + 1) : graphNodeId;
+  await apiFetch(`/graph/graphs/${grafoId}/nodes/${refId}`, { method: "DELETE" });
+  return { success: true };
+}
 
 // ---- Arestas ----
 export function createEdge(

@@ -25,7 +25,7 @@ import {
   getGraphNodes,
   getGraphEdges,
   deleteEdge,
-} from "@/actions/graph";
+} from "@/lib/graph-api";
 import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
 import { ImportJsonModal } from "@/components/graph/ImportJsonModal";
 import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";

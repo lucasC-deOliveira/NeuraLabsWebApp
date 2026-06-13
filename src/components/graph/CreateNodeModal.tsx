@@ -25,6 +25,7 @@ import { PlusIcon, Loader2Icon, SparklesIcon, XIcon, SearchIcon } from "lucide-r
 import { Badge } from "@/components/ui/badge";
 import { suggestNotaRelations, type NotaRelationSuggestion } from "@/actions/ai-graph";
 import { createBaralhoNode } from "@/actions/graph";
+import { addNodeToGraph, createEdge } from "@/lib/graph-api";
 import { getFlashcards } from "@/actions/flashcard";
 import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
@@ -340,20 +341,7 @@ export function CreateNodeModal({
 
       setLoading(true);
       try {
-        const response = await fetch("/api/graph/add-node", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            grafoId,
-            tipoNode: selectedType,
-            ...payload,
-          }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || "Erro ao criar nó");
-        }
+        const data = await addNodeToGraph(grafoId, selectedType, payload);
 
         // arestas a criar após o nó: relações do tópico com assuntos (origem→destino
         // = tópico→assunto) ou relações de nota sugeridas pela IA e aceitas.
@@ -396,18 +384,13 @@ export function CreateNodeModal({
         let createdEdges = 0;
         for (const e of edgesToCreate) {
           try {
-            const edgeRes = await fetch("/api/graph/edge", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                grafoId,
-                sourceNodeId: e.sourceNodeId ?? data.nodeId,
-                targetNodeId: e.targetNodeId,
-                tipoRelacao: e.tipoRelacao,
-                peso: e.peso,
-              }),
+            await createEdge(grafoId, {
+              sourceNodeId: e.sourceNodeId ?? data.nodeId,
+              targetNodeId: e.targetNodeId,
+              tipoRelacao: e.tipoRelacao,
+              peso: e.peso,
             });
-            if (edgeRes.ok) createdEdges++;
+            createdEdges++;
           } catch {
             // segue criando as demais
           }

@@ -73,6 +73,12 @@ export class GraphController {
     return this.graph.deleteNode(userId, refId, grafoId);
   }
 
+  // remove só o vínculo do nó com o grafo (mantém a entidade)
+  @Delete('graphs/:grafoId/nodes/:refId')
+  removeNode(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Param('refId') refId: string) {
+    return this.graph.removeNode(userId, grafoId, refId);
+  }
+
   @Get('nodes/:refId/details')
   nodeDetails(@CurrentUser() userId: string, @Param('refId') refId: string, @Query('tipoNode') tipoNode: TipoNode) {
     return this.graph.getNodeDetails(userId, tipoNode, refId);

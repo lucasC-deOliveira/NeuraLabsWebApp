@@ -27,6 +27,7 @@ import {
   canRelate,
 } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
+import { getGraphNodes, createEdge, updateEdge, deleteEdge } from "@/lib/graph-api";
 
 interface Edge {
   id: string;
@@ -174,10 +175,8 @@ export function EdgeManagerModal({
 
   const fetchNodes = async () => {
     try {
-      const response = await fetch(`/api/graph/nodes?grafoId=${grafoId}`);
-      if (!response.ok) throw new Error("Erro ao carregar nós");
-      const data = await response.json();
-      setNodes(data.nodes || []);
+      const { nodes } = await getGraphNodes(grafoId);
+      setNodes(nodes.map((n) => ({ id: n.id, label: n.label, type: n.type })));
     } catch (e) {
       toast.error("Erro ao carregar nós do grafo");
     }
@@ -234,20 +233,12 @@ export function EdgeManagerModal({
 
     setLoading(true);
     try {
-      const response = await fetch("/api/graph/edge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          grafoId,
-          ...formData,
-        }),
+      await createEdge(grafoId, {
+        sourceNodeId: formData.sourceNodeId,
+        targetNodeId: formData.targetNodeId,
+        tipoRelacao: formData.tipoRelacao,
+        peso: formData.peso,
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao criar relação");
-      }
-
       toast.success("Relação criada com sucesso!");
       resetForm();
       if (onSuccess) onSuccess();
@@ -267,22 +258,7 @@ export function EdgeManagerModal({
 
     setLoading(true);
     try {
-      const response = await fetch("/api/graph/edge", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          grafoId,
-          edgeId: selectedEdge.id,
-          tipoRelacao: formData.tipoRelacao,
-          peso: formData.peso,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao atualizar relação");
-      }
-
+      await updateEdge(selectedEdge.id, grafoId, { tipoRelacao: formData.tipoRelacao, peso: formData.peso });
       toast.success("Relação atualizada com sucesso!");
       resetForm();
       if (onSuccess) onSuccess();
@@ -299,15 +275,7 @@ export function EdgeManagerModal({
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/graph/edge?grafoId=${grafoId}&edgeId=${edgeId}`, {
-        method: "DELETE",
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao remover relação");
-      }
-
+      await deleteEdge(edgeId, grafoId);
       toast.success("Relação removida com sucesso!");
       if (onSuccess) onSuccess();
       router.refresh();

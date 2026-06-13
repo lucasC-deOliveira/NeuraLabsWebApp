@@ -174,6 +174,18 @@ export class GraphService {
     return { success: true, deletedType: tipo };
   }
 
+  // Remove o nó do grafo (vínculo + arestas + desempenho), mantendo a entidade.
+  async removeNode(userId: string, grafoId: string, refId: string) {
+    const node = await this.prisma.nodeConhecimento.findFirst({ where: { referenciaId: refId, usuarioId: userId, grafoId } });
+    if (!node) throw new NotFoundException('Nó não encontrado no grafo');
+    await this.prisma.$transaction(async (tx) => {
+      await tx.conhecimentoAresta.deleteMany({ where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] } });
+      await tx.desempenhoNo.deleteMany({ where: { nodeId: node.id } });
+      await tx.nodeConhecimento.delete({ where: { id: node.id } });
+    });
+    return { success: true };
+  }
+
   async getNodeDetails(userId: string, tipoNode: TipoNode, refId: string): Promise<Record<string, string | null> | null> {
     switch (tipoNode) {
       case 'ASSUNTO': { const a = await this.prisma.assunto.findFirst({ where: { id: refId, usuarioId: userId } }); return a ? { nome: a.nome, descricao: a.descricao } : null; }
