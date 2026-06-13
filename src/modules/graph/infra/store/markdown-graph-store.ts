@@ -6,8 +6,10 @@ import {
   applyDomainFromFlashcards,
   type GraphNode,
   type GraphEdge,
+  type TipoRelacao,
 } from "@/modules/graph/domain/services/knowledge-graph-builder";
-import type { CreateNodeInput, GraphStore } from "./graph-store";
+import { getAllowedRelations, isRelationAllowed } from "@/modules/graph/domain/services/relation-rules";
+import type { CreateEdgeInput, CreateNodeInput, EdgeView, GraphStore } from "./graph-store";
 import {
   PARA_FOLDERS,
   nodeRelPath,
@@ -133,5 +135,119 @@ export class MarkdownGraphStore implements GraphStore {
     await fs.mkdir(path.dirname(full), { recursive: true });
     await fs.writeFile(full, serializeNode(node), "utf8");
     return { nodeId: id };
+  }
+
+  // localiza o arquivo de um nó pelo sufixo --<id>.md
+  private async findNodeFile(id: string): Promise<string | null> {
+    for (const folder of PARA_FOLDERS) {
+      const dir = path.join(this.vaultPath, folder);
+      let entries: string[] = [];
+      try {
+        entries = await fs.readdir(dir);
+      } catch {
+        continue;
+      }
+      const hit = entries.find((f) => f.endsWith(`--${id}.md`));
+      if (hit) return path.join(dir, hit);
+    }
+    return null;
+  }
+
+  private async readNodeWithPath(id: string): Promise<{ node: VaultNode; full: string } | null> {
+    const full = await this.findNodeFile(id);
+    if (!full) return null;
+    const node = parseNode(await fs.readFile(full, "utf8"));
+    return node ? { node, full } : null;
+  }
+
+  async getEdges(userId: string, grafoId: string): Promise<EdgeView[]> {
+    void userId;
+    const all = await this.readAllNodes();
+    const inGraph = all.filter((n) => n.grafoId === grafoId);
+    const byId = new Map(inGraph.map((n) => [n.id, n]));
+    const out: EdgeView[] = [];
+    for (const n of inGraph) {
+      for (const r of n.relacoes) {
+        const target = byId.get(r.alvo);
+        if (!target) continue;
+        out.push({
+          id: `${n.id}|${r.alvo}|${r.rel}`,
+          source: n.id,
+          target: r.alvo,
+          tipoRelacao: r.rel,
+          peso: r.peso,
+          sourceLabel: vaultNodeLabel(n),
+          targetLabel: vaultNodeLabel(target),
+        });
+      }
+    }
+    return out;
+  }
+
+  async createEdge(
+    userId: string,
+    grafoId: string,
+    input: CreateEdgeInput,
+  ): Promise<{ edgeId: string }> {
+    void userId;
+    if (
+      input.peso !== undefined &&
+      (typeof input.peso !== "number" || !Number.isFinite(input.peso) || input.peso <= 0 || input.peso > 2)
+    ) {
+      throw new Error("Peso da relação inválido (use um número entre 0 e 2)");
+    }
+    const src = await this.readNodeWithPath(input.sourceNodeId);
+    const tgt = await this.readNodeWithPath(input.targetNodeId);
+    if (!src || !tgt || src.node.grafoId !== grafoId || tgt.node.grafoId !== grafoId) {
+      throw new Error("Um ou ambos os nós não encontrados no grafo");
+    }
+    if (!isRelationAllowed(src.node.tipo, tgt.node.tipo, input.tipoRelacao)) {
+      const allowed = getAllowedRelations(src.node.tipo, tgt.node.tipo);
+      throw new Error(
+        allowed.length === 0
+          ? `Nós do tipo ${src.node.tipo} e ${tgt.node.tipo} não podem ser relacionados`
+          : `Relação ${input.tipoRelacao} não é permitida entre ${src.node.tipo} e ${tgt.node.tipo}. Permitidas: ${allowed.join(", ")}`,
+      );
+    }
+    if (src.node.relacoes.some((r) => r.alvo === input.targetNodeId && r.rel === input.tipoRelacao)) {
+      throw new Error("Relação já existe entre esses nós com este tipo");
+    }
+    src.node.relacoes.push({ rel: input.tipoRelacao, alvo: input.targetNodeId, peso: input.peso ?? 1.0 });
+    await fs.writeFile(src.full, serializeNode(src.node), "utf8");
+    return { edgeId: `${input.sourceNodeId}|${input.targetNodeId}|${input.tipoRelacao}` };
+  }
+
+  async updateEdge(
+    userId: string,
+    grafoId: string,
+    edgeId: string,
+    data: { tipoRelacao?: TipoRelacao; peso?: number },
+  ): Promise<void> {
+    void userId;
+    void grafoId;
+    const [source, target, rel] = edgeId.split("|");
+    const src = await this.readNodeWithPath(source);
+    if (!src) throw new Error("Relação não encontrada");
+    const idx = src.node.relacoes.findIndex((r) => r.alvo === target && r.rel === rel);
+    if (idx < 0) throw new Error("Relação não encontrada");
+    if (data.tipoRelacao && data.tipoRelacao !== rel) {
+      const tgt = await this.readNodeWithPath(target);
+      if (tgt && !isRelationAllowed(src.node.tipo, tgt.node.tipo, data.tipoRelacao)) {
+        throw new Error(`Relação ${data.tipoRelacao} não é permitida entre ${src.node.tipo} e ${tgt.node.tipo}`);
+      }
+      src.node.relacoes[idx].rel = data.tipoRelacao;
+    }
+    if (data.peso !== undefined) src.node.relacoes[idx].peso = data.peso;
+    await fs.writeFile(src.full, serializeNode(src.node), "utf8");
+  }
+
+  async deleteEdge(userId: string, grafoId: string, edgeId: string): Promise<void> {
+    void userId;
+    void grafoId;
+    const [source, target, rel] = edgeId.split("|");
+    const src = await this.readNodeWithPath(source);
+    if (!src) return;
+    src.node.relacoes = src.node.relacoes.filter((r) => !(r.alvo === target && r.rel === rel));
+    await fs.writeFile(src.full, serializeNode(src.node), "utf8");
   }
 }

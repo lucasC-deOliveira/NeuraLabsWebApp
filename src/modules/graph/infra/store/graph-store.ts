@@ -1,5 +1,22 @@
-import type { GraphNode, GraphEdge } from "@/lib/graph";
+import type { GraphNode, GraphEdge, TipoRelacao } from "@/lib/graph";
 import type { TipoNode } from "./vault-format";
+
+export interface EdgeView {
+  id: string;
+  source: string;
+  target: string;
+  tipoRelacao: TipoRelacao;
+  peso: number;
+  sourceLabel: string;
+  targetLabel: string;
+}
+
+export interface CreateEdgeInput {
+  sourceNodeId: string;
+  targetNodeId: string;
+  tipoRelacao: TipoRelacao;
+  peso?: number;
+}
 
 // Payload de criação de um nó (entidade + nó no grafo). Os campos relevantes
 // variam por tipo; a validação é feita na action antes de chamar o store.
@@ -48,4 +65,21 @@ export interface GraphStore {
     tipoNode: TipoNode,
     input: CreateNodeInput,
   ): Promise<{ nodeId: string }>;
+
+  /** Arestas do grafo com rótulos das pontas (para o gerenciador de relações). */
+  getEdges(userId: string, grafoId: string): Promise<EdgeView[]>;
+
+  /** Cria uma aresta (valida par de tipos e duplicidade). Devolve o id da aresta. */
+  createEdge(userId: string, grafoId: string, input: CreateEdgeInput): Promise<{ edgeId: string }>;
+
+  /** Atualiza tipo/peso de uma aresta existente. */
+  updateEdge(
+    userId: string,
+    grafoId: string,
+    edgeId: string,
+    data: { tipoRelacao?: TipoRelacao; peso?: number },
+  ): Promise<void>;
+
+  /** Remove uma aresta. */
+  deleteEdge(userId: string, grafoId: string, edgeId: string): Promise<void>;
 }

@@ -53,4 +53,39 @@ describe("MarkdownGraphStore — createNode + loadGraph", () => {
     expect(await fs.readdir(path.join(vault, "Areas"))).toHaveLength(1);
     expect(await fs.readdir(path.join(vault, "Projects"))).toHaveLength(1);
   });
+
+  it("cria, lista, atualiza e remove aresta (CONCEITO → TOPICO)", async () => {
+    const store = new MarkdownGraphStore(vault);
+    const { nodeId: tId } = await store.createNode("u1", "g1", "TOPICO", { nome: "Princípios" });
+    const { nodeId: cId } = await store.createNode("u1", "g1", "CONCEITO", { nome: "Legalidade" });
+
+    // PERTENCE_A é permitida CONCEITO→TOPICO
+    const { edgeId } = await store.createEdge("u1", "g1", {
+      sourceNodeId: cId,
+      targetNodeId: tId,
+      tipoRelacao: "PERTENCE_A",
+      peso: 1,
+    });
+    expect(edgeId).toBe(`${cId}|${tId}|PERTENCE_A`);
+
+    let edges = await store.getEdges("u1", "g1");
+    expect(edges).toHaveLength(1);
+    expect(edges[0]).toMatchObject({ source: cId, target: tId, tipoRelacao: "PERTENCE_A", peso: 1, sourceLabel: "Legalidade", targetLabel: "Princípios" });
+
+    await store.updateEdge("u1", "g1", edgeId, { peso: 1.8 });
+    edges = await store.getEdges("u1", "g1");
+    expect(edges[0].peso).toBe(1.8);
+
+    await store.deleteEdge("u1", "g1", edgeId);
+    expect(await store.getEdges("u1", "g1")).toHaveLength(0);
+  });
+
+  it("rejeita relação não permitida entre os tipos", async () => {
+    const store = new MarkdownGraphStore(vault);
+    const { nodeId: a } = await store.createNode("u1", "g1", "ASSUNTO", { nome: "A" });
+    const { nodeId: c } = await store.createNode("u1", "g1", "CONCEITO", { nome: "C" });
+    await expect(
+      store.createEdge("u1", "g1", { sourceNodeId: a, targetNodeId: c, tipoRelacao: "PERTENCE_A", peso: 1 }),
+    ).rejects.toThrow();
+  });
 });

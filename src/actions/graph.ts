@@ -578,21 +578,8 @@ export async function updateGraphNode(
 
 export async function deleteEdge(edgeId: string, grafoId: string): Promise<{ success: boolean }> {
   const userId = await requireUserId();
-
-  // Verify edge belongs to graph and user
-  const edge = await prisma.conhecimentoAresta.findFirst({
-    where: { id: edgeId, grafoId },
-    include: { nodeOrigem: { include: { usuario: true } } },
-  });
-
-  if (!edge || edge.nodeOrigem.usuarioId !== userId) {
-    throw new Error("Relação não encontrada ou não pertence ao usuário");
-  }
-
-  await prisma.conhecimentoAresta.delete({
-    where: { id: edgeId },
-  });
-
+  const store = await getGraphStore();
+  await store.deleteEdge(userId, grafoId, edgeId);
   revalidatePath(`/graph/${grafoId}`);
   return { success: true };
 }
@@ -605,70 +592,10 @@ export async function createEdge(grafoId: string, data: {
   peso?: number;
 }): Promise<{ success: boolean; edgeId: string }> {
   const userId = await requireUserId();
-
-  // valida o peso (força da relação): número finito em 0..2
-  if (data.peso !== undefined && (typeof data.peso !== "number" || !Number.isFinite(data.peso) || data.peso <= 0 || data.peso > 2)) {
-    throw new Error("Peso da relação inválido (use um número entre 0 e 2)");
-  }
-
-  // Verify both nodes belong to the user and are in the same graph
-  const [sourceNode, targetNode] = await Promise.all([
-    prisma.nodeConhecimento.findFirst({
-      where: {
-        referenciaId: data.sourceNodeId,
-        usuarioId: userId,
-        grafoId,
-      },
-    }),
-    prisma.nodeConhecimento.findFirst({
-      where: {
-        referenciaId: data.targetNodeId,
-        usuarioId: userId,
-        grafoId,
-      },
-    }),
-  ]);
-
-  if (!sourceNode || !targetNode) {
-    throw new Error("Um ou ambos os nós não encontrados no grafo");
-  }
-
-  // Regra de domínio: cada par de tipos só aceita certas relações
-  if (!isRelationAllowed(sourceNode.tipoNode, targetNode.tipoNode, data.tipoRelacao)) {
-    const allowed = getAllowedRelations(sourceNode.tipoNode, targetNode.tipoNode);
-    throw new Error(
-      allowed.length === 0
-        ? `Nós do tipo ${sourceNode.tipoNode} e ${targetNode.tipoNode} não podem ser relacionados`
-        : `Relação ${data.tipoRelacao} não é permitida entre ${sourceNode.tipoNode} e ${targetNode.tipoNode}. Permitidas: ${allowed.join(", ")}`
-    );
-  }
-
-  // Check for duplicate edge (same source, target, and type)
-  const existingEdge = await prisma.conhecimentoAresta.findFirst({
-    where: {
-      grafoId,
-      nodeOrigemId: sourceNode.id,
-      nodeDestinoId: targetNode.id,
-      tipoRelacao: data.tipoRelacao,
-    },
-  });
-
-  if (existingEdge) {
-    throw new Error("Relação já existe entre esses nós com este tipo");
-  }
-
-  const edge = await prisma.conhecimentoAresta.create({
-    data: {
-      grafoId,
-      nodeOrigemId: sourceNode.id,
-      nodeDestinoId: targetNode.id,
-      tipoRelacao: data.tipoRelacao,
-      peso: data.peso ?? 1.0,
-    },
-  });
-
+  const store = await getGraphStore();
+  const { edgeId } = await store.createEdge(userId, grafoId, data);
   revalidatePath(`/graph/${grafoId}`);
-  return { success: true, edgeId: edge.id };
+  return { success: true, edgeId };
 }
 
 export async function updateEdge(edgeId: string, grafoId: string, data: {
@@ -676,26 +603,8 @@ export async function updateEdge(edgeId: string, grafoId: string, data: {
   peso?: number;
 }): Promise<{ success: boolean }> {
   const userId = await requireUserId();
-
-  // Verify edge exists and belongs to the user's graph
-  const existingEdge = await prisma.conhecimentoAresta.findFirst({
-    where: { id: edgeId, grafoId },
-    include: { nodeOrigem: { include: { usuario: true } } },
-  });
-
-  if (!existingEdge || existingEdge.nodeOrigem.usuarioId !== userId) {
-    throw new Error("Relação não encontrada ou não pertence ao usuário");
-  }
-
-  const updateData: any = {};
-  if (data.tipoRelacao) updateData.tipoRelacao = data.tipoRelacao;
-  if (data.peso !== undefined) updateData.peso = data.peso;
-
-  await prisma.conhecimentoAresta.update({
-    where: { id: edgeId },
-    data: updateData,
-  });
-
+  const store = await getGraphStore();
+  await store.updateEdge(userId, grafoId, edgeId, data);
   revalidatePath(`/graph/${grafoId}`);
   return { success: true };
 }
@@ -710,83 +619,8 @@ export async function getGraphEdges(grafoId: string): Promise<Array<{
   targetLabel: string;
 }>> {
   const userId = await requireUserId();
-
-  const edges = await prisma.conhecimentoAresta.findMany({
-    where: { grafoId },
-    include: {
-      nodeOrigem: {
-        include: {
-          usuario: { select: { id: true } },
-          // Resolve the actual entity based on tipoNode
-        },
-      },
-      nodeDestino: {
-        include: {
-          usuario: { select: { id: true } },
-        },
-      },
-    },
-  });
-
-  // Filter edges where both nodes belong to the user
-  const userEdges = edges.filter(e => e.nodeOrigem.usuarioId === userId && e.nodeDestino.usuarioId === userId);
-
-  // Resolve labels
-  const result = await Promise.all(
-    userEdges.map(async (edge) => {
-      const sourceLabel = await resolveNodeLabel(edge.nodeOrigem);
-      const targetLabel = await resolveNodeLabel(edge.nodeDestino);
-      return {
-        id: edge.id,
-        source: edge.nodeOrigem.referenciaId,
-        target: edge.nodeDestino.referenciaId,
-        tipoRelacao: edge.tipoRelacao,
-        peso: edge.peso,
-        sourceLabel,
-        targetLabel,
-      };
-    })
-  );
-
-  return result;
-}
-
-async function resolveNodeLabel(node: any): Promise<string> {
-  const { tipoNode, referenciaId } = node;
-  switch (tipoNode) {
-    case "ASSUNTO": {
-      const assunto = await prisma.assunto.findUnique({ where: { id: referenciaId } });
-      return assunto?.nome ?? referenciaId;
-    }
-    case "TOPICO": {
-      const topico = await prisma.topico.findUnique({ where: { id: referenciaId } });
-      return topico?.nome ?? referenciaId;
-    }
-    case "CONCEITO": {
-      const conceito = await prisma.conceito.findUnique({ where: { id: referenciaId } });
-      return conceito?.nome ?? referenciaId;
-    }
-    case "FLASHCARD": {
-      const flashcard = await prisma.flashcard.findUnique({ where: { id: referenciaId } });
-      return flashcard?.pergunta?.slice(0, 50) ?? referenciaId;
-    }
-    case "NOTA": {
-      const nota = await prisma.nota.findUnique({ where: { id: referenciaId } });
-      if (nota?.titulo && nota.titulo !== "Sem título") return nota.titulo;
-      return nota?.conteudo?.slice(0, 50) ?? referenciaId;
-    }
-    case "TEXTO_BRUTO": {
-      const tb = await prisma.textoBruto.findUnique({ where: { id: referenciaId } });
-      if (tb?.titulo && tb.titulo !== "Texto sem título") return tb.titulo;
-      return tb?.texto?.slice(0, 50) ?? referenciaId;
-    }
-    case "BARALHO": {
-      const b = await prisma.baralho.findUnique({ where: { id: referenciaId } });
-      return b?.titulo ?? referenciaId;
-    }
-    default:
-      return referenciaId;
-  }
+  const store = await getGraphStore();
+  return store.getEdges(userId, grafoId);
 }
 
 // --- Helper data for creating nodes ---
