@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { buildKnowledgeGraph, type GraphNode, type GraphEdge, type TipoRelacao } from "@/lib/graph";
 import { buildNotaSlug } from "@/lib/nota-slug";
 import { getAllowedRelations, isRelationAllowed } from "@/modules/graph/domain/services/relation-rules";
-import type { CreateEdgeInput, CreateNodeInput, EdgeView, GraphStore } from "./graph-store";
+import type { CreateEdgeInput, CreateNodeInput, EdgeView, GraphStore, UpdateNodeInput } from "./graph-store";
 import type { TipoNode } from "./vault-format";
 
 async function resolveNodeLabel(node: { tipoNode: string; referenciaId: string }): Promise<string> {
@@ -223,5 +223,142 @@ export class PrismaGraphStore implements GraphStore {
       throw new Error("Relação não encontrada ou não pertence ao usuário");
     }
     await prisma.conhecimentoAresta.delete({ where: { id: edgeId } });
+  }
+
+  async deleteNode(userId: string, refId: string, grafoId?: string): Promise<{ deletedType: string }> {
+    const node = await prisma.nodeConhecimento.findFirst({
+      where: { referenciaId: refId, usuarioId: userId, ...(grafoId ? { grafoId } : {}) },
+    });
+    if (!node) throw new Error("Node não encontrado no grafo");
+    const nodeTipo = node.tipoNode;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.conhecimentoAresta.deleteMany({
+        where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] },
+      });
+      await tx.desempenhoNo.deleteMany({ where: { nodeId: node.id } });
+      switch (nodeTipo) {
+        case "FLASHCARD":
+          await tx.revisaoFlashcard.deleteMany({ where: { flashcardId: refId } });
+          await tx.aprendizadoFlashcard.deleteMany({ where: { flashcardId: refId } });
+          await tx.flashcard.delete({ where: { id: refId } });
+          break;
+        case "NOTA":
+          await tx.nota.delete({ where: { id: refId } });
+          break;
+        case "ASSUNTO":
+          await tx.topico.updateMany({ where: { assuntoId: refId }, data: { assuntoId: null } });
+          await tx.assunto.delete({ where: { id: refId } });
+          break;
+        case "TOPICO":
+          await tx.conceito.updateMany({ where: { topicoId: refId }, data: { topicoId: null } });
+          await tx.topico.delete({ where: { id: refId } });
+          break;
+        case "CONCEITO":
+          await tx.conceito.delete({ where: { id: refId } });
+          break;
+      }
+      await tx.nodeConhecimento.delete({ where: { id: node.id } });
+    });
+
+    return { deletedType: nodeTipo };
+  }
+
+  async updateNode(
+    userId: string,
+    tipoNode: TipoNode,
+    refId: string,
+    data: UpdateNodeInput,
+  ): Promise<void> {
+    const where = { id: refId, usuarioId: userId };
+    let count = 0;
+    switch (tipoNode) {
+      case "ASSUNTO":
+        count = (await prisma.assunto.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count;
+        break;
+      case "TOPICO":
+        count = (await prisma.topico.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count;
+        break;
+      case "CONCEITO":
+        count = (await prisma.conceito.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count;
+        break;
+      case "FLASHCARD":
+        count = (await prisma.flashcard.updateMany({ where, data: { pergunta: data.pergunta, resposta: data.resposta } })).count;
+        break;
+      case "NOTA":
+        count = (await prisma.nota.updateMany({
+          where,
+          data: {
+            titulo: data.titulo?.trim(),
+            conteudo: data.conteudo,
+            tipoNota: data.tipoNota,
+            subtipo: data.subtipo,
+            fonte: data.fonte === undefined ? undefined : data.fonte?.trim() || null,
+          },
+        })).count;
+        break;
+      case "TEXTO_BRUTO":
+        count = (await prisma.textoBruto.updateMany({
+          where,
+          data: { titulo: data.titulo?.trim(), texto: data.texto?.trim() },
+        })).count;
+        break;
+      default:
+        throw new Error(`Tipo de nó desconhecido: ${tipoNode}`);
+    }
+    if (count === 0) throw new Error("Nó não encontrado ou não pertence ao usuário");
+  }
+
+  async getNodeDetails(
+    userId: string,
+    tipoNode: TipoNode,
+    refId: string,
+  ): Promise<Record<string, string | null> | null> {
+    switch (tipoNode) {
+      case "ASSUNTO": {
+        const a = await prisma.assunto.findFirst({ where: { id: refId, usuarioId: userId } });
+        return a ? { nome: a.nome, descricao: a.descricao } : null;
+      }
+      case "TOPICO": {
+        const t = await prisma.topico.findFirst({ where: { id: refId, usuarioId: userId } });
+        return t ? { nome: t.nome, descricao: t.descricao } : null;
+      }
+      case "CONCEITO": {
+        const c = await prisma.conceito.findFirst({ where: { id: refId, usuarioId: userId } });
+        return c ? { nome: c.nome, descricao: c.descricao } : null;
+      }
+      case "FLASHCARD": {
+        const f = await prisma.flashcard.findFirst({ where: { id: refId, usuarioId: userId } });
+        return f ? { pergunta: f.pergunta, resposta: f.resposta } : null;
+      }
+      case "NOTA": {
+        const n = await prisma.nota.findFirst({ where: { id: refId, usuarioId: userId } });
+        return n
+          ? {
+              titulo: n.titulo,
+              conteudo: n.conteudo,
+              tipoNota: n.tipoNota,
+              subtipo: n.subtipo,
+              fonte: n.fonte,
+              slug: n.slug,
+              dataCriacao: n.dataCriacao.toISOString(),
+              dataAtualizacao: n.dataAtualizacao.toISOString(),
+            }
+          : null;
+      }
+      case "TEXTO_BRUTO": {
+        const t = await prisma.textoBruto.findFirst({ where: { id: refId, usuarioId: userId } });
+        return t ? { titulo: t.titulo, texto: t.texto, dataCriacao: t.dataCriacao.toISOString() } : null;
+      }
+      case "BARALHO": {
+        const b = await prisma.baralho.findFirst({
+          where: { id: refId, usuarioId: userId },
+          include: { _count: { select: { flashcards: true } } },
+        });
+        return b ? { titulo: b.titulo, flashcards: String(b._count.flashcards), dataCriacao: b.dataCriacao.toISOString() } : null;
+      }
+      default:
+        return null;
+    }
   }
 }

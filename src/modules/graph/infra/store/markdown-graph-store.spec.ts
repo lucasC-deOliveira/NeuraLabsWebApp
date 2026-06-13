@@ -88,4 +88,30 @@ describe("MarkdownGraphStore — createNode + loadGraph", () => {
       store.createEdge("u1", "g1", { sourceNodeId: a, targetNodeId: c, tipoRelacao: "PERTENCE_A", peso: 1 }),
     ).rejects.toThrow();
   });
+
+  it("updateNode altera campos e getNodeDetails reflete", async () => {
+    const store = new MarkdownGraphStore(vault);
+    const { nodeId } = await store.createNode("u1", "g1", "CONCEITO", { nome: "Antigo", descricao: "x" });
+    await store.updateNode("u1", "CONCEITO", nodeId, { nome: "Novo", descricao: "y" });
+
+    const details = await store.getNodeDetails("u1", "CONCEITO", nodeId);
+    expect(details).toEqual({ nome: "Novo", descricao: "y" });
+
+    const { nodes } = await store.loadGraph("u1", "g1");
+    expect(nodes[0].label).toBe("Novo");
+  });
+
+  it("deleteNode remove o arquivo e as relações de entrada", async () => {
+    const store = new MarkdownGraphStore(vault);
+    const { nodeId: t } = await store.createNode("u1", "g1", "TOPICO", { nome: "Tópico" });
+    const { nodeId: c } = await store.createNode("u1", "g1", "CONCEITO", { nome: "Conceito" });
+    await store.createEdge("u1", "g1", { sourceNodeId: c, targetNodeId: t, tipoRelacao: "PERTENCE_A", peso: 1 });
+
+    const { deletedType } = await store.deleteNode("u1", t, "g1");
+    expect(deletedType).toBe("TOPICO");
+
+    const { nodes, edges } = await store.loadGraph("u1", "g1");
+    expect(nodes.map((n) => n.id)).toEqual([c]); // só o conceito sobrou
+    expect(edges).toHaveLength(0); // aresta de entrada removida do conceito
+  });
 });

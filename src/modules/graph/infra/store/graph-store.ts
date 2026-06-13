@@ -18,6 +18,19 @@ export interface CreateEdgeInput {
   peso?: number;
 }
 
+export interface UpdateNodeInput {
+  nome?: string;
+  descricao?: string | null;
+  pergunta?: string;
+  resposta?: string;
+  conteudo?: string;
+  titulo?: string;
+  tipoNota?: string;
+  fonte?: string | null;
+  subtipo?: string;
+  texto?: string;
+}
+
 // Payload de criação de um nó (entidade + nó no grafo). Os campos relevantes
 // variam por tipo; a validação é feita na action antes de chamar o store.
 export interface CreateNodeInput {
@@ -82,4 +95,23 @@ export interface GraphStore {
 
   /** Remove uma aresta. */
   deleteEdge(userId: string, grafoId: string, edgeId: string): Promise<void>;
+
+  /** Exclui um nó (entidade + vínculos). Devolve o tipo do nó removido. */
+  deleteNode(userId: string, refId: string, grafoId?: string): Promise<{ deletedType: string }>;
+
+  /** Atualiza os campos da entidade de um nó. */
+  updateNode(
+    userId: string,
+    tipoNode: TipoNode,
+    refId: string,
+    data: UpdateNodeInput,
+    grafoId?: string,
+  ): Promise<void>;
+
+  /** Campos editáveis/exibíveis da entidade de um nó. */
+  getNodeDetails(
+    userId: string,
+    tipoNode: TipoNode,
+    refId: string,
+  ): Promise<Record<string, string | null> | null>;
 }

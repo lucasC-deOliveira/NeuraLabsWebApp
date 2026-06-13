@@ -356,89 +356,17 @@ export async function removeNodeFromGraph(graphNodeId: string, grafoId: string):
 export async function deleteGraphNode(graphNodeId: string, grafoId?: string): Promise<{ success: boolean; deletedType?: string }> {
   const userId = await requireUserId();
 
-  // Determine if graphNodeId is in format "tipo:referenciaId" or just "referenciaId"
+  // Aceita "tipo:referenciaId" ou só "referenciaId" — extrai o refId; o store
+  // resolve o tipo. (mantém compatibilidade com chamadas antigas)
   const colonIdx = graphNodeId.indexOf(":");
-  let refId: string;
-  let nodeWhere: any = { usuarioId: userId };
-  if (grafoId) nodeWhere.grafoId = grafoId;
+  const refId = colonIdx > -1 ? graphNodeId.slice(colonIdx + 1) : graphNodeId;
 
-  if (colonIdx > -1) {
-    // Format: "tipo:referenciaId"
-    const prefix = graphNodeId.slice(0, colonIdx).toLowerCase();
-    refId = graphNodeId.slice(colonIdx + 1);
-    const typeMap: Record<string, string> = {
-      flashcard: "FLASHCARD",
-      nota: "NOTA",
-      assunto: "ASSUNTO",
-      topico: "TOPICO",
-      conceito: "CONCEITO",
-    };
-    const nodeTipo = typeMap[prefix];
-    if (!nodeTipo) {
-      throw new Error("Tipo de node desconhecido: " + prefix);
-    }
-    nodeWhere.tipoNode = nodeTipo;
-    nodeWhere.referenciaId = refId;
-  } else {
-    // Just the reference ID - find the nodeConhecimento by referenciaId
-    refId = graphNodeId;
-    nodeWhere.referenciaId = refId;
-  }
-
-  // Find the nodeConhecimento record
-  const node = await prisma.nodeConhecimento.findFirst({
-    where: nodeWhere,
-  });
-
-  if (!node) {
-    throw new Error("Node não encontrado no grafo");
-  }
-
-  const nodeTipo = node.tipoNode;
-
-  await prisma.$transaction(async (tx) => {
-    // Delete connected edges
-    await tx.conhecimentoAresta.deleteMany({
-      where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] },
-    });
-    // Delete node performance data
-    await tx.desempenhoNo.deleteMany({ where: { nodeId: node.id } });
-
-    // Delete the actual entity based on type
-    switch (nodeTipo) {
-      case "FLASHCARD": {
-        await tx.revisaoFlashcard.deleteMany({ where: { flashcardId: refId } });
-        await tx.aprendizadoFlashcard.deleteMany({ where: { flashcardId: refId } });
-        await tx.flashcard.delete({ where: { id: refId } });
-        break;
-      }
-      case "NOTA": {
-        await tx.nota.delete({ where: { id: refId } });
-        break;
-      }
-      case "ASSUNTO": {
-        await tx.topico.updateMany({ where: { assuntoId: refId }, data: { assuntoId: null } });
-        await tx.assunto.delete({ where: { id: refId } });
-        break;
-      }
-      case "TOPICO": {
-        await tx.conceito.updateMany({ where: { topicoId: refId }, data: { topicoId: null } });
-        await tx.topico.delete({ where: { id: refId } });
-        break;
-      }
-      case "CONCEITO": {
-        await tx.conceito.delete({ where: { id: refId } });
-        break;
-      }
-    }
-
-    // Finally, delete the nodeConhecimento record
-    await tx.nodeConhecimento.delete({ where: { id: node.id } });
-  });
+  const store = await getGraphStore();
+  const { deletedType } = await store.deleteNode(userId, refId, grafoId);
 
   revalidatePath("/graph");
   if (grafoId) revalidatePath(`/graph/${grafoId}`);
-  return { success: true };
+  return { success: true, deletedType };
 }
 
 // Campos editáveis da entidade referenciada por um nó do grafo
@@ -447,57 +375,8 @@ export async function getNodeDetails(
   referenciaId: string
 ): Promise<Record<string, string | null> | null> {
   const userId = await requireUserId();
-
-  switch (tipoNode) {
-    case "ASSUNTO": {
-      const a = await prisma.assunto.findFirst({ where: { id: referenciaId, usuarioId: userId } });
-      return a ? { nome: a.nome, descricao: a.descricao } : null;
-    }
-    case "TOPICO": {
-      const t = await prisma.topico.findFirst({ where: { id: referenciaId, usuarioId: userId } });
-      return t ? { nome: t.nome, descricao: t.descricao } : null;
-    }
-    case "CONCEITO": {
-      const c = await prisma.conceito.findFirst({ where: { id: referenciaId, usuarioId: userId } });
-      return c ? { nome: c.nome, descricao: c.descricao } : null;
-    }
-    case "FLASHCARD": {
-      const f = await prisma.flashcard.findFirst({ where: { id: referenciaId, usuarioId: userId } });
-      return f ? { pergunta: f.pergunta, resposta: f.resposta } : null;
-    }
-    case "NOTA": {
-      const n = await prisma.nota.findFirst({ where: { id: referenciaId, usuarioId: userId } });
-      return n
-        ? {
-            titulo: n.titulo,
-            conteudo: n.conteudo,
-            tipoNota: n.tipoNota,
-            subtipo: n.subtipo,
-            fonte: n.fonte,
-            slug: n.slug,
-            dataCriacao: n.dataCriacao.toISOString(),
-            dataAtualizacao: n.dataAtualizacao.toISOString(),
-          }
-        : null;
-    }
-    case "TEXTO_BRUTO": {
-      const t = await prisma.textoBruto.findFirst({ where: { id: referenciaId, usuarioId: userId } });
-      return t
-        ? { titulo: t.titulo, texto: t.texto, dataCriacao: t.dataCriacao.toISOString() }
-        : null;
-    }
-    case "BARALHO": {
-      const b = await prisma.baralho.findFirst({
-        where: { id: referenciaId, usuarioId: userId },
-        include: { _count: { select: { flashcards: true } } },
-      });
-      return b
-        ? { titulo: b.titulo, flashcards: String(b._count.flashcards), dataCriacao: b.dataCriacao.toISOString() }
-        : null;
-    }
-    default:
-      return null;
-  }
+  const store = await getGraphStore();
+  return store.getNodeDetails(userId, tipoNode as any, referenciaId);
 }
 
 export async function updateGraphNode(
@@ -509,27 +388,16 @@ export async function updateGraphNode(
   const userId = await requireUserId();
   // defense-in-depth: limita o tamanho dos campos
   assertFieldLimits(data as Record<string, unknown>);
-  // updateMany com usuarioId garante que só o dono altera
-  const where = { id: referenciaId, usuarioId: userId };
 
-  let count = 0;
+  // validação por tipo; a persistência fica no store ativo (banco ou vault)
   switch (tipoNode) {
     case "ASSUNTO":
-      count = (await prisma.assunto.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count;
-      break;
     case "TOPICO":
-      count = (await prisma.topico.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count;
-      break;
     case "CONCEITO":
-      count = (await prisma.conceito.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count;
-      break;
     case "FLASHCARD":
-      count = (await prisma.flashcard.updateMany({ where, data: { pergunta: data.pergunta, resposta: data.resposta } })).count;
       break;
-    case "NOTA": {
-      if (data.titulo !== undefined && !data.titulo.trim()) {
-        throw new Error("O título da nota é obrigatório");
-      }
+    case "NOTA":
+      if (data.titulo !== undefined && !data.titulo.trim()) throw new Error("O título da nota é obrigatório");
       if (data.tipoNota && !["LITERATURA", "PERMANENTE", "ESTRUTURA"].includes(data.tipoNota)) {
         throw new Error(`Tipo de nota inválido: ${data.tipoNota}`);
       }
@@ -539,38 +407,16 @@ export async function updateGraphNode(
       if (data.subtipo && !NOTA_SUBTIPOS.includes(data.subtipo as any)) {
         throw new Error(`Subtipo de nota inválido: ${data.subtipo}`);
       }
-      count = (await prisma.nota.updateMany({
-        where,
-        data: {
-          titulo: data.titulo?.trim(),
-          conteudo: data.conteudo,
-          tipoNota: data.tipoNota,
-          subtipo: data.subtipo,
-          fonte: data.fonte === undefined ? undefined : data.fonte?.trim() || null,
-        },
-      })).count;
       break;
-    }
-    case "TEXTO_BRUTO": {
-      if (data.texto !== undefined && !data.texto.trim()) {
-        throw new Error("O texto original é obrigatório");
-      }
-      count = (await prisma.textoBruto.updateMany({
-        where,
-        data: {
-          titulo: data.titulo?.trim(),
-          texto: data.texto?.trim(),
-        },
-      })).count;
+    case "TEXTO_BRUTO":
+      if (data.texto !== undefined && !data.texto.trim()) throw new Error("O texto original é obrigatório");
       break;
-    }
     default:
       throw new Error(`Tipo de nó desconhecido: ${tipoNode}`);
   }
 
-  if (count === 0) {
-    throw new Error("Nó não encontrado ou não pertence ao usuário");
-  }
+  const store = await getGraphStore();
+  await store.updateNode(userId, tipoNode as any, referenciaId, data, grafoId);
 
   if (grafoId) revalidatePath(`/graph/${grafoId}`);
   return { success: true };

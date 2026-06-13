@@ -9,7 +9,7 @@ import {
   type TipoRelacao,
 } from "@/modules/graph/domain/services/knowledge-graph-builder";
 import { getAllowedRelations, isRelationAllowed } from "@/modules/graph/domain/services/relation-rules";
-import type { CreateEdgeInput, CreateNodeInput, EdgeView, GraphStore } from "./graph-store";
+import type { CreateEdgeInput, CreateNodeInput, EdgeView, GraphStore, UpdateNodeInput } from "./graph-store";
 import {
   PARA_FOLDERS,
   nodeRelPath,
@@ -249,5 +249,115 @@ export class MarkdownGraphStore implements GraphStore {
     if (!src) return;
     src.node.relacoes = src.node.relacoes.filter((r) => !(r.alvo === target && r.rel === rel));
     await fs.writeFile(src.full, serializeNode(src.node), "utf8");
+  }
+
+  // lista os arquivos de nós com caminho (para varreduras)
+  private async listNodeFiles(): Promise<{ node: VaultNode; full: string }[]> {
+    const out: { node: VaultNode; full: string }[] = [];
+    for (const folder of PARA_FOLDERS) {
+      const dir = path.join(this.vaultPath, folder);
+      let entries: string[] = [];
+      try {
+        entries = await fs.readdir(dir);
+      } catch {
+        continue;
+      }
+      for (const file of entries) {
+        if (!file.endsWith(".md")) continue;
+        const full = path.join(dir, file);
+        try {
+          const node = parseNode(await fs.readFile(full, "utf8"));
+          if (node) out.push({ node, full });
+        } catch {
+          // ignora
+        }
+      }
+    }
+    return out;
+  }
+
+  async deleteNode(userId: string, refId: string, grafoId?: string): Promise<{ deletedType: string }> {
+    void grafoId;
+    const target = await this.readNodeWithPath(refId);
+    if (!target) throw new Error("Node não encontrado no grafo");
+    const tipo = target.node.tipo;
+
+    // apaga o arquivo do nó
+    await fs.rm(target.full, { force: true });
+
+    // remove relações de ENTRADA (arestas que apontam para ele) em outros nós
+    for (const { node, full } of await this.listNodeFiles()) {
+      if (node.id === refId) continue;
+      const before = node.relacoes.length;
+      node.relacoes = node.relacoes.filter((r) => r.alvo !== refId);
+      if (node.relacoes.length !== before) {
+        await fs.writeFile(full, serializeNode(node), "utf8");
+      }
+    }
+
+    // SRS continua no banco (híbrido): limpa o do flashcard removido
+    if (tipo === "FLASHCARD") {
+      await prisma.revisaoFlashcard.deleteMany({ where: { flashcardId: refId } });
+      await prisma.aprendizadoFlashcard.deleteMany({ where: { flashcardId: refId, usuarioId: userId } });
+    }
+
+    return { deletedType: tipo };
+  }
+
+  async updateNode(
+    userId: string,
+    tipoNode: TipoNode,
+    refId: string,
+    data: UpdateNodeInput,
+  ): Promise<void> {
+    void userId;
+    void tipoNode;
+    const target = await this.readNodeWithPath(refId);
+    if (!target) throw new Error("Nó não encontrado ou não pertence ao usuário");
+    const n = target.node;
+    if (data.nome !== undefined) n.nome = data.nome;
+    if (data.descricao !== undefined) n.descricao = data.descricao;
+    if (data.pergunta !== undefined) n.pergunta = data.pergunta;
+    if (data.resposta !== undefined) n.resposta = data.resposta;
+    if (data.titulo !== undefined) n.titulo = data.titulo.trim();
+    if (data.conteudo !== undefined) n.conteudo = data.conteudo;
+    if (data.tipoNota !== undefined) n.tipoNota = data.tipoNota;
+    if (data.subtipo !== undefined) n.subtipo = data.subtipo;
+    if (data.fonte !== undefined) n.fonte = data.fonte?.trim() || null;
+    if (data.texto !== undefined) n.texto = data.texto.trim();
+    await fs.writeFile(target.full, serializeNode(n), "utf8");
+  }
+
+  async getNodeDetails(
+    userId: string,
+    tipoNode: TipoNode,
+    refId: string,
+  ): Promise<Record<string, string | null> | null> {
+    void userId;
+    const target = await this.readNodeWithPath(refId);
+    if (!target) return null;
+    const n = target.node;
+    switch (tipoNode) {
+      case "ASSUNTO":
+      case "TOPICO":
+      case "CONCEITO":
+        return { nome: n.nome ?? "", descricao: n.descricao ?? null };
+      case "FLASHCARD":
+        return { pergunta: n.pergunta ?? "", resposta: n.resposta ?? "" };
+      case "NOTA":
+        return {
+          titulo: n.titulo ?? "",
+          conteudo: n.conteudo ?? "",
+          tipoNota: n.tipoNota ?? null,
+          subtipo: n.subtipo ?? null,
+          fonte: n.fonte ?? null,
+        };
+      case "TEXTO_BRUTO":
+        return { titulo: n.titulo ?? "", texto: n.texto ?? "" };
+      case "BARALHO":
+        return { titulo: n.titulo ?? "" };
+      default:
+        return null;
+    }
   }
 }
