@@ -72,6 +72,11 @@ export class GraphController {
     return this.graph.listFlashcardsForDeck(userId);
   }
 
+  @Get('baralho/:baralhoId/study')
+  deckForStudy(@CurrentUser() userId: string, @Param('baralhoId') baralhoId: string) {
+    return this.graph.getDeckForStudy(userId, baralhoId);
+  }
+
   // ---- Nós ----
   @Post('graphs/:grafoId/nodes')
   createNode(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: CreateNodeInput) {

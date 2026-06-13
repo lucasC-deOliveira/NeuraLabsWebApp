@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, EyeIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
 import { toast } from "sonner";
-import { startDeckStudy, submitCardReview, finalizeStudySession } from "@/actions/study";
+import { startDeckStudy, submitCardReview, finalizeStudySession } from "@/lib/study-api";
 import type { FlashcardData } from "@/types";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
 

@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, EyeIcon, CheckCircle2Icon, XCircleIcon, ClockIcon } from "lucide-react";
 import { toast } from "sonner";
-import { startSingleCardStudy, submitCardReview, finalizeStudySession } from "@/actions/study";
+import { startSingleCardStudy, submitCardReview, finalizeStudySession } from "@/lib/study-api";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
 
 interface StudyFlashcardModalProps {

@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { StudyService } from './study.service';
@@ -24,5 +24,25 @@ export class StudyController {
     @Body() body: { flashcardId: string; respostaUsuario: string; acertou: boolean; nivelConfianca: number; tipoErro?: string; tempoResposta?: number; sessaoId?: string },
   ) {
     return this.study.submitReview(userId, body);
+  }
+
+  @Post('deck/:baralhoId')
+  startDeck(@CurrentUser() userId: string, @Param('baralhoId') baralhoId: string) {
+    return this.study.startDeckStudy(userId, baralhoId);
+  }
+
+  @Get('flashcard/:flashcardId')
+  flashcardForStudy(@CurrentUser() userId: string, @Param('flashcardId') flashcardId: string) {
+    return this.study.getFlashcardForStudy(userId, flashcardId);
+  }
+
+  @Post('flashcard/:flashcardId/start')
+  startSingleCard(@CurrentUser() userId: string, @Param('flashcardId') flashcardId: string) {
+    return this.study.startSingleCardStudy(userId, flashcardId);
+  }
+
+  @Post('session/:id/finalize')
+  finalize(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.study.finalizeSession(userId, id);
   }
 }

@@ -308,6 +308,19 @@ export class GraphService {
     return fcs.map((f) => ({ id: f.id, pergunta: f.pergunta, conceito: f.conceito?.nome ?? null }));
   }
 
+  // baralho para visualização (ViewDeckModal): todos os cards do deck
+  async getDeckForStudy(userId: string, baralhoId: string) {
+    const baralho = await this.prisma.baralho.findFirst({
+      where: { id: baralhoId, usuarioId: userId },
+      include: { flashcards: { include: { conceito: { select: { nome: true } } }, orderBy: { dataCriacao: 'asc' } } },
+    });
+    if (!baralho) return null;
+    return {
+      titulo: baralho.titulo,
+      cards: baralho.flashcards.map((fc) => ({ id: fc.id, pergunta: fc.pergunta, resposta: fc.resposta, conceito: fc.conceito?.nome ?? null })),
+    };
+  }
+
   // ---- Baralho ----
   async createBaralho(userId: string, grafoId: string, titulo: string, flashcardIds: string[]) {
     const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });

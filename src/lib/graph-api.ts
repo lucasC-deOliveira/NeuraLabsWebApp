@@ -186,3 +186,11 @@ export function importGraph(grafoId: string, payload: ImportGraphPayload): Promi
 export async function saveGraphPositions(grafoId: string, positions: Record<string, { x: number; y: number }>): Promise<void> {
   await apiFetch(`/graph/graphs/${grafoId}/positions`, { method: "POST", body: JSON.stringify({ positions }) });
 }
+
+// ---- Baralho (visualização) ----
+export function getDeckForStudy(baralhoId: string): Promise<{
+  titulo: string;
+  cards: { id: string; pergunta: string; resposta: string; conceito: string | null }[];
+} | null> {
+  return apiFetch(`/graph/baralho/${baralhoId}/study`);
+}

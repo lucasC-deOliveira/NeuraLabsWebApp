@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2Icon, ChevronRightIcon } from "lucide-react";
-import { getDeckForStudy } from "@/actions/graph";
+import { getDeckForStudy } from "@/lib/graph-api";
 import { MarkdownContent } from "@/components/markdown-content";
 
 interface ViewDeckModalProps {
