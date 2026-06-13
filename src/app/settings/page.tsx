@@ -1,17 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon, DatabaseIcon, FolderTreeIcon } from "lucide-react";
+import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getConfigAI, saveConfigAI } from "@/lib/settings-api";
-import { getStorageConfig, setStorageConfig, exportToVault, importFromVault, browseDirectory, isDesktopRuntime, type StorageMode, type DirListing } from "@/actions/storage-config";
-import { getOAuthConfig, setOAuthConfig, type OAuthConfigStatus } from "@/actions/oauth-config";
 import { useColorTheme, type ColorTheme } from "@/components/color-theme-provider";
 import { useCardStyle } from "@/components/flashcard/CardStyleProvider";
 import { CARD_STYLES, CARD_CSS_CLASSES } from "@/components/flashcard/card-styles";
@@ -84,7 +81,6 @@ function ThemeCard({ theme, active, onSelect }: { theme: ThemeOption; active: bo
 }
 
 export default function SettingsPage() {
-  const router = useRouter();
   const { colorTheme, setColorTheme, neonEnabled, setNeonEnabled } = useColorTheme();
   const { styleId, setStyleId, customCss, setCustomCss } = useCardStyle();
   const [loading, setLoading] = useState(true);
@@ -94,25 +90,6 @@ export default function SettingsPage() {
   const [modelo, setModelo] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
-  // Armazenamento do grafo (banco x sistema de arquivos Markdown PARA)
-  const [storageMode, setStorageMode] = useState<StorageMode>("DATABASE");
-  const [vaultPath, setVaultPath] = useState("");
-  const [isDesktop, setIsDesktop] = useState(false);
-  const [savingStorage, setSavingStorage] = useState(false);
-  const [storageSaved, setStorageSaved] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
-  // navegador de pastas (picker do vault)
-  const [browsing, setBrowsing] = useState(false);
-  const [browseListing, setBrowseListing] = useState<DirListing | null>(null);
-  const [browseLoading, setBrowseLoading] = useState(false);
-  // login social (OAuth) — desktop
-  const [oauthStatus, setOauthStatus] = useState<OAuthConfigStatus | null>(null);
-  const [googleId, setGoogleId] = useState("");
-  const [googleSecret, setGoogleSecret] = useState("");
-  const [githubId, setGithubId] = useState("");
-  const [githubSecret, setGithubSecret] = useState("");
-  const [savingOauth, setSavingOauth] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,13 +104,6 @@ export default function SettingsPage() {
         setBaseUrl("https://openrouter.ai/api/v1");
         setModelo("qwen/qwen3.6-plus:free");
       }
-      const desktop = await isDesktopRuntime();
-      setIsDesktop(desktop);
-      const storage = await getStorageConfig();
-      // fora do desktop o modo arquivos não é permitido — mostra como banco
-      setStorageMode(desktop ? storage.storageMode : "DATABASE");
-      setVaultPath(storage.vaultPath ?? "");
-      if (desktop) setOauthStatus(await getOAuthConfig().catch(() => null));
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar configuracoes.");
@@ -163,87 +133,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveStorage = async () => {
-    setSavingStorage(true);
-    try {
-      await setStorageConfig({
-        storageMode,
-        vaultPath: storageMode === "MARKDOWN" ? vaultPath.trim() : null,
-      });
-      setStorageSaved(true);
-      toast.success("Armazenamento salvo!");
-      setTimeout(() => setStorageSaved(false), 2000);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao salvar armazenamento.");
-    } finally {
-      setSavingStorage(false);
-    }
-  };
-
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const r = await exportToVault();
-      toast.success(`${r.nodes} nó(s) exportado(s) para ${r.vaultPath}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao exportar.");
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const loadBrowse = async (dir?: string) => {
-    setBrowseLoading(true);
-    try {
-      setBrowseListing(await browseDirectory(dir));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao abrir a pasta.");
-    } finally {
-      setBrowseLoading(false);
-    }
-  };
-
-  const openBrowser = async () => {
-    setBrowsing(true);
-    await loadBrowse(vaultPath.trim() || undefined);
-  };
-
-  const useCurrentFolder = () => {
-    if (browseListing) setVaultPath(browseListing.path);
-    setBrowsing(false);
-  };
-
-  const handleSaveOAuth = async () => {
-    setSavingOauth(true);
-    try {
-      await setOAuthConfig({
-        googleClientId: googleId.trim() || undefined,
-        googleClientSecret: googleSecret.trim() || undefined,
-        githubClientId: githubId.trim() || undefined,
-        githubClientSecret: githubSecret.trim() || undefined,
-      });
-      setGoogleSecret("");
-      setGithubSecret("");
-      setOauthStatus(await getOAuthConfig().catch(() => null));
-      toast.success("Credenciais de login social salvas!");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
-    } finally {
-      setSavingOauth(false);
-    }
-  };
-
-  const handleImport = async () => {
-    setImporting(true);
-    try {
-      const r = await importFromVault();
-      toast.success(`${r.nodes} nó(s) e ${r.edges} relação(ões) importados para o banco`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao importar.");
-    } finally {
-      setImporting(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -505,235 +394,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Armazenamento do grafo */}
-      <Card>
-        <CardHeader className="px-3 sm:px-6">
-          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-            <FolderTreeIcon className="size-5" />
-            Armazenamento do grafo
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
-            Onde os dados do grafo ficam guardados. Vale para todos os grafos (global).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 px-3 sm:px-6">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setStorageMode("DATABASE")}
-              className={`flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-colors ${
-                storageMode === "DATABASE" ? "border-primary bg-primary/[0.04]" : "border-border hover:bg-accent/40"
-              }`}
-            >
-              <DatabaseIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-              <div>
-                <div className="text-sm font-medium">Banco de dados</div>
-                <div className="text-[11px] text-muted-foreground">Padrão. Guarda no banco do sistema.</div>
-              </div>
-            </button>
-            {isDesktop && (
-              <button
-                type="button"
-                onClick={() => setStorageMode("MARKDOWN")}
-                className={`flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-colors ${
-                  storageMode === "MARKDOWN" ? "border-primary bg-primary/[0.04]" : "border-border hover:bg-accent/40"
-                }`}
-              >
-                <FolderTreeIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-                <div>
-                  <div className="text-sm font-medium">Sistema de arquivos (Markdown)</div>
-                  <div className="text-[11px] text-muted-foreground">Arquivos .md no formato PARA, na sua máquina.</div>
-                </div>
-              </button>
-            )}
-          </div>
-
-          {!isDesktop && (
-            <p className="text-[11px] text-muted-foreground">
-              O armazenamento em arquivos (Markdown/PARA) está disponível apenas no app desktop —
-              na web, o &quot;sistema de arquivos&quot; seria o do servidor, não o seu.
-            </p>
-          )}
-
-          {isDesktop && storageMode === "MARKDOWN" && (
-            <div className="space-y-2">
-              <Label htmlFor="vaultPath">Pasta do vault</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="vaultPath"
-                  placeholder="/home/voce/Documentos/MeuVault"
-                  value={vaultPath}
-                  onChange={(e) => setVaultPath(e.target.value)}
-                  className="flex-1"
-                />
-                <Button type="button" variant="outline" onClick={openBrowser} className="shrink-0 gap-1.5">
-                  <FolderTreeIcon className="size-4" />
-                  Procurar
-                </Button>
-              </div>
-
-              {browsing && (
-                <div className="rounded-md border border-zinc-200 dark:border-zinc-800 p-2 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-xs font-mono text-muted-foreground" title={browseListing?.path}>
-                      {browseListing?.path ?? "..."}
-                    </span>
-                    <button type="button" onClick={() => setBrowsing(false)} className="text-xs text-muted-foreground hover:text-foreground shrink-0">
-                      Fechar
-                    </button>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto rounded border border-zinc-100 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {browseLoading ? (
-                      <div className="flex items-center gap-2 px-2 py-3 text-xs text-muted-foreground">
-                        <Loader2Icon className="size-3.5 animate-spin" /> Carregando...
-                      </div>
-                    ) : (
-                      <>
-                        {browseListing?.parent && (
-                          <button
-                            type="button"
-                            onClick={() => loadBrowse(browseListing.parent!)}
-                            className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent/40 flex items-center gap-2"
-                          >
-                            <FolderTreeIcon className="size-3.5 text-muted-foreground" /> .. (subir)
-                          </button>
-                        )}
-                        {browseListing && browseListing.dirs.length === 0 && (
-                          <div className="px-2 py-3 text-xs text-muted-foreground">Sem subpastas aqui.</div>
-                        )}
-                        {browseListing?.dirs.map((d) => (
-                          <button
-                            key={d.path}
-                            type="button"
-                            onClick={() => loadBrowse(d.path)}
-                            className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent/40 flex items-center gap-2 truncate"
-                            title={d.name}
-                          >
-                            <FolderTreeIcon className="size-3.5 text-muted-foreground shrink-0" />
-                            <span className="truncate">{d.name}</span>
-                          </button>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                  <Button type="button" size="sm" onClick={useCurrentFolder} disabled={!browseListing} className="w-full">
-                    Usar esta pasta
-                  </Button>
-                </div>
-              )}
-
-              <p className="text-[10px] text-muted-foreground">
-                Caminho absoluto. As pastas Projects/Areas/Resources/Archives são criadas dentro dela.
-                Use &quot;Procurar&quot; para escolher uma pasta existente (e edite o caminho para criar uma subpasta nova).
-              </p>
-              <div className="rounded-md border border-amber-300/50 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-400">
-                Neste modo, nós/arestas/posições do grafo são lidos e gravados nos arquivos.
-                Ainda no banco: lista de grafos, zoom/pan e o estudo (SRS). Baralhos,
-                importação por JSON e &quot;adicionar existente&quot; ainda não funcionam no modo arquivos.
-                Dica: clique em &quot;Exportar&quot; para popular a pasta a partir do banco antes de alternar.
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleExport}
-                disabled={exporting || !vaultPath.trim()}
-                className="w-full"
-              >
-                {exporting ? (
-                  <>
-                    <Loader2Icon className="size-4 mr-1 animate-spin" />
-                    Exportando...
-                  </>
-                ) : (
-                  "Exportar grafo atual para a pasta"
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleImport}
-                disabled={importing || !vaultPath.trim()}
-                className="w-full"
-              >
-                {importing ? (
-                  <>
-                    <Loader2Icon className="size-4 mr-1 animate-spin" />
-                    Importando...
-                  </>
-                ) : (
-                  "Importar a pasta para o banco"
-                )}
-              </Button>
-              <p className="text-[10px] text-muted-foreground">
-                Exportar = banco → pasta. Importar = pasta → banco (preserva ids; útil ao voltar para o banco). Salve a pasta antes.
-              </p>
-            </div>
-          )}
-
-          <Button onClick={handleSaveStorage} disabled={savingStorage} size="lg" className="w-full">
-            {storageSaved ? (
-              <>
-                <CheckCircle2Icon className="size-4 mr-1 text-green-400" />
-                Salvo!
-              </>
-            ) : savingStorage ? (
-              <>
-                <Loader2Icon className="size-4 mr-1 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              "Salvar armazenamento"
-            )}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Login social (OAuth) — só no desktop */}
-      {isDesktop && (
-        <Card>
-          <CardHeader className="px-3 sm:px-6">
-            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-              <SettingsIcon className="size-5" />
-              Login social (Google / GitHub)
-            </CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Cole as credenciais dos seus OAuth clients. No console do provedor, registre o
-              redirect abaixo.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 px-3 sm:px-6">
-            <div className="rounded-md border bg-background p-2">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Redirect URI (registre nos dois)</div>
-              <code className="text-xs break-all">{oauthStatus?.redirectUri ?? "http://127.0.0.1:8765/callback"}</code>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                Google {oauthStatus?.google && <span className="text-[10px] text-emerald-500">✓ configurado</span>}
-              </Label>
-              <Input placeholder="Google Client ID" value={googleId} onChange={(e) => setGoogleId(e.target.value)} />
-              <Input type="password" placeholder="Google Client Secret (deixe em branco p/ manter)" value={googleSecret} onChange={(e) => setGoogleSecret(e.target.value)} />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                GitHub {oauthStatus?.github && <span className="text-[10px] text-emerald-500">✓ configurado</span>}
-              </Label>
-              <Input placeholder="GitHub Client ID" value={githubId} onChange={(e) => setGithubId(e.target.value)} />
-              <Input type="password" placeholder="GitHub Client Secret (deixe em branco p/ manter)" value={githubSecret} onChange={(e) => setGithubSecret(e.target.value)} />
-            </div>
-
-            <p className="text-[10px] text-muted-foreground">
-              No Google, crie um OAuth client tipo &quot;App para computador/Desktop&quot;. No GitHub, uma OAuth App
-              com o callback acima. Os segredos ficam só no banco local.
-            </p>
-
-            <Button onClick={handleSaveOAuth} disabled={savingOauth} size="lg" className="w-full">
-              {savingOauth ? <><Loader2Icon className="size-4 mr-1 animate-spin" /> Salvando...</> : "Salvar login social"}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
