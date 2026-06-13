@@ -1,0 +1,38 @@
+# Sobe Postgres + a API NestJS. Frontend (Next) roda à parte e aponta para a API.
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: neuralabs
+      POSTGRES_PASSWORD: neuralabs
+      POSTGRES_DB: neuralabs
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neuralabs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://neuralabs:neuralabs@postgres:5432/neuralabs?schema=public"
+      JWT_SECRET: "${JWT_SECRET:-troque-este-segredo}"
+      PORT: "3001"
+      FRONTEND_ORIGIN: "${FRONTEND_ORIGIN:-http://localhost:3000}"
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # vault Markdown (PARA) acessível pela API — mantém a funcionalidade
+      - ./vault:/data/vault
+
+volumes:
+  pgdata:
