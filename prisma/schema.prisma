@@ -340,3 +340,18 @@ model ConfigAI {
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 }
+
+// ==========================================
+// CONFIG GLOBAL DO APP (singleton)
+// Onde os dados do grafo são guardados: banco (DATABASE) ou sistema de
+// arquivos em Markdown no formato PARA (MARKDOWN, com vaultPath apontando
+// para a pasta no disco).
+// ==========================================
+model AppConfig {
+  id           String   @id @default("singleton")
+  storageMode  String   @default("DATABASE") @map("storage_mode")
+  vaultPath    String?  @map("vault_path")
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  @@map("app_config")
+}

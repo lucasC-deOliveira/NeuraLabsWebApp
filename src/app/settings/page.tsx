@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon } from "lucide-react";
+import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon, DatabaseIcon, FolderTreeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getConfigAI, saveConfigAI } from "@/actions/settings";
+import { getStorageConfig, setStorageConfig, type StorageMode } from "@/actions/storage-config";
 import { useColorTheme, type ColorTheme } from "@/components/color-theme-provider";
 import { useCardStyle } from "@/components/flashcard/CardStyleProvider";
 import { CARD_STYLES, CARD_CSS_CLASSES } from "@/components/flashcard/card-styles";
@@ -92,6 +93,11 @@ export default function SettingsPage() {
   const [modelo, setModelo] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Armazenamento do grafo (banco x sistema de arquivos Markdown PARA)
+  const [storageMode, setStorageMode] = useState<StorageMode>("DATABASE");
+  const [vaultPath, setVaultPath] = useState("");
+  const [savingStorage, setSavingStorage] = useState(false);
+  const [storageSaved, setStorageSaved] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +112,9 @@ export default function SettingsPage() {
         setBaseUrl("https://openrouter.ai/api/v1");
         setModelo("qwen/qwen3.6-plus:free");
       }
+      const storage = await getStorageConfig();
+      setStorageMode(storage.storageMode);
+      setVaultPath(storage.vaultPath ?? "");
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar configuracoes.");
@@ -132,6 +141,23 @@ export default function SettingsPage() {
       console.error(err);
       toast.error("Erro ao salvar configuracoes.");
       setSaving(false);
+    }
+  };
+
+  const handleSaveStorage = async () => {
+    setSavingStorage(true);
+    try {
+      await setStorageConfig({
+        storageMode,
+        vaultPath: storageMode === "MARKDOWN" ? vaultPath.trim() : null,
+      });
+      setStorageSaved(true);
+      toast.success("Armazenamento salvo!");
+      setTimeout(() => setStorageSaved(false), 2000);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar armazenamento.");
+    } finally {
+      setSavingStorage(false);
     }
   };
 
@@ -390,6 +416,83 @@ export default function SettingsPage() {
               </>
             ) : (
               "Salvar configuracoes"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Armazenamento do grafo */}
+      <Card>
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <FolderTreeIcon className="size-5" />
+            Armazenamento do grafo
+          </CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Onde os dados do grafo ficam guardados. Vale para todos os grafos (global).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 px-3 sm:px-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setStorageMode("DATABASE")}
+              className={`flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-colors ${
+                storageMode === "DATABASE" ? "border-primary bg-primary/[0.04]" : "border-border hover:bg-accent/40"
+              }`}
+            >
+              <DatabaseIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+              <div>
+                <div className="text-sm font-medium">Banco de dados</div>
+                <div className="text-[11px] text-muted-foreground">Padrão. Guarda no banco do sistema.</div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStorageMode("MARKDOWN")}
+              className={`flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-colors ${
+                storageMode === "MARKDOWN" ? "border-primary bg-primary/[0.04]" : "border-border hover:bg-accent/40"
+              }`}
+            >
+              <FolderTreeIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+              <div>
+                <div className="text-sm font-medium">Sistema de arquivos (Markdown)</div>
+                <div className="text-[11px] text-muted-foreground">Arquivos .md no formato PARA, na sua máquina.</div>
+              </div>
+            </button>
+          </div>
+
+          {storageMode === "MARKDOWN" && (
+            <div className="space-y-2">
+              <Label htmlFor="vaultPath">Pasta do vault</Label>
+              <Input
+                id="vaultPath"
+                placeholder="/home/voce/Documentos/MeuVault"
+                value={vaultPath}
+                onChange={(e) => setVaultPath(e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Caminho absoluto. As pastas Projects/Areas/Resources/Archives são criadas dentro dela.
+              </p>
+              <div className="rounded-md border border-amber-300/50 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-400">
+                Em implementação: a opção já fica salva, mas por enquanto o grafo continua sendo lido/gravado no banco. O backend de arquivos chega nas próximas fases.
+              </div>
+            </div>
+          )}
+
+          <Button onClick={handleSaveStorage} disabled={savingStorage} size="lg" className="w-full">
+            {storageSaved ? (
+              <>
+                <CheckCircle2Icon className="size-4 mr-1 text-green-400" />
+                Salvo!
+              </>
+            ) : savingStorage ? (
+              <>
+                <Loader2Icon className="size-4 mr-1 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              "Salvar armazenamento"
             )}
           </Button>
         </CardContent>

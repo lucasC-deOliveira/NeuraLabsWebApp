@@ -5,6 +5,7 @@ import { requireUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildKnowledgeGraph, getCriticalNodes as libGetCriticalNodes, type GraphNode, type GraphEdge, type TipoRelacao } from "@/lib/graph";
 import { getAllowedRelations, isRelationAllowed } from "@/modules/graph/domain/services/relation-rules";
+import { getGraphStore } from "@/modules/graph/infra/store";
 
 export interface GraphNodeType {
   id: string;
@@ -150,7 +151,8 @@ export async function getGraphNodes(grafoId?: string): Promise<{
   edges: GraphEdgeType[];
 }> {
   const userId = await requireUserId();
-  const result = await buildKnowledgeGraph(userId, grafoId);
+  const store = await getGraphStore();
+  const result = await store.loadGraph(userId, grafoId);
 
   // If grafoId is provided, load saved positions
   const savedPositions: Record<string, { x: number; y: number }> = {};
