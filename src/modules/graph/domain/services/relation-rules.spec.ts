@@ -40,8 +40,10 @@ describe("relation-rules", () => {
       expect(getAllowedRelations("TOPICO", "ASSUNTO")).toEqual(["PERTENCE_A", "APLICADO_EM"]);
     });
 
-    it("Flashcard ↔ Conceito permite apenas HERDA", () => {
-      expect(getAllowedRelations("FLASHCARD", "CONCEITO")).toEqual(["HERDA"]);
+    it("Flashcard ↔ Conceito permite HERDA (herança via nota) e as relações de Nota↔Conceito", () => {
+      expect(getAllowedRelations("FLASHCARD", "CONCEITO")).toEqual([
+        "HERDA", "DEFINE", "EXPLICA", "APROFUNDA", "EXEMPLIFICA", "CONTRASTA", "SINTETIZA", "ALERTA_ERRO",
+      ]);
     });
 
     it("é indiferente à ordem dos tipos", () => {
@@ -135,9 +137,14 @@ describe("relation-rules", () => {
       expect(tipos).not.toContain("ASSUNTO");
     });
 
-    it("FLASHCARD só pode criar CONCEITO (HERDA)", () => {
+    it("FLASHCARD só pode criar CONCEITO (HERDA + relações de Nota↔Conceito)", () => {
       const targets = getInsightTargets("FLASHCARD");
-      expect(targets).toEqual([{ tipo: "CONCEITO", relacoes: ["HERDA"] }]);
+      expect(targets).toEqual([
+        {
+          tipo: "CONCEITO",
+          relacoes: ["HERDA", "DEFINE", "EXPLICA", "APROFUNDA", "EXEMPLIFICA", "CONTRASTA", "SINTETIZA", "ALERTA_ERRO"],
+        },
+      ]);
     });
 
     it("ASSUNTO só pode criar TOPICO", () => {

@@ -364,7 +364,7 @@ export function EdgeManagerModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {mode === "list" && "Gerenciar relações do grafo"}
@@ -467,7 +467,7 @@ export function EdgeManagerModal({
                     <SelectContent>
                       {nodes.map((node) => (
                         <SelectItem key={node.id} value={node.id}>
-                          <div className="flex items-center gap-2 py-1">
+                          <div className="flex items-center gap-2 py-1 min-w-0">
                             <span className="text-xs text-zinc-500 capitalize w-16 flex-shrink-0">{node.type.toLowerCase()}</span>
                             <span className="truncate">{node.label}</span>
                           </div>

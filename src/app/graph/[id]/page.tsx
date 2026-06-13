@@ -62,13 +62,17 @@ export default function GraphPage() {
     const assuntos: { id: string; nome: string }[] = [];
     const topicos: { id: string; nome: string }[] = [];
     const conceitos: { id: string; nome: string }[] = [];
+    const textosBrutos: { id: string; nome: string }[] = [];
+    const flashcards: { id: string; nome: string }[] = [];
     for (const n of controller.state.layout) {
       const item = { id: n.id, nome: n.label };
       if (n.group === "ASSUNTO") assuntos.push(item);
       else if (n.group === "TOPICO") topicos.push(item);
       else if (n.group === "CONCEITO") conceitos.push(item);
+      else if (n.group === "TEXTO_BRUTO") textosBrutos.push(item);
+      else if (n.group === "FLASHCARD") flashcards.push(item);
     }
-    return { assuntos, topicos, conceitos };
+    return { assuntos, topicos, conceitos, textosBrutos, flashcards };
   }, [controller.state.layout]);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);

@@ -4,6 +4,13 @@
 
 const pairKey = (a: string, b: string) => [a, b].sort().join("|");
 
+// Relações de uma Nota com um Conceito. Um flashcard "solto" (sem nota de
+// origem) pode descrever um conceito com as mesmas relações de uma nota;
+// quando o flashcard vem de uma nota, ele apenas HERDA as relações dela.
+const NOTA_CONCEITO_RELATIONS = [
+  "DEFINE", "EXPLICA", "APROFUNDA", "EXEMPLIFICA", "CONTRASTA", "SINTETIZA", "ALERTA_ERRO",
+];
+
 /** Pares de tipos e suas relações permitidas — também alimenta a legenda do grafo. */
 export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }> = [
   // Texto original (fonte) gera notas
@@ -15,7 +22,7 @@ export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }
   {
     a: "NOTA",
     b: "CONCEITO",
-    relations: ["DEFINE", "EXPLICA", "APROFUNDA", "EXEMPLIFICA", "CONTRASTA", "SINTETIZA", "ALERTA_ERRO"],
+    relations: NOTA_CONCEITO_RELATIONS,
   },
   {
     a: "CONCEITO",
@@ -30,9 +37,10 @@ export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }
   { a: "TOPICO", b: "ASSUNTO", relations: ["PERTENCE_A", "APLICADO_EM"] },
   { a: "NOTA", b: "TOPICO", relations: ["PERTENCE_A"] },
   { a: "NOTA", b: "ASSUNTO", relations: ["PERTENCE_A"] },
-  // Flashcard testa uma nota e herda os conceitos dela
+  // Flashcard testa uma nota e herda os conceitos dela (HERDA). Sem nota de
+  // origem, pode relacionar-se a um conceito como uma nota faria.
   { a: "FLASHCARD", b: "NOTA", relations: ["TESTA"] },
-  { a: "FLASHCARD", b: "CONCEITO", relations: ["HERDA"] },
+  { a: "FLASHCARD", b: "CONCEITO", relations: ["HERDA", ...NOTA_CONCEITO_RELATIONS] },
   // Baralho contém flashcards
   { a: "BARALHO", b: "FLASHCARD", relations: ["CONTEM"] },
 ];

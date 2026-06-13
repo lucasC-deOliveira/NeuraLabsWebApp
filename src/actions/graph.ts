@@ -1113,7 +1113,7 @@ const IMPORT_GRAPH_MAX = { nodes: 2000, edges: 5000 };
 export async function importGraph(
   grafoId: string,
   payload: ImportGraphPayload
-): Promise<{ nodes: number; edges: number }> {
+): Promise<{ nodes: number; edges: number; reused: number }> {
   const userId = await requireUserId();
 
   const grafo = await prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
@@ -1189,15 +1189,82 @@ export async function importGraph(
         }
       };
 
+      // Nós já presentes no grafo, indexados por "tipo::nome", para reuso: um nó
+      // que já existe não é recriado — as arestas apenas apontam para ele.
+      const existing = await tx.nodeConhecimento.findMany({
+        where: { grafoId, usuarioId: userId },
+        select: { id: true, tipoNode: true, referenciaId: true },
+      });
+      const refsByTipo = new Map<string, string[]>();
+      for (const e of existing) {
+        if (!refsByTipo.has(e.tipoNode)) refsByTipo.set(e.tipoNode, []);
+        refsByTipo.get(e.tipoNode)!.push(e.referenciaId);
+      }
+      const nameByRef = new Map<string, string>();
+      for (const [tipo, ids] of refsByTipo) {
+        if (ids.length === 0) continue;
+        let rows: Array<{ id: string; name: string | null }> = [];
+        switch (tipo) {
+          case "ASSUNTO":
+            rows = (await tx.assunto.findMany({ where: { id: { in: ids } }, select: { id: true, nome: true } })).map((r) => ({ id: r.id, name: r.nome }));
+            break;
+          case "TOPICO":
+            rows = (await tx.topico.findMany({ where: { id: { in: ids } }, select: { id: true, nome: true } })).map((r) => ({ id: r.id, name: r.nome }));
+            break;
+          case "CONCEITO":
+            rows = (await tx.conceito.findMany({ where: { id: { in: ids } }, select: { id: true, nome: true } })).map((r) => ({ id: r.id, name: r.nome }));
+            break;
+          case "FLASHCARD":
+            rows = (await tx.flashcard.findMany({ where: { id: { in: ids } }, select: { id: true, pergunta: true } })).map((r) => ({ id: r.id, name: r.pergunta }));
+            break;
+          case "NOTA":
+            rows = (await tx.nota.findMany({ where: { id: { in: ids } }, select: { id: true, titulo: true } })).map((r) => ({ id: r.id, name: r.titulo }));
+            break;
+          case "TEXTO_BRUTO":
+            rows = (await tx.textoBruto.findMany({ where: { id: { in: ids } }, select: { id: true, titulo: true } })).map((r) => ({ id: r.id, name: r.titulo }));
+            break;
+          case "BARALHO":
+            rows = (await tx.baralho.findMany({ where: { id: { in: ids } }, select: { id: true, titulo: true } })).map((r) => ({ id: r.id, name: r.titulo }));
+            break;
+        }
+        for (const r of rows) nameByRef.set(r.id, normImportName(r.name ?? ""));
+      }
+      const byName = new Map<string, { refId: string; nodeId: string }>();
+      for (const e of existing) {
+        const nm = nameByRef.get(e.referenciaId);
+        if (nm) byName.set(`${e.tipoNode}::${nm}`, { refId: e.referenciaId, nodeId: e.id });
+      }
+
+      let createdNodeCount = 0;
+      let reusedNodeCount = 0;
       for (const n of nodes) {
+        const key = `${n.tipo}::${normImportName(importNodeDisplayName(n))}`;
+        const reuse = byName.get(key);
+        if (reuse) {
+          // já existe no grafo: não recria, apenas aponta para o nó existente
+          created.set(n.ref.trim(), reuse);
+          reusedNodeCount++;
+          continue;
+        }
         const refId = await createEntity(n);
         const node = await tx.nodeConhecimento.create({
           data: { grafoId, tipoNode: n.tipo as any, referenciaId: refId, usuarioId: userId },
         });
-        created.set(n.ref.trim(), { refId, nodeId: node.id });
+        const entry = { refId, nodeId: node.id };
+        created.set(n.ref.trim(), entry);
+        // nomes únicos: refs seguintes com o mesmo tipo+nome reusam este nó
+        byName.set(key, entry);
+        createdNodeCount++;
       }
 
-      const edgeSeen = new Set<string>();
+      // arestas já existentes no grafo entram no "visto" para não duplicar
+      const existingEdges = await tx.conhecimentoAresta.findMany({
+        where: { grafoId },
+        select: { nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true },
+      });
+      const edgeSeen = new Set<string>(
+        existingEdges.map((e) => `${e.nodeOrigemId}->${e.nodeDestinoId}->${e.tipoRelacao}`)
+      );
       let edgeCount = 0;
       for (const e of edges) {
         const s = created.get(e.origem);
@@ -1216,7 +1283,7 @@ export async function importGraph(
         }
       }
 
-      return { nodes: nodes.length, edges: edgeCount };
+      return { nodes: createdNodeCount, edges: edgeCount, reused: reusedNodeCount };
     },
     { maxWait: 10_000, timeout: 120_000 }
   );
@@ -1259,6 +1326,30 @@ function deriveNotaTitulo(conteudo: string): string {
   const clean = line.replace(/^#{1,6}\s*/, "").replace(/[*_`]/g, "").trim();
   return clean ? clean.slice(0, 120) : "Sem título";
 }
+
+// Nome de exibição de um nó de importação — é por ele (tipo + nome) que se
+// identifica se a entidade já existe no grafo. Os nomes são tratados como únicos.
+function importNodeDisplayName(n: ImportGraphNode): string {
+  switch (n.tipo) {
+    case "ASSUNTO":
+    case "TOPICO":
+    case "CONCEITO":
+      return (n.nome ?? "").trim();
+    case "FLASHCARD":
+      return (n.pergunta ?? "").trim();
+    case "NOTA":
+      return (n.titulo?.trim() || deriveNotaTitulo(n.conteudo ?? "")).trim();
+    case "TEXTO_BRUTO":
+      return n.titulo?.trim() || "Texto sem título";
+    case "BARALHO":
+      return (n.titulo ?? n.nome ?? "").trim();
+    default:
+      return "";
+  }
+}
+
+// normaliza um nome para comparação (case-insensitive, sem espaços nas pontas)
+const normImportName = (s: string) => s.trim().toLowerCase();
 
 // ---------------------------------------------------------------------------
 // Importação em lote (texto bruto + notas + relações + flashcards)

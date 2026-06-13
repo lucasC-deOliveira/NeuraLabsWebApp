@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { PlusIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import { PlusIcon, Loader2Icon, SparklesIcon, XIcon, SearchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { suggestNotaRelations, type NotaRelationSuggestion } from "@/actions/ai-graph";
 import { createBaralhoNode } from "@/actions/graph";
@@ -35,9 +35,19 @@ import { useRouter } from "next/navigation";
 const TOPICO_ASSUNTO_RELATIONS = getAllowedRelations("TOPICO", "ASSUNTO");
 // relações possíveis entre um Conceito (origem) e um Tópico (destino)
 const CONCEITO_TOPICO_RELATIONS = getAllowedRelations("CONCEITO", "TOPICO");
+// relações possíveis entre um Flashcard (origem) e um Conceito (destino).
+// Na criação manual o flashcard não vem de uma nota, então não usa HERDA
+// (reservado à herança automática) — relaciona-se como uma nota faria.
+const FLASHCARD_CONCEITO_RELATIONS = getAllowedRelations("FLASHCARD", "CONCEITO").filter(
+  (r) => r !== "HERDA"
+);
+// relações possíveis entre uma Nota (origem) e um Conceito (destino)
+const NOTA_CONCEITO_RELATIONS = getAllowedRelations("NOTA", "CONCEITO");
 
 type TopicoAssuntoLink = { assuntoId: string; relacao: string; peso: number };
 type ConceitoTopicoLink = { topicoId: string; relacao: string; peso: number };
+type FlashcardConceitoLink = { conceitoId: string; relacao: string; peso: number };
+type NotaConceitoLink = { conceitoId: string; relacao: string; peso: number };
 
 interface CreateNodeModalProps {
   open: boolean;
@@ -47,6 +57,8 @@ interface CreateNodeModalProps {
     assuntos: { id: string; nome: string }[];
     topicos: { id: string; nome: string }[];
     conceitos: { id: string; nome: string }[];
+    textosBrutos: { id: string; nome: string }[];
+    flashcards: { id: string; nome: string }[];
   };
   onSuccess?: () => void;
 }
@@ -55,7 +67,7 @@ export function CreateNodeModal({
   open,
   onOpenChange,
   grafoId,
-  parentIds = { assuntos: [], topicos: [], conceitos: [] },
+  parentIds = { assuntos: [], topicos: [], conceitos: [], textosBrutos: [], flashcards: [] },
   onSuccess,
 }: CreateNodeModalProps) {
   const router = useRouter();
@@ -81,6 +93,12 @@ export function CreateNodeModal({
   const [topicoAssuntos, setTopicoAssuntos] = useState<TopicoAssuntoLink[]>([]);
   // conceito: conjunto de tópicos relacionados (relação + peso)
   const [conceitoTopicos, setConceitoTopicos] = useState<ConceitoTopicoLink[]>([]);
+  // flashcard: conjunto de conceitos relacionados (relação + peso)
+  const [flashcardConceitos, setFlashcardConceitos] = useState<FlashcardConceitoLink[]>([]);
+  // nota: conjunto de conceitos relacionados (relação + peso), além das sugestões da IA
+  const [notaConceitos, setNotaConceitos] = useState<NotaConceitoLink[]>([]);
+  // nota: texto bruto de origem (no máximo 1) — relação GERA, do texto para a nota
+  const [notaTextoBrutoId, setNotaTextoBrutoId] = useState<string>("");
 
   const [formData, setFormData] = useState<{
     nome: string;
@@ -122,17 +140,23 @@ export function CreateNodeModal({
     }
   }, [selectedType]);
 
-  // Carrega os flashcards do usuário ao escolher criar um BARALHO
+  // Carrega os flashcards ao escolher criar um BARALHO. Diferente das outras
+  // regras: o baralho só pode conter flashcards que JÁ estão no grafo.
   useEffect(() => {
     if (!open || selectedType !== "BARALHO") return;
     setDeckLoading(true);
+    const noGrafo = new Set(parentIds.flashcards.map((f) => f.id));
     getFlashcards()
       .then((fcs) =>
-        setDeckFlashcards(fcs.map((f) => ({ id: f.id, pergunta: f.pergunta, conceito: f.conceito })))
+        setDeckFlashcards(
+          fcs
+            .filter((f) => noGrafo.has(f.id))
+            .map((f) => ({ id: f.id, pergunta: f.pergunta, conceito: f.conceito }))
+        )
       )
       .catch(() => toast.error("Erro ao carregar flashcards"))
       .finally(() => setDeckLoading(false));
-  }, [open, selectedType]);
+  }, [open, selectedType, parentIds.flashcards]);
 
   const loadAvailableItems = async () => {
     try {
@@ -168,6 +192,9 @@ export function CreateNodeModal({
     setDeckSearch("");
     setTopicoAssuntos([]);
     setConceitoTopicos([]);
+    setFlashcardConceitos([]);
+    setNotaConceitos([]);
+    setNotaTextoBrutoId("");
     setFormData({
       nome: "",
       descricao: "",
@@ -330,7 +357,9 @@ export function CreateNodeModal({
 
         // arestas a criar após o nó: relações do tópico com assuntos (origem→destino
         // = tópico→assunto) ou relações de nota sugeridas pela IA e aceitas.
-        const edgesToCreate: Array<{ targetNodeId: string; tipoRelacao: string; peso: number }> = [];
+        // sourceNodeId opcional: por padrão a origem é o nó recém-criado, mas
+        // algumas relações têm o novo nó como destino (ex.: TEXTO_BRUTO→NOTA).
+        const edgesToCreate: Array<{ sourceNodeId?: string; targetNodeId: string; tipoRelacao: string; peso: number }> = [];
         if (selectedType === "TOPICO") {
           for (const link of topicoAssuntos) {
             if (!link.assuntoId) continue;
@@ -343,9 +372,24 @@ export function CreateNodeModal({
             const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
             edgesToCreate.push({ targetNodeId: link.topicoId, tipoRelacao: link.relacao, peso });
           }
+        } else if (selectedType === "FLASHCARD") {
+          for (const link of flashcardConceitos) {
+            if (!link.conceitoId) continue;
+            const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
+            edgesToCreate.push({ targetNodeId: link.conceitoId, tipoRelacao: link.relacao, peso });
+          }
         } else if (selectedType === "NOTA") {
+          for (const link of notaConceitos) {
+            if (!link.conceitoId) continue;
+            const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
+            edgesToCreate.push({ targetNodeId: link.conceitoId, tipoRelacao: link.relacao, peso });
+          }
           for (const sg of aiSuggestions.filter((s) => s.accepted)) {
             edgesToCreate.push({ targetNodeId: sg.nodeId, tipoRelacao: sg.relacao, peso: 1.0 });
+          }
+          // texto bruto de origem (no máximo 1): a aresta vai do texto para a nota
+          if (notaTextoBrutoId) {
+            edgesToCreate.push({ sourceNodeId: notaTextoBrutoId, targetNodeId: data.nodeId, tipoRelacao: "GERA", peso: 1.0 });
           }
         }
 
@@ -357,7 +401,7 @@ export function CreateNodeModal({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 grafoId,
-                sourceNodeId: data.nodeId,
+                sourceNodeId: e.sourceNodeId ?? data.nodeId,
                 targetNodeId: e.targetNodeId,
                 tipoRelacao: e.tipoRelacao,
                 peso: e.peso,
@@ -395,6 +439,10 @@ export function CreateNodeModal({
 
       setLoading(true);
       try {
+        // ids das entidades adicionadas — recebem as relações escolhidas
+        const addedFlashcardIds: string[] = [];
+        const addedNotaIds: string[] = [];
+
         // Add each selected item to the graph
         for (const itemId of itemsToAdd) {
           // Determine item type from availableItems
@@ -428,9 +476,65 @@ export function CreateNodeModal({
             const errorData = await response.json();
             throw new Error(errorData.error || `Erro ao adicionar item ${itemId}`);
           }
+
+          const resData = await response.json().catch(() => null);
+          if (flashcard) addedFlashcardIds.push(resData?.nodeId ?? itemId);
+          else if (nota) addedNotaIds.push(resData?.nodeId ?? itemId);
         }
 
-        toast.success(`${itemsToAdd.length} item(s) adicionado(s) ao grafo!`);
+        // cria uma aresta no grafo, tolerando falha individual
+        const postEdge = async (
+          sourceNodeId: string,
+          targetNodeId: string,
+          tipoRelacao: string,
+          peso: number
+        ): Promise<boolean> => {
+          try {
+            const edgeRes = await fetch("/api/graph/edge", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ grafoId, sourceNodeId, targetNodeId, tipoRelacao, peso }),
+            });
+            return edgeRes.ok;
+          } catch {
+            return false;
+          }
+        };
+
+        let createdEdges = 0;
+
+        // mesmas relações com conceitos do "Criar flashcard": aplica a cada
+        // flashcard existente adicionado (relação + peso, sem repetir conceito)
+        if (selectedType === "FLASHCARD" && flashcardConceitos.length > 0) {
+          for (const fcId of addedFlashcardIds) {
+            for (const link of flashcardConceitos) {
+              if (!link.conceitoId) continue;
+              const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
+              if (await postEdge(fcId, link.conceitoId, link.relacao, peso)) createdEdges++;
+            }
+          }
+        }
+
+        // mesmas relações do "Criar nota": conceitos (relação + peso) e o texto
+        // bruto de origem (no máximo 1, GERA do texto para a nota) — por nota
+        if (selectedType === "NOTA") {
+          for (const notaId of addedNotaIds) {
+            for (const link of notaConceitos) {
+              if (!link.conceitoId) continue;
+              const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
+              if (await postEdge(notaId, link.conceitoId, link.relacao, peso)) createdEdges++;
+            }
+            if (notaTextoBrutoId) {
+              if (await postEdge(notaTextoBrutoId, notaId, "GERA", 1.0)) createdEdges++;
+            }
+          }
+        }
+
+        toast.success(
+          createdEdges > 0
+            ? `${itemsToAdd.length} item(s) adicionado(s) com ${createdEdges} relação(ões)!`
+            : `${itemsToAdd.length} item(s) adicionado(s) ao grafo!`
+        );
         resetForm();
         setSelectedItems(new Set());
         setSearchQuery("");
@@ -451,6 +555,283 @@ export function CreateNodeModal({
     }
     onOpenChange(newOpen);
   };
+
+  // Flashcards disponíveis filtrados apenas pela busca (pergunta/conceito/hierarquia).
+  const filteredFlashcards = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return availableItems.flashcards;
+    return availableItems.flashcards.filter(
+      (f) =>
+        f.label.toLowerCase().includes(q) ||
+        f.fullText.toLowerCase().includes(q) ||
+        f.hierarquia.toLowerCase().includes(q)
+    );
+  }, [availableItems.flashcards, searchQuery]);
+
+  // Bloco de "Conceitos relacionados" do flashcard (relação + peso, sem repetir).
+  // Reutilizado tanto ao criar um flashcard quanto ao adicionar existentes.
+  const renderFlashcardConceitos = () => (
+    <div className="space-y-2">
+      <Label>Conceitos relacionados (opcional)</Label>
+      {parentIds.conceitos.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Nenhum conceito no grafo para relacionar.
+        </p>
+      ) : (
+        <>
+          {flashcardConceitos.map((link, idx) => {
+            // um conceito já escolhido em outra linha não aparece de novo
+            const usados = new Set(
+              flashcardConceitos
+                .filter((_, i) => i !== idx)
+                .map((l) => l.conceitoId)
+                .filter(Boolean)
+            );
+            const opcoes = parentIds.conceitos.filter(
+              (c) => c.id === link.conceitoId || !usados.has(c.id)
+            );
+            return (
+              <div key={idx} className="flex items-center gap-1.5">
+                <Select
+                  value={link.conceitoId || "__none__"}
+                  onValueChange={(value) =>
+                    setFlashcardConceitos((prev) =>
+                      prev.map((l, i) =>
+                        i === idx ? { ...l, conceitoId: value === "__none__" ? "" : value ?? "" } : l
+                      )
+                    )
+                  }
+                >
+                  <SelectTrigger className="flex-1 min-w-0">
+                    <SelectValue placeholder="Conceito" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {opcoes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={link.relacao}
+                  onValueChange={(value) =>
+                    setFlashcardConceitos((prev) =>
+                      prev.map((l, i) => (i === idx ? { ...l, relacao: value ?? l.relacao } : l))
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-32 shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FLASHCARD_CONCEITO_RELATIONS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {RELATION_LABELS[r] ?? r.toLowerCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  min={0.1}
+                  max={2}
+                  step={0.1}
+                  value={link.peso}
+                  title="Peso da relação (0.1 a 2)"
+                  onChange={(e) =>
+                    setFlashcardConceitos((prev) =>
+                      prev.map((l, i) =>
+                        i === idx ? { ...l, peso: Number(e.target.value) } : l
+                      )
+                    )
+                  }
+                  className="w-16 shrink-0"
+                />
+                <button
+                  type="button"
+                  onClick={() => setFlashcardConceitos((prev) => prev.filter((_, i) => i !== idx))}
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  title="Remover"
+                >
+                  <XIcon className="size-4" />
+                </button>
+              </div>
+            );
+          })}
+          {/* só dá pra adicionar enquanto houver conceito ainda não usado */}
+          {flashcardConceitos.length < parentIds.conceitos.length && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() =>
+                setFlashcardConceitos((prev) => [
+                  ...prev,
+                  { conceitoId: "", relacao: FLASHCARD_CONCEITO_RELATIONS[0], peso: 1 },
+                ])
+              }
+            >
+              <PlusIcon className="size-3.5" />
+              Adicionar conceito
+            </Button>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  // Texto bruto de origem da nota (no máximo 1) — relação GERA.
+  // Reutilizado ao criar uma nota e ao adicionar notas existentes.
+  const renderNotaTextoBruto = () => (
+    <div className="space-y-1.5">
+      <Label>Texto bruto de origem (opcional)</Label>
+      {parentIds.textosBrutos.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Nenhum texto bruto no grafo para relacionar.
+        </p>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <Select
+            value={notaTextoBrutoId || "__none__"}
+            onValueChange={(value) =>
+              setNotaTextoBrutoId(value === "__none__" ? "" : value ?? "")
+            }
+          >
+            <SelectTrigger className="flex-1 min-w-0">
+              <SelectValue placeholder="Nenhum" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Nenhum</SelectItem>
+              {parentIds.textosBrutos.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        O texto bruto gera esta nota. Uma nota tem no máximo um texto de origem.
+      </p>
+    </div>
+  );
+
+  // Bloco de "Conceitos relacionados" da nota (relação + peso, sem repetir).
+  // Reutilizado ao criar uma nota e ao adicionar notas existentes.
+  const renderNotaConceitos = () => (
+    <div className="space-y-2">
+      <Label>Conceitos relacionados (opcional)</Label>
+      {parentIds.conceitos.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Nenhum conceito no grafo para relacionar.
+        </p>
+      ) : (
+        <>
+          {notaConceitos.map((link, idx) => {
+            // um conceito já escolhido em outra linha não aparece de novo
+            const usados = new Set(
+              notaConceitos
+                .filter((_, i) => i !== idx)
+                .map((l) => l.conceitoId)
+                .filter(Boolean)
+            );
+            const opcoes = parentIds.conceitos.filter(
+              (c) => c.id === link.conceitoId || !usados.has(c.id)
+            );
+            return (
+              <div key={idx} className="flex items-center gap-1.5">
+                <Select
+                  value={link.conceitoId || "__none__"}
+                  onValueChange={(value) =>
+                    setNotaConceitos((prev) =>
+                      prev.map((l, i) =>
+                        i === idx ? { ...l, conceitoId: value === "__none__" ? "" : value ?? "" } : l
+                      )
+                    )
+                  }
+                >
+                  <SelectTrigger className="flex-1 min-w-0">
+                    <SelectValue placeholder="Conceito" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {opcoes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={link.relacao}
+                  onValueChange={(value) =>
+                    setNotaConceitos((prev) =>
+                      prev.map((l, i) => (i === idx ? { ...l, relacao: value ?? l.relacao } : l))
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-32 shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NOTA_CONCEITO_RELATIONS.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {RELATION_LABELS[r] ?? r.toLowerCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  min={0.1}
+                  max={2}
+                  step={0.1}
+                  value={link.peso}
+                  title="Peso da relação (0.1 a 2)"
+                  onChange={(e) =>
+                    setNotaConceitos((prev) =>
+                      prev.map((l, i) =>
+                        i === idx ? { ...l, peso: Number(e.target.value) } : l
+                      )
+                    )
+                  }
+                  className="w-16 shrink-0"
+                />
+                <button
+                  type="button"
+                  onClick={() => setNotaConceitos((prev) => prev.filter((_, i) => i !== idx))}
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  title="Remover"
+                >
+                  <XIcon className="size-4" />
+                </button>
+              </div>
+            );
+          })}
+          {/* só dá pra adicionar enquanto houver conceito ainda não usado */}
+          {notaConceitos.length < parentIds.conceitos.length && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() =>
+                setNotaConceitos((prev) => [
+                  ...prev,
+                  { conceitoId: "", relacao: NOTA_CONCEITO_RELATIONS[0], peso: 1 },
+                ])
+              }
+            >
+              <PlusIcon className="size-3.5" />
+              Adicionar conceito
+            </Button>
+          )}
+        </>
+      )}
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -493,106 +874,124 @@ export function CreateNodeModal({
         {activeTab === "existing" && (
           <>
             {/* Search */}
-            <div className="relative mb-4">
+            <div className="relative mb-3">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar flashcards e notas..."
+                placeholder={selectedType === "NOTA" ? "Buscar notas..." : "Buscar flashcards (pergunta, conceito, tópico...)"}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md bg-transparent"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md bg-transparent"
               />
             </div>
 
             {/* Items list */}
             <div className="space-y-2 max-h-80 overflow-y-auto">
-              {availableItems.flashcards.length === 0 && availableItems.notas.length === 0 ? (
-                <p className="text-center text-zinc-500 py-8">Nenhum item disponível</p>
-              ) : (
-                <>
-                  {/* Flashcardssection */}
-                  {availableItems.flashcards.length > 0 && (
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Flashcards</h4>
-                      {availableItems.flashcards
-                        .filter((fc) => searchQuery === "" || fc.label.toLowerCase().includes(searchQuery.toLowerCase()))
-                        .map((flashcard) => (
-                          <div
-                            key={flashcard.id}
-                            className={`flex items-start gap-2 p-2 border rounded cursor-pointer transition-colors ${
-                              selectedItems.has(flashcard.id)
-                                ? "bg-primary/10 border-primary"
-                                : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                            }`}
-                            onClick={() => {
-                              setSelectedItems((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(flashcard.id)) {
-                                  next.delete(flashcard.id);
-                                } else {
-                                  next.add(flashcard.id);
-                                }
-                                return next;
-                              });
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedItems.has(flashcard.id)}
-                              onChange={() => {}}
-                              className="mt-1"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">{flashcard.label}</div>
-                              <div className="text-xs text-zinc-500 truncate">{flashcard.hierarquia}</div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
+              {/* Flashcards (quando o tipo é FLASHCARD) */}
+              {selectedType === "FLASHCARD" && (
+                availableItems.flashcards.length === 0 ? (
+                  <p className="text-center text-zinc-500 py-8">Nenhum flashcard disponível</p>
+                ) : filteredFlashcards.length === 0 ? (
+                  <p className="text-center text-zinc-500 py-8">Nenhum flashcard corresponde à busca</p>
+                ) : (
+                  <div className="space-y-1">
+                    {filteredFlashcards.map((flashcard) => (
+                      <div
+                        key={flashcard.id}
+                        className={`flex items-start gap-2 p-2 border rounded cursor-pointer transition-colors ${
+                          selectedItems.has(flashcard.id)
+                            ? "bg-primary/10 border-primary"
+                            : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                        }`}
+                        onClick={() => {
+                          setSelectedItems((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(flashcard.id)) next.delete(flashcard.id);
+                            else next.add(flashcard.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(flashcard.id)}
+                          onChange={() => {}}
+                          className="mt-1"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{flashcard.label}</div>
+                          <div className="text-xs text-zinc-500 truncate">{flashcard.hierarquia}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
 
-                  {/* Notas section */}
-                  {availableItems.notas.length > 0 && (
-                    <div className="space-y-1 mt-4">
-                      <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Notas</h4>
-                      {availableItems.notas
-                        .filter((n) => searchQuery === "" || n.label.toLowerCase().includes(searchQuery.toLowerCase()))
-                        .map((nota) => (
-                          <div
-                            key={nota.id}
-                            className={`flex items-start gap-2 p-2 border rounded cursor-pointer transition-colors ${
-                              selectedItems.has(nota.id)
-                                ? "bg-primary/10 border-primary"
-                                : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                            }`}
-                            onClick={() => {
-                              setSelectedItems((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(nota.id)) {
-                                  next.delete(nota.id);
-                                } else {
-                                  next.add(nota.id);
-                                }
-                                return next;
-                              });
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedItems.has(nota.id)}
-                              onChange={() => {}}
-                              className="mt-1"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">{nota.label}</div>
-                              <div className="text-xs text-zinc-500">{nota.hierarquia}</div>
-                            </div>
+              {/* Notas (quando o tipo é NOTA) */}
+              {selectedType === "NOTA" && (
+                availableItems.notas.length === 0 ? (
+                  <p className="text-center text-zinc-500 py-8">Nenhuma nota disponível</p>
+                ) : (
+                  <div className="space-y-1">
+                    {availableItems.notas
+                      .filter((n) => searchQuery === "" || n.label.toLowerCase().includes(searchQuery.toLowerCase()) || n.fullText.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((nota) => (
+                        <div
+                          key={nota.id}
+                          className={`flex items-start gap-2 p-2 border rounded cursor-pointer transition-colors ${
+                            selectedItems.has(nota.id)
+                              ? "bg-primary/10 border-primary"
+                              : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                          }`}
+                          onClick={() => {
+                            setSelectedItems((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(nota.id)) next.delete(nota.id);
+                              else next.add(nota.id);
+                              return next;
+                            });
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedItems.has(nota.id)}
+                            onChange={() => {}}
+                            className="mt-1"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{nota.label}</div>
+                            <div className="text-xs text-zinc-500">{nota.hierarquia}</div>
                           </div>
-                        ))}
-                    </div>
-                  )}
-                </>
+                        </div>
+                      ))}
+                  </div>
+                )
               )}
             </div>
+
+            {/* Mesmas relações com conceitos do "Criar flashcard": aplicadas a
+                cada flashcard existente selecionado */}
+            {selectedType === "FLASHCARD" && (
+              <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                {renderFlashcardConceitos()}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  As relações escolhidas serão criadas para cada flashcard selecionado.
+                </p>
+              </div>
+            )}
+
+            {/* Mesmas relações do "Criar nota": texto bruto de origem + conceitos,
+                aplicadas a cada nota existente selecionada */}
+            {selectedType === "NOTA" && (
+              <div className="mt-4 space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                {renderNotaTextoBruto()}
+                {renderNotaConceitos()}
+                <p className="text-xs text-muted-foreground">
+                  As relações escolhidas serão criadas para cada nota selecionada.
+                </p>
+              </div>
+            )}
           </>
         )}
 
@@ -679,7 +1078,7 @@ export function CreateNodeModal({
                         <p className="py-6 text-center text-xs text-muted-foreground">Carregando...</p>
                       ) : deckFlashcards.length === 0 ? (
                         <p className="py-6 text-center text-xs text-muted-foreground">
-                          Você ainda não tem flashcards. O baralho pode ser criado vazio.
+                          Nenhum flashcard no grafo. Adicione flashcards ao grafo primeiro — o baralho pode ser criado vazio.
                         </p>
                       ) : (
                         deckFlashcards
@@ -1042,6 +1441,8 @@ export function CreateNodeModal({
                       rows={3}
                     />
                   </div>
+                  {/* Conceitos relacionados (relação + peso) — o flashcard herda os conceitos */}
+                  {renderFlashcardConceitos()}
                 </div>
               )}
 
@@ -1150,6 +1551,12 @@ export function CreateNodeModal({
                       rows={6}
                     />
                   </div>
+
+                  {/* Texto bruto de origem (no máximo 1) — relação GERA */}
+                  {renderNotaTextoBruto()}
+
+                  {/* Conceitos relacionados (relação + peso) — manualmente, além da IA */}
+                  {renderNotaConceitos()}
 
                   {/* IA: sugerir relações com o grafo */}
                   <Button

@@ -216,7 +216,10 @@ export function ImportJsonModal({ open, onOpenChange, grafoId, onSuccess }: Impo
     setLoading(true);
     try {
       const r = await importGraph(grafoId, payload);
-      toast.success(`${r.nodes} nó(s) e ${r.edges} relação(ões) importados!`);
+      toast.success(
+        `${r.nodes} nó(s) e ${r.edges} relação(ões) importados!` +
+          (r.reused > 0 ? ` ${r.reused} já existia(m) no grafo e foi(ram) reaproveitado(s).` : "")
+      );
       setJsonInput("");
       onOpenChange(false);
       onSuccess?.();

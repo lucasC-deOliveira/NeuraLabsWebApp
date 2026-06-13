@@ -65,7 +65,7 @@ export const RELATION_GROUPS = [
   },
   {
     title: "Flashcard → Nota / Conceito",
-    types: ["TESTA", "HERDA"],
+    types: ["TESTA", "HERDA", "DEFINE", "EXPLICA", "APROFUNDA", "EXEMPLIFICA", "CONTRASTA", "SINTETIZA", "ALERTA_ERRO"],
   },
   {
     title: "Baralho → Flashcard",
