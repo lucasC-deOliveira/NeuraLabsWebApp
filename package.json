@@ -2,6 +2,9 @@
   "name": "flashcard-app",
   "version": "0.1.0",
   "private": true,
+  "description": "NeuraLabs Flashcards — estudo com grafo de conhecimento, flashcards e notas Zettelkasten",
+  "author": "Lucas Oliveira <luckericksen@gmail.com>",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,7 +12,11 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "electron:dev": "electron .",
+    "desktop:build": "next build && node scripts/prepare-standalone.mjs",
+    "desktop:dist": "npm run desktop:build && electron-builder",
+    "desktop:publish": "npm run desktop:build && electron-builder --publish always"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -42,6 +49,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "prisma": "^6.19.3",

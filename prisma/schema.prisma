@@ -1,6 +1,8 @@
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
+  // engines empacotados no app desktop: dev local + Linux (CI) + Windows
+  binaryTargets = ["native", "debian-openssl-3.0.x", "windows"]
 }
 
 datasource db {

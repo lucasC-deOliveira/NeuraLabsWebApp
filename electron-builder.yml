@@ -1,0 +1,48 @@
+appId: com.neuralabs.flashcardapp
+productName: NeuraLabs Flashcards
+copyright: Copyright © 2026 Lucas Oliveira
+
+directories:
+  output: dist-electron
+  buildResources: build
+
+# Apenas o código do Electron entra no asar; o runtime (servidor Next standalone)
+# vai como recurso desempacotado, pois precisa rodar como processo Node e carregar
+# o engine nativo do Prisma (.node).
+files:
+  - electron/**/*
+  - package.json
+  # o main.js só usa electron + builtins; o runtime (Next + deps) vai no
+  # standalone (extraResources). Evita empacotar node_modules redundante no asar.
+  - "!node_modules/**/*"
+
+extraResources:
+  - from: .next/standalone
+    to: standalone
+  - from: build/app.db
+    to: app.db
+
+asar: true
+npmRebuild: false
+
+publish:
+  provider: github
+  owner: lucasC-deOliveira
+  repo: NeuraLabsWebApp
+
+win:
+  target:
+    - nsis
+  artifactName: ${productName}-${version}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Education
+  artifactName: ${productName}-${version}.${ext}
