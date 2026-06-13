@@ -20,10 +20,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/**/*": ["./src/generated/prisma/**/*"],
   },
-  // ATENÇÃO: há erros de tipo/lint pré-existentes que travam o `next build`.
+  // ATENÇÃO: há erros de tipo pré-existentes que travam o `next build`.
   // Liberados aqui para permitir o empacotamento desktop; corrigir à parte.
+  // (No Next 16 o eslint não roda no `next build`, então não é preciso desligá-lo.)
   typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

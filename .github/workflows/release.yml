@@ -36,6 +36,9 @@ jobs:
         run: npm run desktop:build
         env:
           DATABASE_URL: "file:./build/app.db"
+          # placeholder só para satisfazer o guard de produção durante o build;
+          # o secret real é gerado pelo Electron por instalação, em runtime.
+          JWT_SECRET: "build-time-placeholder-not-used-at-runtime"
 
       - name: Build and publish installers
         run: npx electron-builder --publish always
