@@ -7,7 +7,7 @@ import {
   startStudySession,
   submitCardReview,
   endStudySession,
-} from "@/actions/study";
+} from "@/lib/study-api";
 import type { FlashcardData } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
