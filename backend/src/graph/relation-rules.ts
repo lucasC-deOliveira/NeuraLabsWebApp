@@ -41,3 +41,24 @@ export function getAllowedRelations(typeA: string, typeB: string): string[] {
 export function isRelationAllowed(typeA: string, typeB: string, relation: string): boolean {
   return getAllowedRelations(typeA, typeB).includes(relation);
 }
+
+// Direção canônica (origem→destino) de uma relação entre dois tipos.
+export function getCanonicalDirection(typeA: string, typeB: string, relation: string): [string, string] | null {
+  for (const p of RELATION_PAIRS) {
+    if (!p.relations.includes(relation)) continue;
+    if ((p.a === typeA && p.b === typeB) || (p.a === typeB && p.b === typeA)) return [p.a, p.b];
+  }
+  return null;
+}
+
+const INSIGHT_TARGET_TYPES = ['ASSUNTO', 'TOPICO', 'CONCEITO'];
+
+// Combos (tipo de nó + relações) que um nó de sourceType pode criar como insight.
+export function getInsightTargets(sourceType: string): Array<{ tipo: string; relacoes: string[] }> {
+  const out: Array<{ tipo: string; relacoes: string[] }> = [];
+  for (const tipo of INSIGHT_TARGET_TYPES) {
+    const relacoes = getAllowedRelations(sourceType, tipo);
+    if (relacoes.length > 0) out.push({ tipo, relacoes });
+  }
+  return out;
+}

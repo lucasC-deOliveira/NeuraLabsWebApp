@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, SparklesIcon, RefreshCwIcon, CheckIcon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import { generateNodeInsights, addInsightsToGraph, type NodeInsight } from "@/actions/ai-graph";
+import { generateNodeInsights, addInsightsToGraph, type NodeInsight } from "@/lib/ai-api";
 import { MarkdownContent } from "@/components/markdown-content";
 import { NODE_TYPE_DISPLAY, RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 

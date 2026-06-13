@@ -7,5 +7,6 @@ import { GraphService } from './graph.service';
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
   controllers: [GraphController],
   providers: [GraphService],
+  exports: [GraphService],
 })
 export class GraphModule {}

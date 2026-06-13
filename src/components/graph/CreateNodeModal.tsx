@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PlusIcon, Loader2Icon, SparklesIcon, XIcon, SearchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { suggestNotaRelations, type NotaRelationSuggestion } from "@/actions/ai-graph";
+import { suggestNotaRelations, type NotaRelationSuggestion } from "@/lib/ai-api";
 import { addNodeToGraph, createEdge, createBaralhoNode, getAvailableItems, listUserFlashcards } from "@/lib/graph-api";
 import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
