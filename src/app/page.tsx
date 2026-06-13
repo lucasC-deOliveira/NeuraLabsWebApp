@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getStudySessionHistory } from "@/actions/study";
-import { getSubjects } from "@/actions/subjects";
-import { getFlashcards } from "@/actions/flashcard";
+import { getStudySessionHistory, getSubjects, getFlashcards } from "@/lib/content-api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
