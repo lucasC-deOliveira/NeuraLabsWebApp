@@ -9,31 +9,66 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { getOAuthConfig } from "@/actions/oauth-config";
+
+// API exposta pelo preload do Electron (só existe no app desktop)
+type DesktopAuth = { isDesktop: boolean; login: (p: string) => Promise<{ ok: boolean; error?: string }> };
+function getDesktopAuth(): DesktopAuth | null {
+  if (typeof window === "undefined") return null;
+  return (window as unknown as { desktopAuth?: DesktopAuth }).desktopAuth ?? null;
+}
 
 const ALL_PROVIDERS: { name: string; icon: string; color: string; provider: string }[] = [
   { name: "GitHub", icon: "GH", color: "bg-zinc-900 text-white border-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-200", provider: "github" },
   { name: "Google", icon: "G", color: "bg-white text-zinc-800 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-600", provider: "google" },
 ];
 
-// Só mostra os botões de provedores realmente configurados (env presente no
-// servidor). No app desktop não há credenciais OAuth, então nenhum aparece e
-// fica só o login por e-mail/senha. Retorna null enquanto carrega ou se nenhum.
+// Só mostra os botões de provedores configurados. Na web: lê /api/auth/providers
+// (env). No desktop: lê as credenciais salvas (banco) e dispara o OAuth via
+// navegador externo (IPC do Electron). Retorna null enquanto carrega ou se nenhum.
 function OAuthButtons() {
   const [enabled, setEnabled] = useState<Record<string, boolean> | null>(null);
+  const [desktop, setDesktop] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [oauthError, setOauthError] = useState("");
 
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/providers")
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((data) => active && setEnabled(data))
-      .catch(() => active && setEnabled({}));
+    const da = getDesktopAuth();
+    if (da?.isDesktop) {
+      setDesktop(true);
+      getOAuthConfig()
+        .then((c) => active && setEnabled({ google: c.google, github: c.github }))
+        .catch(() => active && setEnabled({}));
+    } else {
+      fetch("/api/auth/providers")
+        .then((r) => (r.ok ? r.json() : {}))
+        .then((data) => active && setEnabled(data))
+        .catch(() => active && setEnabled({}));
+    }
     return () => {
       active = false;
     };
   }, []);
 
-  function handleOAuth(provider: string) {
-    window.location.href = `/api/auth/${provider}`;
+  async function handleOAuth(provider: string) {
+    if (desktop) {
+      const da = getDesktopAuth();
+      if (!da) return;
+      setBusy(provider);
+      setOauthError("");
+      try {
+        const r = await da.login(provider);
+        // sucesso: o app recarrega a janela já autenticado; só tratamos o erro
+        if (!r?.ok) setOauthError(r?.error || "Falha no login social");
+      } catch (e) {
+        setOauthError(e instanceof Error ? e.message : "Falha no login social");
+      } finally {
+        setBusy(null);
+      }
+    } else {
+      window.location.href = `/api/auth/${provider}`;
+    }
   }
 
   if (!enabled) return null;
@@ -42,17 +77,27 @@ function OAuthButtons() {
 
   return (
     <>
+      {oauthError && (
+        <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{oauthError}</div>
+      )}
       <div className="space-y-2">
         <div className={`grid gap-2 ${providers.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
           {providers.map((p) => (
             <button
               key={p.provider}
               type="button"
+              disabled={busy !== null}
               onClick={() => handleOAuth(p.provider)}
-              className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:opacity-90 ${p.color}`}
+              className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50 ${p.color}`}
             >
-              <span className="text-sm">{p.icon}</span>
-              <span>{p.name}</span>
+              {busy === p.provider ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <>
+                  <span className="text-sm">{p.icon}</span>
+                  <span>{p.name}</span>
+                </>
+              )}
             </button>
           ))}
         </div>

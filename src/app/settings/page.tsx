@@ -11,6 +11,7 @@ import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, Palet
 import { toast } from "sonner";
 import { getConfigAI, saveConfigAI } from "@/actions/settings";
 import { getStorageConfig, setStorageConfig, exportToVault, importFromVault, browseDirectory, isDesktopRuntime, type StorageMode, type DirListing } from "@/actions/storage-config";
+import { getOAuthConfig, setOAuthConfig, type OAuthConfigStatus } from "@/actions/oauth-config";
 import { useColorTheme, type ColorTheme } from "@/components/color-theme-provider";
 import { useCardStyle } from "@/components/flashcard/CardStyleProvider";
 import { CARD_STYLES, CARD_CSS_CLASSES } from "@/components/flashcard/card-styles";
@@ -105,6 +106,13 @@ export default function SettingsPage() {
   const [browsing, setBrowsing] = useState(false);
   const [browseListing, setBrowseListing] = useState<DirListing | null>(null);
   const [browseLoading, setBrowseLoading] = useState(false);
+  // login social (OAuth) — desktop
+  const [oauthStatus, setOauthStatus] = useState<OAuthConfigStatus | null>(null);
+  const [googleId, setGoogleId] = useState("");
+  const [googleSecret, setGoogleSecret] = useState("");
+  const [githubId, setGithubId] = useState("");
+  const [githubSecret, setGithubSecret] = useState("");
+  const [savingOauth, setSavingOauth] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,6 +133,7 @@ export default function SettingsPage() {
       // fora do desktop o modo arquivos não é permitido — mostra como banco
       setStorageMode(desktop ? storage.storageMode : "DATABASE");
       setVaultPath(storage.vaultPath ?? "");
+      if (desktop) setOauthStatus(await getOAuthConfig().catch(() => null));
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar configuracoes.");
@@ -202,6 +211,26 @@ export default function SettingsPage() {
   const useCurrentFolder = () => {
     if (browseListing) setVaultPath(browseListing.path);
     setBrowsing(false);
+  };
+
+  const handleSaveOAuth = async () => {
+    setSavingOauth(true);
+    try {
+      await setOAuthConfig({
+        googleClientId: googleId.trim() || undefined,
+        googleClientSecret: googleSecret.trim() || undefined,
+        githubClientId: githubId.trim() || undefined,
+        githubClientSecret: githubSecret.trim() || undefined,
+      });
+      setGoogleSecret("");
+      setGithubSecret("");
+      setOauthStatus(await getOAuthConfig().catch(() => null));
+      toast.success("Credenciais de login social salvas!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSavingOauth(false);
+    }
   };
 
   const handleImport = async () => {
@@ -658,6 +687,53 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Login social (OAuth) — só no desktop */}
+      {isDesktop && (
+        <Card>
+          <CardHeader className="px-3 sm:px-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <SettingsIcon className="size-5" />
+              Login social (Google / GitHub)
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Cole as credenciais dos seus OAuth clients. No console do provedor, registre o
+              redirect abaixo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 px-3 sm:px-6">
+            <div className="rounded-md border bg-background p-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Redirect URI (registre nos dois)</div>
+              <code className="text-xs break-all">{oauthStatus?.redirectUri ?? "http://127.0.0.1:8765/callback"}</code>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                Google {oauthStatus?.google && <span className="text-[10px] text-emerald-500">✓ configurado</span>}
+              </Label>
+              <Input placeholder="Google Client ID" value={googleId} onChange={(e) => setGoogleId(e.target.value)} />
+              <Input type="password" placeholder="Google Client Secret (deixe em branco p/ manter)" value={googleSecret} onChange={(e) => setGoogleSecret(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                GitHub {oauthStatus?.github && <span className="text-[10px] text-emerald-500">✓ configurado</span>}
+              </Label>
+              <Input placeholder="GitHub Client ID" value={githubId} onChange={(e) => setGithubId(e.target.value)} />
+              <Input type="password" placeholder="GitHub Client Secret (deixe em branco p/ manter)" value={githubSecret} onChange={(e) => setGithubSecret(e.target.value)} />
+            </div>
+
+            <p className="text-[10px] text-muted-foreground">
+              No Google, crie um OAuth client tipo &quot;App para computador/Desktop&quot;. No GitHub, uma OAuth App
+              com o callback acima. Os segredos ficam só no banco local.
+            </p>
+
+            <Button onClick={handleSaveOAuth} disabled={savingOauth} size="lg" className="w-full">
+              {savingOauth ? <><Loader2Icon className="size-4 mr-1 animate-spin" /> Salvando...</> : "Salvar login social"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

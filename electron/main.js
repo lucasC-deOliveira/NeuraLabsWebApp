@@ -2,7 +2,7 @@
 // Sobe o servidor Next (build standalone) num processo Node próprio e abre uma
 // janela apontando para http://127.0.0.1:<porta>. O banco SQLite e o segredo de
 // sessão ficam na pasta de dados do usuário (userData), graváveis e por máquina.
-const { app, BrowserWindow, shell, dialog } = require("electron");
+const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
 const { fork } = require("child_process");
 const path = require("path");
 const fs = require("fs");
@@ -14,8 +14,16 @@ const isDev = !app.isPackaged;
 // Em dev, assume `next dev` rodando nesta porta (npm run electron:dev).
 const DEV_URL = process.env.ELECTRON_DEV_URL || "http://localhost:3000";
 
+// Login social (OAuth) no desktop: segredo por execução que só o app conhece,
+// e porta de loopback fixa para capturar o retorno do provedor.
+const DESKTOP_AUTH_SECRET = crypto.randomBytes(24).toString("hex");
+const OAUTH_LOOPBACK_PORT = 8765;
+const SESSION_COOKIE = "neuralabs_session";
+
 let serverProcess = null;
 let mainWindow = null;
+let serverPort = null; // porta do servidor Next (definida em startServer)
+let serverOrigin = null; // http://127.0.0.1:<porta> (dev: DEV_URL)
 
 // ---------------------------------------------------------------------------
 // Caminhos e configuração persistente (userData)
@@ -101,6 +109,8 @@ function waitForServer(port, timeoutMs = 30000) {
 // ---------------------------------------------------------------------------
 async function startServer() {
   const port = await findFreePort();
+  serverPort = port;
+  serverOrigin = `http://127.0.0.1:${port}`;
   const serverDir = path.join(process.resourcesPath, "standalone");
   const serverEntry = path.join(serverDir, "server.js");
 
@@ -118,6 +128,8 @@ async function startServer() {
     JWT_SECRET: getOrCreateJwtSecret(),
     // habilita o modo de armazenamento em arquivos (vault Markdown) — só no desktop
     DESKTOP_APP: "1",
+    // segredo que autoriza o endpoint de OAuth desktop a ser chamado pelo app
+    DESKTOP_AUTH_SECRET,
   };
 
   serverProcess = fork(serverEntry, [], {
@@ -151,6 +163,7 @@ function createWindow(url) {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
@@ -177,6 +190,7 @@ function createWindow(url) {
 async function boot() {
   try {
     if (isDev) {
+      serverOrigin = DEV_URL;
       createWindow(DEV_URL);
       return;
     }
@@ -188,6 +202,79 @@ async function boot() {
     app.quit();
   }
 }
+
+// ---------------------------------------------------------------------------
+// Login social (OAuth) no desktop: navegador externo + loopback
+// ---------------------------------------------------------------------------
+async function callDesktopAuth(payload) {
+  const res = await fetch(`${serverOrigin}/api/auth/desktop`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-desktop-secret": DESKTOP_AUTH_SECRET },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Erro ${res.status}`);
+  return data;
+}
+
+// espera o provedor redirecionar para http://127.0.0.1:8765/callback
+function waitForOAuthCallback(expectedState, timeoutMs = 180000) {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      const url = new URL(req.url, `http://127.0.0.1:${OAUTH_LOOPBACK_PORT}`);
+      if (url.pathname !== "/callback") {
+        res.writeHead(404).end();
+        return;
+      }
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end("<html><body style='font-family:sans-serif;text-align:center;padding:3rem'>"
+        + "<h2>Login concluído</h2><p>Você já pode voltar para o NeuraLabs.</p></body></html>");
+      cleanup();
+      if (!code || state !== expectedState) reject(new Error("Retorno OAuth inválido"));
+      else resolve(code);
+    });
+    const timer = setTimeout(() => { cleanup(); reject(new Error("Tempo esgotado no login")); }, timeoutMs);
+    function cleanup() {
+      clearTimeout(timer);
+      try { server.close(); } catch { /* ignora */ }
+    }
+    server.on("error", (err) => { cleanup(); reject(err); });
+    server.listen(OAUTH_LOOPBACK_PORT, "127.0.0.1");
+  });
+}
+
+async function runDesktopOAuth(provider) {
+  if (!serverOrigin) throw new Error("Servidor não está pronto");
+  // 1. inicia o fluxo no servidor (monta a URL com state/PKCE)
+  const { authUrl, state } = await callDesktopAuth({ action: "start", provider });
+  // 2. abre o navegador padrão e espera o retorno no loopback
+  const callbackPromise = waitForOAuthCallback(state);
+  await shell.openExternal(authUrl);
+  const code = await callbackPromise;
+  // 3. troca o code por sessão e injeta o cookie na janela do app
+  const { sessionToken } = await callDesktopAuth({ action: "finish", provider, code, state });
+  await mainWindow.webContents.session.cookies.set({
+    url: serverOrigin,
+    name: SESSION_COOKIE,
+    value: sessionToken,
+    path: "/",
+    httpOnly: true,
+  });
+  await mainWindow.loadURL(`${serverOrigin}/`);
+  return { ok: true };
+}
+
+ipcMain.handle("desktop-oauth:login", async (_e, provider) => {
+  if (provider !== "google" && provider !== "github") return { ok: false, error: "Provedor inválido" };
+  try {
+    return await runDesktopOAuth(provider);
+  } catch (err) {
+    console.error("[oauth]", err);
+    return { ok: false, error: err?.message || "Falha no login social" };
+  }
+});
 
 app.whenReady().then(boot);
 

@@ -351,6 +351,11 @@ model AppConfig {
   id           String   @id @default("singleton")
   storageMode  String   @default("DATABASE") @map("storage_mode")
   vaultPath    String?  @map("vault_path")
+  // credenciais OAuth (login social no desktop) — guardadas localmente
+  googleClientId     String? @map("google_client_id")
+  googleClientSecret String? @map("google_client_secret")
+  githubClientId     String? @map("github_client_id")
+  githubClientSecret String? @map("github_client_secret")
   atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
 
   @@map("app_config")
