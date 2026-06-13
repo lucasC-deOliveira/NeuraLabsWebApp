@@ -1,4 +1,4 @@
-import { getGraphNodes, GraphEdgeType, GraphNodeType } from "@/actions/graph";
+import { getGraphNodes, GraphEdgeType, GraphNodeType } from "@/lib/graph-api";
 import { useEffect, useState } from "react";
 
 export function useGraphPageController(graphId: string) {

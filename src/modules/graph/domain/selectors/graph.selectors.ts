@@ -1,4 +1,4 @@
-import type { GraphNodeType, GraphEdgeType } from "@/actions/graph";
+import type { GraphNodeType, GraphEdgeType } from "@/lib/graph-api";
 
 /**
  * Esconde os nós cujos tipos o usuário desativou (todos visíveis por padrão).

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { searchGraphNodeContent } from "@/actions/graph";
+import { searchGraphNodeContent } from "@/lib/graph-api";
 
 // Busca com filtros poderosos sobre o layout do grafo:
 //   • texto (escopo: tudo / título / conteúdo)

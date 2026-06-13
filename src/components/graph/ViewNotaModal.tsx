@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
-import { getNodeDetails } from "@/actions/graph";
+import { getNodeDetails } from "@/lib/graph-api";
 import { MarkdownContent } from "@/components/markdown-content";
 
 const TIPO_LABELS: Record<string, string> = {

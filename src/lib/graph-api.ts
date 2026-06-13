@@ -1,0 +1,129 @@
+// Cliente do grafo: mesmas assinaturas das antigas server actions, mas chamando
+// a API NestJS. Components/hooks só trocam o import (@/actions/graph → @/lib/graph-api).
+import { apiFetch } from "./api";
+
+export interface GraphNodeType {
+  id: string;
+  label: string;
+  type: string;
+  nivelDominio: number;
+  prioridadeRevisao: number;
+  parentId?: string;
+  pergunta?: string;
+  posicaoX?: number;
+  posicaoY?: number;
+}
+export interface GraphEdgeType {
+  source: string;
+  target: string;
+  type: string;
+  peso: number;
+}
+export interface EdgeView {
+  id: string;
+  source: string;
+  target: string;
+  tipoRelacao: string;
+  peso: number;
+  sourceLabel: string;
+  targetLabel: string;
+}
+export interface GrafoInfo {
+  id: string;
+  nome: string;
+  descricao?: string | null;
+  dataCriacao?: string;
+  dataAtualizacao?: string;
+}
+
+const qs = (params: Record<string, string | undefined>) => {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v) sp.set(k, v);
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+};
+
+// ---- Grafos ----
+export function listUserGraphs(): Promise<GrafoInfo[]> {
+  return apiFetch<GrafoInfo[]>("/graph/graphs");
+}
+export function createGrafo(nome: string, descricao?: string): Promise<{ id: string }> {
+  return apiFetch("/graph/graphs", { method: "POST", body: JSON.stringify({ nome, descricao }) });
+}
+export async function deleteGrafo(grafoId: string): Promise<void> {
+  await apiFetch(`/graph/graphs/${grafoId}`, { method: "DELETE" });
+}
+export function getGrafoInfo(grafoId: string): Promise<{ nome: string; descricao?: string } | null> {
+  return apiFetch(`/graph/graphs/${grafoId}/info`);
+}
+export async function updateGrafoNome(grafoId: string, nome: string): Promise<void> {
+  await apiFetch(`/graph/graphs/${grafoId}`, { method: "PATCH", body: JSON.stringify({ nome }) });
+}
+export async function saveGraphVisualState(grafoId: string, state: unknown): Promise<void> {
+  await apiFetch(`/graph/graphs/${grafoId}/visual`, { method: "PUT", body: JSON.stringify({ state }) });
+}
+export interface GraphVisualState {
+  zoom: number;
+  pan: { x: number; y: number };
+  positions?: Record<string, { x: number; y: number }>;
+}
+export function loadGraphVisualState(grafoId: string): Promise<GraphVisualState | null> {
+  return apiFetch(`/graph/graphs/${grafoId}/visual`);
+}
+
+// ---- Leitura ----
+export function getGraphNodes(grafoId?: string): Promise<{ nodes: GraphNodeType[]; edges: GraphEdgeType[] }> {
+  return apiFetch(`/graph${qs({ grafoId })}`);
+}
+export function getGraphEdges(grafoId: string): Promise<EdgeView[]> {
+  return apiFetch(`/graph/edges${qs({ grafoId })}`);
+}
+
+// ---- Nós ----
+export function addNodeToGraph(grafoId: string, tipoNode: string, data: Record<string, unknown>): Promise<{ success: boolean; nodeId: string }> {
+  return apiFetch(`/graph/graphs/${grafoId}/nodes`, { method: "POST", body: JSON.stringify({ tipoNode, ...data }) });
+}
+export function updateGraphNode(
+  tipoNode: string,
+  referenciaId: string,
+  data: Record<string, unknown>,
+  // grafoId mantido por compatibilidade de assinatura (não usado no backend)
+  _grafoId?: string,
+): Promise<{ success: boolean }> {
+  return apiFetch(`/graph/nodes/${referenciaId}`, { method: "PATCH", body: JSON.stringify({ tipoNode, ...data }) });
+}
+export function deleteGraphNode(graphNodeId: string, grafoId?: string): Promise<{ success: boolean; deletedType?: string }> {
+  const refId = graphNodeId.includes(":") ? graphNodeId.slice(graphNodeId.indexOf(":") + 1) : graphNodeId;
+  return apiFetch(`/graph/nodes/${refId}${qs({ grafoId })}`, { method: "DELETE" });
+}
+export function getNodeDetails(tipoNode: string, referenciaId: string): Promise<Record<string, string | null> | null> {
+  return apiFetch(`/graph/nodes/${referenciaId}/details${qs({ tipoNode })}`);
+}
+
+// ---- Arestas ----
+export function createEdge(
+  grafoId: string,
+  data: { sourceNodeId: string; targetNodeId: string; tipoRelacao: string; peso?: number },
+): Promise<{ success: boolean; edgeId: string }> {
+  return apiFetch(`/graph/graphs/${grafoId}/edges`, { method: "POST", body: JSON.stringify(data) }).then(
+    (r: any) => ({ success: true, edgeId: r.edgeId }),
+  );
+}
+export async function updateEdge(edgeId: string, grafoId: string, data: { tipoRelacao?: string; peso?: number }): Promise<{ success: boolean }> {
+  await apiFetch(`/graph/graphs/${grafoId}/edges/${edgeId}`, { method: "PATCH", body: JSON.stringify(data) });
+  return { success: true };
+}
+export async function deleteEdge(edgeId: string, grafoId: string): Promise<{ success: boolean }> {
+  await apiFetch(`/graph/graphs/${grafoId}/edges/${edgeId}`, { method: "DELETE" });
+  return { success: true };
+}
+
+// ---- Busca por conteúdo (TODO: endpoint no backend; por ora retorna vazio) ----
+export async function searchGraphNodeContent(_grafoId: string, _query: string): Promise<string[]> {
+  return [];
+}
+
+// ---- Posições ----
+export async function saveGraphPositions(grafoId: string, positions: Record<string, { x: number; y: number }>): Promise<void> {
+  await apiFetch(`/graph/graphs/${grafoId}/positions`, { method: "POST", body: JSON.stringify({ positions }) });
+}

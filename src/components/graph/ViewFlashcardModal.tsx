@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2Icon } from "lucide-react";
-import { getNodeDetails } from "@/actions/graph";
+import { getNodeDetails } from "@/lib/graph-api";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
 
 interface ViewFlashcardModalProps {

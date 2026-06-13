@@ -1,5 +1,5 @@
 
-import type { GraphNodeType, GraphEdgeType } from "@/actions/graph";
+import type { GraphNodeType, GraphEdgeType } from "@/lib/graph-api";
 
 const RELATION_LABELS: Record<string, string> = {
   GERA: "gera",

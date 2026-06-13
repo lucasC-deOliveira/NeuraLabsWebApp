@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { listUserGraphs, createGrafo, deleteGrafo } from "@/actions/graph";
+import { listUserGraphs, createGrafo, deleteGrafo } from "@/lib/graph-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeftIcon, PlusIcon, Trash2Icon, Loader2Icon, FolderIcon } from "lucide-react";
@@ -11,8 +11,8 @@ import { toast } from "sonner";
 interface GrafosList {
   id: string;
   nome: string;
-  descricao?: string;
-  dataCriacao: string;
+  descricao?: string | null;
+  dataCriacao?: string;
 }
 
 export default function GraphListPage() {
@@ -138,7 +138,7 @@ export default function GraphListPage() {
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{g.descricao}</p>
                       )}
                       <p className="text-[11px] text-zinc-400 mt-2">
-                        Criado em {new Date(g.dataCriacao).toLocaleDateString("pt-BR")}
+                        Criado em {g.dataCriacao ? new Date(g.dataCriacao).toLocaleDateString("pt-BR") : "—"}
                       </p>
                     </div>
                     <Button

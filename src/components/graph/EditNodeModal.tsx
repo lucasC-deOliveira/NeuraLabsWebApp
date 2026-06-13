@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2Icon } from "lucide-react";
-import { getNodeDetails, updateGraphNode } from "@/actions/graph";
+import { getNodeDetails, updateGraphNode } from "@/lib/graph-api";
 
 interface EditNodeModalProps {
   open: boolean;

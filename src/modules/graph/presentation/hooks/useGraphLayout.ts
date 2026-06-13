@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { runForceLayout, SimNode, SimEdge } from "@/modules/graph/infra/layout/force-layout.engine";
-import type { GraphNodeType, GraphEdgeType } from "@/actions/graph";
+import type { GraphNodeType, GraphEdgeType } from "@/lib/graph-api";
 
 export function useGraphLayout(
   rawNodes: GraphNodeType[],

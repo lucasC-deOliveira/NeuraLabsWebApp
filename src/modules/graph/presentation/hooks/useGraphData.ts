@@ -3,7 +3,7 @@ import {
   getGraphNodes,
   getGrafoInfo,
   loadGraphVisualState,
-} from "@/actions/graph";
+} from "@/lib/graph-api";
 
 export function useGraphData(graphId: string) {
   const [rawNodes, setRawNodes] = useState<any[]>([]);

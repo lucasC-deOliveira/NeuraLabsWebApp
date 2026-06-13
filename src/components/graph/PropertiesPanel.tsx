@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getNodeDetails } from "@/actions/graph";
+import { getNodeDetails } from "@/lib/graph-api";
 
 const SUBTIPO_LABELS: Record<string, string> = {
   DEFINICAO: "Definição",
