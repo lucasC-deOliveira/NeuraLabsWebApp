@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon, DatabaseIcon, FolderTreeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getConfigAI, saveConfigAI } from "@/actions/settings";
-import { getStorageConfig, setStorageConfig, type StorageMode } from "@/actions/storage-config";
+import { getStorageConfig, setStorageConfig, exportToVault, type StorageMode } from "@/actions/storage-config";
 import { useColorTheme, type ColorTheme } from "@/components/color-theme-provider";
 import { useCardStyle } from "@/components/flashcard/CardStyleProvider";
 import { CARD_STYLES, CARD_CSS_CLASSES } from "@/components/flashcard/card-styles";
@@ -98,6 +98,7 @@ export default function SettingsPage() {
   const [vaultPath, setVaultPath] = useState("");
   const [savingStorage, setSavingStorage] = useState(false);
   const [storageSaved, setStorageSaved] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -158,6 +159,18 @@ export default function SettingsPage() {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar armazenamento.");
     } finally {
       setSavingStorage(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const r = await exportToVault();
+      toast.success(`${r.nodes} nó(s) exportado(s) para ${r.vaultPath}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao exportar.");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -477,6 +490,25 @@ export default function SettingsPage() {
               <div className="rounded-md border border-amber-300/50 bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-400">
                 Em implementação: a opção já fica salva, mas por enquanto o grafo continua sendo lido/gravado no banco. O backend de arquivos chega nas próximas fases.
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleExport}
+                disabled={exporting || !vaultPath.trim()}
+                className="w-full"
+              >
+                {exporting ? (
+                  <>
+                    <Loader2Icon className="size-4 mr-1 animate-spin" />
+                    Exportando...
+                  </>
+                ) : (
+                  "Exportar grafo atual para a pasta"
+                )}
+              </Button>
+              <p className="text-[10px] text-muted-foreground">
+                Gera os .md do seu grafo (do banco) na pasta, para inspecionar/migrar. Salve a pasta antes.
+              </p>
             </div>
           )}
 

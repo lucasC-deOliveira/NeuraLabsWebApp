@@ -5,6 +5,7 @@ import path from "path";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/auth";
+import { exportGraphToVault } from "@/modules/graph/infra/store/vault-export";
 
 export type StorageMode = "DATABASE" | "MARKDOWN";
 
@@ -59,4 +60,19 @@ export async function setStorageConfig(input: StorageConfig): Promise<{ success:
 
   revalidatePath("/settings");
   return { success: true };
+}
+
+/**
+ * Exporta todo o grafo do usuário (banco → vault Markdown PARA) na pasta
+ * configurada. Útil para inspecionar/migrar e para validar o formato.
+ */
+export async function exportToVault(): Promise<{ nodes: number; vaultPath: string }> {
+  const userId = await requireUserId();
+  const config = await getStorageConfig();
+  const vaultPath = config.vaultPath?.trim();
+  if (!vaultPath) {
+    throw new Error("Configure a pasta do vault (modo Markdown) antes de exportar.");
+  }
+  const result = await exportGraphToVault(userId, vaultPath);
+  return { nodes: result.nodes, vaultPath };
 }
