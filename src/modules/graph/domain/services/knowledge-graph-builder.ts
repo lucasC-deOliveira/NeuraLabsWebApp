@@ -434,7 +434,7 @@ const DOMAIN_TARGET_TYPES = new Set(["ASSUNTO", "TOPICO", "CONCEITO", "NOTA"]);
  * O domínio do nó é a média PONDERADA dessas maestrias. Com todos os pesos = 1
  * equivale à média simples. Os próprios flashcards recebem sua maestria.
  */
-function applyDomainFromFlashcards(
+export function applyDomainFromFlashcards(
   nodes: GraphNode[],
   edges: GraphEdge[],
   flashcardMastery: Map<string, number>,
