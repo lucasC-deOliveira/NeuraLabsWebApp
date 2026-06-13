@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { buildKnowledgeGraph } from './knowledge-graph';
 import { getAllowedRelations, isRelationAllowed } from './relation-rules';
+import { runImportGraph, type ImportGraphPayload } from './graph-import';
 
 type TipoNode = 'ASSUNTO' | 'TOPICO' | 'CONCEITO' | 'FLASHCARD' | 'NOTA' | 'TEXTO_BRUTO' | 'BARALHO';
 
@@ -331,6 +332,11 @@ export class GraphService {
       return baralho.id;
     });
     return { success: true, nodeId: baralhoId };
+  }
+
+  // ---- Import JSON (nós + arestas, com reuso por nome) ----
+  importGraph(userId: string, grafoId: string, payload: ImportGraphPayload) {
+    return runImportGraph(this.prisma, userId, grafoId, payload);
   }
 
   // ---- Busca por conteúdo (devolve refIds que casam) ----

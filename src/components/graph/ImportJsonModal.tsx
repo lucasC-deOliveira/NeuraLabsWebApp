@@ -20,7 +20,7 @@ import {
   type ImportGraphNode,
   type ImportGraphEdge,
   type ImportGraphPayload,
-} from "@/actions/graph";
+} from "@/lib/graph-api";
 import {
   isRelationAllowed,
   getAllowedRelations,

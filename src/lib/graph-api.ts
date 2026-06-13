@@ -153,6 +153,35 @@ export function searchGraphNodeContent(grafoId: string, query: string): Promise<
   return apiFetch<string[]>(`/graph/search${qs({ grafoId, q: query })}`);
 }
 
+// ---- Import JSON ----
+export interface ImportGraphNode {
+  ref: string;
+  tipo: string;
+  nome?: string;
+  descricao?: string | null;
+  pergunta?: string;
+  resposta?: string;
+  titulo?: string;
+  conteudo?: string;
+  tipoNota?: string;
+  subtipo?: string;
+  fonte?: string | null;
+  texto?: string;
+}
+export interface ImportGraphEdge {
+  origem: string;
+  destino: string;
+  relacao: string;
+  peso?: number;
+}
+export interface ImportGraphPayload {
+  nodes: ImportGraphNode[];
+  edges: ImportGraphEdge[];
+}
+export function importGraph(grafoId: string, payload: ImportGraphPayload): Promise<{ nodes: number; edges: number; reused: number }> {
+  return apiFetch(`/graph/graphs/${grafoId}/import`, { method: "POST", body: JSON.stringify(payload) });
+}
+
 // ---- Posições ----
 export async function saveGraphPositions(grafoId: string, positions: Record<string, { x: number; y: number }>): Promise<void> {
   await apiFetch(`/graph/graphs/${grafoId}/positions`, { method: "POST", body: JSON.stringify({ positions }) });

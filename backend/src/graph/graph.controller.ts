@@ -89,6 +89,11 @@ export class GraphController {
     return this.graph.createBaralho(userId, grafoId, body.titulo, body.flashcardIds ?? []);
   }
 
+  @Post('graphs/:grafoId/import')
+  importGraph(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { nodes: unknown[]; edges: unknown[] }) {
+    return this.graph.importGraph(userId, grafoId, body as never);
+  }
+
   @Patch('nodes/:refId')
   updateNode(@CurrentUser() userId: string, @Param('refId') refId: string, @Body() body: Partial<CreateNodeInput> & { tipoNode: TipoNode }) {
     return this.graph.updateNode(userId, body.tipoNode, refId, body);
