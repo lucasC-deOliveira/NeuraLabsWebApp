@@ -1,4 +1,4 @@
-# Sobe Postgres + a API NestJS. Frontend (Next) roda à parte e aponta para a API.
+# Sobe Postgres + a API NestJS + o frontend Next (thin client).
 services:
   postgres:
     image: postgres:16
@@ -30,6 +30,18 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      args:
+        # build-time: vai pro bundle do browser; usa a porta publicada do backend
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}"
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
 
 volumes:
   pgdata:

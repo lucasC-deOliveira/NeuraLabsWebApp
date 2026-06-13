@@ -1,0 +1,12 @@
+node_modules
+.next
+build
+backend
+electron
+.git
+.github
+*.db
+prisma/dev.db
+npm-debug.log*
+.env.local
+.DS_Store
