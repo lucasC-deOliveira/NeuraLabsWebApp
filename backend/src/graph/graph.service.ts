@@ -398,6 +398,28 @@ export class GraphService {
         await tx.conhecimentoAresta.create({ data: { grafoId, nodeOrigemId: s.id, nodeDestinoId: t.id, tipoRelacao: e.relacao as any, peso } });
         result.edges++;
       }
+
+      // Sincroniza baralho_flashcards com as arestas CONTEM recém-criadas.
+      // O vault exporta BARALHO→FLASHCARD como arestas do grafo, mas o serviço
+      // de estudo lê a relação direta na tabela baralho_flashcards — por isso
+      // é preciso mantê-las em sincronia após cada push do vault.
+      const baralhoPairs = new Map<string, string[]>(); // baralhoRef → fcRefs[]
+      for (const e of edges) {
+        if (e.relacao !== 'CONTEM') continue;
+        const s = byRef.get(e.origem);
+        const t = byRef.get(e.destino);
+        if (!s || !t) continue;
+        if (s.tipoNode !== 'BARALHO' || t.tipoNode !== 'FLASHCARD') continue;
+        const list = baralhoPairs.get(e.origem) ?? [];
+        list.push(e.destino); // vault ref === entity id
+        baralhoPairs.set(e.origem, list);
+      }
+      for (const [baralhoRef, fcRefs] of baralhoPairs) {
+        await tx.baralho.update({
+          where: { id: baralhoRef },
+          data: { flashcards: { set: fcRefs.map((id) => ({ id })) } },
+        });
+      }
     });
     return result;
   }
