@@ -197,6 +197,26 @@ export function GraphDashboard({ open, onClose, nodes, edges }: {
           </div>
         )}
 
+        {/* ── Radar: Maestria × Conectividade ── */}
+        {m.radarData.length >= 3 && (
+          <div className={SECTION}>
+            <p className={SECTION_TITLE}>Maestria × Conectividade por tipo</p>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Tipos com alta conectividade mas baixa maestria são pontos críticos de revisão.
+            </p>
+            <ResponsiveContainer width="100%" height={230}>
+              <RadarChart data={m.radarData} margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
+                <PolarGrid stroke="hsl(var(--border))" />
+                <PolarAngleAxis dataKey="type" tick={{ fontSize: 10 }} />
+                <Radar name="Maestria (%)" dataKey="maestria" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
+                <Radar name="Conectividade (%)" dataKey="conectividade" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
+                <Legend iconSize={8} formatter={(v) => <span className="text-[11px]">{v}</span>} />
+                <Tooltip formatter={(v, name) => [`${v}%`, name]} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
         {/* ── Knowledge Gap Matrix ── */}
         {m.scatter.length > 0 && (
           <div className={SECTION}>

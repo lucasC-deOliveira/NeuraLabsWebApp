@@ -22,6 +22,9 @@ export interface GraphMetrics {
   // maestria
   dominioByType: { type: string; label: string; dominio: number; color: string }[];
 
+  // radar multi-série: maestria × conectividade por tipo (0-100 normalizado)
+  radarData: { type: string; maestria: number; conectividade: number }[];
+
   // matrix domínio × prioridade (knowledge gap analysis)
   scatter: { id: string; label: string; group: string; color: string; dominio: number; prioridade: number }[];
 
@@ -95,10 +98,14 @@ export function computeGraphMetrics(nodes: SimNode[], edges: GraphEdgeType[]): G
 
   // ---- maestria média por tipo ----
   const domByType = new Map<string, number[]>();
+  const degByType = new Map<string, number[]>();
   for (const n of nodes) {
     const arr = domByType.get(n.group) ?? [];
     arr.push(n.dominio);
     domByType.set(n.group, arr);
+    const darr = degByType.get(n.group) ?? [];
+    darr.push(degMap.get(n.id) ?? 0);
+    degByType.set(n.group, darr);
   }
   const dominioByType = [...domByType.entries()].map(([type, arr]) => ({
     type,
@@ -106,6 +113,27 @@ export function computeGraphMetrics(nodes: SimNode[], edges: GraphEdgeType[]): G
     dominio: Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100),
     color: TYPE_COLORS[type] ?? "#888",
   }));
+
+  // radar multi-série: maestria × conectividade por tipo
+  const allTypes = [...new Set(nodes.map(n => n.group))];
+  const maxAvgDeg = Math.max(
+    ...allTypes.map(t => {
+      const arr = degByType.get(t) ?? [0];
+      return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }),
+    1,
+  );
+  const radarData = allTypes.map(t => {
+    const dArr = domByType.get(t) ?? [0];
+    const cArr = degByType.get(t) ?? [0];
+    const avgDom = dArr.reduce((a, b) => a + b, 0) / dArr.length;
+    const avgCon = cArr.reduce((a, b) => a + b, 0) / cArr.length;
+    return {
+      type: TYPE_LABELS[t] ?? t,
+      maestria: Math.round(avgDom * 100),
+      conectividade: Math.round((avgCon / maxAvgDeg) * 100),
+    };
+  });
 
   // ---- scatter: domínio × prioridade ----
   const scatter = nodes.map(n => ({
@@ -145,6 +173,7 @@ export function computeGraphMetrics(nodes: SimNode[], edges: GraphEdgeType[]): G
     degreeHistogram,
     topHubs,
     dominioByType,
+    radarData,
     scatter,
     orphans,
     hubs,
