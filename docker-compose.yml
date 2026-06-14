@@ -1,4 +1,4 @@
-# Sobe Postgres + a API NestJS + o frontend Next (thin client).
+# Sobe Postgres + a API NestJS + o frontend (SPA Vite servida por nginx).
 services:
   postgres:
     image: postgres:16
@@ -36,10 +36,10 @@ services:
       context: .
       args:
         # build-time: vai pro bundle do browser; usa a porta publicada do backend
-        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}"
+        VITE_API_URL: "${VITE_API_URL:-http://localhost:3001/api}"
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - backend
 

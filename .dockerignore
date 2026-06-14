@@ -1,12 +1,13 @@
 node_modules
-.next
+dist
+dist-electron
 build
 backend
 electron
 .git
 .github
 *.db
-prisma/dev.db
 npm-debug.log*
+.env
 .env.local
 .DS_Store
