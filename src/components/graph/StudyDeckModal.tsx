@@ -14,18 +14,22 @@ import { toast } from "sonner";
 import { startDeckStudy, submitCardReview, finalizeStudySession } from "@/lib/study-api";
 import type { FlashcardData } from "@/types";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
+import { isDesktop } from "@/lib/vault-bridge";
+import { readAllVaultNodes } from "@/lib/vault-sync";
 
 interface StudyDeckModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   baralhoId: string | null;
+  grafoId?: string;
+  grafoNome?: string;
 }
 
-type Phase = "loading" | "question" | "answer" | "confidence" | "saving" | "complete" | "error";
+type Phase = "loading" | "question" | "answer" | "confidence" | "saving" | "complete" | "error" | "vault-preview";
 
 const CONFIDENCE_LABELS = ["Nada", "Pouco", "Neutro", "Confiante", "Muito"];
 
-export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModalProps) {
+export function StudyDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNome }: StudyDeckModalProps) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [titulo, setTitulo] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -58,7 +62,26 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
           return;
         }
         if (!deck) {
-          setPhase("error");
+          // Fallback: carrega do vault sem SRS
+          if (isDesktop() && grafoId && grafoNome && baralhoId) {
+            readAllVaultNodes(grafoId, grafoNome).then((nodes) => {
+              if (!active) return;
+              const byId = new Map(nodes.map((n) => [n.id, n]));
+              const baralho = byId.get(baralhoId);
+              if (!baralho || baralho.tipo !== "BARALHO") { setPhase("error"); return; }
+              const vaultCards = baralho.relacoes
+                .filter((r) => r.rel === "CONTEM")
+                .map((r) => byId.get(r.alvo))
+                .filter((n) => n && n.tipo === "FLASHCARD")
+                .map((n) => ({ id: n!.id, pergunta: n!.pergunta ?? "", resposta: n!.resposta ?? "", conceito: null }));
+              setTitulo(baralho.titulo ?? baralho.nome ?? "Baralho");
+              setCards(vaultCards as FlashcardData[]);
+              setTotalNoDeck(vaultCards.length);
+              setPhase("vault-preview");
+            });
+          } else {
+            setPhase("error");
+          }
           return;
         }
         setTitulo(deck.titulo);
@@ -165,6 +188,17 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId }: StudyDeckModal
             <p className="py-10 text-center text-sm text-muted-foreground">
               Não foi possível carregar este baralho.
             </p>
+          ) : phase === "vault-preview" ? (
+            <div className="space-y-3">
+              <p className="text-center text-xs text-muted-foreground">
+                Conteúdo do vault — SRS não disponível até fazer Push. {cards.length} flashcard{cards.length !== 1 ? "s" : ""}.
+              </p>
+              <div className="space-y-2">
+                {cards.map((c) => (
+                  <FlashcardFace key={c.id} pergunta={c.pergunta} resposta={c.resposta} conceito={c.conceito} showAnswer />
+                ))}
+              </div>
+            </div>
           ) : phase === "complete" ? (
             <div className="flex flex-col items-center gap-3 py-10">
               <CheckCircle2Icon className="size-10 text-green-600 dark:text-green-500" />

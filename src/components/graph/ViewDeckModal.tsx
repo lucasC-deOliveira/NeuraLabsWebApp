@@ -11,16 +11,42 @@ import {
 import { Loader2Icon, ChevronRightIcon } from "lucide-react";
 import { getDeckForStudy } from "@/lib/graph-api";
 import { MarkdownContent } from "@/components/markdown-content";
+import { isDesktop } from "@/lib/vault-bridge";
+import { readAllVaultNodes } from "@/lib/vault-sync";
 
 interface ViewDeckModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   baralhoId: string | null;
+  grafoId?: string;
+  grafoNome?: string;
 }
 
 type Card = { id: string; pergunta: string; resposta: string; conceito: string | null };
 
-export function ViewDeckModal({ open, onOpenChange, baralhoId }: ViewDeckModalProps) {
+async function loadDeckFromVault(
+  baralhoId: string,
+  grafoId: string,
+  grafoNome: string,
+): Promise<{ titulo: string; cards: Card[] } | null> {
+  const nodes = await readAllVaultNodes(grafoId, grafoNome);
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const baralho = nodeById.get(baralhoId);
+  if (!baralho || baralho.tipo !== "BARALHO") return null;
+
+  const cards: Card[] = baralho.relacoes
+    .filter((r) => r.rel === "CONTEM")
+    .map((r) => {
+      const fc = nodeById.get(r.alvo);
+      if (!fc || fc.tipo !== "FLASHCARD") return null;
+      return { id: fc.id, pergunta: fc.pergunta ?? "", resposta: fc.resposta ?? "", conceito: null };
+    })
+    .filter(Boolean) as Card[];
+
+  return { titulo: baralho.titulo ?? baralho.nome ?? "Baralho", cards };
+}
+
+export function ViewDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNome }: ViewDeckModalProps) {
   const [loading, setLoading] = useState(true);
   const [titulo, setTitulo] = useState("");
   const [cards, setCards] = useState<Card[]>([]);
@@ -33,21 +59,27 @@ export function ViewDeckModal({ open, onOpenChange, baralhoId }: ViewDeckModalPr
     setCards([]);
     setExpanded(new Set());
     getDeckForStudy(baralhoId)
-      .then((deck) => {
+      .then(async (deck) => {
         if (!active) return;
         if (deck) {
           setTitulo(deck.titulo);
           setCards(deck.cards);
-        } else {
-          setTitulo("");
-          setCards([]);
+          return;
         }
+        // Fallback: busca no vault
+        if (isDesktop() && grafoId && grafoNome) {
+          const fromVault = await loadDeckFromVault(baralhoId, grafoId, grafoNome);
+          if (active && fromVault) {
+            setTitulo(fromVault.titulo);
+            setCards(fromVault.cards);
+            return;
+          }
+        }
+        if (active) { setTitulo(""); setCards([]); }
       })
       .catch(() => active && setCards([]))
       .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [open, baralhoId]);
 
   const toggle = (id: string) =>

@@ -19,6 +19,33 @@ export function graphVaultDir(baseDir: string, grafoId: string, grafoNome: strin
   return `${baseDir}/${slugify(grafoNome)}--${grafoId}`;
 }
 
+// Lê todos os nós parseados do vault para um grafo específico.
+export async function readAllVaultNodes(grafoId: string, grafoNome: string): Promise<VaultNode[]> {
+  try {
+    const vaultDir = await desktop.vault.getPath();
+    if (!vaultDir) return [];
+    const graphDir = graphVaultDir(vaultDir, grafoId, grafoNome);
+    const files = await desktop.vault.read(graphDir);
+    return files
+      .filter((f) => !f.relPath.replace(/\\/g, "/").endsWith(VAULT_GUIDE_FILENAME))
+      .map((f) => parseNode(f.content))
+      .filter(Boolean) as VaultNode[];
+  } catch {
+    return [];
+  }
+}
+
+// Busca um nó específico no vault por ID e tipo.
+export async function findVaultNode(
+  grafoId: string,
+  grafoNome: string,
+  nodeId: string,
+  tipo?: string,
+): Promise<VaultNode | null> {
+  const nodes = await readAllVaultNodes(grafoId, grafoNome);
+  return nodes.find((n) => n.id === nodeId && (!tipo || n.tipo === tipo)) ?? null;
+}
+
 // Pull: baixa o grafo do backend e grava os .md na subpasta do grafo.
 export async function pullVault(grafoId: string, dir: string, grafoNome: string): Promise<{ files: number }> {
   const graphDir = graphVaultDir(dir, grafoId, grafoNome);

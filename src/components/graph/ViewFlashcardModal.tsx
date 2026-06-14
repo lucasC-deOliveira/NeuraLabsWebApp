@@ -11,14 +11,18 @@ import {
 import { Loader2Icon } from "lucide-react";
 import { getNodeDetails } from "@/lib/graph-api";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
+import { isDesktop } from "@/lib/vault-bridge";
+import { findVaultNode } from "@/lib/vault-sync";
 
 interface ViewFlashcardModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   flashcardId: string | null;
+  grafoId?: string;
+  grafoNome?: string;
 }
 
-export function ViewFlashcardModal({ open, onOpenChange, flashcardId }: ViewFlashcardModalProps) {
+export function ViewFlashcardModal({ open, onOpenChange, flashcardId, grafoId, grafoNome }: ViewFlashcardModalProps) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{ pergunta: string; resposta: string } | null>(null);
 
@@ -28,15 +32,25 @@ export function ViewFlashcardModal({ open, onOpenChange, flashcardId }: ViewFlas
     setLoading(true);
     setData(null);
     getNodeDetails("FLASHCARD", flashcardId)
-      .then((d) => {
+      .then(async (d) => {
         if (!active) return;
-        setData(d ? { pergunta: d.pergunta ?? "", resposta: d.resposta ?? "" } : null);
+        if (d) {
+          setData({ pergunta: d.pergunta ?? "", resposta: d.resposta ?? "" });
+          return;
+        }
+        // Fallback: busca no vault
+        if (isDesktop() && grafoId && grafoNome) {
+          const vn = await findVaultNode(grafoId, grafoNome, flashcardId, "FLASHCARD");
+          if (active && vn) {
+            setData({ pergunta: vn.pergunta ?? "", resposta: vn.resposta ?? "" });
+            return;
+          }
+        }
+        if (active) setData(null);
       })
       .catch(() => active && setData(null))
       .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [open, flashcardId]);
 
   return (

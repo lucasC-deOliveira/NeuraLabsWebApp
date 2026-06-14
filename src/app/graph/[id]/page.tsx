@@ -527,11 +527,15 @@ export default function GraphPage() {
           }
         }}
         flashcardId={studyFlashcardId}
+        grafoId={graphId}
+        grafoNome={controller.state.grafoNome}
       />
       <ViewFlashcardModal
         open={!!viewFlashcardId}
         onOpenChange={(open) => !open && setViewFlashcardId(null)}
         flashcardId={viewFlashcardId}
+        grafoId={graphId}
+        grafoNome={controller.state.grafoNome}
       />
       <NodeInsightsModal
         open={!!insightsNode}
@@ -550,11 +554,15 @@ export default function GraphPage() {
           }
         }}
         baralhoId={studyDeckId}
+        grafoId={graphId}
+        grafoNome={controller.state.grafoNome}
       />
       <ViewDeckModal
         open={!!viewDeckId}
         onOpenChange={(open) => !open && setViewDeckId(null)}
         baralhoId={viewDeckId}
+        grafoId={graphId}
+        grafoNome={controller.state.grafoNome}
       />
       <EdgeManagerModal
         open={isEdgeManagerOpen}

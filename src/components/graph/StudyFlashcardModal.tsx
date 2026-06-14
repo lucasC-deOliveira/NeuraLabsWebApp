@@ -13,15 +13,19 @@ import { Loader2Icon, EyeIcon, CheckCircle2Icon, XCircleIcon, ClockIcon } from "
 import { toast } from "sonner";
 import { startSingleCardStudy, submitCardReview, finalizeStudySession } from "@/lib/study-api";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
+import { isDesktop } from "@/lib/vault-bridge";
+import { findVaultNode } from "@/lib/vault-sync";
 
 interface StudyFlashcardModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   flashcardId: string | null;
+  grafoId?: string;
+  grafoNome?: string;
 }
 
 type Card = { id: string; pergunta: string; resposta: string; conceito: string | null };
-type Phase = "loading" | "question" | "answer" | "confidence" | "saving" | "done" | "notdue" | "error";
+type Phase = "loading" | "question" | "answer" | "confidence" | "saving" | "done" | "notdue" | "error" | "vault-preview";
 
 const CONFIDENCE_LABELS = ["Nada", "Pouco", "Neutro", "Confiante", "Muito"];
 
@@ -34,7 +38,7 @@ function formatProxima(iso: string): string {
   return `em ${dias} dias (${data})`;
 }
 
-export function StudyFlashcardModal({ open, onOpenChange, flashcardId }: StudyFlashcardModalProps) {
+export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, grafoNome }: StudyFlashcardModalProps) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [card, setCard] = useState<Card | null>(null);
   const [proximaRevisao, setProximaRevisao] = useState<string | null>(null);
@@ -63,7 +67,20 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId }: StudyFl
           return;
         }
         if (!res) {
-          setPhase("error");
+          // Fallback: busca no vault e exibe sem SRS
+          if (isDesktop() && grafoId && grafoNome && flashcardId) {
+            findVaultNode(grafoId, grafoNome, flashcardId, "FLASHCARD").then((vn) => {
+              if (!active) return;
+              if (vn) {
+                setCard({ id: vn.id, pergunta: vn.pergunta ?? "", resposta: vn.resposta ?? "", conceito: null });
+                setPhase("vault-preview");
+              } else {
+                setPhase("error");
+              }
+            });
+          } else {
+            setPhase("error");
+          }
           return;
         }
         setCard(res.card);
@@ -143,6 +160,13 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId }: StudyFl
             <p className="py-10 text-center text-sm text-muted-foreground">
               Não foi possível carregar este flashcard.
             </p>
+          ) : phase === "vault-preview" && card ? (
+            <div className="space-y-3">
+              <p className="text-center text-xs text-muted-foreground">
+                Conteúdo do vault — SRS não disponível até fazer Push.
+              </p>
+              <FlashcardFace pergunta={card.pergunta} resposta={card.resposta} conceito={card.conceito} showAnswer />
+            </div>
           ) : phase === "done" ? (
             <div className="flex flex-col items-center gap-3 py-10">
               <CheckCircle2Icon className="size-10 text-green-600 dark:text-green-500" />
