@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
-import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon } from "lucide-react";
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
@@ -37,6 +37,7 @@ import { NodeInsightsModal } from "@/components/graph/NodeInsightsModal";
 import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
 import { ViewDeckModal } from "@/components/graph/ViewDeckModal";
 import { VaultSyncModal } from "@/components/graph/VaultSyncModal";
+import { GraphDashboard } from "@/components/graph/GraphDashboard";
 import { isDesktop } from "@/lib/vault-bridge";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 
@@ -81,6 +82,7 @@ export default function GraphPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportJsonOpen, setIsImportJsonOpen] = useState(false);
   const [isVaultOpen, setIsVaultOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const desktopApp = isDesktop();
   const [legendVisible, setLegendVisible] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
@@ -278,6 +280,10 @@ export default function GraphPage() {
           {controller.state.grafoNome}
         </div>
 
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => setIsDashboardOpen(v => !v)} title="Analytics do grafo">
+          <BarChart2Icon className="size-4" />
+        </Button>
+
         {desktopApp && (
           <Button variant="ghost" className="text-primary gap-1.5" onClick={() => setIsVaultOpen(true)} title="Sincronizar com vault Markdown">
             <FolderTreeIcon className="size-4" /> Vault
@@ -449,6 +455,13 @@ export default function GraphPage() {
           </div>
         </>
       )}
+
+      <GraphDashboard
+        open={isDashboardOpen}
+        onClose={() => setIsDashboardOpen(false)}
+        nodes={controller.state.layout}
+        edges={controller.state.edges}
+      />
 
       <GraphSettingsModal
         open={isSettingsOpen}
