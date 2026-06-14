@@ -126,7 +126,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-lg overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderTreeIcon className="size-5" /> Vault Sync
@@ -141,7 +141,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
           {/* Seletor de pasta */}
           <div className="space-y-2">
             <Label>Pasta do vault</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 min-w-0">
               <Input
                 value={vaultPath ?? ""}
                 placeholder="Nenhuma pasta selecionada"
