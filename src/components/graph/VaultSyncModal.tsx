@@ -153,8 +153,8 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
               </Button>
             </div>
             {graphDir && (
-              <div className="flex items-center gap-1">
-                <p className="text-[11px] text-muted-foreground font-mono truncate flex-1">📁 {graphDir}</p>
+              <div className="flex items-center gap-1 min-w-0">
+                <p className="text-[11px] text-muted-foreground font-mono truncate flex-1 min-w-0">📁 {graphDir}</p>
                 <Button
                   type="button" variant="ghost" size="sm"
                   onClick={() => desktop.vault.openFolder(graphDir)}
