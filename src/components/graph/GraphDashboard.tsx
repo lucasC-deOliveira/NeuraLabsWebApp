@@ -188,7 +188,7 @@ export function GraphDashboard({ open, onClose, nodes, edges }: {
             <p className="text-[11px] text-muted-foreground mb-2">Identifica lacunas de aprendizado por categoria.</p>
             <ResponsiveContainer width="100%" height={220}>
               <RadarChart data={m.dominioByType} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
-                <PolarGrid stroke="hsl(var(--border))" />
+                <PolarGrid gridType="polygon" stroke="#94a3b8" strokeOpacity={0.4} />
                 <PolarAngleAxis dataKey="label" tick={{ fontSize: 10 }} />
                 <Radar name="Domínio" dataKey="dominio" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} />
                 <Tooltip formatter={(v) => [`${v}%`, "Domínio"]} />
@@ -206,7 +206,7 @@ export function GraphDashboard({ open, onClose, nodes, edges }: {
             </p>
             <ResponsiveContainer width="100%" height={230}>
               <RadarChart data={m.radarData} margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
-                <PolarGrid stroke="hsl(var(--border))" />
+                <PolarGrid gridType="polygon" stroke="#94a3b8" strokeOpacity={0.4} />
                 <PolarAngleAxis dataKey="type" tick={{ fontSize: 10 }} />
                 <Radar name="Maestria (%)" dataKey="maestria" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
                 <Radar name="Conectividade (%)" dataKey="conectividade" stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
