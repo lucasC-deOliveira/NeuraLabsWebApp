@@ -95,6 +95,157 @@ ipcMain.handle("neuralabs:set-api-url", (_e, url) => {
 });
 
 // ---------------------------------------------------------------------------
+// Vault: inicialização (pastas PARA + CLAUDE.md)
+// ---------------------------------------------------------------------------
+function initVault(dir) {
+  const root = path.resolve(dir);
+  for (const folder of PARA_FOLDERS) {
+    fs.mkdirSync(path.join(root, folder), { recursive: true });
+  }
+
+  const claudeMd = path.join(root, "CLAUDE.md");
+  if (!fs.existsSync(claudeMd)) {
+    fs.writeFileSync(claudeMd, VAULT_CLAUDE_MD, "utf8");
+  }
+}
+
+const VAULT_CLAUDE_MD = `# NeuraLabs Vault — instruções para o Claude
+
+Este vault contém o grafo de conhecimento do NeuraLabs exportado como arquivos Markdown.
+Cada arquivo \`.md\` representa **um nó** do grafo. Após editar arquivos aqui, abra o
+NeuraLabs e clique em **Vault → Pull** no grafo correspondente para sincronizar de volta.
+
+---
+
+## Estrutura de pastas (PARA)
+
+| Pasta | Tipos de nó |
+|---|---|
+| \`Projects/\` | \`BARALHO\` (decks de flashcard) |
+| \`Areas/\` | \`ASSUNTO\` (disciplinas, áreas de estudo) |
+| \`Resources/\` | \`TOPICO\`, \`CONCEITO\`, \`NOTA\`, \`FLASHCARD\`, \`TEXTO_BRUTO\` |
+| \`Archives/\` | reservado (não edite manualmente) |
+
+---
+
+## Formato de cada arquivo
+
+Todo arquivo começa com um bloco **frontmatter YAML** seguido do corpo em Markdown:
+
+\`\`\`markdown
+---
+id: "uuid-do-no"
+tipo: CONCEITO
+grafo: "uuid-do-grafo"
+titulo: "Nome do nó"
+nivelDominio: 3          # 0–5, opcional
+relacoes:
+  - rel: PERTENCE_A
+    alvo: "[[uuid-do-topico-pai]]"
+    peso: 1
+  - rel: PREREQUISITO
+    alvo: "[[uuid-de-outro-conceito]]"
+    peso: 1
+---
+
+Corpo do nó em Markdown livre.
+\`\`\`
+
+**Regras obrigatórias:**
+- \`id\` — nunca altere. É a chave primária no banco.
+- \`tipo\` — nunca altere. Define o comportamento do nó.
+- \`grafo\` — nunca altere. Identifica a qual grafo pertence.
+- \`alvo\` nas relações — sempre no formato \`[[uuid]]\`. Use o \`id\` do nó destino.
+
+---
+
+## Tipos de nó e campos esperados
+
+### ASSUNTO
+Área de estudo de nível mais alto (ex: "Algoritmos", "Fisiologia").
+- Corpo: descrição opcional em texto livre.
+
+### TOPICO
+Subdivisão de um assunto (ex: "Ordenação", "Sistema cardiovascular").
+- Corpo: descrição opcional.
+- Relações típicas: \`PERTENCE_A\` → ASSUNTO, \`SUBTOPICO_DE\` → TOPICO.
+
+### CONCEITO
+Unidade de conhecimento atômica (ex: "QuickSort", "Miocárdio").
+- Corpo: explicação, definição ou anotações.
+- Relações típicas: \`PERTENCE_A\` → TOPICO, \`IS_A\`, \`PART_OF\`, \`PREREQUISITO\`,
+  \`DERIVA_DE\`, \`EVOLUI_PARA\`, \`REFORCA\`, \`CONTRASTA_COM\`, \`CONFUNDE_COM\`.
+
+### NOTA
+Nota Zettelkasten livre.
+- Corpo: conteúdo completo da nota em Markdown.
+- Relações típicas: \`PERTENCE_A\` → TOPICO ou ASSUNTO, \`DEFINE\` / \`EXPLICA\` → CONCEITO.
+
+### FLASHCARD
+Cartão de estudo.
+- Corpo **obrigatório** no formato:
+\`\`\`
+## Pergunta
+
+Texto da pergunta
+
+## Resposta
+
+Texto da resposta
+\`\`\`
+- Relações típicas: \`HERDA\` / \`DEFINE\` → CONCEITO, \`TESTA\` → NOTA.
+
+### BARALHO
+Deck de flashcards (pasta \`Projects/\`).
+- Sem corpo relevante.
+- Relação: \`CONTEM\` → FLASHCARD.
+
+### TEXTO_BRUTO
+Texto de referência importado.
+- Corpo: texto completo.
+- Relação: \`GERA\` → NOTA.
+
+---
+
+## Relações permitidas (resumo)
+
+| De → Para | Relações válidas |
+|---|---|
+| CONCEITO → TOPICO | \`PERTENCE_A\`, \`FUNDAMENTA\`, \`APLICADO_EM\` |
+| CONCEITO → CONCEITO | \`IS_A\`, \`PART_OF\`, \`PREREQUISITO\`, \`DERIVA_DE\`, \`EVOLUI_PARA\`, \`REFORCA\`, \`ALTERNATIVA_A\`, \`CONTRASTA_COM\`, \`CONFUNDE_COM\`, \`ANTI_PADRAO_DE\` |
+| TOPICO → ASSUNTO | \`PERTENCE_A\`, \`APLICADO_EM\` |
+| TOPICO → TOPICO | \`SUBTOPICO_DE\`, \`RELACIONADO\`, \`DEPENDE_DE\`, \`EVOLUI_PARA\` |
+| NOTA → CONCEITO | \`DEFINE\`, \`EXPLICA\`, \`APROFUNDA\`, \`EXEMPLIFICA\`, \`CONTRASTA\`, \`SINTETIZA\`, \`ALERTA_ERRO\` |
+| NOTA → TOPICO/ASSUNTO | \`PERTENCE_A\` |
+| FLASHCARD → CONCEITO | \`HERDA\`, \`DEFINE\`, \`EXPLICA\`, \`APROFUNDA\`, \`EXEMPLIFICA\` |
+| FLASHCARD → NOTA | \`TESTA\` |
+| BARALHO → FLASHCARD | \`CONTEM\` |
+| TEXTO_BRUTO → NOTA | \`GERA\` |
+
+---
+
+## Como criar um novo nó
+
+1. Gere um UUID v4 (ex: \`crypto.randomUUID()\` no Node, ou use qualquer gerador online).
+2. Crie um arquivo na pasta correta: \`Resources/nome-do-conceito--<uuid>.md\`.
+3. Preencha o frontmatter com \`id\`, \`tipo\`, \`grafo\` (copie do frontmatter de outro arquivo do mesmo grafo) e \`titulo\`.
+4. Adicione as relações necessárias.
+5. Salve e faça Pull no NeuraLabs.
+
+## Como editar um nó existente
+
+- Edite **apenas** o corpo Markdown e/ou o campo \`relacoes\` no frontmatter.
+- Para renomear: altere \`titulo\` no frontmatter E o nome do arquivo (o app usa o \`id\` para identificar, não o nome do arquivo).
+- Nunca altere \`id\`, \`tipo\` ou \`grafo\`.
+
+## Não faça
+
+- Não crie arquivos fora das pastas PARA.
+- Não remova arquivos — o Pull ignora arquivos ausentes (use o app para deletar nós).
+- Não duplique \`id\`s.
+`;
+
+// ---------------------------------------------------------------------------
 // IPC: vault (sistema de arquivos)
 // ---------------------------------------------------------------------------
 ipcMain.handle("vault:get-path", () => readConfig().vaultPath || null);
@@ -107,6 +258,7 @@ ipcMain.handle("vault:pick-folder", async () => {
   if (res.canceled || !res.filePaths[0]) return null;
   const dir = res.filePaths[0];
   writeConfig({ vaultPath: dir });
+  initVault(dir);
   return dir;
 });
 
