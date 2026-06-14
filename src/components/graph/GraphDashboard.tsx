@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -71,11 +71,12 @@ const CustomTooltipPie = ({ active, payload }: any) => {
 
 const DEGREE_OPTIONS = [0, 1, 2, 3, 5, 8];
 
-export function GraphDashboard({ open, onClose, nodes, edges }: {
+export function GraphDashboard({ open, onClose, nodes, edges, onFilteredIdsChange }: {
   open: boolean;
   onClose: () => void;
   nodes: SimNode[];
   edges: GraphEdgeType[];
+  onFilteredIdsChange?: (ids: Set<string> | null) => void;
 }) {
   /* ── Filter state ── */
   const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set());
@@ -130,6 +131,11 @@ export function GraphDashboard({ open, onClose, nodes, edges }: {
     }
     return { nodes: ns, edges: es };
   }, [nodes, edges, activeTypes, minDominio, maxDominio, minDegree, search]);
+
+  useEffect(() => {
+    if (!onFilteredIdsChange) return;
+    onFilteredIdsChange(hasFilters ? new Set(filteredData.nodes.map(n => n.id)) : null);
+  }, [filteredData, hasFilters, onFilteredIdsChange]);
 
   const m = useMemo(
     () => computeGraphMetrics(filteredData.nodes, filteredData.edges),

@@ -83,6 +83,15 @@ export default function GraphPage() {
   const [isImportJsonOpen, setIsImportJsonOpen] = useState(false);
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [dashFilterIds, setDashFilterIds] = useState<Set<string> | null>(null);
+
+  const combinedMatchedIds = useMemo(() => {
+    const a = dashFilterIds;
+    const b = search.matchedIds;
+    if (!a && !b) return null;
+    if (a && b) return new Set([...a].filter(id => b.has(id)));
+    return a ?? b ?? null;
+  }, [dashFilterIds, search.matchedIds]);
   const desktopApp = isDesktop();
   const [legendVisible, setLegendVisible] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
@@ -353,7 +362,7 @@ export default function GraphPage() {
             highContrast={highContrast}
             focusMode={focusMode}
             focusDepth={focusDepth}
-            matchedIds={search.matchedIds}
+            matchedIds={combinedMatchedIds}
             onNodeClick={controller.actions.selectNode}
             onNodeContextMenu={(node, x, y) => setNodeMenu({ node, x, y })}
             onNodeHover={controller.actions.setHoveredNodeId}
@@ -458,9 +467,10 @@ export default function GraphPage() {
 
       <GraphDashboard
         open={isDashboardOpen}
-        onClose={() => setIsDashboardOpen(false)}
+        onClose={() => { setIsDashboardOpen(false); setDashFilterIds(null); }}
         nodes={controller.state.layout}
         edges={controller.state.edges}
+        onFilteredIdsChange={setDashFilterIds}
       />
 
       <GraphSettingsModal
