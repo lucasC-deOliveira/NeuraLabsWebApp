@@ -237,8 +237,8 @@ export function useGraphController(graphId: string) {
   );
 
   const filteredEdges = useMemo(
-    () => getFilteredEdges(edges, layout, visibleNodeIds),
-    [edges, layout, visibleNodeIds]
+    () => getFilteredEdges(edges, visibleNodeIds),
+    [edges, visibleNodeIds]
   );
 
   // nó selecionado "vivo": reflete o layout atual (ex.: domínio recalculado)

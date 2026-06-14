@@ -60,28 +60,25 @@ describe("getVisibleNodeIds", () => {
 describe("getFilteredEdges", () => {
   const visibleIds = new Set(["n1", "n2", "n3", "n4"]);
 
-  it("returns edges with source/target coordinates resolved from layout", () => {
-    const result = getFilteredEdges(edges, nodes, visibleIds);
+  it("returns all edges when all nodes are visible", () => {
+    const result = getFilteredEdges(edges, visibleIds);
     expect(result).toHaveLength(3);
-    const first = result[0];
-    expect(first.sourceX).toBe(0); // n1.x
-    expect(first.targetX).toBe(10); // n2.x
   });
 
   it("excludes edges where source is not visible", () => {
     const limited = new Set(["n2", "n3", "n4"]);
-    const result = getFilteredEdges(edges, nodes, limited);
+    const result = getFilteredEdges(edges, limited);
     expect(result.every((e) => e.source !== "n1")).toBe(true);
   });
 
   it("excludes edges where target is not visible", () => {
     const limited = new Set(["n1", "n2", "n3"]);
-    const result = getFilteredEdges(edges, nodes, limited);
+    const result = getFilteredEdges(edges, limited);
     expect(result.find((e) => e.target === "n4")).toBeUndefined();
   });
 
   it("returns empty array when visibleIds is empty", () => {
-    expect(getFilteredEdges(edges, nodes, new Set())).toHaveLength(0);
+    expect(getFilteredEdges(edges, new Set())).toHaveLength(0);
   });
 });
 

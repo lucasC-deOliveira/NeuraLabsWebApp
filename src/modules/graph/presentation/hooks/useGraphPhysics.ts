@@ -15,8 +15,9 @@ type Props<T extends { id: string; x: number; y: number }> = {
   options?: PhysicsOptions;
 };
 
-// Loop de animação da física ambiente. Pausa enquanto qualquer ponteiro
-// está pressionado para não brigar com drag/pan/marquee.
+// Loop de animação da física ambiente.
+// Para automaticamente quando o grafo estabiliza (physicsStep devolve a mesma
+// referência) e volta ao rodar quando o usuário arrasta um nó (pointerup).
 export function useGraphPhysics<T extends { id: string; x: number; y: number }>({
   enabled,
   setLayout,
@@ -43,16 +44,41 @@ export function useGraphPhysics<T extends { id: string; x: number; y: number }>(
   useEffect(() => {
     if (!enabled) return;
 
+    // settled.current: true quando physicsStep devolveu a mesma referência
+    // (nenhum nó se moveu) — o RAF para e aguarda um pointerup para reiniciar.
+    const settled = { current: false };
     let raf = 0;
 
+    const schedule = () => { raf = requestAnimationFrame(tick); };
+
     const tick = () => {
+      raf = 0;
       if (!pointerDown.current) {
-        setLayout((prev) => physicsStep(prev, edgesRef.current, optionsRef.current));
+        setLayout((prev) => {
+          const next = physicsStep(prev, edgesRef.current, optionsRef.current);
+          // physicsStep devolve `prev` (mesma ref) quando nada se moveu
+          settled.current = next === prev;
+          return next;
+        });
       }
-      raf = requestAnimationFrame(tick);
+      if (!settled.current) {
+        schedule();
+      }
+      // se estabilizou: RAF para; reiniciado pelo pointerup abaixo
     };
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // reinicia a física depois que o usuário solta um nó arrastado
+    const onPointerUp = () => {
+      settled.current = false;
+      if (raf === 0) schedule();
+    };
+
+    window.addEventListener("pointerup", onPointerUp);
+    schedule();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
   }, [enabled, setLayout]);
 }

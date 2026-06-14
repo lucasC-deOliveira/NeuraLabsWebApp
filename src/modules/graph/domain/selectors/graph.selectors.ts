@@ -36,30 +36,17 @@ export function getNodesInRect(
 }
 
 /**
- * Filtra edges considerando nodes visíveis
+ * Filtra edges considerando nodes visíveis.
+ * Coordenadas não são copiadas aqui: o GraphRenderer lê posições
+ * diretamente do nodeById Map (nodes atualizados frame a frame).
  */
 export function getFilteredEdges(
   edges: any[],
-  layout: any[],
   visibleNodeIds: Set<string>
 ) {
-  return edges
-    .map((e) => {
-      const src = layout.find((n) => n.id === e.source);
-      const tgt = layout.find((n) => n.id === e.target);
-
-      return {
-        ...e,
-        sourceX: src?.x ?? e.sourceX,
-        sourceY: src?.y ?? e.sourceY,
-        targetX: tgt?.x ?? e.targetX,
-        targetY: tgt?.y ?? e.targetY,
-      };
-    })
-    .filter(
-      (e) =>
-        visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target)
-    );
+  return edges.filter(
+    (e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target)
+  );
 }
 
 /**
