@@ -3,12 +3,12 @@
 // página fala com o backend NestJS via JWT. O backend é configurável (config.json)
 // e o app hospeda o VAULT: operações de sistema de arquivos (ler/gravar .md) via
 // IPC, para edição externa (Obsidian/Claude Code) e sync manual Pull/Push.
-const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, shell, dialog, ipcMain, Menu } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
 const isDev = !app.isPackaged;
-const DEV_URL = process.env.ELECTRON_DEV_URL || "http://localhost:3000";
+const DEV_URL = process.env.ELECTRON_DEV_URL || "http://localhost:5173";
 const DEFAULT_API_URL = process.env.NEURALABS_API_URL || "http://localhost:3001/api";
 
 // Pastas PARA do vault (espelha src/lib/vault-format.ts).
@@ -48,7 +48,8 @@ function createWindow() {
     height: 900,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: "#0a0a0a",
+    title: "NeuraLabs",
+    icon: path.join(__dirname, "../public/favicon.ico"),
     show: false,
     webPreferences: {
       contextIsolation: true,
@@ -154,6 +155,6 @@ ipcMain.handle("vault:open-folder", async (_e, dir) => {
 // ---------------------------------------------------------------------------
 // Ciclo de vida
 // ---------------------------------------------------------------------------
-app.whenReady().then(boot);
+app.whenReady().then(() => { Menu.setApplicationMenu(null); boot(); });
 app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) boot(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
