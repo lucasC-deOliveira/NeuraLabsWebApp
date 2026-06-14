@@ -87,14 +87,20 @@ export function Graph3DRenderer({
     onNodeClick(node as SimNode);
   }, [onNodeClick]);
 
+  const bg = isDark ? "#0f172a" : "#f8fafc";
+
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div
+      ref={containerRef}
+      className="absolute inset-0 overflow-hidden"
+      style={{ background: bg }}
+    >
       {dims.w > 0 && dims.h > 0 && (
         <ForceGraph3D
           graphData={graphData}
           width={dims.w}
           height={dims.h}
-          backgroundColor={isDark ? "#0f172a" : "#f8fafc"}
+          backgroundColor={bg}
           nodeColor={getNodeColor}
           nodeVal={getNodeVal}
           nodeLabel="label"
