@@ -31,6 +31,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
   const [vaultPath, setVaultPath] = useState<string | null>(null);
   const [busy, setBusy] = useState<BusyState>(null);
   const [diff, setDiff] = useState<SyncDiff | null>(null);
+  const [diffError, setDiffError] = useState(false);
   const [syncState, setSyncState] = useState<VaultSyncState | null>(null);
 
   const graphDir = vaultPath ? graphVaultDir(vaultPath, grafoId, grafoNome) : null;
@@ -38,6 +39,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
   const runCompare = useCallback(async (dir: string) => {
     const gDir = graphVaultDir(dir, grafoId, grafoNome);
     setBusy("compare");
+    setDiffError(false);
     try {
       const [d, s] = await Promise.all([
         compareSyncState(grafoId, gDir),
@@ -45,8 +47,10 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
       ]);
       setDiff(d);
       setSyncState(s);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao verificar sync.");
+    } catch {
+      // exibe os botões mesmo se a comparação falhar
+      setDiffError(true);
+      setDiff(null);
     } finally {
       setBusy(null);
     }
@@ -63,6 +67,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
   useEffect(() => {
     if (open) {
       setDiff(null);
+      setDiffError(false);
       setSyncState(null);
       load();
     }
@@ -113,12 +118,8 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
   const isConflict = diff
     ? diff.different > 0 || (diff.backendOnly > 0 && diff.vaultOnly > 0)
     : false;
-  const backendAhead = diff
-    ? !isConflict && diff.backendOnly > 0
-    : false;
-  const vaultAhead = diff
-    ? !isConflict && diff.vaultOnly > 0
-    : false;
+  const backendAhead = diff ? !isConflict && diff.backendOnly > 0 : false;
+  const vaultAhead   = diff ? !isConflict && diff.vaultOnly > 0   : false;
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -157,7 +158,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
                 <Button
                   type="button" variant="ghost" size="sm"
                   onClick={() => desktop.vault.openFolder(graphDir)}
-                  className="h-6 px-2 gap-1 text-muted-foreground text-[11px] shrink-0"
+                  className="h-6 px-2 gap-1 text-[11px] text-muted-foreground shrink-0"
                 >
                   <FolderOpenIcon className="size-3" /> Abrir
                 </Button>
@@ -167,29 +168,35 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
 
           {/* Status do diff */}
           {vaultPath && (
-            <div className="rounded-md border p-3 space-y-2 min-h-[72px]">
+            <div className="rounded-md border p-3 space-y-2 min-h-[60px]">
               {busy === "compare" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2Icon className="size-4 animate-spin" /> Verificando divergências...
+                  <Loader2Icon className="size-4 animate-spin" /> Verificando...
                 </div>
               )}
 
-              {busy !== "compare" && diff === null && (
-                <p className="text-sm text-muted-foreground">Clique em Verificar para comparar.</p>
+              {busy !== "compare" && diff === null && !diffError && (
+                <p className="text-sm text-muted-foreground">Clique em Verificar para comparar backend vs vault.</p>
+              )}
+
+              {busy !== "compare" && diffError && (
+                <p className="text-sm text-amber-600 dark:text-amber-400">Não foi possível comparar (backend ou vault inacessível). Use Pull ou Push manualmente.</p>
               )}
 
               {busy !== "compare" && diff !== null && diff.inSync && (
                 <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                  <CheckCircleIcon className="size-4" /> Backend e vault estão sincronizados.
+                  <CheckCircleIcon className="size-4" /> Backend e vault sincronizados.
                 </div>
               )}
 
-              {busy !== "compare" && diff !== null && diff.vaultEmpty && diff.backendOnly > 0 && (
+              {busy !== "compare" && diff !== null && !diff.inSync && diff.vaultEmpty && diff.backendOnly === 0 && (
+                <p className="text-sm text-muted-foreground">Vault vazio e backend sem nós. Crie nós no grafo e faça Pull, ou adicione arquivos .md e faça Push.</p>
+              )}
+
+              {busy !== "compare" && diff !== null && !diff.inSync && diff.vaultEmpty && diff.backendOnly > 0 && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Vault vazio</p>
-                  <p className="text-xs text-muted-foreground">
-                    O backend tem {diff.backendOnly} nó(s). Faça Pull para inicializar o vault.
-                  </p>
+                  <p className="text-sm font-medium">Vault vazio — backend tem {diff.backendOnly} nó(s).</p>
+                  <p className="text-xs text-muted-foreground">Faça Pull para exportar o grafo para a pasta.</p>
                 </div>
               )}
 
@@ -225,8 +232,8 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
             </div>
           )}
 
-          {/* Ações */}
-          {vaultPath && diff !== null && (
+          {/* Ações — sempre visíveis quando há uma pasta */}
+          {vaultPath && (
             <div className="space-y-2">
               {isConflict && (
                 <p className="text-xs text-muted-foreground">
@@ -238,7 +245,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
                 <Button
                   onClick={doPull}
                   disabled={busy !== null}
-                  variant={isConflict || backendAhead || diff.vaultEmpty ? "default" : "outline"}
+                  variant={isConflict || backendAhead || (diff?.vaultEmpty && (diff?.backendOnly ?? 0) > 0) ? "default" : "outline"}
                   className="gap-1.5"
                 >
                   {busy === "pull" ? <Loader2Icon className="size-4 animate-spin" /> : <DownloadIcon className="size-4" />}
@@ -246,7 +253,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
                 </Button>
                 <Button
                   onClick={doPush}
-                  disabled={busy !== null || (diff.vaultEmpty && diff.backendOnly === 0)}
+                  disabled={busy !== null}
                   variant={isConflict || vaultAhead ? "default" : "outline"}
                   className="gap-1.5"
                 >

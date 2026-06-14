@@ -25,5 +25,12 @@ contextBridge.exposeInMainWorld("neuralabs", {
     readSyncState: (dir) => ipcRenderer.invoke("vault:read-sync-state", dir),
     writeSyncState: (dir, state) => ipcRenderer.invoke("vault:write-sync-state", { dir, state }),
     checkModified: (dir, since) => ipcRenderer.invoke("vault:check-modified", { dir, since }),
+    watch: (dir, watchId) => ipcRenderer.invoke("vault:watch", { dir, watchId }),
+    unwatch: (watchId) => ipcRenderer.invoke("vault:unwatch", watchId),
+    onChanged: (cb) => {
+      const fn = (_e, data) => cb(data);
+      ipcRenderer.on("vault:changed", fn);
+      return () => ipcRenderer.off("vault:changed", fn);
+    },
   },
 });

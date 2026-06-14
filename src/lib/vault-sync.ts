@@ -1,12 +1,13 @@
 // Sincronização vault ↔ backend (desktop). Manual: Pull (backend → .md) e
 // Push (.md → backend). Usa o formato em vault-format + a ponte de fs (Electron).
-import { exportGraph, syncGraphFromVault, type ExportGraphNode } from "./graph-api";
+import { exportGraph, syncGraphFromVault, type ExportGraphNode, type GraphNodeType, type GraphEdgeType } from "./graph-api";
 import { desktop, type VaultFile, type VaultSyncState } from "./vault-bridge";
 import {
   serializeNode,
   parseNode,
   nodeRelPath,
   slugify,
+  vaultNodeLabel,
   type VaultNode,
   type VaultRelacao,
   type TipoNode,
@@ -38,7 +39,7 @@ export async function pullVault(grafoId: string, dir: string, grafoNome: string)
   files.push({ relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() });
 
   await desktop.vault.write(graphDir, files);
-  await desktop.vault.writeSyncState(graphDir, { lastPull: new Date().toISOString() });
+  try { await desktop.vault.writeSyncState(graphDir, { lastPull: new Date().toISOString() }); } catch { /* opcional */ }
   return { files: files.length };
 }
 
@@ -61,7 +62,7 @@ export async function pushVault(grafoId: string, grafoNome: string): Promise<{ c
   }
 
   const result = await syncGraphFromVault(grafoId, { nodes, edges });
-  await desktop.vault.writeSyncState(graphDir, { lastPush: new Date().toISOString() });
+  try { await desktop.vault.writeSyncState(graphDir, { lastPush: new Date().toISOString() }); } catch { /* opcional */ }
   return result;
 }
 
@@ -135,6 +136,34 @@ export async function getModifiedCount(graphDir: string, since: string): Promise
   } catch {
     return 0;
   }
+}
+
+// ---- vault → rawNodes/rawEdges (atualização em memória, sem backend) ----
+
+export function vaultToGraphNode(
+  vn: VaultNode,
+  existing?: Pick<GraphNodeType, "posicaoX" | "posicaoY" | "nivelDominio" | "prioridadeRevisao">,
+): GraphNodeType {
+  return {
+    id: vn.id,
+    label: vaultNodeLabel(vn),
+    type: vn.tipo,
+    nivelDominio: existing?.nivelDominio ?? vn.nivelDominio ?? 0,
+    prioridadeRevisao: existing?.prioridadeRevisao ?? 5,
+    pergunta: vn.pergunta,
+    posicaoX: existing?.posicaoX ?? vn.posicaoX ?? undefined,
+    posicaoY: existing?.posicaoY ?? vn.posicaoY ?? undefined,
+  };
+}
+
+export function vaultToGraphEdges(vaultNodes: VaultNode[]): GraphEdgeType[] {
+  const edges: GraphEdgeType[] = [];
+  for (const vn of vaultNodes) {
+    for (const r of vn.relacoes) {
+      edges.push({ source: vn.id, target: r.alvo, type: r.rel, peso: r.peso });
+    }
+  }
+  return edges;
 }
 
 // ---- mapeamentos ----

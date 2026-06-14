@@ -348,6 +348,59 @@ ipcMain.handle("vault:check-modified", async (_e, { dir, since }) => {
 });
 
 // ---------------------------------------------------------------------------
+// Vault: file watcher (grafo em tempo real, sem sincronizar com o backend)
+// ---------------------------------------------------------------------------
+const vaultWatchers = new Map(); // watchId → { watcher, timer }
+
+function readGraphDir(root) {
+  const files = [];
+  const walk = (abs) => {
+    let entries = [];
+    try { entries = fs.readdirSync(abs, { withFileTypes: true }); } catch { return; }
+    for (const ent of entries) {
+      const full = path.join(abs, ent.name);
+      if (ent.isDirectory()) walk(full);
+      else if (ent.isFile() && ent.name.toLowerCase().endsWith(".md")) {
+        try { files.push({ relPath: path.relative(root, full), content: fs.readFileSync(full, "utf8") }); }
+        catch { /* inacessível */ }
+      }
+    }
+  };
+  for (const folder of PARA_FOLDERS) walk(path.join(root, folder));
+  return files;
+}
+
+ipcMain.handle("vault:watch", async (_e, { dir, watchId }) => {
+  if (!dir) return { ok: false };
+  const existing = vaultWatchers.get(watchId);
+  if (existing) { try { existing.watcher.close(); } catch {} clearTimeout(existing.timer); }
+
+  const root = path.resolve(dir);
+  const entry = { watcher: null, timer: null };
+
+  const flush = () => {
+    const files = readGraphDir(root);
+    mainWindow?.webContents.send("vault:changed", { watchId, files });
+  };
+
+  try {
+    entry.watcher = fs.watch(root, { recursive: true }, (_, filename) => {
+      if (!filename?.toLowerCase().endsWith(".md")) return;
+      clearTimeout(entry.timer);
+      entry.timer = setTimeout(flush, 80);
+    });
+    vaultWatchers.set(watchId, entry);
+  } catch { /* dir não existe ainda */ }
+  return { ok: true };
+});
+
+ipcMain.handle("vault:unwatch", (_e, watchId) => {
+  const entry = vaultWatchers.get(watchId);
+  if (entry) { try { entry.watcher.close(); } catch {} clearTimeout(entry.timer); vaultWatchers.delete(watchId); }
+  return { ok: true };
+});
+
+// ---------------------------------------------------------------------------
 // Ciclo de vida
 // ---------------------------------------------------------------------------
 app.whenReady().then(() => { Menu.setApplicationMenu(null); boot(); });

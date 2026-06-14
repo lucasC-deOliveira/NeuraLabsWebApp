@@ -24,6 +24,9 @@ interface NeuralabsBridge {
     readSyncState: (dir: string) => Promise<VaultSyncState | null>;
     writeSyncState: (dir: string, state: Partial<VaultSyncState>) => Promise<{ ok: boolean }>;
     checkModified: (dir: string, since: string) => Promise<{ count: number; files: string[] }>;
+    watch: (dir: string, watchId: string) => Promise<{ ok: boolean }>;
+    unwatch: (watchId: string) => Promise<{ ok: boolean }>;
+    onChanged: (cb: (data: { watchId: string; files: VaultFile[] }) => void) => () => void;
   };
 }
 
@@ -54,5 +57,8 @@ export const desktop = {
     readSyncState: (dir: string) => required().vault.readSyncState(dir),
     writeSyncState: (dir: string, state: Partial<VaultSyncState>) => required().vault.writeSyncState(dir, state),
     checkModified: (dir: string, since: string) => required().vault.checkModified(dir, since),
+    watch: (dir: string, watchId: string) => required().vault.watch(dir, watchId),
+    unwatch: (watchId: string) => required().vault.unwatch(watchId),
+    onChanged: (cb: (data: { watchId: string; files: VaultFile[] }) => void) => required().vault.onChanged(cb),
   },
 };

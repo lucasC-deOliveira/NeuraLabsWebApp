@@ -7,6 +7,7 @@ import { useGraphPhysics } from "../hooks/useGraphPhysics";
 import { DEFAULT_PHYSICS_OPTIONS, physicsStep, type PhysicsOptions } from "../services/graph-physics.service";
 import { getFilteredEdges, getFilteredNodes } from "../../domain/selectors/graph.selectors";
 import { saveGraphPositions } from "@/lib/graph-api";
+import { useVaultWatch } from "../hooks/useVaultWatch";
 
 // "big bang": os nós nascem colapsados num ponto (escala mínima) e se expandem
 // com easing até as posições finais ao longo dessa duração
@@ -33,6 +34,8 @@ export function useGraphController(graphId: string) {
   } = useGraphData(graphId);
 
   const { nodes, edges } = useGraphLayout(rawNodes, rawEdges);
+
+  useVaultWatch({ grafoId: graphId, grafoNome, rawNodes, setRawNodes, setRawEdges });
 
   const [layout, setLayout] = useState<SimNode[]>([]);
   const [selectedNode, setSelectedNode] = useState<any>(null);
