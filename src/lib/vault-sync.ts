@@ -65,6 +65,59 @@ export async function pushVault(grafoId: string, grafoNome: string): Promise<{ c
   return result;
 }
 
+// Compara estado atual do backend com o vault para detectar divergências.
+export interface SyncDiff {
+  backendOnly: number;  // nós que existem só no backend
+  vaultOnly: number;    // nós que existem só no vault
+  different: number;    // nós em ambos com conteúdo diferente
+  inSync: boolean;
+  vaultEmpty: boolean;  // vault não tem nenhum .md ainda
+}
+
+export async function compareSyncState(grafoId: string, graphDir: string): Promise<SyncDiff> {
+  const [vaultFiles, backendPayload] = await Promise.all([
+    desktop.vault.read(graphDir).catch(() => [] as VaultFile[]),
+    exportGraph(grafoId),
+  ]);
+
+  const mdFiles = vaultFiles.filter(
+    (f) => !f.relPath.replace(/\\/g, "/").endsWith(VAULT_GUIDE_FILENAME),
+  );
+
+  if (mdFiles.length === 0) {
+    const backendOnly = backendPayload.nodes.length;
+    return { backendOnly, vaultOnly: 0, different: 0, inSync: backendOnly === 0, vaultEmpty: true };
+  }
+
+  const vaultNodes = mdFiles.map((f) => parseNode(f.content)).filter(Boolean) as VaultNode[];
+  const backendById = new Map(backendPayload.nodes.map((n) => [n.ref, n]));
+  const vaultById = new Map(vaultNodes.map((n) => [n.id, n]));
+
+  const backendOnly = backendPayload.nodes.filter((n) => !vaultById.has(n.ref)).length;
+  const vaultOnly = vaultNodes.filter((n) => !backendById.has(n.id)).length;
+
+  let different = 0;
+  for (const vn of vaultNodes) {
+    const bn = backendById.get(vn.id);
+    if (!bn) continue;
+    if (
+      (vn.nome ?? "") !== (bn.nome ?? "") ||
+      (vn.titulo ?? "") !== (bn.titulo ?? "") ||
+      (vn.conteudo ?? "") !== (bn.conteudo ?? "") ||
+      (vn.pergunta ?? "") !== (bn.pergunta ?? "") ||
+      (vn.resposta ?? "") !== (bn.resposta ?? "")
+    ) different++;
+  }
+
+  return {
+    backendOnly,
+    vaultOnly,
+    different,
+    inSync: backendOnly === 0 && vaultOnly === 0 && different === 0,
+    vaultEmpty: false,
+  };
+}
+
 // Lê o estado de sincronização da subpasta do grafo.
 export async function getSyncState(graphDir: string): Promise<VaultSyncState | null> {
   try {
