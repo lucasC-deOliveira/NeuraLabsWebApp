@@ -36,18 +36,23 @@ export function Graph3DRenderer({
 }: Graph3DRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
+  const [bgColor, setBgColor] = useState<string>("");
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     setDims({ w: el.clientWidth, h: el.clientHeight });
+    // Lê a cor de fundo real do CSS do app (respeita o tema atual)
+    const computed = window.getComputedStyle(el).backgroundColor;
+    if (computed && !computed.includes("rgba(0, 0, 0, 0)")) setBgColor(computed);
+
     const obs = new ResizeObserver((entries) => {
       const r = entries[0].contentRect;
       setDims({ w: Math.floor(r.width), h: Math.floor(r.height) });
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, []);
+  }, [isDark]); // re-lê quando o tema muda
 
   const graphData = useMemo(() => ({
     nodes: nodes.map((n) => ({ ...n })),
@@ -87,20 +92,17 @@ export function Graph3DRenderer({
     onNodeClick(node as SimNode);
   }, [onNodeClick]);
 
-  const bg = isDark ? "#0f172a" : "#f8fafc";
-
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 overflow-hidden"
-      style={{ background: bg }}
+      className="absolute inset-0 overflow-hidden bg-background"
     >
-      {dims.w > 0 && dims.h > 0 && (
+      {dims.w > 0 && dims.h > 0 && bgColor && (
         <ForceGraph3D
           graphData={graphData}
           width={dims.w}
           height={dims.h}
-          backgroundColor={bg}
+          backgroundColor={bgColor}
           nodeColor={getNodeColor}
           nodeVal={getNodeVal}
           nodeLabel="label"
