@@ -126,7 +126,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg overflow-hidden">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderTreeIcon className="size-5" /> Vault Sync
