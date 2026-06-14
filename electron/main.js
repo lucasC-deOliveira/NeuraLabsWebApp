@@ -99,10 +99,7 @@ ipcMain.handle("neuralabs:set-api-url", (_e, url) => {
 // ---------------------------------------------------------------------------
 function initVault(dir) {
   const root = path.resolve(dir);
-  for (const folder of PARA_FOLDERS) {
-    fs.mkdirSync(path.join(root, folder), { recursive: true });
-  }
-
+  fs.mkdirSync(root, { recursive: true });
   const claudeMd = path.join(root, "CLAUDE.md");
   if (!fs.existsSync(claudeMd)) {
     fs.writeFileSync(claudeMd, VAULT_CLAUDE_MD, "utf8");

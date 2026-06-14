@@ -12,7 +12,7 @@ Flashcards inteligentes com grafo de conhecimento e notas Zettelkasten. Crie car
 - **Insights de nó por IA** — sugere conexões, lacunas e aprofundamentos para qualquer nó do grafo
 - **Notas Zettelkasten** com suporte a Markdown e geração de cartões inline
 - **Dashboard** com cartões para revisar hoje, taxa de acerto e histórico de sessões
-- **Vault sync** — exporta e importa notas em `.md` para uso com Obsidian ou qualquer editor externo; ao escolher a pasta, cria automaticamente a estrutura PARA e um `CLAUDE.md` com instruções completas para o Claude Code editar o grafo
+- **Vault sync** — exporta e importa notas em `.md` para uso com Obsidian ou qualquer editor externo; cada grafo tem sua própria subpasta (`<slug>--<id>/`) com estrutura PARA isolada e um `CLAUDE.md` gerado automaticamente com instruções para o Claude Code
 - **Aplicativo desktop** via Electron — roda sem navegador, aponta para um backend configurável
 - **Auth JWT** com registro e login; cada usuário tem seu próprio espaço isolado
 

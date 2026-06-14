@@ -476,6 +476,7 @@ export default function GraphPage() {
           open={isVaultOpen}
           onOpenChange={setIsVaultOpen}
           grafoId={graphId}
+          grafoNome={controller.state.grafoNome}
           onSynced={refreshGraph}
         />
       )}

@@ -9,6 +9,12 @@ export default defineConfig({
     env: {
       JWT_SECRET: "vitest-test-secret-not-for-production",
     },
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary"],
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.spec.ts", "src/**/*.d.ts", "src/main.tsx"],
+    },
   },
   resolve: {
     alias: {

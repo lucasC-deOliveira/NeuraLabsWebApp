@@ -10,12 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Loader2Icon, FolderTreeIcon, DownloadIcon, UploadIcon, FolderOpenIcon } from "lucide-react";
 import { toast } from "sonner";
 import { desktop } from "@/lib/vault-bridge";
-import { pullVault, pushVault } from "@/lib/vault-sync";
+import { pullVault, pushVault, graphVaultDir } from "@/lib/vault-sync";
 
-export function VaultSyncModal({ open, onOpenChange, grafoId, onSynced }: {
+export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynced }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   grafoId: string;
+  grafoNome: string;
   onSynced?: () => void;
 }) {
   const [vaultPath, setVaultPath] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, onSynced }: {
     if (!vaultPath) return;
     setBusy("pull");
     try {
-      const { files } = await pullVault(grafoId, vaultPath);
+      const { files } = await pullVault(grafoId, vaultPath, grafoNome);
       toast.success(`Baixado: ${files} arquivo(s) no vault.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro no Pull.");
@@ -52,7 +53,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, onSynced }: {
     if (!vaultPath) return;
     setBusy("push");
     try {
-      const r = await pushVault(grafoId);
+      const r = await pushVault(grafoId, grafoNome);
       toast.success(`Enviado: ${r.created} criado(s), ${r.updated} atualizado(s), ${r.removed} removido(s), ${r.edges} relação(ões).`);
       onSynced?.();
     } catch (e) {
@@ -97,9 +98,14 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, onSynced }: {
           </div>
 
           {vaultPath && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => desktop.vault.openFolder(vaultPath)} className="gap-1.5 text-muted-foreground">
-              <FolderOpenIcon className="size-4" /> Abrir pasta
-            </Button>
+            <div className="space-y-1">
+              <p className="text-[11px] text-muted-foreground font-mono truncate">
+                📁 {graphVaultDir(vaultPath, grafoId, grafoNome)}
+              </p>
+              <Button type="button" variant="ghost" size="sm" onClick={() => desktop.vault.openFolder(graphVaultDir(vaultPath, grafoId, grafoNome))} className="gap-1.5 text-muted-foreground">
+                <FolderOpenIcon className="size-4" /> Abrir pasta do grafo
+              </Button>
+            </div>
           )}
 
           <p className="text-[11px] text-muted-foreground">

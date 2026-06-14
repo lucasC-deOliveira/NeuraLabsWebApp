@@ -6,14 +6,21 @@ import {
   serializeNode,
   parseNode,
   nodeRelPath,
+  slugify,
   type VaultNode,
   type VaultRelacao,
   type TipoNode,
 } from "./vault-format";
 import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "./vault-guide";
 
-// Pull: baixa o grafo do backend e grava os .md na pasta escolhida.
-export async function pullVault(grafoId: string, dir: string): Promise<{ files: number }> {
+// Retorna a subpasta do vault exclusiva deste grafo: <base>/<slug>--<id>
+export function graphVaultDir(baseDir: string, grafoId: string, grafoNome: string): string {
+  return `${baseDir}/${slugify(grafoNome)}--${grafoId}`;
+}
+
+// Pull: baixa o grafo do backend e grava os .md na subpasta do grafo.
+export async function pullVault(grafoId: string, dir: string, grafoNome: string): Promise<{ files: number }> {
+  const graphDir = graphVaultDir(dir, grafoId, grafoNome);
   const payload = await exportGraph(grafoId);
 
   // arestas de saída por nó (ref de origem → relações)
@@ -28,18 +35,18 @@ export async function pullVault(grafoId: string, dir: string): Promise<{ files: 
     const vn = toVaultNode(payload.grafo.id, n, outByRef.get(n.ref) ?? []);
     return { relPath: nodeRelPath(vn), content: serializeNode(vn) };
   });
-  // guia do Claude Code na raiz
   files.push({ relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() });
 
-  await desktop.vault.write(dir, files);
+  await desktop.vault.write(graphDir, files);
   return { files: files.length };
 }
 
-// Push: lê os .md da pasta e envia ao backend (upsert + substitui arestas).
-export async function pushVault(grafoId: string): Promise<{ created: number; updated: number; edges: number; removed: number }> {
-  const dir = await desktop.vault.getPath();
-  if (!dir) throw new Error("Pasta do vault não configurada.");
-  const files = await desktop.vault.read(dir);
+// Push: lê os .md da subpasta do grafo e envia ao backend.
+export async function pushVault(grafoId: string, grafoNome: string): Promise<{ created: number; updated: number; edges: number; removed: number }> {
+  const baseDir = await desktop.vault.getPath();
+  if (!baseDir) throw new Error("Pasta do vault não configurada.");
+  const graphDir = graphVaultDir(baseDir, grafoId, grafoNome);
+  const files = await desktop.vault.read(graphDir);
 
   const nodes: ExportGraphNode[] = [];
   const edges: { origem: string; destino: string; relacao: string; peso?: number }[] = [];
