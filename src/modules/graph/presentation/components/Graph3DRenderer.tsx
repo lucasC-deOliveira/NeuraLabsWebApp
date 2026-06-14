@@ -25,6 +25,11 @@ const NODE_VAL: Record<string, number> = {
   BARALHO: 9,
 };
 
+// Cores exatas convertidas de oklch(1 0 0) / oklch(0.145 0 0) do globals.css
+// Passadas ao Three.js como hex para evitar problemas de parse com oklch
+const BG_LIGHT = "#ffffff";
+const BG_DARK  = "#0a0a0a";
+
 export function Graph3DRenderer({
   nodes,
   edges,
@@ -34,38 +39,27 @@ export function Graph3DRenderer({
   onNodeClick,
 }: Graph3DRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Inicia com window size para nunca ser 0 no primeiro render
-  const [dims, setDims] = useState(() => ({
-    w: typeof window !== "undefined" ? window.innerWidth : 800,
-    h: typeof window !== "undefined" ? window.innerHeight : 600,
-  }));
-  const [bgColor, setBgColor] = useState(isDark ? "#09090b" : "#ffffff");
+  const [dims, setDims] = useState({ w: 800, h: 600 });
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    const update = () => {
+    const measure = () => {
       const rect = el.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
         setDims({ w: Math.floor(rect.width), h: Math.floor(rect.height) });
       }
-      // Lê a cor de fundo real do CSS do tema
-      const computed = window.getComputedStyle(el).backgroundColor;
-      if (computed && !computed.startsWith("rgba(0,") && !computed.startsWith("rgba(0, 0, 0, 0)")) {
-        setBgColor(computed);
-      }
     };
 
-    update();
-    const obs = new ResizeObserver(update);
+    measure();
+    const obs = new ResizeObserver(measure);
     obs.observe(el);
     return () => obs.disconnect();
-  }, [isDark]);
+  }, []);
 
+  // graphData estável: recria só quando os arrays de nós/arestas mudam de identidade
   const graphData = useMemo(() => ({
-    // Passa apenas os campos necessários — evita conflito com props internas do ForceGraph3D
     nodes: nodes.map(({ id, label, group, dominio, tipoReal, pergunta, prioridadeRevisao }) => ({
       id, label, group, dominio, tipoReal, pergunta, prioridadeRevisao,
     })),
@@ -98,20 +92,19 @@ export function Graph3DRenderer({
     return getRelationColor(link.type, isDark) + "99";
   }, [isDark, matchedIds]);
 
-  const handleNodeClick = useCallback((node: any) => {
-    onNodeClick(node as SimNode);
-  }, [onNodeClick]);
+  const bg = isDark ? BG_DARK : BG_LIGHT;
 
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 overflow-hidden bg-background"
+      className="absolute inset-0 overflow-hidden"
+      style={{ background: bg }}
     >
       <ForceGraph3D
         graphData={graphData}
         width={dims.w}
         height={dims.h}
-        backgroundColor={bgColor}
+        backgroundColor={bg}
         nodeColor={getNodeColor}
         nodeVal={getNodeVal}
         nodeLabel="label"
@@ -121,7 +114,7 @@ export function Graph3DRenderer({
         linkOpacity={0.75}
         linkDirectionalArrowLength={4}
         linkDirectionalArrowRelPos={1}
-        onNodeClick={handleNodeClick}
+        onNodeClick={(node: any) => onNodeClick(node as SimNode)}
         d3AlphaDecay={0.02}
         d3VelocityDecay={0.3}
         enableNodeDrag
