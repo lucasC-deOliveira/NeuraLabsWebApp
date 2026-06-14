@@ -514,6 +514,8 @@ export default function GraphPage() {
         open={!!viewingNotaId}
         onOpenChange={(open) => !open && setViewingNotaId(null)}
         notaId={viewingNotaId}
+        grafoId={graphId}
+        grafoNome={controller.state.grafoNome}
       />
       <StudyFlashcardModal
         open={!!studyFlashcardId}

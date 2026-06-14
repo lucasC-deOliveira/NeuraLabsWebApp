@@ -15,6 +15,10 @@ import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { getNodeDetails } from "@/lib/graph-api";
 import { MarkdownContent } from "@/components/markdown-content";
+import { isDesktop, desktop } from "@/lib/vault-bridge";
+import { graphVaultDir } from "@/lib/vault-sync";
+import { parseNode } from "@/lib/vault-format";
+import { VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 
 const TIPO_LABELS: Record<string, string> = {
   LITERATURA: "Nota de referência",
@@ -37,9 +41,42 @@ interface ViewNotaModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   notaId: string | null;
+  grafoId?: string;
+  grafoNome?: string;
 }
 
-export function ViewNotaModal({ open, onOpenChange, notaId }: ViewNotaModalProps) {
+async function fetchNotaFromVault(
+  notaId: string,
+  grafoId: string,
+  grafoNome: string,
+): Promise<Record<string, string | null> | null> {
+  try {
+    const vaultDir = await desktop.vault.getPath();
+    if (!vaultDir) return null;
+    const graphDir = graphVaultDir(vaultDir, grafoId, grafoNome);
+    const files = await desktop.vault.read(graphDir);
+    const mdFiles = files.filter(
+      (f) => !f.relPath.replace(/\\/g, "/").endsWith(VAULT_GUIDE_FILENAME),
+    );
+    for (const f of mdFiles) {
+      const parsed = parseNode(f.content);
+      if (parsed?.id === notaId && parsed.tipo === "NOTA") {
+        return {
+          titulo: parsed.titulo ?? "",
+          conteudo: parsed.conteudo ?? "",
+          tipoNota: parsed.tipoNota ?? "PERMANENTE",
+          subtipo: parsed.subtipo ?? null,
+          fonte: parsed.fonte ?? null,
+        };
+      }
+    }
+  } catch {
+    // vault indisponível
+  }
+  return null;
+}
+
+export function ViewNotaModal({ open, onOpenChange, notaId, grafoId, grafoNome }: ViewNotaModalProps) {
   const [loading, setLoading] = useState(false);
   const [nota, setNota] = useState<Record<string, string | null> | null>(null);
 
@@ -48,13 +85,21 @@ export function ViewNotaModal({ open, onOpenChange, notaId }: ViewNotaModalProps
     setLoading(true);
     setNota(null);
     getNodeDetails("NOTA", notaId)
-      .then((details) => {
+      .then(async (details) => {
         if (details) {
           setNota(details);
-        } else {
-          toast.error("Nota não encontrada");
-          onOpenChange(false);
+          return;
         }
+        // Backend não tem a nota — tenta ler direto do vault
+        if (isDesktop() && grafoId && grafoNome) {
+          const fromVault = await fetchNotaFromVault(notaId, grafoId, grafoNome);
+          if (fromVault) {
+            setNota(fromVault);
+            return;
+          }
+        }
+        toast.error("Nota não encontrada");
+        onOpenChange(false);
       })
       .catch(() => toast.error("Erro ao carregar a nota"))
       .finally(() => setLoading(false));

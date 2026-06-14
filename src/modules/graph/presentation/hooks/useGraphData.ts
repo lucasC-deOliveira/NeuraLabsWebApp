@@ -4,10 +4,9 @@ import {
   getGraphEdges,
   getGrafoInfo,
   loadGraphVisualState,
-  syncGraphFromVault,
 } from "@/lib/graph-api";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
-import { graphVaultDir, vaultToGraphNode, vaultToGraphEdges, fromVaultNode } from "@/lib/vault-sync";
+import { graphVaultDir, vaultToGraphNode, vaultToGraphEdges } from "@/lib/vault-sync";
 import { parseNode } from "@/lib/vault-format";
 import { VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 import type { VaultNode } from "@/lib/vault-format";
@@ -63,13 +62,6 @@ export function useGraphData(graphId: string) {
                   const byId = new Map(nodes.map((n: any) => [n.id, n]));
                   nodes = vaultNodes.map((vn) => vaultToGraphNode(vn, byId.get(vn.id)));
                   edges = vaultToGraphEdges(vaultNodes);
-                  // Persiste entidades no backend (fire-and-forget) para que
-                  // "Ver nota", "Estudar" etc. funcionem sem Push manual prévio.
-                  const syncNodes = vaultNodes.map(fromVaultNode);
-                  const syncEdges = vaultNodes.flatMap((vn) =>
-                    vn.relacoes.map((r) => ({ origem: vn.id, destino: r.alvo, relacao: r.rel, peso: r.peso })),
-                  );
-                  syncGraphFromVault(graphId, { nodes: syncNodes, edges: syncEdges }).catch(() => {});
                 }
               }
             }
