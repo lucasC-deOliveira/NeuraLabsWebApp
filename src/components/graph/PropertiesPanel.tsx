@@ -16,7 +16,7 @@ import {
   PlusIcon,
   SparklesIcon,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { useEffect, useState } from "react";
 import { getNodeDetails } from "@/lib/graph-api";
 

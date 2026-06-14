@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { Link } from "@/components/link";
+import { usePathname, useRouter } from "@/lib/navigation";
 import { BrainIcon, LayersIcon, FlameIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon, LogOutIcon, UserIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { authApi } from "@/lib/api";

@@ -3,13 +3,13 @@
 
 // URL do backend. No desktop (Electron) é injetada em runtime via preload
 // (window.__NEURALABS_API_URL__), pois o build embutido não pode usar
-// NEXT_PUBLIC_* (fixado em build-time). Na web, usa o env/padrão.
+// VITE_* (fixado em build-time). Na web, usa o env/padrão.
 export function resolveApiUrl(): string {
   if (typeof window !== "undefined") {
     const injected = (window as unknown as { __NEURALABS_API_URL__?: string }).__NEURALABS_API_URL__;
     if (injected) return injected;
   }
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+  return import.meta.env.VITE_API_URL ?? "http://localhost:3001/api";
 }
 const TOKEN_KEY = "neuralabs_token";
 

@@ -6,19 +6,18 @@ directories:
   output: dist-electron
   buildResources: build
 
-# Apenas o código do Electron entra no asar; o runtime (servidor Next standalone)
-# vai como recurso desempacotado, pois precisa rodar como processo Node e carregar
-# o engine nativo do Prisma (.node).
+# Apenas o código do Electron entra no asar; a UI estática (build do Vite) vai
+# como recurso desempacotado e é carregada via file:// (HashRouter).
 files:
   - electron/**/*
   - package.json
-  # o main.js só usa electron + builtins; o runtime (Next + deps) vai no
-  # standalone (extraResources). Evita empacotar node_modules redundante no asar.
+  # o main.js só usa electron + builtins; a UI vai em dist (extraResources).
+  # Evita empacotar node_modules redundante no asar.
   - "!node_modules/**/*"
 
 extraResources:
-  - from: .next/standalone
-    to: standalone
+  - from: dist
+    to: dist
 
 asar: true
 npmRebuild: false

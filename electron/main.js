@@ -1,14 +1,11 @@
 // Processo principal do Electron (modelo novo — backend separado).
-// O app é um THIN CLIENT: sobe o servidor Next standalone (só serve a UI) e a
+// O app é um THIN CLIENT: carrega a UI estática (build do Vite) via file:// e a
 // página fala com o backend NestJS via JWT. O backend é configurável (config.json)
 // e o app hospeda o VAULT: operações de sistema de arquivos (ler/gravar .md) via
 // IPC, para edição externa (Obsidian/Claude Code) e sync manual Pull/Push.
 const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
-const { fork } = require("child_process");
 const path = require("path");
 const fs = require("fs");
-const net = require("net");
-const http = require("http");
 
 const isDev = !app.isPackaged;
 const DEV_URL = process.env.ELECTRON_DEV_URL || "http://localhost:3000";
@@ -17,9 +14,7 @@ const DEFAULT_API_URL = process.env.NEURALABS_API_URL || "http://localhost:3001/
 // Pastas PARA do vault (espelha src/lib/vault-format.ts).
 const PARA_FOLDERS = ["Projects", "Areas", "Resources", "Archives"];
 
-let serverProcess = null;
 let mainWindow = null;
-let serverOrigin = null;
 
 // ---------------------------------------------------------------------------
 // Config persistente (userData/config.json): { apiUrl, vaultPath }
@@ -45,77 +40,9 @@ function getApiUrl() {
 }
 
 // ---------------------------------------------------------------------------
-// Porta livre + espera o servidor responder
-// ---------------------------------------------------------------------------
-function findFreePort() {
-  return new Promise((resolve, reject) => {
-    const srv = net.createServer();
-    srv.unref();
-    srv.on("error", reject);
-    srv.listen(0, "127.0.0.1", () => {
-      const { port } = srv.address();
-      srv.close(() => resolve(port));
-    });
-  });
-}
-
-function waitForServer(port, timeoutMs = 30000) {
-  const start = Date.now();
-  return new Promise((resolve, reject) => {
-    const tick = () => {
-      const req = http.get({ host: "127.0.0.1", port, path: "/", timeout: 2000 }, (res) => {
-        res.destroy();
-        resolve();
-      });
-      req.on("error", () => {
-        if (Date.now() - start > timeoutMs) reject(new Error("Servidor não respondeu a tempo"));
-        else setTimeout(tick, 300);
-      });
-      req.on("timeout", () => {
-        req.destroy();
-        if (Date.now() - start > timeoutMs) reject(new Error("Servidor não respondeu a tempo"));
-        else setTimeout(tick, 300);
-      });
-    };
-    tick();
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Servidor Next (standalone) — só serve a UI; sem banco/segredos.
-// ---------------------------------------------------------------------------
-async function startServer() {
-  const port = await findFreePort();
-  serverOrigin = `http://127.0.0.1:${port}`;
-  const serverDir = path.join(process.resourcesPath, "standalone");
-  const serverEntry = path.join(serverDir, "server.js");
-  if (!fs.existsSync(serverEntry)) throw new Error(`server.js não encontrado em ${serverEntry}`);
-
-  serverProcess = fork(serverEntry, [], {
-    cwd: serverDir,
-    env: {
-      ...process.env,
-      ELECTRON_RUN_AS_NODE: "1",
-      NODE_ENV: "production",
-      PORT: String(port),
-      HOSTNAME: "127.0.0.1",
-      DESKTOP_APP: "1",
-    },
-    stdio: ["ignore", "pipe", "pipe", "ipc"],
-    execPath: process.execPath,
-  });
-  serverProcess.stdout?.on("data", (d) => console.log("[next]", d.toString().trim()));
-  serverProcess.stderr?.on("data", (d) => console.error("[next]", d.toString().trim()));
-  serverProcess.on("exit", (code) => { console.log("[next] saiu com código", code); serverProcess = null; });
-
-  await waitForServer(port);
-  return port;
-}
-
-// ---------------------------------------------------------------------------
 // Janela
 // ---------------------------------------------------------------------------
-function createWindow(url) {
+function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -130,7 +57,6 @@ function createWindow(url) {
     },
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
-  mainWindow.loadURL(url);
   mainWindow.webContents.setWindowOpenHandler(({ url: target }) => {
     if (target.startsWith("http://127.0.0.1") || target.startsWith("http://localhost")) return { action: "allow" };
     shell.openExternal(target);
@@ -141,13 +67,15 @@ function createWindow(url) {
 
 async function boot() {
   try {
+    createWindow();
     if (isDev) {
-      serverOrigin = DEV_URL;
-      createWindow(DEV_URL);
+      await mainWindow.loadURL(DEV_URL);
       return;
     }
-    const port = await startServer();
-    createWindow(`http://127.0.0.1:${port}`);
+    // Build estático do Vite (HashRouter), carregado direto do disco.
+    const indexHtml = path.join(process.resourcesPath, "dist", "index.html");
+    if (!fs.existsSync(indexHtml)) throw new Error(`UI não encontrada em ${indexHtml}`);
+    await mainWindow.loadFile(indexHtml);
   } catch (err) {
     console.error("Falha ao iniciar:", err);
     dialog.showErrorBox("Erro ao iniciar", String(err?.message || err));
@@ -229,6 +157,3 @@ ipcMain.handle("vault:open-folder", async (_e, dir) => {
 app.whenReady().then(boot);
 app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) boot(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
-app.on("quit", () => {
-  if (serverProcess) { try { serverProcess.kill(); } catch { /* ignora */ } }
-});

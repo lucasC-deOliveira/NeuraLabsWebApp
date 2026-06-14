@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/link";
 import { getStudySessionHistory, getSubjects, getFlashcards } from "@/lib/content-api";
 import { Button } from "@/components/ui/button";
 import {

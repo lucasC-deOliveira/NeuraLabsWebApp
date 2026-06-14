@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ import {
   BookOpenIcon, TrendingUpIcon, CalendarDaysIcon,
   BarChart3Icon, ArrowUpDownIcon, LayersIcon,
 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/components/link";
 import {
   createFlashcard,
   updateFlashcard,

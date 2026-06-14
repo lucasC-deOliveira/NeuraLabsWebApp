@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter } from "@/lib/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";

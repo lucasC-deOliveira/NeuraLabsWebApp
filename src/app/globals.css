@@ -49,6 +49,9 @@
 }
 
 :root {
+  /* Fontes (antes injetadas pelo next/font; agora via @fontsource em main.tsx) */
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
