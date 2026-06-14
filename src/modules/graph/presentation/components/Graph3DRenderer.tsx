@@ -15,7 +15,6 @@ interface Graph3DRendererProps {
   onNodeClick: (node: SimNode) => void;
 }
 
-// Tamanho relativo das esferas por tipo de nó (volume proporcional ao "peso" do tipo)
 const NODE_VAL: Record<string, number> = {
   ASSUNTO: 18,
   TOPICO: 10,
@@ -25,6 +24,16 @@ const NODE_VAL: Record<string, number> = {
   TEXTO_BRUTO: 5,
   BARALHO: 9,
 };
+
+// Retorna a cor de fundo computada do elemento — fallback seguro (neutro, sem azul)
+function readBg(el: HTMLElement, isDark: boolean): string {
+  const computed = window.getComputedStyle(el).backgroundColor;
+  // getComputedStyle devolve sempre rgb(...) ou rgba(...) no browser
+  if (computed && !computed.startsWith("rgba(0,") && !computed.startsWith("rgba(0, 0, 0, 0)") && computed !== "transparent") {
+    return computed;
+  }
+  return isDark ? "#09090b" : "#ffffff";
+}
 
 export function Graph3DRenderer({
   nodes,
@@ -36,15 +45,14 @@ export function Graph3DRenderer({
 }: Graph3DRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
-  const [bgColor, setBgColor] = useState<string>("");
+  // Fallback neutro — sem azul. Será sobrescrito após montagem via readBg()
+  const [bgColor, setBgColor] = useState<string>(isDark ? "#09090b" : "#ffffff");
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     setDims({ w: el.clientWidth, h: el.clientHeight });
-    // Lê a cor de fundo real do CSS do app (respeita o tema atual)
-    const computed = window.getComputedStyle(el).backgroundColor;
-    if (computed && !computed.includes("rgba(0, 0, 0, 0)")) setBgColor(computed);
+    setBgColor(readBg(el, isDark));
 
     const obs = new ResizeObserver((entries) => {
       const r = entries[0].contentRect;
@@ -52,7 +60,7 @@ export function Graph3DRenderer({
     });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [isDark]); // re-lê quando o tema muda
+  }, [isDark]);
 
   const graphData = useMemo(() => ({
     nodes: nodes.map((n) => ({ ...n })),
@@ -97,7 +105,7 @@ export function Graph3DRenderer({
       ref={containerRef}
       className="absolute inset-0 overflow-hidden bg-background"
     >
-      {dims.w > 0 && dims.h > 0 && bgColor && (
+      {dims.w > 0 && dims.h > 0 && (
         <ForceGraph3D
           graphData={graphData}
           width={dims.w}
