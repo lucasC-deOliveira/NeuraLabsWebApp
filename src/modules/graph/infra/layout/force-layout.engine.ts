@@ -52,6 +52,8 @@ export interface SimNode {
   prioridadeRevisao: number;
   width: number;
   height: number;
+  /** Nó com posição salva no backend — não é movido pela simulação de força */
+  pinned?: boolean;
 }
 
 export interface SimEdge {
@@ -94,6 +96,10 @@ export function runForceLayout(
 ): { nodes: SimNode[]; edges: SimEdge[] } {
   const nodes: SimNode[] = rawNodes.map((n) => {
     const { width: nodeW, height: nodeH } = getNodeDimensions(n.type);
+    // usa posição salva no backend quando disponível (não zero); nós sem posição
+    // (novos do vault, primeiros na carga) recebem posição aleatória e são movidos
+    // pela simulação até assentar naturalmente entre os nós fixos.
+    const hasSaved = n.posicaoX != null && n.posicaoY != null && (n.posicaoX !== 0 || n.posicaoY !== 0);
     return {
       id: n.id,
       label: n.label,
@@ -103,12 +109,13 @@ export function runForceLayout(
       parentId: n.parentId,
       pergunta: n.pergunta,
       tipoReal: n.type,
-      x: width / 2 + (Math.random() - 0.5) * 600,
-      y: height / 2 + (Math.random() - 0.5) * 400,
+      x: hasSaved ? n.posicaoX! : width / 2 + (Math.random() - 0.5) * 600,
+      y: hasSaved ? n.posicaoY! : height / 2 + (Math.random() - 0.5) * 400,
       vx: 0,
       vy: 0,
       width: nodeW,
       height: nodeH,
+      pinned: hasSaved,
     };
   });
 
@@ -208,8 +215,9 @@ export function runForceLayout(
       }
     }
 
-    // Update positions
+    // Update positions (pinned nodes ficam fixos para ancorar novos nós)
     for (const node of nodes) {
+      if (node.pinned) continue;
       node.vx *= damping;
       node.vy *= damping;
       node.x += node.vx * temperature;

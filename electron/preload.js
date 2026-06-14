@@ -22,5 +22,8 @@ contextBridge.exposeInMainWorld("neuralabs", {
     read: (dir) => ipcRenderer.invoke("vault:read", dir),
     write: (dir, files) => ipcRenderer.invoke("vault:write", { dir, files }),
     openFolder: (dir) => ipcRenderer.invoke("vault:open-folder", dir),
+    readSyncState: (dir) => ipcRenderer.invoke("vault:read-sync-state", dir),
+    writeSyncState: (dir, state) => ipcRenderer.invoke("vault:write-sync-state", { dir, state }),
+    checkModified: (dir, since) => ipcRenderer.invoke("vault:check-modified", { dir, since }),
   },
 });

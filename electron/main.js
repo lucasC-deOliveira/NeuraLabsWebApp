@@ -302,6 +302,52 @@ ipcMain.handle("vault:open-folder", async (_e, dir) => {
 });
 
 // ---------------------------------------------------------------------------
+// Vault: estado de sincronização (.neuralabs-sync.json por subpasta de grafo)
+// ---------------------------------------------------------------------------
+const SYNC_STATE_FILE = ".neuralabs-sync.json";
+
+ipcMain.handle("vault:read-sync-state", async (_e, dir) => {
+  if (!dir) return null;
+  try {
+    return JSON.parse(fs.readFileSync(path.join(path.resolve(dir), SYNC_STATE_FILE), "utf8"));
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle("vault:write-sync-state", async (_e, { dir, state }) => {
+  if (!dir) throw new Error("dir obrigatório");
+  const root = path.resolve(dir);
+  fs.mkdirSync(root, { recursive: true });
+  const file = path.join(root, SYNC_STATE_FILE);
+  let current = {};
+  try { current = JSON.parse(fs.readFileSync(file, "utf8")); } catch { /* sem estado anterior */ }
+  fs.writeFileSync(file, JSON.stringify({ ...current, ...state }, null, 2), "utf8");
+  return { ok: true };
+});
+
+// Retorna quantos .md nas pastas PARA foram modificados depois de `since` (ISO 8601).
+ipcMain.handle("vault:check-modified", async (_e, { dir, since }) => {
+  if (!dir) return { count: 0, files: [] };
+  const root = path.resolve(dir);
+  const sinceMs = since ? new Date(since).getTime() : 0;
+  const modified = [];
+  const walk = (abs) => {
+    let entries = [];
+    try { entries = fs.readdirSync(abs, { withFileTypes: true }); } catch { return; }
+    for (const ent of entries) {
+      const full = path.join(abs, ent.name);
+      if (ent.isDirectory()) walk(full);
+      else if (ent.isFile() && ent.name.toLowerCase().endsWith(".md") && fs.statSync(full).mtimeMs > sinceMs) {
+        modified.push(path.relative(root, full));
+      }
+    }
+  };
+  for (const folder of PARA_FOLDERS) walk(path.join(root, folder));
+  return { count: modified.length, files: modified };
+});
+
+// ---------------------------------------------------------------------------
 // Ciclo de vida
 // ---------------------------------------------------------------------------
 app.whenReady().then(() => { Menu.setApplicationMenu(null); boot(); });

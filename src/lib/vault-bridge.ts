@@ -6,6 +6,11 @@ export interface VaultFile {
   content: string;
 }
 
+export interface VaultSyncState {
+  lastPull?: string; // ISO 8601
+  lastPush?: string; // ISO 8601
+}
+
 interface NeuralabsBridge {
   isDesktop: boolean;
   getApiUrl: () => Promise<string>;
@@ -16,6 +21,9 @@ interface NeuralabsBridge {
     read: (dir: string) => Promise<VaultFile[]>;
     write: (dir: string, files: VaultFile[]) => Promise<{ written: number }>;
     openFolder: (dir: string) => Promise<void>;
+    readSyncState: (dir: string) => Promise<VaultSyncState | null>;
+    writeSyncState: (dir: string, state: Partial<VaultSyncState>) => Promise<{ ok: boolean }>;
+    checkModified: (dir: string, since: string) => Promise<{ count: number; files: string[] }>;
   };
 }
 
@@ -43,5 +51,8 @@ export const desktop = {
     read: (dir: string) => required().vault.read(dir),
     write: (dir: string, files: VaultFile[]) => required().vault.write(dir, files),
     openFolder: (dir: string) => required().vault.openFolder(dir),
+    readSyncState: (dir: string) => required().vault.readSyncState(dir),
+    writeSyncState: (dir: string, state: Partial<VaultSyncState>) => required().vault.writeSyncState(dir, state),
+    checkModified: (dir: string, since: string) => required().vault.checkModified(dir, since),
   },
 };

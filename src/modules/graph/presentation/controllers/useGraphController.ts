@@ -6,6 +6,7 @@ import { useGraphInteractions } from "../hooks/useGraphInteractions";
 import { useGraphPhysics } from "../hooks/useGraphPhysics";
 import { DEFAULT_PHYSICS_OPTIONS, physicsStep, type PhysicsOptions } from "../services/graph-physics.service";
 import { getFilteredEdges, getFilteredNodes } from "../../domain/selectors/graph.selectors";
+import { saveGraphPositions } from "@/lib/graph-api";
 
 // "big bang": os nós nascem colapsados num ponto (escala mínima) e se expandem
 // com easing até as posições finais ao longo dessa duração
@@ -195,6 +196,12 @@ export function useGraphController(graphId: string) {
             introRafRef.current = requestAnimationFrame(step);
           } else {
             setIntroActive(false);
+            // persiste posições no backend para que recargas e novos nós do vault
+            // se ancorem nos nós existentes em vez de randomizar tudo
+            saveGraphPositions(
+              graphId,
+              Object.fromEntries(targets.map((n) => [n.id, { x: n.x, y: n.y }])),
+            ).catch(() => { /* silencia — não bloqueia o usuário */ });
           }
         };
         introRafRef.current = requestAnimationFrame(step);

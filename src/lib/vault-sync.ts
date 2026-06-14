@@ -1,7 +1,7 @@
 // Sincronização vault ↔ backend (desktop). Manual: Pull (backend → .md) e
 // Push (.md → backend). Usa o formato em vault-format + a ponte de fs (Electron).
 import { exportGraph, syncGraphFromVault, type ExportGraphNode } from "./graph-api";
-import { desktop, type VaultFile } from "./vault-bridge";
+import { desktop, type VaultFile, type VaultSyncState } from "./vault-bridge";
 import {
   serializeNode,
   parseNode,
@@ -38,6 +38,7 @@ export async function pullVault(grafoId: string, dir: string, grafoNome: string)
   files.push({ relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() });
 
   await desktop.vault.write(graphDir, files);
+  await desktop.vault.writeSyncState(graphDir, { lastPull: new Date().toISOString() });
   return { files: files.length };
 }
 
@@ -59,7 +60,28 @@ export async function pushVault(grafoId: string, grafoNome: string): Promise<{ c
     for (const r of vn.relacoes) edges.push({ origem: vn.id, destino: r.alvo, relacao: r.rel, peso: r.peso });
   }
 
-  return syncGraphFromVault(grafoId, { nodes, edges });
+  const result = await syncGraphFromVault(grafoId, { nodes, edges });
+  await desktop.vault.writeSyncState(graphDir, { lastPush: new Date().toISOString() });
+  return result;
+}
+
+// Lê o estado de sincronização da subpasta do grafo.
+export async function getSyncState(graphDir: string): Promise<VaultSyncState | null> {
+  try {
+    return await desktop.vault.readSyncState(graphDir);
+  } catch {
+    return null;
+  }
+}
+
+// Retorna quantos .md foram modificados desde `since` (ISO 8601).
+export async function getModifiedCount(graphDir: string, since: string): Promise<number> {
+  try {
+    const { count } = await desktop.vault.checkModified(graphDir, since);
+    return count;
+  } catch {
+    return 0;
+  }
 }
 
 // ---- mapeamentos ----
