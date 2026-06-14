@@ -8,14 +8,11 @@ export function startStudySession(): Promise<{ sessionId: string; cards: Flashca
 
 export function submitCardReview(data: {
   flashcardId: string;
-  respostaUsuario: string;
-  acertou: boolean;
-  nivelConfianca: number;
-  tipoErro?: string;
+  grade: 'again' | 'hard' | 'good' | 'easy';
   tempoResposta?: number;
   sessaoId?: string;
 }): Promise<{ success: boolean }> {
-  return apiFetch("/study/review", { method: "POST", body: JSON.stringify(data) });
+  return apiFetch("/study/review", { method: "POST", body: JSON.stringify({ ...data, respostaUsuario: "" }) });
 }
 
 export function endStudySession(sessionId: string): Promise<{ success: boolean }> {
@@ -53,4 +50,21 @@ export function startSingleCardStudy(flashcardId: string): Promise<{
 
 export function finalizeStudySession(sessionId: string): Promise<{ success: boolean }> {
   return apiFetch(`/study/session/${sessionId}/finalize`, { method: "POST" });
+}
+
+export function syncVaultSessions(
+  sessions: Array<{
+    id: string;
+    startedAt: string;
+    endedAt: string | null;
+    baralhoId: string | null;
+    revisoes: Array<{
+      flashcardId: string;
+      grade: 'again' | 'hard' | 'good' | 'easy';
+      tempoResposta: number;
+      revisadoEm: string;
+    }>;
+  }>,
+): Promise<{ synced: number }> {
+  return apiFetch("/study/sync-vault-log", { method: "POST", body: JSON.stringify({ sessions }) });
 }

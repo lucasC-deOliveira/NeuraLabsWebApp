@@ -9,13 +9,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2Icon, EyeIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
+import { Loader2Icon, EyeIcon, CheckCircle2Icon, RotateCcwIcon } from "lucide-react";
 import { toast } from "sonner";
 import { startDeckStudy, submitCardReview, finalizeStudySession } from "@/lib/study-api";
 import type { FlashcardData } from "@/types";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
-import { isDesktop } from "@/lib/vault-bridge";
-import { readAllVaultNodes } from "@/lib/vault-sync";
+import { isDesktop, desktop } from "@/lib/vault-bridge";
+import { readAllVaultNodes, graphVaultDir } from "@/lib/vault-sync";
+import {
+  readSrsLog,
+  startLocalSession,
+  submitLocalReview,
+  finalizeLocalSession,
+  isDue,
+  needsRequeue,
+  type ReviewGrade,
+  type LocalSchedule,
+} from "@/lib/srs-local";
 
 interface StudyDeckModalProps {
   open: boolean;
@@ -25,133 +35,166 @@ interface StudyDeckModalProps {
   grafoNome?: string;
 }
 
-type Phase = "loading" | "question" | "answer" | "confidence" | "saving" | "complete" | "error" | "vault-preview";
+interface QueueCard extends FlashcardData {
+  schedule: LocalSchedule | null;
+}
 
-const CONFIDENCE_LABELS = ["Nada", "Pouco", "Neutro", "Confiante", "Muito"];
+type Phase = "loading" | "question" | "answer" | "saving" | "complete" | "error";
+
+const GRADE_BUTTONS: Array<{ grade: ReviewGrade; label: string; sublabel: string; className: string }> = [
+  { grade: "again", label: "Errei",    sublabel: "< 1 min",  className: "border-red-500/50 text-red-600 hover:bg-red-500/10 dark:text-red-400" },
+  { grade: "hard",  label: "Difícil",  sublabel: "~ 10 min", className: "border-orange-500/50 text-orange-600 hover:bg-orange-500/10 dark:text-orange-400" },
+  { grade: "good",  label: "Bom",      sublabel: "em breve", className: "border-primary/50 text-primary hover:bg-primary/10" },
+  { grade: "easy",  label: "Fácil",    sublabel: "mais dias",className: "border-green-500/50 text-green-600 hover:bg-green-500/10 dark:text-green-400" },
+];
 
 export function StudyDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNome }: StudyDeckModalProps) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [titulo, setTitulo] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [cards, setCards] = useState<FlashcardData[]>([]);
+  const [graphDir, setGraphDir] = useState<string | null>(null);
+  const [queue, setQueue] = useState<QueueCard[]>([]);
   const [index, setIndex] = useState(0);
-  const [pendingAcertou, setPendingAcertou] = useState<boolean | null>(null);
-  const [startedAt, setStartedAt] = useState(Date.now());
-  const [correct, setCorrect] = useState(0);
   const [totalNoDeck, setTotalNoDeck] = useState(0);
-  // sessão criada ao abrir o baralho; finalizada ao concluir ou abandonar
+  const [reviewed, setReviewed] = useState(0);
+  const [startedAt, setStartedAt] = useState(Date.now());
   const finalizedRef = useRef(false);
 
   useEffect(() => {
     if (!open || !baralhoId) return;
     let active = true;
-    let createdSession: string | null = null;
+
     setPhase("loading");
-    setCards([]);
+    setQueue([]);
     setIndex(0);
-    setCorrect(0);
-    setPendingAcertou(null);
+    setReviewed(0);
     setSessionId(null);
+    setGraphDir(null);
     finalizedRef.current = false;
-    startDeckStudy(baralhoId)
-      .then((deck) => {
-        if (deck?.sessionId) createdSession = deck.sessionId;
-        if (!active) {
-          // modal fechou durante o carregamento: limpa a sessão recém-criada
-          if (createdSession) finalizeStudySession(createdSession).catch(() => {});
-          return;
-        }
-        if (!deck) {
-          // Fallback: carrega do vault sem SRS
-          if (isDesktop() && grafoId && grafoNome && baralhoId) {
-            readAllVaultNodes(grafoId, grafoNome).then((nodes) => {
-              if (!active) return;
-              const byId = new Map(nodes.map((n) => [n.id, n]));
-              const baralho = byId.get(baralhoId);
-              if (!baralho || baralho.tipo !== "BARALHO") { setPhase("error"); return; }
-              const vaultCards = baralho.relacoes
-                .filter((r) => r.rel === "CONTEM")
-                .map((r) => byId.get(r.alvo))
-                .filter((n) => n && n.tipo === "FLASHCARD")
-                .map((n) => ({ id: n!.id, pergunta: n!.pergunta ?? "", resposta: n!.resposta ?? "", conceito: null }));
-              setTitulo(baralho.titulo ?? baralho.nome ?? "Baralho");
-              setCards(vaultCards as FlashcardData[]);
-              setTotalNoDeck(vaultCards.length);
-              setPhase("vault-preview");
-            });
-          } else {
-            setPhase("error");
-          }
-          return;
-        }
+
+    async function load() {
+      if (isDesktop() && grafoId && grafoNome) {
+        const vaultDir = await desktop.vault.getPath().catch(() => null);
+        if (!vaultDir) { if (active) setPhase("error"); return; }
+        const dir = graphVaultDir(vaultDir, grafoId, grafoNome);
+
+        const [vaultNodes, srsLog] = await Promise.all([
+          readAllVaultNodes(grafoId, grafoNome),
+          readSrsLog(dir),
+        ]);
+        const nodeById = new Map(vaultNodes.map((n) => [n.id, n]));
+        const baralho = nodeById.get(baralhoId!);
+        if (!baralho || baralho.tipo !== "BARALHO") { if (active) setPhase("error"); return; }
+
+        const dueCards: QueueCard[] = baralho.relacoes
+          .filter((r) => r.rel === "CONTEM")
+          .map((r) => nodeById.get(r.alvo))
+          .filter((n) => n && n.tipo === "FLASHCARD" && isDue(srsLog.schedule[n.id]))
+          .map((n) => ({
+            id: n!.id,
+            pergunta: n!.pergunta ?? "",
+            resposta: n!.resposta ?? "",
+            conceito: null,
+            schedule: srsLog.schedule[n!.id] ?? null,
+          }));
+
+        if (!active) return;
+        setTitulo(baralho.titulo ?? baralho.nome ?? "Baralho");
+        setTotalNoDeck(baralho.relacoes.filter((r) => r.rel === "CONTEM").length);
+        setGraphDir(dir);
+
+        if (dueCards.length === 0) { setPhase("complete"); return; }
+
+        const sessId = await startLocalSession(dir, baralhoId!);
+        if (!active) { finalizeLocalSession(dir, sessId).catch(() => {}); return; }
+        setSessionId(sessId);
+        setQueue(dueCards);
+        setStartedAt(Date.now());
+        setPhase("question");
+      } else {
+        const deck = await startDeckStudy(baralhoId!).catch(() => null);
+        if (!active) { if (deck?.sessionId) finalizeStudySession(deck.sessionId).catch(() => {}); return; }
+        if (!deck) { setPhase("error"); return; }
         setTitulo(deck.titulo);
         setSessionId(deck.sessionId);
-        setCards(deck.cards);
         setTotalNoDeck(deck.totalNoDeck);
         if (deck.cards.length === 0) {
-          // nada para revisar agora (deck vazio ou tudo em dia): sessão vazia é apagada
           finalizedRef.current = true;
           finalizeStudySession(deck.sessionId).catch(() => {});
           setPhase("complete");
         } else {
+          setQueue(deck.cards.map((c) => ({ ...c, schedule: null })));
           setStartedAt(Date.now());
           setPhase("question");
         }
-      })
-      .catch(() => active && setPhase("error"));
-    return () => {
-      active = false;
-    };
+      }
+    }
+
+    load().catch(() => { if (active) setPhase("error"); });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, baralhoId]);
 
-  const card = cards[index];
+  const card = queue[index] ?? null;
+  const remaining = queue.length - index;
 
-  const handleConfidence = async (level: number) => {
-    if (!card || pendingAcertou === null) return;
+  const handleGrade = async (grade: ReviewGrade) => {
+    if (!card) return;
     setPhase("saving");
     try {
-      await submitCardReview({
-        flashcardId: card.id,
-        respostaUsuario: "",
-        acertou: pendingAcertou,
-        nivelConfianca: level,
-        tempoResposta: Date.now() - startedAt,
-      });
-      if (pendingAcertou) setCorrect((c) => c + 1);
+      let newSchedule = card.schedule;
 
-      const next = index + 1;
-      if (next >= cards.length) {
-        // acabou: o estudo do deck só termina quando todos os flashcards foram respondidos
-        if (sessionId) {
-          finalizedRef.current = true;
-          await finalizeStudySession(sessionId).catch(() => {});
-        }
+      if (graphDir && sessionId) {
+        newSchedule = await submitLocalReview(graphDir, sessionId, {
+          flashcardId: card.id,
+          grade,
+          tempoResposta: Date.now() - startedAt,
+        });
+      } else if (sessionId) {
+        await submitCardReview({ flashcardId: card.id, grade, tempoResposta: Date.now() - startedAt, sessaoId: sessionId });
+      }
+
+      setReviewed((r) => r + 1);
+
+      const shouldRequeue = newSchedule && needsRequeue(newSchedule);
+      // Atualiza a fila antes de calcular o próximo índice
+      const newQueue = shouldRequeue
+        ? [...queue, { ...card, schedule: newSchedule! }]
+        : queue;
+
+      if (shouldRequeue) setQueue(newQueue);
+
+      const nextIndex = index + 1;
+      if (nextIndex >= newQueue.length) {
+        // Fila esgotada — finaliza sessão
+        finalizedRef.current = true;
+        if (graphDir && sessionId) await finalizeLocalSession(graphDir, sessionId).catch(() => {});
+        else if (sessionId) await finalizeStudySession(sessionId).catch(() => {});
         setPhase("complete");
       } else {
-        setIndex(next);
-        setPendingAcertou(null);
+        setIndex(nextIndex);
         setStartedAt(Date.now());
         setPhase("question");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar a revisão");
-      setPhase("confidence");
+      setPhase("answer");
     }
   };
 
-  // impede fechar no meio (a não ser nas telas finais)
-  const canClose = phase === "complete" || phase === "error" || phase === "loading";
   const handleOpenChange = (o: boolean) => {
-    if (!o && !canClose) {
-      toast.info("Termine os flashcards do baralho para finalizar.");
-      return;
-    }
     if (!o && sessionId && !finalizedRef.current) {
       finalizedRef.current = true;
-      finalizeStudySession(sessionId).catch(() => {});
+      if (graphDir) finalizeLocalSession(graphDir, sessionId).catch(() => {});
+      else if (sessionId) finalizeStudySession(sessionId).catch(() => {});
     }
     onOpenChange(o);
   };
+
+  // Calcula quantos cards únicos restam (sem contar re-queued duplicates)
+  const uniqueRemaining = queue.slice(index).filter(
+    (c, i, arr) => arr.findIndex((x) => x.id === c.id) === i
+  ).length;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -159,9 +202,9 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNo
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center justify-between gap-2">
             <span className="truncate">Estudar: {titulo || "baralho"}</span>
-            {cards.length > 0 && phase !== "complete" && phase !== "error" && (
+            {queue.length > 0 && phase !== "complete" && phase !== "error" && (
               <span className="shrink-0 text-xs font-normal text-muted-foreground">
-                {Math.min(index + 1, cards.length)} / {cards.length}
+                {reviewed} revisados · {uniqueRemaining} restantes
               </span>
             )}
           </DialogTitle>
@@ -169,11 +212,9 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNo
             {phase === "question"
               ? "Pense na resposta e revele quando estiver pronto."
               : phase === "answer"
-              ? "Você acertou?"
-              : phase === "confidence"
-              ? "Quão confiante você estava?"
+              ? "Como foi?"
               : phase === "complete"
-              ? "Baralho concluído."
+              ? "Sessão concluída."
               : " "}
           </DialogDescription>
         </DialogHeader>
@@ -188,97 +229,63 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNo
             <p className="py-10 text-center text-sm text-muted-foreground">
               Não foi possível carregar este baralho.
             </p>
-          ) : phase === "vault-preview" ? (
-            <div className="space-y-3">
-              <p className="text-center text-xs text-muted-foreground">
-                Conteúdo do vault — SRS não disponível até fazer Push. {cards.length} flashcard{cards.length !== 1 ? "s" : ""}.
-              </p>
-              <div className="space-y-2">
-                {cards.map((c) => (
-                  <FlashcardFace key={c.id} pergunta={c.pergunta} resposta={c.resposta} conceito={c.conceito} showAnswer />
-                ))}
-              </div>
-            </div>
           ) : phase === "complete" ? (
             <div className="flex flex-col items-center gap-3 py-10">
               <CheckCircle2Icon className="size-10 text-green-600 dark:text-green-500" />
               <p className="text-sm font-medium">
-                {cards.length === 0 ? "Nada para revisar agora" : "Baralho concluído!"}
+                {queue.length === 0 ? "Nada para revisar agora" : "Sessão concluída!"}
               </p>
               <p className="text-xs text-muted-foreground text-center">
-                {cards.length === 0
+                {queue.length === 0
                   ? totalNoDeck === 0
                     ? "Este baralho não tem flashcards."
-                    : "Todos os flashcards deste baralho estão em dia. Volte quando algum vencer."
-                  : `${correct} de ${cards.length} corretas.`}
+                    : "Todos os flashcards estão em dia. Volte quando algum vencer."
+                  : `${reviewed} revisões registradas.`}
               </p>
               <Button onClick={() => onOpenChange(false)}>Fechar</Button>
             </div>
           ) : card ? (
             <div className="space-y-4">
+              {/* Indicador de fase do card */}
+              {card.schedule && (
+                <div className="flex justify-center">
+                  <span className={`text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                    card.schedule.fase === 'LEARN'   ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' :
+                    card.schedule.fase === 'RELEARN' ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400' :
+                    'bg-green-500/10 text-green-600 dark:text-green-400'
+                  }`}>
+                    {card.schedule.fase === 'LEARN' ? 'aprendendo' : card.schedule.fase === 'RELEARN' ? 'reaprendendo' : `revisão · ${card.schedule.intervalo}d`}
+                  </span>
+                </div>
+              )}
+
               <FlashcardFace
                 pergunta={card.pergunta}
                 resposta={card.resposta}
                 conceito={card.conceito}
-                showAnswer={phase === "answer" || phase === "confidence"}
+                showAnswer={phase === "answer"}
               />
 
               {phase === "question" && (
-                <div className="flex justify-center">
-                  <Button size="lg" className="w-full gap-2" onClick={() => setPhase("answer")}>
-                    <EyeIcon className="size-4" />
-                    Ver resposta
-                  </Button>
-                </div>
+                <Button size="lg" className="w-full gap-2" onClick={() => setPhase("answer")}>
+                  <EyeIcon className="size-4" />
+                  Ver resposta
+                </Button>
               )}
 
               {phase === "answer" && (
-                <div className="flex justify-center gap-3">
-                  <Button
-                    size="lg"
-                    variant="destructive"
-                    className="flex-1 gap-2"
-                    onClick={() => {
-                      setPendingAcertou(false);
-                      setPhase("confidence");
-                    }}
-                  >
-                    <XCircleIcon className="size-4" />
-                    Errei
-                  </Button>
-                  <Button
-                    size="lg"
-                    className="flex-1 gap-2 bg-green-600 text-white hover:bg-green-700"
-                    onClick={() => {
-                      setPendingAcertou(true);
-                      setPhase("confidence");
-                    }}
-                  >
-                    <CheckCircle2Icon className="size-4" />
-                    Acertei
-                  </Button>
-                </div>
-              )}
-
-              {phase === "confidence" && (
-                <div>
-                  <label className="mb-2 block text-center text-xs font-medium text-muted-foreground">
-                    Quão confiante você estava nessa resposta?
-                  </label>
-                  <div className="flex gap-1.5">
-                    {[1, 2, 3, 4, 5].map((level) => (
-                      <button
-                        key={level}
-                        onClick={() => handleConfidence(level)}
-                        className="flex flex-1 flex-col items-center justify-center rounded-lg border border-border bg-card py-2.5 text-xs text-muted-foreground transition-all hover:border-primary hover:bg-primary/10 hover:text-primary"
-                      >
-                        <span className="text-base font-semibold">{level}</span>
-                        <span className="mt-0.5 hidden text-[0.65rem] leading-tight sm:inline">
-                          {CONFIDENCE_LABELS[level - 1]}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {GRADE_BUTTONS.map(({ grade, label, sublabel, className }) => (
+                    <button
+                      key={grade}
+                      onClick={() => handleGrade(grade)}
+                      className={`flex flex-col items-center justify-center rounded-lg border bg-card px-2 py-2.5 transition-all ${className}`}
+                    >
+                      {grade === "again" && <RotateCcwIcon className="size-3.5 mb-1 opacity-70" />}
+                      <span className="text-sm font-semibold">{label}</span>
+                      <span className="mt-0.5 text-[10px] opacity-60">{sublabel}</span>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

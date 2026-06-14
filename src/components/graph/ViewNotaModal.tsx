@@ -84,25 +84,18 @@ export function ViewNotaModal({ open, onOpenChange, notaId, grafoId, grafoNome }
     if (!open || !notaId) return;
     setLoading(true);
     setNota(null);
-    getNodeDetails("NOTA", notaId)
-      .then(async (details) => {
-        if (details) {
-          setNota(details);
-          return;
-        }
-        // Backend não tem a nota — tenta ler direto do vault
-        if (isDesktop() && grafoId && grafoNome) {
-          const fromVault = await fetchNotaFromVault(notaId, grafoId, grafoNome);
-          if (fromVault) {
-            setNota(fromVault);
-            return;
-          }
-        }
-        toast.error("Nota não encontrada");
-        onOpenChange(false);
-      })
-      .catch(() => toast.error("Erro ao carregar a nota"))
-      .finally(() => setLoading(false));
+    async function load() {
+      let details = null;
+      try { details = await getNodeDetails("NOTA", notaId!); } catch { /* não está no backend */ }
+      if (details) { setNota(details); return; }
+      if (isDesktop() && grafoId && grafoNome) {
+        const fromVault = await fetchNotaFromVault(notaId!, grafoId, grafoNome);
+        if (fromVault) { setNota(fromVault); return; }
+      }
+      toast.error("Nota não encontrada");
+      onOpenChange(false);
+    }
+    load().catch(() => toast.error("Erro ao carregar a nota")).finally(() => setLoading(false));
   }, [open, notaId]);
 
   return (

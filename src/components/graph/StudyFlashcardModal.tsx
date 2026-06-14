@@ -9,12 +9,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2Icon, EyeIcon, CheckCircle2Icon, XCircleIcon, ClockIcon } from "lucide-react";
+import { Loader2Icon, EyeIcon, CheckCircle2Icon, ClockIcon, RotateCcwIcon } from "lucide-react";
 import { toast } from "sonner";
 import { startSingleCardStudy, submitCardReview, finalizeStudySession } from "@/lib/study-api";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
-import { isDesktop } from "@/lib/vault-bridge";
-import { findVaultNode } from "@/lib/vault-sync";
+import { isDesktop, desktop } from "@/lib/vault-bridge";
+import { findVaultNode, graphVaultDir } from "@/lib/vault-sync";
+import {
+  readSrsLog,
+  startLocalSession,
+  submitLocalReview,
+  finalizeLocalSession,
+  isDue,
+  type ReviewGrade,
+} from "@/lib/srs-local";
 
 interface StudyFlashcardModalProps {
   open: boolean;
@@ -25,16 +33,26 @@ interface StudyFlashcardModalProps {
 }
 
 type Card = { id: string; pergunta: string; resposta: string; conceito: string | null };
-type Phase = "loading" | "question" | "answer" | "confidence" | "saving" | "done" | "notdue" | "error" | "vault-preview";
+type Phase = "loading" | "question" | "answer" | "saving" | "done" | "notdue" | "error";
 
-const CONFIDENCE_LABELS = ["Nada", "Pouco", "Neutro", "Confiante", "Muito"];
+const GRADE_BUTTONS: Array<{ grade: ReviewGrade; label: string; sublabel: string; className: string }> = [
+  { grade: "again", label: "Errei",   sublabel: "< 1 min",  className: "border-red-500/50 text-red-600 hover:bg-red-500/10 dark:text-red-400" },
+  { grade: "hard",  label: "Difícil", sublabel: "~ 10 min", className: "border-orange-500/50 text-orange-600 hover:bg-orange-500/10 dark:text-orange-400" },
+  { grade: "good",  label: "Bom",     sublabel: "em breve", className: "border-primary/50 text-primary hover:bg-primary/10" },
+  { grade: "easy",  label: "Fácil",   sublabel: "mais dias",className: "border-green-500/50 text-green-600 hover:bg-green-500/10 dark:text-green-400" },
+];
 
 function formatProxima(iso: string): string {
   const d = new Date(iso);
   const diffMs = d.getTime() - Date.now();
-  const dias = Math.ceil(diffMs / 86400000);
+  if (diffMs <= 0) return "agora";
+  const minutes = Math.ceil(diffMs / 60_000);
+  if (minutes < 60) return `em ${minutes} min`;
+  const hours = Math.ceil(diffMs / 3_600_000);
+  if (hours < 24) return `em ${hours}h`;
+  const dias = Math.ceil(diffMs / 86_400_000);
   const data = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  if (dias <= 1) return `amanhã (${data})`;
+  if (dias === 1) return `amanhã (${data})`;
   return `em ${dias} dias (${data})`;
 }
 
@@ -42,92 +60,97 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, 
   const [phase, setPhase] = useState<Phase>("loading");
   const [card, setCard] = useState<Card | null>(null);
   const [proximaRevisao, setProximaRevisao] = useState<string | null>(null);
-  const [pendingAcertou, setPendingAcertou] = useState<boolean | null>(null);
   const [startedAt, setStartedAt] = useState<number>(Date.now());
-  // sessão de estudo criada ao abrir; finalizada ao terminar ou abandonar
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [graphDir, setGraphDir] = useState<string | null>(null);
   const finalizedRef = useRef(false);
 
-  // abre a sessão de estudo ao clicar em "Estudar" (carrega o card)
   useEffect(() => {
     if (!open || !flashcardId) return;
     let active = true;
-    let createdSession: string | null = null;
     setPhase("loading");
     setCard(null);
-    setPendingAcertou(null);
     setSessionId(null);
+    setGraphDir(null);
     finalizedRef.current = false;
-    startSingleCardStudy(flashcardId)
-      .then((res) => {
-        if (res?.sessionId) createdSession = res.sessionId;
-        if (!active) {
-          // modal fechou durante o carregamento: limpa a sessão recém-criada
-          if (createdSession) finalizeStudySession(createdSession).catch(() => {});
+
+    async function load() {
+      if (isDesktop() && grafoId && grafoNome) {
+        const vaultDir = await desktop.vault.getPath().catch(() => null);
+        if (!vaultDir) { if (active) setPhase("error"); return; }
+        const dir = graphVaultDir(vaultDir, grafoId, grafoNome);
+
+        const [vn, srsLog] = await Promise.all([
+          findVaultNode(grafoId, grafoNome, flashcardId!, "FLASHCARD"),
+          readSrsLog(dir),
+        ]);
+
+        if (!active) return;
+        if (!vn) { setPhase("error"); return; }
+
+        const schedule = srsLog.schedule[flashcardId!];
+        const due = isDue(schedule);
+        setCard({ id: vn.id, pergunta: vn.pergunta ?? "", resposta: vn.resposta ?? "", conceito: null });
+        setGraphDir(dir);
+
+        if (!due) {
+          setProximaRevisao(schedule!.proximaRevisao);
+          setPhase("notdue");
           return;
         }
-        if (!res) {
-          // Fallback: busca no vault e exibe sem SRS
-          if (isDesktop() && grafoId && grafoNome && flashcardId) {
-            findVaultNode(grafoId, grafoNome, flashcardId, "FLASHCARD").then((vn) => {
-              if (!active) return;
-              if (vn) {
-                setCard({ id: vn.id, pergunta: vn.pergunta ?? "", resposta: vn.resposta ?? "", conceito: null });
-                setPhase("vault-preview");
-              } else {
-                setPhase("error");
-              }
-            });
-          } else {
-            setPhase("error");
-          }
-          return;
-        }
+
+        const sessId = await startLocalSession(dir, null);
+        if (!active) { finalizeLocalSession(dir, sessId).catch(() => {}); return; }
+        setSessionId(sessId);
+        setStartedAt(Date.now());
+        setPhase("question");
+      } else {
+        const res = await startSingleCardStudy(flashcardId!).catch(() => null);
+        if (!active) { if (res?.sessionId) finalizeStudySession(res.sessionId).catch(() => {}); return; }
+        if (!res) { setPhase("error"); return; }
         setCard(res.card);
         setProximaRevisao(res.proximaRevisao);
         setStartedAt(Date.now());
-        // repetição espaçada: só pode estudar se estiver vencido
         if (res.due && res.sessionId) {
           setSessionId(res.sessionId);
           setPhase("question");
         } else {
           setPhase("notdue");
         }
-      })
-      .catch(() => active && setPhase("error"));
-    return () => {
-      active = false;
-    };
+      }
+    }
+
+    load().catch(() => { if (active) setPhase("error"); });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, flashcardId]);
 
-  const handleConfidence = async (level: number) => {
-    if (!card || pendingAcertou === null || !sessionId) return;
+  const handleGrade = async (grade: ReviewGrade) => {
+    if (!card) return;
     setPhase("saving");
     try {
-      await submitCardReview({
-        flashcardId: card.id,
-        respostaUsuario: "",
-        acertou: pendingAcertou,
-        nivelConfianca: level,
-        tempoResposta: Date.now() - startedAt,
-        sessaoId: sessionId,
-      });
-      // termina a sessão (encerra, pois teve revisão)
-      finalizedRef.current = true;
-      await finalizeStudySession(sessionId).catch(() => {});
+      if (graphDir && sessionId) {
+        await submitLocalReview(graphDir, sessionId, { flashcardId: card.id, grade, tempoResposta: Date.now() - startedAt });
+        finalizedRef.current = true;
+        await finalizeLocalSession(graphDir, sessionId).catch(() => {});
+      } else if (sessionId) {
+        await submitCardReview({ flashcardId: card.id, grade, tempoResposta: Date.now() - startedAt, sessaoId: sessionId });
+        finalizedRef.current = true;
+        await finalizeStudySession(sessionId).catch(() => {});
+      }
       setPhase("done");
-      toast.success(pendingAcertou ? "Acerto registrado!" : "Revisão registrada — volte nele em breve.");
+      toast.success("Revisão registrada!");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar a revisão");
-      setPhase("confidence");
+      setPhase("answer");
     }
   };
 
-  // ao fechar antes de responder, finaliza a sessão (vazia → é apagada)
   const handleOpenChange = (o: boolean) => {
     if (!o && sessionId && !finalizedRef.current) {
       finalizedRef.current = true;
-      finalizeStudySession(sessionId).catch(() => {});
+      if (graphDir) finalizeLocalSession(graphDir, sessionId).catch(() => {});
+      else finalizeStudySession(sessionId).catch(() => {});
     }
     onOpenChange(o);
   };
@@ -138,15 +161,10 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, 
         <DialogHeader className="shrink-0">
           <DialogTitle>Estudar flashcard</DialogTitle>
           <DialogDescription>
-            {phase === "question"
-              ? "Pense na resposta e revele quando estiver pronto."
-              : phase === "answer"
-              ? "Você acertou?"
-              : phase === "confidence"
-              ? "Quão confiante você estava?"
-              : phase === "done"
-              ? "Revisão salva."
-              : " "}
+            {phase === "question" ? "Pense na resposta e revele quando estiver pronto."
+              : phase === "answer" ? "Como foi?"
+              : phase === "done" ? "Revisão salva."
+              : " "}
           </DialogDescription>
         </DialogHeader>
 
@@ -160,13 +178,6 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, 
             <p className="py-10 text-center text-sm text-muted-foreground">
               Não foi possível carregar este flashcard.
             </p>
-          ) : phase === "vault-preview" && card ? (
-            <div className="space-y-3">
-              <p className="text-center text-xs text-muted-foreground">
-                Conteúdo do vault — SRS não disponível até fazer Push.
-              </p>
-              <FlashcardFace pergunta={card.pergunta} resposta={card.resposta} conceito={card.conceito} showAnswer />
-            </div>
           ) : phase === "done" ? (
             <div className="flex flex-col items-center gap-3 py-10">
               <CheckCircle2Icon className="size-10 text-green-600 dark:text-green-500" />
@@ -189,66 +200,29 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, 
                 pergunta={card.pergunta}
                 resposta={card.resposta}
                 conceito={card.conceito}
-                showAnswer={phase === "answer" || phase === "confidence"}
+                showAnswer={phase === "answer"}
               />
 
-              {/* Ações por fase */}
               {phase === "question" && (
-                <div className="flex justify-center">
-                  <Button size="lg" className="w-full gap-2" onClick={() => setPhase("answer")}>
-                    <EyeIcon className="size-4" />
-                    Ver resposta
-                  </Button>
-                </div>
+                <Button size="lg" className="w-full gap-2" onClick={() => setPhase("answer")}>
+                  <EyeIcon className="size-4" />
+                  Ver resposta
+                </Button>
               )}
 
               {phase === "answer" && (
-                <div className="flex justify-center gap-3">
-                  <Button
-                    size="lg"
-                    variant="destructive"
-                    className="flex-1 gap-2"
-                    onClick={() => {
-                      setPendingAcertou(false);
-                      setPhase("confidence");
-                    }}
-                  >
-                    <XCircleIcon className="size-4" />
-                    Errei
-                  </Button>
-                  <Button
-                    size="lg"
-                    className="flex-1 gap-2 bg-green-600 text-white hover:bg-green-700"
-                    onClick={() => {
-                      setPendingAcertou(true);
-                      setPhase("confidence");
-                    }}
-                  >
-                    <CheckCircle2Icon className="size-4" />
-                    Acertei
-                  </Button>
-                </div>
-              )}
-
-              {phase === "confidence" && (
-                <div>
-                  <label className="mb-2 block text-center text-xs font-medium text-muted-foreground">
-                    Quão confiante você estava nessa resposta?
-                  </label>
-                  <div className="flex gap-1.5">
-                    {[1, 2, 3, 4, 5].map((level) => (
-                      <button
-                        key={level}
-                        onClick={() => handleConfidence(level)}
-                        className="flex flex-1 flex-col items-center justify-center rounded-lg border border-border bg-card py-2.5 text-xs text-muted-foreground transition-all hover:border-primary hover:bg-primary/10 hover:text-primary"
-                      >
-                        <span className="text-base font-semibold">{level}</span>
-                        <span className="mt-0.5 hidden text-[0.65rem] leading-tight sm:inline">
-                          {CONFIDENCE_LABELS[level - 1]}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {GRADE_BUTTONS.map(({ grade, label, sublabel, className }) => (
+                    <button
+                      key={grade}
+                      onClick={() => handleGrade(grade)}
+                      className={`flex flex-col items-center justify-center rounded-lg border bg-card px-2 py-2.5 transition-all ${className}`}
+                    >
+                      {grade === "again" && <RotateCcwIcon className="size-3.5 mb-1 opacity-70" />}
+                      <span className="text-sm font-semibold">{label}</span>
+                      <span className="mt-0.5 text-[10px] opacity-60">{sublabel}</span>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

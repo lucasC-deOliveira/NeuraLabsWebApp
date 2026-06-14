@@ -1,6 +1,8 @@
 // Sincronização vault ↔ backend (desktop). Manual: Pull (backend → .md) e
 // Push (.md → backend). Usa o formato em vault-format + a ponte de fs (Electron).
 import { exportGraph, syncGraphFromVault, type ExportGraphNode, type GraphNodeType, type GraphEdgeType } from "./graph-api";
+import { syncVaultSessions } from "./study-api";
+import { readSrsLog, writeSrsLog } from "./srs-local";
 import { desktop, type VaultFile, type VaultSyncState } from "./vault-bridge";
 import {
   serializeNode,
@@ -89,6 +91,26 @@ export async function pushVault(grafoId: string, grafoNome: string): Promise<{ c
   }
 
   const result = await syncGraphFromVault(grafoId, { nodes, edges });
+
+  // Envia sessões SRS locais não sincronizadas
+  try {
+    const srsLog = await readSrsLog(graphDir);
+    const unsynced = srsLog.sessions.filter(
+      (s) => !s.syncedAt && s.revisoes.length > 0 && s.endedAt !== null,
+    );
+    if (unsynced.length > 0) {
+      const { synced } = await syncVaultSessions(unsynced);
+      if (synced > 0) {
+        const syncedAt = new Date().toISOString();
+        const unsyncedIds = new Set(unsynced.map((s) => s.id));
+        for (const s of srsLog.sessions) {
+          if (unsyncedIds.has(s.id)) s.syncedAt = syncedAt;
+        }
+        await writeSrsLog(graphDir, srsLog);
+      }
+    }
+  } catch { /* sync de SRS é não-fatal */ }
+
   try { await desktop.vault.writeSyncState(graphDir, { lastPush: new Date().toISOString() }); } catch { /* opcional */ }
   return result;
 }

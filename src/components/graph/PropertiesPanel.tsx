@@ -19,6 +19,9 @@ import {
 import { useRouter } from "@/lib/navigation";
 import { useEffect, useState } from "react";
 import { getNodeDetails } from "@/lib/graph-api";
+import { isDesktop, desktop } from "@/lib/vault-bridge";
+import { readAllVaultNodes, graphVaultDir } from "@/lib/vault-sync";
+import { readSrsLog } from "@/lib/srs-local";
 
 const SUBTIPO_LABELS: Record<string, string> = {
   DEFINICAO: "Definição",
@@ -78,11 +81,15 @@ interface PropertiesPanelProps {
   onAddEdge?: () => void;
   onEditNode?: () => void;
   onViewNota?: () => void;
+  onViewTextoBruto?: () => void;
   onStudyFlashcard?: () => void;
   onViewFlashcard?: () => void;
   onStudyDeck?: () => void;
   onViewDeck?: () => void;
   onGenerateInsights?: () => void;
+  onSelectNode?: (nodeId: string) => void;
+  grafoId?: string;
+  grafoNome?: string;
 
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -101,11 +108,15 @@ export function PropertiesPanel({
   onAddEdge,
   onEditNode,
   onViewNota,
+  onViewTextoBruto,
   onStudyFlashcard,
   onViewFlashcard,
   onStudyDeck,
   onViewDeck,
   onGenerateInsights,
+  onSelectNode,
+  grafoId,
+  grafoNome,
   collapsed,
   onToggleCollapse,
 }: PropertiesPanelProps) {
@@ -122,16 +133,47 @@ export function PropertiesPanel({
       .catch(() => setNotaMeta(null));
   }, [isNota, selectedNode?.id]);
 
-  // texto original (fonte) do nó TEXTO_BRUTO selecionado
-  const [textoBruto, setTextoBruto] = useState<Record<string, string | null> | null>(null);
   const isTextoBruto = selectedNode?.tipoReal === "TEXTO_BRUTO";
+
+  // stats do baralho selecionado (total, novos, para revisar)
+  interface DeckStats { total: number; novos: number; paraRevisar: number }
+  const isBaralho = selectedNode?.tipoReal === "BARALHO";
+  const [deckStats, setDeckStats] = useState<DeckStats | null>(null);
   useEffect(() => {
-    setTextoBruto(null);
-    if (!isTextoBruto || !selectedNode) return;
-    getNodeDetails("TEXTO_BRUTO", selectedNode.id)
-      .then(setTextoBruto)
-      .catch(() => setTextoBruto(null));
-  }, [isTextoBruto, selectedNode?.id]);
+    setDeckStats(null);
+    if (!isBaralho || !selectedNode || !grafoId || !grafoNome) return;
+    let cancelled = false;
+    async function load() {
+      const vaultNodes = await readAllVaultNodes(grafoId!, grafoNome!);
+      const nodeById = new Map(vaultNodes.map((n) => [n.id, n]));
+      const baralho = nodeById.get(selectedNode!.id);
+      if (!baralho) return;
+      const fcIds = baralho.relacoes
+        .filter((r) => r.rel === "CONTEM")
+        .map((r) => r.alvo)
+        .filter((id) => { const n = nodeById.get(id); return n && n.tipo === "FLASHCARD"; });
+      let novos = 0, paraRevisar = 0;
+      if (isDesktop()) {
+        const vaultDir = await desktop.vault.getPath().catch(() => null);
+        if (vaultDir) {
+          const srsLog = await readSrsLog(graphVaultDir(vaultDir, grafoId!, grafoNome!));
+          const now = new Date();
+          for (const id of fcIds) {
+            const s = srsLog.schedule[id];
+            if (!s) novos++;
+            else if (new Date(s.proximaRevisao) <= now) paraRevisar++;
+          }
+        } else {
+          novos = fcIds.length;
+        }
+      } else {
+        novos = fcIds.length;
+      }
+      if (!cancelled) setDeckStats({ total: fcIds.length, novos, paraRevisar });
+    }
+    load().catch(() => {});
+    return () => { cancelled = true; };
+  }, [isBaralho, selectedNode?.id, grafoId, grafoNome]);
 
   const formatDate = (iso: string | null | undefined) =>
     iso
@@ -262,6 +304,27 @@ export function PropertiesPanel({
               </>
             )}
 
+            {/* Stats do baralho */}
+            {selectedNode.tipoReal === "BARALHO" && deckStats && (
+              <>
+                <div className="grid grid-cols-3 gap-1.5 text-center">
+                  <div className="rounded-md bg-muted/60 px-2 py-2">
+                    <div className="text-base font-semibold tabular-nums">{deckStats.total}</div>
+                    <div className="text-[10px] text-muted-foreground leading-tight">total</div>
+                  </div>
+                  <div className="rounded-md bg-blue-500/10 px-2 py-2">
+                    <div className="text-base font-semibold tabular-nums text-blue-600 dark:text-blue-400">{deckStats.novos}</div>
+                    <div className="text-[10px] text-muted-foreground leading-tight">novos</div>
+                  </div>
+                  <div className="rounded-md bg-amber-500/10 px-2 py-2">
+                    <div className="text-base font-semibold tabular-nums text-amber-600 dark:text-amber-400">{deckStats.paraRevisar}</div>
+                    <div className="text-[10px] text-muted-foreground leading-tight">revisar</div>
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
+
             {/* Deck: estudar (com repetição espaçada) ou ver os flashcards */}
             {selectedNode.tipoReal === "BARALHO" && (onStudyDeck || onViewDeck) && (
               <>
@@ -281,20 +344,6 @@ export function PropertiesPanel({
               </>
             )}
 
-            {/* Texto original (fonte) */}
-            {isTextoBruto && textoBruto?.texto && (
-              <>
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-semibold text-primary uppercase tracking-wide">
-                    Texto original
-                  </h4>
-                  <div className="max-h-64 overflow-y-auto rounded-md border border-primary/30 bg-muted/40 p-2 text-xs leading-relaxed whitespace-pre-wrap">
-                    {textoBruto.texto}
-                  </div>
-                </div>
-                <Separator />
-              </>
-            )}
 
             {/* Metadados da nota (slug + datas) */}
             {isNota && notaMeta && (
@@ -346,7 +395,8 @@ export function PropertiesPanel({
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                   {connectedEdges.map((edge) => {
                     const isOutgoing = edge.source === selectedNode.id;
-                    const otherNode = isOutgoing ? edge.targetLabel : edge.sourceLabel;
+                    const otherId = isOutgoing ? edge.target : edge.source;
+                    const otherLabel = isOutgoing ? edge.targetLabel : edge.sourceLabel;
                     return (
                       <div
                         key={edge.id}
@@ -359,7 +409,17 @@ export function PropertiesPanel({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1">
                             <span className="text-muted-foreground">{isOutgoing ? "→" : "←"}</span>
-                            <span className="truncate">{otherNode}</span>
+                            {onSelectNode ? (
+                              <button
+                                className="truncate text-left hover:underline hover:text-primary transition-colors"
+                                onClick={() => onSelectNode(otherId)}
+                                title={`Ir para ${otherLabel}`}
+                              >
+                                {otherLabel}
+                              </button>
+                            ) : (
+                              <span className="truncate">{otherLabel}</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                             <span className="capitalize">
@@ -437,6 +497,17 @@ export function PropertiesPanel({
                 >
                   <BookOpenIcon className="size-4" />
                   Mostrar conteúdo
+                </Button>
+              )}
+              {isTextoBruto && onViewTextoBruto && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={onViewTextoBruto}
+                >
+                  <EyeIcon className="size-4" />
+                  Ver conteúdo
                 </Button>
               )}
               <Button

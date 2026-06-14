@@ -31,25 +31,19 @@ export function ViewFlashcardModal({ open, onOpenChange, flashcardId, grafoId, g
     let active = true;
     setLoading(true);
     setData(null);
-    getNodeDetails("FLASHCARD", flashcardId)
-      .then(async (d) => {
+    async function load() {
+      if (isDesktop() && grafoId && grafoNome) {
+        const vn = await findVaultNode(grafoId, grafoNome, flashcardId!, "FLASHCARD");
         if (!active) return;
-        if (d) {
-          setData({ pergunta: d.pergunta ?? "", resposta: d.resposta ?? "" });
-          return;
-        }
-        // Fallback: busca no vault
-        if (isDesktop() && grafoId && grafoNome) {
-          const vn = await findVaultNode(grafoId, grafoNome, flashcardId, "FLASHCARD");
-          if (active && vn) {
-            setData({ pergunta: vn.pergunta ?? "", resposta: vn.resposta ?? "" });
-            return;
-          }
-        }
-        if (active) setData(null);
-      })
-      .catch(() => active && setData(null))
-      .finally(() => active && setLoading(false));
+        if (vn) { setData({ pergunta: vn.pergunta ?? "", resposta: vn.resposta ?? "" }); return; }
+      }
+      let d = null;
+      try { d = await getNodeDetails("FLASHCARD", flashcardId!); } catch { /* não encontrado */ }
+      if (!active) return;
+      if (d) { setData({ pergunta: d.pergunta ?? "", resposta: d.resposta ?? "" }); return; }
+      setData(null);
+    }
+    load().catch(() => { if (active) setData(null); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [open, flashcardId]);
 

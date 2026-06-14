@@ -1,29 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { createReviewSchedule } from '../study/spaced-repetition';
 import { buildRulePreview } from './flashcard-gen';
 
 @Injectable()
 export class ContentService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // SRS inicial (qualidade 3) usado ao criar flashcards.
-  private async seedSrs(tx: any, userId: string, flashcardId: string) {
-    const schedule = createReviewSchedule(3);
-    const next = new Date();
-    next.setDate(next.getDate() + schedule.interval);
-    await tx.aprendizadoFlashcard.create({
-      data: {
-        flashcardId,
-        usuarioId: userId,
-        dificuldade: schedule.ease > 0 ? Math.max(1, Math.round((5 - schedule.ease) * 2)) : 5,
-        intervalo: schedule.interval,
-        proximaRevisao: next,
-        ultimaRevisao: new Date(),
-        estagioAprendizado: schedule.stage,
-      },
-    });
-  }
+  // Flashcards novos não precisam de seed — aparecem como "new" na próxima sessão.
+  // O registro AprendizadoFlashcard é criado automaticamente na primeira revisão.
 
   // Preview de flashcards (regras) a partir de uma nota.
   async previewFlashcardsFromNota(userId: string, notaId: string) {
@@ -40,7 +24,6 @@ export class ContentService {
         const created = await tx.flashcard.create({
           data: { pergunta: fc.pergunta, resposta: fc.resposta, conceitoId: fc.conceitoId, usuarioId: userId },
         });
-        await this.seedSrs(tx, userId, created.id);
       }
     });
     return { count: data.length };
@@ -51,20 +34,6 @@ export class ContentService {
     const fc = await this.prisma.$transaction(async (tx) => {
       const created = await tx.flashcard.create({
         data: { pergunta: data.pergunta, resposta: data.resposta, conceitoId: data.conceitoId ?? null, usuarioId: userId },
-      });
-      const schedule = createReviewSchedule(3);
-      const next = new Date();
-      next.setDate(next.getDate() + schedule.interval);
-      await tx.aprendizadoFlashcard.create({
-        data: {
-          flashcardId: created.id,
-          usuarioId: userId,
-          dificuldade: schedule.ease > 0 ? Math.max(1, Math.round((5 - schedule.ease) * 2)) : 5,
-          intervalo: schedule.interval,
-          proximaRevisao: next,
-          ultimaRevisao: new Date(),
-          estagioAprendizado: schedule.stage,
-        },
       });
       return created;
     });

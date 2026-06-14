@@ -58,27 +58,30 @@ export function ViewDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNom
     setLoading(true);
     setCards([]);
     setExpanded(new Set());
-    getDeckForStudy(baralhoId)
-      .then(async (deck) => {
+
+    async function load() {
+      // Desktop: usa vault como fonte primária (evita problemas com join table no backend)
+      if (isDesktop() && grafoId && grafoNome) {
+        const fromVault = await loadDeckFromVault(baralhoId!, grafoId, grafoNome);
         if (!active) return;
-        if (deck) {
-          setTitulo(deck.titulo);
-          setCards(deck.cards);
+        if (fromVault) {
+          setTitulo(fromVault.titulo);
+          setCards(fromVault.cards);
           return;
         }
-        // Fallback: busca no vault
-        if (isDesktop() && grafoId && grafoNome) {
-          const fromVault = await loadDeckFromVault(baralhoId, grafoId, grafoNome);
-          if (active && fromVault) {
-            setTitulo(fromVault.titulo);
-            setCards(fromVault.cards);
-            return;
-          }
-        }
-        if (active) { setTitulo(""); setCards([]); }
-      })
-      .catch(() => active && setCards([]))
-      .finally(() => active && setLoading(false));
+      }
+
+      // Web ou vault vazio: tenta backend
+      let deck = null;
+      try { deck = await getDeckForStudy(baralhoId!); } catch { /* não encontrado */ }
+      if (!active) return;
+      if (deck) { setTitulo(deck.titulo); setCards(deck.cards); return; }
+
+      setTitulo("");
+      setCards([]);
+    }
+
+    load().catch(() => { if (active) setCards([]); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [open, baralhoId]);
 

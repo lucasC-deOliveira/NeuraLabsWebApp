@@ -155,9 +155,17 @@ export async function buildKnowledgeGraph(
   }
 
   const mastery = new Map<string, number>();
+  const nowMs = Date.now();
+  const MS_PER_DAY = 86_400_000;
   for (const fc of flashcards) {
     const ap = fc.aprendizado.find((a: any) => a.usuarioId === userId);
-    mastery.set(fc.id, ap ? clamp01(1 - ap.dificuldade / 10) : 0);
+    if (!ap) { mastery.set(fc.id, 0); continue; }
+    const base = clamp01(1 - ap.dificuldade / 10);
+    const daysOverdue = Math.max(0, (nowMs - new Date(ap.proximaRevisao).getTime()) / MS_PER_DAY);
+    const interval = Math.max(1, ap.intervalo);
+    // Decaimento exponencial: perde ~63% após 1 intervalo sem revisão
+    const decay = Math.exp(-daysOverdue / interval);
+    mastery.set(fc.id, base * decay);
   }
   applyDomainFromFlashcards(nodes, edges, mastery);
 

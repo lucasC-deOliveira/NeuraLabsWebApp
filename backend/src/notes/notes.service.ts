@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { createReviewSchedule } from '../study/spaced-repetition';
 import { buildRulePreview } from '../content/flashcard-gen';
 
 @Injectable()
@@ -26,20 +25,6 @@ export class NotesService {
       for (const p of preview) {
         const fc = await tx.flashcard.create({
           data: { pergunta: p.pergunta, resposta: p.resposta, conceitoId: p.conceitoId, usuarioId: userId },
-        });
-        const schedule = createReviewSchedule(3);
-        const next = new Date();
-        next.setDate(next.getDate() + schedule.interval);
-        await tx.aprendizadoFlashcard.create({
-          data: {
-            flashcardId: fc.id,
-            usuarioId: userId,
-            dificuldade: schedule.ease > 0 ? Math.max(1, Math.round((5 - schedule.ease) * 2)) : 5,
-            intervalo: schedule.interval,
-            proximaRevisao: next,
-            ultimaRevisao: new Date(),
-            estagioAprendizado: schedule.stage,
-          },
         });
         flashcards.push({ id: fc.id, pergunta: fc.pergunta });
       }

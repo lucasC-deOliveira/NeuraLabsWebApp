@@ -134,12 +134,11 @@ export default function StudyPage() {
     if (!card) return;
     const elapsedMs = Date.now() - cardStartTimeRef.current.getTime();
     const metacognitiveGap = !acertou && cfConfidence >= 4;
+    const grade = !acertou ? "again" : cfConfidence <= 2 ? "hard" : cfConfidence <= 4 ? "good" : "easy";
     try {
       await submitCardReview({
         flashcardId: card.id,
-        respostaUsuario: "",
-        acertou,
-        nivelConfianca: cfConfidence,
+        grade: grade as "again" | "hard" | "good" | "easy",
         tempoResposta: elapsedMs,
       });
     } catch (error) {

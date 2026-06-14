@@ -169,8 +169,13 @@ export function GraphSideToolbar({
   const [openPanel, setOpenPanel] = useState<"search" | "layers" | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const togglePanel = (panel: "search" | "layers") =>
-    setOpenPanel((p) => (p === panel ? null : panel));
+  const togglePanel = (panel: "search" | "layers") => {
+    setOpenPanel((p) => {
+      const next = p === panel ? null : panel;
+      if (next !== null && roadmapOpen) onToggleRoadmap();
+      return next;
+    });
+  };
 
   const { filters, actions, results, matchedCount, activeCount, loadingContent } = search;
   const availableTypes = Object.keys(nodeStats);
@@ -225,7 +230,7 @@ export function GraphSideToolbar({
           <SideButton
             label="Roadmap de estudo"
             active={roadmapOpen}
-            onClick={onToggleRoadmap}
+            onClick={() => { setOpenPanel(null); onToggleRoadmap(); }}
           >
             <RouteIcon className="size-4" />
           </SideButton>

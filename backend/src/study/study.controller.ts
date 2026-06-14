@@ -21,9 +21,9 @@ export class StudyController {
   @Post('review')
   review(
     @CurrentUser() userId: string,
-    @Body() body: { flashcardId: string; respostaUsuario: string; acertou: boolean; nivelConfianca: number; tipoErro?: string; tempoResposta?: number; sessaoId?: string },
+    @Body() body: { flashcardId: string; respostaUsuario?: string; grade?: string; acertou?: boolean; nivelConfianca?: number; tempoResposta?: number; sessaoId?: string },
   ) {
-    return this.study.submitReview(userId, body);
+    return this.study.submitReview(userId, body as any);
   }
 
   @Post('deck/:baralhoId')
@@ -44,5 +44,13 @@ export class StudyController {
   @Post('session/:id/finalize')
   finalize(@CurrentUser() userId: string, @Param('id') id: string) {
     return this.study.finalizeSession(userId, id);
+  }
+
+  @Post('sync-vault-log')
+  syncVaultLog(
+    @CurrentUser() userId: string,
+    @Body() body: { sessions: any[] },
+  ) {
+    return this.study.syncVaultLog(userId, body.sessions ?? []);
   }
 }

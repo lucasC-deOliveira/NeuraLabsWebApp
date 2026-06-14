@@ -277,6 +277,27 @@ ipcMain.handle("vault:write", async (_e, { dir, files }) => {
   return { written };
 });
 
+// lê um arquivo arbitrário dentro do vault (qualquer extensão).
+ipcMain.handle("vault:read-file", async (_e, { dir, relPath }) => {
+  if (!dir || !relPath) return null;
+  try {
+    const full = path.resolve(dir, relPath);
+    if (!full.startsWith(path.resolve(dir) + path.sep) && full !== path.resolve(dir)) return null;
+    return fs.readFileSync(full, "utf8");
+  } catch { return null; }
+});
+
+// grava um arquivo arbitrário dentro do vault (qualquer extensão).
+ipcMain.handle("vault:write-file", async (_e, { dir, relPath, content }) => {
+  if (!dir || !relPath) throw new Error("Argumentos inválidos");
+  const root = path.resolve(dir);
+  const full = path.resolve(root, relPath);
+  if (!full.startsWith(root + path.sep) && full !== root) throw new Error("Caminho inválido");
+  fs.mkdirSync(path.dirname(full), { recursive: true });
+  fs.writeFileSync(full, String(content ?? ""), "utf8");
+  return { ok: true };
+});
+
 // lê todos os .md sob as pastas PARA, retornando {relPath, content}.
 ipcMain.handle("vault:read", async (_e, dir) => {
   if (!dir) throw new Error("Pasta não informada");

@@ -31,6 +31,7 @@ import { ImportJsonModal } from "@/components/graph/ImportJsonModal";
 import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";
 import { EditNodeModal } from "@/components/graph/EditNodeModal";
 import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
+import { ViewTextoBrutoModal } from "@/components/graph/ViewTextoBrutoModal";
 import { StudyFlashcardModal } from "@/components/graph/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/components/graph/ViewFlashcardModal";
 import { NodeInsightsModal } from "@/components/graph/NodeInsightsModal";
@@ -84,14 +85,17 @@ export default function GraphPage() {
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [dashFilterIds, setDashFilterIds] = useState<Set<string> | null>(null);
+  const [roadmapSpotlightId, setRoadmapSpotlightId] = useState<string | null>(null);
 
   const combinedMatchedIds = useMemo(() => {
     const a = dashFilterIds;
     const b = search.matchedIds;
-    if (!a && !b) return null;
-    if (a && b) return new Set([...a].filter(id => b.has(id)));
-    return a ?? b ?? null;
-  }, [dashFilterIds, search.matchedIds]);
+    const c = roadmapSpotlightId ? new Set([roadmapSpotlightId]) : null;
+    const sources = [a, b, c].filter(Boolean) as Set<string>[];
+    if (sources.length === 0) return null;
+    if (sources.length === 1) return sources[0];
+    return sources.reduce((acc, s) => new Set([...acc].filter(id => s.has(id))));
+  }, [dashFilterIds, search.matchedIds, roadmapSpotlightId]);
   const desktopApp = isDesktop();
   const [legendVisible, setLegendVisible] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
@@ -103,6 +107,7 @@ export default function GraphPage() {
   const [nodeMenu, setNodeMenu] = useState<{ node: any; x: number; y: number } | null>(null);
   const [editingNode, setEditingNode] = useState<any>(null);
   const [viewingNotaId, setViewingNotaId] = useState<string | null>(null);
+  const [viewingTextoId, setViewingTextoId] = useState<string | null>(null);
   const [studyFlashcardId, setStudyFlashcardId] = useState<string | null>(null);
   const [viewFlashcardId, setViewFlashcardId] = useState<string | null>(null);
   const [studyDeckId, setStudyDeckId] = useState<string | null>(null);
@@ -110,7 +115,18 @@ export default function GraphPage() {
   const [editEdge, setEditEdge] = useState<any>(null);
   const [addEdgeSourceId, setAddEdgeSourceId] = useState<string | null>(null);
 
+  const closeToolbarModals = () => {
+    setIsCreateModalOpen(false);
+    setIsImportJsonOpen(false);
+    setIsVaultOpen(false);
+    setIsDashboardOpen(false);
+    setIsSettingsOpen(false);
+    setIsEdgeManagerOpen(false);
+    setRoadmapOpen(false);
+  };
+
   const handleOpenCreateNode = () => {
+    closeToolbarModals();
     setIsCreateModalOpen(true);
   };
 
@@ -129,6 +145,7 @@ export default function GraphPage() {
   }, [graphId]);
 
   const handleOpenEdgeManager = async () => {
+    closeToolbarModals();
     await loadEdges();
     setIsEdgeManagerOpen(true);
   };
@@ -289,12 +306,12 @@ export default function GraphPage() {
           {controller.state.grafoNome}
         </div>
 
-        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => setIsDashboardOpen(v => !v)} title="Analytics do grafo">
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setIsDashboardOpen(v => !v); }} title="Analytics do grafo">
           <BarChart2Icon className="size-4" />
         </Button>
 
         {desktopApp && (
-          <Button variant="ghost" className="text-primary gap-1.5" onClick={() => setIsVaultOpen(true)} title="Sincronizar com vault Markdown">
+          <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setIsVaultOpen(true); }} title="Sincronizar com vault Markdown">
             <FolderTreeIcon className="size-4" /> Vault
           </Button>
         )}
@@ -312,24 +329,25 @@ export default function GraphPage() {
             onToolChange={controller.actions.setActiveTool}
             onOpenCreateNode={handleOpenCreateNode}
             onOpenEdgeManager={handleOpenEdgeManager}
-            onOpenImportJson={() => setIsImportJsonOpen(true)}
+            onOpenImportJson={() => { closeToolbarModals(); setIsImportJsonOpen(true); }}
             search={search}
             onFocusNode={controller.interactions.focusNode}
             nodeStats={nodeStats}
             hiddenTypes={controller.state.hiddenTypes}
             onToggleType={controller.actions.toggleNodeType}
             roadmapOpen={roadmapOpen}
-            onToggleRoadmap={() => setRoadmapOpen((v) => !v)}
+            onToggleRoadmap={() => { const next = !roadmapOpen; closeToolbarModals(); setRoadmapOpen(next); if (!next) setRoadmapSpotlightId(null); }}
           />
 
           <RoadmapPanel
             open={roadmapOpen}
-            onClose={() => setRoadmapOpen(false)}
+            onClose={() => { setRoadmapOpen(false); setRoadmapSpotlightId(null); }}
             nodes={controller.state.layout}
             edges={controller.state.edges}
             onFocusNode={(n) => {
               const full = controller.state.layout.find((x) => x.id === n.id);
               if (!full) return;
+              setRoadmapSpotlightId(n.id);
               controller.interactions.focusNode(full);
               controller.actions.selectNode(full);
             }}
@@ -347,7 +365,7 @@ export default function GraphPage() {
             onToggleHighContrast={() => setHighContrast((v) => !v)}
             focusMode={focusMode}
             onToggleFocus={() => setFocusMode((v) => !v)}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => { closeToolbarModals(); setIsSettingsOpen(true); }}
           />
           <GraphRenderer
             nodes={controller.state.filteredNodes}
@@ -405,11 +423,20 @@ export default function GraphPage() {
           onAddEdge={handleAddEdgeFromPanel}
           onEditNode={() => setEditingNode(controller.state.selectedNode)}
           onViewNota={() => setViewingNotaId(controller.state.selectedNode?.id ?? null)}
+          onViewTextoBruto={() => setViewingTextoId(controller.state.selectedNode?.id ?? null)}
           onStudyFlashcard={() => setStudyFlashcardId(controller.state.selectedNode?.id ?? null)}
           onViewFlashcard={() => setViewFlashcardId(controller.state.selectedNode?.id ?? null)}
           onStudyDeck={() => setStudyDeckId(controller.state.selectedNode?.id ?? null)}
           onViewDeck={() => setViewDeckId(controller.state.selectedNode?.id ?? null)}
           onGenerateInsights={() => setInsightsNode(controller.state.selectedNode ?? null)}
+          onSelectNode={(nodeId) => {
+            const node = controller.state.layout.find((n) => n.id === nodeId);
+            if (!node) return;
+            controller.actions.selectNode(node);
+            controller.interactions.focusNode(node);
+          }}
+          grafoId={graphId}
+          grafoNome={controller.state.grafoNome}
           collapsed={rightPanelCollapsed}
           onToggleCollapse={() =>
             setRightPanelCollapsed((v) => !v)
@@ -514,6 +541,13 @@ export default function GraphPage() {
         open={!!viewingNotaId}
         onOpenChange={(open) => !open && setViewingNotaId(null)}
         notaId={viewingNotaId}
+        grafoId={graphId}
+        grafoNome={controller.state.grafoNome}
+      />
+      <ViewTextoBrutoModal
+        open={!!viewingTextoId}
+        onOpenChange={(open) => !open && setViewingTextoId(null)}
+        textoId={viewingTextoId}
         grafoId={graphId}
         grafoNome={controller.state.grafoNome}
       />
