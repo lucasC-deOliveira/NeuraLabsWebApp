@@ -1,12 +1,14 @@
 "use client";
 
 import {
+  BoxIcon,
   ContrastIcon,
   EyeIcon,
   EyeOffIcon,
   FocusIcon,
   OrbitIcon,
   SettingsIcon,
+  SquareIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "lucide-react";
@@ -30,6 +32,8 @@ type Props = {
   focusMode: boolean;
   onToggleFocus: () => void;
   onOpenSettings: () => void;
+  is3D: boolean;
+  onToggle3D: () => void;
 };
 
 function ToolbarButton({
@@ -74,26 +78,30 @@ export function GraphToolbar({
   focusMode,
   onToggleFocus,
   onOpenSettings,
+  is3D,
+  onToggle3D,
 }: Props) {
   return (
     <TooltipProvider delay={200}>
       <div className="graph-toolbar absolute bottom-3 right-3 z-10 flex flex-row items-center gap-1 rounded-md border bg-background/90 backdrop-blur-sm p-1 shadow-sm">
-        <ToolbarButton label="Aumentar zoom" onClick={onZoomIn}>
-          <ZoomInIcon className="size-4" />
-        </ToolbarButton>
-        <ToolbarButton label="Diminuir zoom" onClick={onZoomOut}>
-          <ZoomOutIcon className="size-4" />
-        </ToolbarButton>
-
-        <div className="w-px h-5 bg-border" />
-
-        <ToolbarButton
-          label={physicsEnabled ? "Desligar física" : "Ligar física (órbita lenta)"}
-          active={physicsEnabled}
-          onClick={onTogglePhysics}
-        >
-          <OrbitIcon className="size-4" />
-        </ToolbarButton>
+        {!is3D && (
+          <>
+            <ToolbarButton label="Aumentar zoom" onClick={onZoomIn}>
+              <ZoomInIcon className="size-4" />
+            </ToolbarButton>
+            <ToolbarButton label="Diminuir zoom" onClick={onZoomOut}>
+              <ZoomOutIcon className="size-4" />
+            </ToolbarButton>
+            <div className="w-px h-5 bg-border" />
+            <ToolbarButton
+              label={physicsEnabled ? "Desligar física" : "Ligar física (órbita lenta)"}
+              active={physicsEnabled}
+              onClick={onTogglePhysics}
+            >
+              <OrbitIcon className="size-4" />
+            </ToolbarButton>
+          </>
+        )}
 
         <ToolbarButton
           label={highContrast ? "Desligar alto contraste" : "Alto contraste (tudo na cor do tema)"}
@@ -103,13 +111,15 @@ export function GraphToolbar({
           <ContrastIcon className="size-4" />
         </ToolbarButton>
 
-        <ToolbarButton
-          label={focusMode ? "Desligar destaque de conexões" : "Destacar conexões (ofusca o resto ao selecionar)"}
-          active={focusMode}
-          onClick={onToggleFocus}
-        >
-          <FocusIcon className="size-4" />
-        </ToolbarButton>
+        {!is3D && (
+          <ToolbarButton
+            label={focusMode ? "Desligar destaque de conexões" : "Destacar conexões (ofusca o resto ao selecionar)"}
+            active={focusMode}
+            onClick={onToggleFocus}
+          >
+            <FocusIcon className="size-4" />
+          </ToolbarButton>
+        )}
 
         <div className="w-px h-5 bg-border" />
 
@@ -118,6 +128,14 @@ export function GraphToolbar({
           onClick={onToggleLegend}
         >
           {legendVisible ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+        </ToolbarButton>
+
+        <ToolbarButton
+          label={is3D ? "Voltar para 2D" : "Visualização 3D"}
+          active={is3D}
+          onClick={onToggle3D}
+        >
+          {is3D ? <SquareIcon className="size-4" /> : <BoxIcon className="size-4" />}
         </ToolbarButton>
 
         <div className="w-px h-5 bg-border" />

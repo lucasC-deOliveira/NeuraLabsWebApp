@@ -12,6 +12,7 @@ import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon } from "lucid
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
+import { Graph3DRenderer } from "@/modules/graph/presentation/components/Graph3DRenderer";
 import { GraphLegend } from "@/modules/graph/presentation/components/GraphLegend";
 import { GraphToolbar } from "@/modules/graph/presentation/components/GraphToolbar";
 import { GraphSideToolbar } from "@/modules/graph/presentation/components/GraphSideToolbar";
@@ -98,6 +99,7 @@ export default function GraphPage() {
   }, [dashFilterIds, search.matchedIds, roadmapSpotlightId]);
   const desktopApp = isDesktop();
   const [legendVisible, setLegendVisible] = useState(false);
+  const [is3D, setIs3D] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [focusDepth, setFocusDepth] = useState(DEFAULT_FOCUS_DEPTH);
@@ -366,29 +368,42 @@ export default function GraphPage() {
             focusMode={focusMode}
             onToggleFocus={() => setFocusMode((v) => !v)}
             onOpenSettings={() => { closeToolbarModals(); setIsSettingsOpen(true); }}
+            is3D={is3D}
+            onToggle3D={() => setIs3D((v) => !v)}
           />
-          <GraphRenderer
-            nodes={controller.state.filteredNodes}
-            edges={controller.state.filteredEdges}
-            zoom={controller.state.zoom}
-            pan={controller.state.pan}
-            isDark={isDark}
-            svgRef={controller.svgRef}
-            tool={controller.state.activeTool}
-            selectedNodeIds={controller.state.selectedNodeIds}
-            marquee={controller.interactions.marquee}
-            highContrast={highContrast}
-            focusMode={focusMode}
-            focusDepth={focusDepth}
-            matchedIds={combinedMatchedIds}
-            onNodeClick={controller.actions.selectNode}
-            onNodeContextMenu={(node, x, y) => setNodeMenu({ node, x, y })}
-            onNodeHover={controller.actions.setHoveredNodeId}
-            onNodeDragStart={controller.interactions.startDragNode}
-            onPanStart={controller.interactions.startPan}
-            onMarqueeStart={controller.interactions.startMarquee}
-            onWheel={controller.interactions.handleWheel}
-          />
+          {is3D ? (
+            <Graph3DRenderer
+              nodes={controller.state.filteredNodes}
+              edges={controller.state.filteredEdges}
+              isDark={isDark}
+              matchedIds={combinedMatchedIds}
+              selectedNodeIds={controller.state.selectedNodeIds}
+              onNodeClick={controller.actions.selectNode}
+            />
+          ) : (
+            <GraphRenderer
+              nodes={controller.state.filteredNodes}
+              edges={controller.state.filteredEdges}
+              zoom={controller.state.zoom}
+              pan={controller.state.pan}
+              isDark={isDark}
+              svgRef={controller.svgRef}
+              tool={controller.state.activeTool}
+              selectedNodeIds={controller.state.selectedNodeIds}
+              marquee={controller.interactions.marquee}
+              highContrast={highContrast}
+              focusMode={focusMode}
+              focusDepth={focusDepth}
+              matchedIds={combinedMatchedIds}
+              onNodeClick={controller.actions.selectNode}
+              onNodeContextMenu={(node, x, y) => setNodeMenu({ node, x, y })}
+              onNodeHover={controller.actions.setHoveredNodeId}
+              onNodeDragStart={controller.interactions.startDragNode}
+              onPanStart={controller.interactions.startPan}
+              onMarqueeStart={controller.interactions.startMarquee}
+              onWheel={controller.interactions.handleWheel}
+            />
+          )}
 
           {/* dropdown entre os dois nós selecionados */}
           {relateMenuPos && (
