@@ -33,13 +33,12 @@ export interface GraphMetrics {
   hubs: { id: string; label: string; degree: number }[];   // degree > mean+2σ
 }
 
-const TYPE_LABELS: Record<string, string> = {
+export const TYPE_LABELS: Record<string, string> = {
   ASSUNTO: "Assunto", TOPICO: "Tópico", CONCEITO: "Conceito",
   FLASHCARD: "Flashcard", NOTA: "Nota", TEXTO_BRUTO: "Texto bruto", BARALHO: "Baralho",
 };
 
-// cores border do tema light (para os gráficos)
-const TYPE_COLORS: Record<string, string> = {
+export const TYPE_COLORS: Record<string, string> = {
   ASSUNTO:     "#4338ca",
   TOPICO:      "#0369a1",
   CONCEITO:    "#059669",
