@@ -176,26 +176,26 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
               )}
 
               {busy !== "compare" && diff === null && !diffError && (
-                <p className="text-sm text-muted-foreground">Clique em Verificar para comparar backend vs vault.</p>
+                <p className="text-sm text-muted-foreground">Clique em Verificar para comparar servidor vs vault.</p>
               )}
 
               {busy !== "compare" && diffError && (
-                <p className="text-sm text-amber-600 dark:text-amber-400">Não foi possível comparar (backend ou vault inacessível). Use Pull ou Push manualmente.</p>
+                <p className="text-sm text-amber-600 dark:text-amber-400">Não foi possível comparar (servidor ou vault inacessível). Use Pull ou Push manualmente.</p>
               )}
 
               {busy !== "compare" && diff !== null && diff.inSync && (
                 <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                  <CheckCircleIcon className="size-4" /> Backend e vault sincronizados.
+                  <CheckCircleIcon className="size-4" /> Servidor e vault sincronizados.
                 </div>
               )}
 
               {busy !== "compare" && diff !== null && !diff.inSync && diff.vaultEmpty && diff.backendOnly === 0 && (
-                <p className="text-sm text-muted-foreground">Vault vazio e backend sem nós. Crie nós no grafo e faça Pull, ou adicione arquivos .md e faça Push.</p>
+                <p className="text-sm text-muted-foreground">Vault vazio e servidor sem nós. Crie nós no grafo e faça Pull, ou adicione arquivos .md e faça Push.</p>
               )}
 
               {busy !== "compare" && diff !== null && !diff.inSync && diff.vaultEmpty && diff.backendOnly > 0 && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Vault vazio — backend tem {diff.backendOnly} nó(s).</p>
+                  <p className="text-sm font-medium">Vault vazio — servidor tem {diff.backendOnly} nó(s).</p>
                   <p className="text-xs text-muted-foreground">Faça Pull para exportar o grafo para a pasta.</p>
                 </div>
               )}
@@ -204,15 +204,15 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
                 <div className="space-y-1.5">
                   {isConflict ? (
                     <div className="flex items-center gap-1.5 text-sm font-medium text-amber-600 dark:text-amber-400">
-                      <AlertTriangleIcon className="size-4" /> Conflito — backend e vault divergem
+                      <AlertTriangleIcon className="size-4" /> Conflito — servidor e vault divergem
                     </div>
                   ) : backendAhead ? (
-                    <p className="text-sm font-medium">Backend à frente do vault</p>
+                    <p className="text-sm font-medium">Servidor à frente do vault</p>
                   ) : vaultAhead ? (
-                    <p className="text-sm font-medium">Vault à frente do backend</p>
+                    <p className="text-sm font-medium">Vault à frente do servidor</p>
                   ) : null}
                   <div className="flex gap-3 text-[11px] text-muted-foreground">
-                    {diff.backendOnly > 0 && <span>Só no backend: <strong>{diff.backendOnly}</strong></span>}
+                    {diff.backendOnly > 0 && <span>Só no servidor: <strong>{diff.backendOnly}</strong></span>}
                     {diff.vaultOnly > 0 && <span>Só no vault: <strong>{diff.vaultOnly}</strong></span>}
                     {diff.different > 0 && <span>Conteúdo diferente: <strong>{diff.different}</strong></span>}
                   </div>
@@ -249,7 +249,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
                   className="gap-1.5"
                 >
                   {busy === "pull" ? <Loader2Icon className="size-4 animate-spin" /> : <DownloadIcon className="size-4" />}
-                  {isConflict ? "Confiar no backend" : "Pull"}
+                  {isConflict ? "Confiar no servidor" : "Pull"}
                 </Button>
                 <Button
                   onClick={doPush}
@@ -274,8 +274,8 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
 
           {/* Legenda */}
           <p className="text-[11px] text-muted-foreground">
-            <strong>Pull</strong> — sobrescreve o vault com o estado do backend.{" "}
-            <strong>Push</strong> — sobrescreve o backend com o estado do vault.
+            <strong>Pull</strong> — sobrescreve o vault com o estado do servidor.{" "}
+            <strong>Push</strong> — sobrescreve o servidor com o estado do vault.
           </p>
         </div>
       </DialogContent>
