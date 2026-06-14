@@ -23,6 +23,8 @@ export type PhysicsNode = {
   vy?: number;
   width?: number;
   height?: number;
+  parentId?: string;
+  group?: string;
 };
 
 export type PhysicsEdge = { source: string; target: string; peso?: number };
@@ -42,6 +44,9 @@ export type PhysicsOptions = {
   damping: number;
   /** evita sobreposição: 0 = ignora tamanho, 1 = afasta totalmente os nós */
   avoidOverlap: number;
+  /** força orbital hierárquica — mantém cada nó na órbita do seu nó pai;
+   *  0 = desativado, valores típicos 0.04–0.12 */
+  orbitalStrength?: number;
 };
 
 export const DEFAULT_PHYSICS_OPTIONS: PhysicsOptions = {
@@ -51,6 +56,7 @@ export const DEFAULT_PHYSICS_OPTIONS: PhysicsOptions = {
   springConstant: 0.04,
   damping: 0.4,
   avoidOverlap: 0.6,
+  orbitalStrength: 0.08,
 };
 
 const TIMESTEP = 0.85; // passo de integração por frame
@@ -80,6 +86,7 @@ export function physicsStep<T extends PhysicsNode>(
     springConstant,
     damping,
     avoidOverlap,
+    orbitalStrength = 0.08,
   } = options;
 
   const idx = new Map<string, number>();
@@ -161,11 +168,56 @@ export function physicsStep<T extends PhysicsNode>(
     fy[j] -= fyv;
   }
 
-  // ── Gravidade central: mola fraca de cada nó para o centroide
+  // ── Força orbital hierárquica: cada nó é atraído para o anel ao redor do pai.
+  // A "mola anular" empurra quando dist < target e puxa quando dist > target,
+  // criando uma órbita estável. A repulsão entre irmãos (mesmo pai) os espalha
+  // uniformemente ao redor — emergindo o padrão de anéis concêntricos.
+  if (orbitalStrength > 0) {
+    const ORBITAL_RADII: Record<string, number> = {
+      TOPICO: 260,
+      CONCEITO: 190,
+      NOTA: 140,
+      FLASHCARD: 140,
+    };
+    for (let i = 0; i < n; i++) {
+      const child = nodes[i];
+      if (!child.parentId) continue;
+      const pi = idx.get(child.parentId);
+      if (pi === undefined) continue;
+      const parent = nodes[pi];
+
+      const target = ORBITAL_RADII[child.group ?? ""] ?? 220;
+      let dx = child.x - parent.x;
+      let dy = child.y - parent.y;
+      let d = Math.sqrt(dx * dx + dy * dy);
+      if (d < 1e-4) {
+        // sobreposto ao pai: separa numa direção estável via ângulo áureo
+        const ang = (i * 2.3999) % (Math.PI * 2);
+        dx = Math.cos(ang) * target;
+        dy = Math.sin(ang) * target;
+        d = target;
+      }
+
+      // deviation > 0 → longe demais → puxa (−dir)
+      // deviation < 0 → perto demais → empurra (+dir)
+      const f = orbitalStrength * (d - target);
+      const ux = dx / d;
+      const uy = dy / d;
+      fx[i] -= ux * f;
+      fy[i] -= uy * f;
+      // pai reage levemente para não travar nos filhos
+      fx[pi] += ux * f * 0.15;
+      fy[pi] += uy * f * 0.15;
+    }
+  }
+
+  // ── Gravidade central: mola fraca de cada nó para o centroide.
+  // Nós filhos recebem gravidade muito menor — o orbital já os ancora no pai.
   if (centralGravity > 0) {
     for (let i = 0; i < n; i++) {
-      fx[i] += (cx - nodes[i].x) * centralGravity * 0.05;
-      fy[i] += (cy - nodes[i].y) * centralGravity * 0.05;
+      const gFactor = nodes[i].parentId ? 0.2 : 1.0;
+      fx[i] += (cx - nodes[i].x) * centralGravity * 0.05 * gFactor;
+      fy[i] += (cy - nodes[i].y) * centralGravity * 0.05 * gFactor;
     }
   }
 

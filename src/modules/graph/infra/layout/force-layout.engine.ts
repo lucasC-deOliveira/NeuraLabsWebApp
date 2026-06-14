@@ -183,10 +183,34 @@ export function runForceLayout(
       b.vy -= fy;
     }
 
-    // Gravity toward center
+    // Força orbital hierárquica (mesmos raios-alvo do physicsStep)
+    const ORBITAL_RADII_L: Record<string, number> = {
+      TOPICO: 260, CONCEITO: 190, NOTA: 140, FLASHCARD: 140,
+    };
     for (const node of nodes) {
-      node.vx += (width / 2 - node.x) * gravity;
-      node.vy += (height / 2 - node.y) * gravity;
+      if (!node.parentId) continue;
+      const parent = nodeMap.get(node.parentId);
+      if (!parent) continue;
+      const target = ORBITAL_RADII_L[node.group] ?? 220;
+      let dx = node.x - parent.x;
+      let dy = node.y - parent.y;
+      let d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      const f = 0.006 * (d - target);
+      const ux = dx / d;
+      const uy = dy / d;
+      node.vx -= ux * f;
+      node.vy -= uy * f;
+      if (!parent.pinned) {
+        parent.vx += ux * f * 0.15;
+        parent.vy += uy * f * 0.15;
+      }
+    }
+
+    // Gravity toward center (fraca para nós filhos — orbital já os ancora)
+    for (const node of nodes) {
+      const gFactor = node.parentId ? 0.15 : 1.0;
+      node.vx += (width / 2 - node.x) * gravity * gFactor;
+      node.vy += (height / 2 - node.y) * gravity * gFactor;
     }
 
     // Collision detection
