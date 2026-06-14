@@ -167,6 +167,26 @@ export function vaultToGraphEdges(vaultNodes: VaultNode[]): GraphEdgeType[] {
 }
 
 // ---- mapeamentos ----
+export function fromVaultNode(vn: VaultNode): ExportGraphNode {
+  return {
+    ref: vn.id,
+    tipo: vn.tipo,
+    nome: vn.nome,
+    descricao: vn.descricao ?? null,
+    pergunta: vn.pergunta,
+    resposta: vn.resposta,
+    titulo: vn.titulo,
+    conteudo: vn.conteudo,
+    tipoNota: vn.tipoNota,
+    subtipo: vn.subtipo,
+    fonte: vn.fonte ?? null,
+    texto: vn.texto,
+    posicaoX: vn.posicaoX ?? null,
+    posicaoY: vn.posicaoY ?? null,
+    nivelDominio: vn.nivelDominio,
+  };
+}
+
 function toVaultNode(grafoId: string, n: ExportGraphNode, relacoes: VaultRelacao[]): VaultNode {
   return {
     id: n.ref,
@@ -186,25 +206,5 @@ function toVaultNode(grafoId: string, n: ExportGraphNode, relacoes: VaultRelacao
     posicaoX: n.posicaoX ?? null,
     posicaoY: n.posicaoY ?? null,
     relacoes,
-  };
-}
-
-function fromVaultNode(vn: VaultNode): ExportGraphNode {
-  return {
-    ref: vn.id,
-    tipo: vn.tipo,
-    nome: vn.nome,
-    descricao: vn.descricao ?? null,
-    pergunta: vn.pergunta,
-    resposta: vn.resposta,
-    titulo: vn.titulo,
-    conteudo: vn.conteudo,
-    tipoNota: vn.tipoNota,
-    subtipo: vn.subtipo,
-    fonte: vn.fonte ?? null,
-    texto: vn.texto,
-    posicaoX: vn.posicaoX ?? null,
-    posicaoY: vn.posicaoY ?? null,
-    nivelDominio: vn.nivelDominio,
   };
 }
