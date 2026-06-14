@@ -137,7 +137,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {/* Seletor de pasta */}
           <div className="space-y-2">
             <Label>Pasta do vault</Label>
