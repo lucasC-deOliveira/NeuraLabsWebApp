@@ -87,6 +87,16 @@ export function GraphDashboard({ open, onClose, nodes, edges, onFilteredIdsChang
 
   const allTypes = useMemo(() => [...new Set(nodes.map(n => n.group))].sort(), [nodes]);
 
+  useEffect(() => {
+    if (!open) {
+      setActiveTypes(new Set());
+      setMinDominio(0);
+      setMaxDominio(100);
+      setMinDegree(0);
+      setSearch("");
+    }
+  }, [open]);
+
   const toggleType = (type: string) =>
     setActiveTypes(prev => {
       const next = new Set(prev);
