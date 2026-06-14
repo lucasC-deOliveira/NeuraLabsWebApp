@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon } from "lucide-react";
+import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon, FolderTreeIcon, FolderOpenIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getConfigAI, saveConfigAI } from "@/lib/settings-api";
+import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { useColorTheme, type ColorTheme } from "@/components/color-theme-provider";
 import { useCardStyle } from "@/components/flashcard/CardStyleProvider";
 import { CARD_STYLES, CARD_CSS_CLASSES } from "@/components/flashcard/card-styles";
@@ -90,6 +91,27 @@ export default function SettingsPage() {
   const [modelo, setModelo] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Vault (só no app desktop): pasta global usada pelo sync por-grafo.
+  const desktopApp = isDesktop();
+  const [vaultPath, setVaultPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!desktopApp) return;
+    desktop.vault.getPath().then(setVaultPath).catch(() => {});
+  }, [desktopApp]);
+
+  const pickVaultFolder = async () => {
+    try {
+      const dir = await desktop.vault.pickFolder();
+      if (dir) {
+        setVaultPath(dir);
+        toast.success("Pasta do vault definida.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao escolher a pasta.");
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -393,6 +415,54 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Vault (Markdown) — só no app desktop */}
+      {desktopApp && (
+        <>
+          <Separator />
+          <Card>
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <FolderTreeIcon className="size-5" />
+                Vault (Markdown)
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Pasta local de arquivos Markdown (formato PARA), editável no Obsidian
+                ou pelo Claude Code. Define a pasta aqui; a sincronização (Pull/Push)
+                é feita por grafo, no botão <strong>Vault</strong> dentro de cada grafo.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 px-3 sm:px-6">
+              <div className="space-y-2">
+                <Label>Pasta do vault</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={vaultPath ?? ""}
+                    placeholder="Nenhuma pasta selecionada"
+                    readOnly
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="outline" onClick={pickVaultFolder} className="shrink-0 gap-1.5">
+                    <FolderTreeIcon className="size-4" /> Escolher
+                  </Button>
+                </div>
+              </div>
+
+              {vaultPath && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => desktop.vault.openFolder(vaultPath)}
+                  className="gap-1.5 text-muted-foreground"
+                >
+                  <FolderOpenIcon className="size-4" /> Abrir pasta
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
     </div>
   );
