@@ -132,6 +132,12 @@ export function runForceLayout(
   }));
 
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+  // Se todos os nós já têm posição salva, não há nada a simular: pula o loop
+  // O(n²×500) e vai direto para atualizar as coordenadas das arestas.
+  const allPinned = nodes.every(n => n.pinned);
+
+  if (!allPinned) {
   const repulsion = 12000;
   const attraction = 0.004;
   const gravity = 0.008;
@@ -226,6 +232,7 @@ export function runForceLayout(
       node.y = Math.max(node.height / 2, Math.min(height - node.height / 2, node.y));
     }
   }
+  } // end if (!allPinned)
 
   // Update edge coordinates
   for (const edge of edges) {

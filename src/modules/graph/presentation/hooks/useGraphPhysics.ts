@@ -13,6 +13,8 @@ type Props<T extends { id: string; x: number; y: number }> = {
   setLayout: React.Dispatch<React.SetStateAction<T[]>>;
   edges: PhysicsEdge[];
   options?: PhysicsOptions;
+  /** Incrementar para reiniciar a física (ex.: vault-watch trouxe novos nós) */
+  restartKey?: number;
 };
 
 // Loop de animação da física ambiente.
@@ -23,6 +25,7 @@ export function useGraphPhysics<T extends { id: string; x: number; y: number }>(
   setLayout,
   edges,
   options = DEFAULT_PHYSICS_OPTIONS,
+  restartKey = 0,
 }: Props<T>) {
   const pointerDown = useRef(false);
   const edgesRef = useRef(edges);
@@ -80,5 +83,5 @@ export function useGraphPhysics<T extends { id: string; x: number; y: number }>(
       cancelAnimationFrame(raf);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [enabled, setLayout]);
+  }, [enabled, setLayout, restartKey]);
 }

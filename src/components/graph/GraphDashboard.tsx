@@ -71,6 +71,11 @@ const CustomTooltipPie = ({ active, payload }: any) => {
 
 const DEGREE_OPTIONS = [0, 1, 2, 3, 5, 8];
 
+// Constantes estáveis para evitar re-renders e re-cálculos quando o painel está fechado.
+// filteredData e allTypes retornam estas refs — downstream memos não re-executam.
+const EMPTY_DATA = { nodes: [] as SimNode[], edges: [] as GraphEdgeType[] };
+const EMPTY_TYPES: string[] = [];
+
 export function GraphDashboard({ open, onClose, nodes, edges, onFilteredIdsChange }: {
   open: boolean;
   onClose: () => void;
@@ -85,7 +90,10 @@ export function GraphDashboard({ open, onClose, nodes, edges, onFilteredIdsChang
   const [minDegree, setMinDegree] = useState(0);
   const [search, setSearch] = useState("");
 
-  const allTypes = useMemo(() => [...new Set(nodes.map(n => n.group))].sort(), [nodes]);
+  const allTypes = useMemo(
+    () => open ? [...new Set(nodes.map(n => n.group))].sort() : EMPTY_TYPES,
+    [open, nodes],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -116,7 +124,10 @@ export function GraphDashboard({ open, onClose, nodes, edges, onFilteredIdsChang
   };
 
   /* ── Apply filters ── */
+  // Quando fechado: retorna EMPTY_DATA (ref estável) → m não re-executa → zero
+  // charts re-render a cada frame de física. Quando aberto: filtra normalmente.
   const filteredData = useMemo(() => {
+    if (!open) return EMPTY_DATA;
     let ns: SimNode[] = nodes;
     if (activeTypes.size > 0) ns = ns.filter(n => activeTypes.has(n.group));
     ns = ns.filter(n => {
@@ -140,7 +151,7 @@ export function GraphDashboard({ open, onClose, nodes, edges, onFilteredIdsChang
       es = es.filter(e => ns2.has(e.source) && ns2.has(e.target));
     }
     return { nodes: ns, edges: es };
-  }, [nodes, edges, activeTypes, minDominio, maxDominio, minDegree, search]);
+  }, [open, nodes, edges, activeTypes, minDominio, maxDominio, minDegree, search]);
 
   useEffect(() => {
     if (!onFilteredIdsChange) return;

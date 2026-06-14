@@ -53,6 +53,7 @@ export function useGraphController(graphId: string) {
   const [activeTool, setActiveTool] = useState<"select" | "marquee" | "hand">("select");
   const [physicsEnabled, setPhysicsEnabled] = useState(true);
   const [physicsOptions, setPhysicsOptions] = useState<PhysicsOptions>(DEFAULT_PHYSICS_OPTIONS);
+  const [physicsRestartKey, setPhysicsRestartKey] = useState(0);
 
   const layoutRefForSelect = useRef<SimNode[]>([]);
   useEffect(() => { layoutRefForSelect.current = layout; }, [layout]);
@@ -139,6 +140,7 @@ export function useGraphController(graphId: string) {
     setLayout,
     edges,
     options: physicsOptions,
+    restartKey: physicsRestartKey,
   });
 
   // sincroniza layout com os nós:
@@ -155,15 +157,23 @@ export function useGraphController(graphId: string) {
       bigBangDoneRef.current = true;
 
       if (nodes.length > 1) {
-        // pré-assenta o layout com a própria física ambiente: o fim do big bang
-        // já é o equilíbrio, então a física assume sem retrair o grafo
-        let settled: SimNode[] = nodes.map((n) => ({ ...n }));
-        for (let i = 0; i < BIG_BANG_PRESETTLE_ITERS; i++) {
-          const nx = physicsStep(settled, edges, physicsOptions);
-          if (nx === settled) break;
-          settled = nx;
+        // Se todos os nós têm posição salva, usa-as diretamente como alvos —
+        // evita simular (e distorcer) posições que já estão em equilíbrio.
+        const allPinned = nodes.every(n => n.pinned);
+        let targets: SimNode[];
+        if (allPinned) {
+          targets = nodes.map((n) => ({ ...n, vx: 0, vy: 0 }));
+        } else {
+          // pré-assenta o layout com a própria física ambiente: o fim do big bang
+          // já é o equilíbrio, então a física assume sem retrair o grafo
+          let settled: SimNode[] = nodes.map((n) => ({ ...n }));
+          for (let i = 0; i < BIG_BANG_PRESETTLE_ITERS; i++) {
+            const nx = physicsStep(settled, edges, physicsOptions);
+            if (nx === settled) break;
+            settled = nx;
+          }
+          targets = settled.map((n) => ({ ...n, vx: 0, vy: 0 }));
         }
-        const targets = settled.map((n) => ({ ...n, vx: 0, vy: 0 }));
 
         // expande a partir do centro do layout final
         let cx = 0;
@@ -199,12 +209,14 @@ export function useGraphController(graphId: string) {
             introRafRef.current = requestAnimationFrame(step);
           } else {
             setIntroActive(false);
-            // persiste posições no backend para que recargas e novos nós do vault
-            // se ancorem nos nós existentes em vez de randomizar tudo
-            saveGraphPositions(
-              graphId,
-              Object.fromEntries(targets.map((n) => [n.id, { x: n.x, y: n.y }])),
-            ).catch(() => { /* silencia — não bloqueia o usuário */ });
+            // Persiste posições só quando foram simuladas (nós sem posição salva).
+            // Grafos com todas as posições salvas já têm dados inalterados.
+            if (!allPinned) {
+              saveGraphPositions(
+                graphId,
+                Object.fromEntries(targets.map((n) => [n.id, { x: n.x, y: n.y }])),
+              ).catch(() => { /* silencia — não bloqueia o usuário */ });
+            }
           }
         };
         introRafRef.current = requestAnimationFrame(step);
@@ -223,6 +235,9 @@ export function useGraphController(graphId: string) {
         return old ? { ...n, x: old.x, y: old.y, vx: 0, vy: 0 } : n;
       });
     });
+    // Reinicia a física para que novos nós (sem posição salva) se posicionem.
+    // Para nós existentes (vx=0, vy=0 no equilíbrio) a física para em 1-2 frames.
+    setPhysicsRestartKey(k => k + 1);
   }, [nodes]);
 
   const filteredNodes = useMemo(
