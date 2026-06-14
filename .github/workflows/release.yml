@@ -27,16 +27,14 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        env:
+          # não baixa o binário do Electron aqui; o electron-builder cuida disso
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
         run: npm ci
 
-      # gera o client Prisma (src/generated/prisma é gitignored) que o next build
-      # inclui no bundle standalone via outputFileTracingIncludes
-      - name: Prisma generate
-        run: npx prisma generate
-
-      # thin client: next build (standalone) + copia static/public. Sem banco
-      # nem segredos — os dados vêm do backend via JWT em runtime.
-      - name: Build desktop bundle (Next standalone)
+      # thin client: build estático do Vite (dist/). Sem banco nem segredos —
+      # os dados vêm do backend via JWT em runtime.
+      - name: Build desktop bundle (Vite)
         run: npm run desktop:build
 
       - name: Build and publish installers
