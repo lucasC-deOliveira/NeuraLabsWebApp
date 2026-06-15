@@ -72,10 +72,12 @@ interface VRPanel3DProps {
   onClose: () => void;
   onSelectNode: (nodeId: string) => void;
   onEdgesChanged: () => void;
+  onEditNode: () => void;
 }
 
 export function VRPanel3D({
-  node, nodes, edges, isDark, grafoId, grafoNome, onClose, onSelectNode, onEdgesChanged,
+  node, nodes, edges, isDark, grafoId, grafoNome,
+  onClose, onSelectNode, onEdgesChanged, onEditNode,
 }: VRPanel3DProps) {
   const groupRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
@@ -300,6 +302,14 @@ export function VRPanel3D({
       <Text position={[-W/2+PX, yHeader, 0.002]} fontSize={0.015} color={accent} anchorX="left" anchorY="middle">
         {node.tipoReal.toLowerCase()}
       </Text>
+      {/* Botão editar nó */}
+      <group onClick={onEditNode}>
+        <mesh position={[W/2-0.072, yHeader, 0.003]}>
+          <planeGeometry args={[0.038, 0.026]} /><meshBasicMaterial color={track} />
+        </mesh>
+        <Text position={[W/2-0.072, yHeader, 0.004]} fontSize={0.015} color={muted} anchorX="center" anchorY="middle">✏</Text>
+      </group>
+      {/* Botão fechar */}
       <group onClick={onClose}>
         <mesh position={[W/2-0.028, yHeader, 0.003]}>
           <planeGeometry args={[0.038, 0.026]} /><meshBasicMaterial color={track} />

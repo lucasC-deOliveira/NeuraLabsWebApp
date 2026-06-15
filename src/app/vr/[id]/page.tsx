@@ -49,6 +49,14 @@ export default function VRPage() {
     } catch { /**/ }
   }, [graphId, controller.actions]);
 
+  const handleGraphChanged = useCallback(async () => {
+    try {
+      const result = await getGraphNodes(graphId);
+      controller.actions.setRawNodes(result.nodes);
+      controller.actions.setRawEdges(result.edges);
+    } catch { /**/ }
+  }, [graphId, controller.actions]);
+
   const handleSelectNode = (nodeId: string) => {
     const target = controller.state.filteredNodes.find((n) => n.id === nodeId);
     if (target) {
@@ -82,6 +90,7 @@ export default function VRPage() {
           onClosePanel={handleClosePanel}
           onSelectNode={handleSelectNode}
           onEdgesChanged={handleEdgesChanged}
+          onGraphChanged={handleGraphChanged}
         />
       </>
     );

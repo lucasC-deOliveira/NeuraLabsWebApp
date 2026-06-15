@@ -2,9 +2,10 @@
 
 import { Canvas } from "@react-three/fiber";
 import { XR, createXRStore, PointerEvents, DefaultXRController } from "@react-three/xr";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { VRGraph } from "./VRGraph";
 import { VRPanel3D } from "./VRPanel3D";
+import { VREditForm } from "./VREditForm";
 import type { SimNode, SimEdge } from "@/modules/graph/infra/layout/force-layout.engine";
 
 type XRMode = "ar" | "vr";
@@ -23,14 +24,17 @@ interface VRSceneProps {
   onSelectNode: (nodeId: string) => void;
   grafoId: string;
   onEdgesChanged: () => void;
+  onGraphChanged: () => void;
 }
 
 export function VRScene({
   mode, nodes, edges, isDark, grafoNome,
   selectedNodeIds, onNodeClick, onExit,
-  selectedNode, onClosePanel, onSelectNode, grafoId, onEdgesChanged,
+  selectedNode, onClosePanel, onSelectNode,
+  grafoId, onEdgesChanged, onGraphChanged,
 }: VRSceneProps) {
   const store = useMemo(() => createXRStore({ controller: DefaultXRController }), []);
+  const [editingNode, setEditingNode] = useState<SimNode | null>(null);
 
   return (
     <div className="fixed inset-0 bg-black">
@@ -52,7 +56,7 @@ export function VRScene({
         </button>
       </div>
 
-      {/* Canvas com PointerEvents do @react-three/xr — essencial para eventos dentro do headset */}
+      {/* Canvas com PointerEvents do @react-three/xr */}
       <Canvas
         style={{ width: "100%", height: "100%" }}
         camera={{ position: [0, 1.6, 0.5], fov: 70 }}
@@ -61,7 +65,6 @@ export function VRScene({
         onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); }}
       >
         <XR store={store}>
-          {/* Habilita eventos de pointer compatíveis com XR controllers e hand tracking */}
           <PointerEvents />
           <ambientLight intensity={0.9} />
           <directionalLight position={[5, 10, 5]} intensity={1.1} />
@@ -86,10 +89,23 @@ export function VRScene({
               onClose={onClosePanel}
               onSelectNode={onSelectNode}
               onEdgesChanged={onEdgesChanged}
+              onEditNode={() => setEditingNode(selectedNode)}
             />
           )}
         </XR>
       </Canvas>
+
+      {/* Overlay HTML de edição de nó — teclado virtual do Quest 3 aparece em inputs */}
+      {editingNode && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-black/80 overflow-y-auto">
+          <VREditForm
+            node={editingNode}
+            grafoId={grafoId}
+            onSuccess={() => { setEditingNode(null); onGraphChanged(); }}
+            onCancel={() => setEditingNode(null)}
+          />
+        </div>
+      )}
     </div>
   );
 }
