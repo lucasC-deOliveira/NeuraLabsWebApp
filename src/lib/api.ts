@@ -9,7 +9,8 @@ export function resolveApiUrl(): string {
     const injected = (window as unknown as { __NEURALABS_API_URL__?: string }).__NEURALABS_API_URL__;
     if (injected) return injected;
   }
-  return import.meta.env.VITE_API_URL ?? "http://localhost:3001/api";
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  return "/api"; // relativo: usa o mesmo host — no dev o Vite proxy redireciona para localhost:3001
 }
 const TOKEN_KEY = "neuralabs_token";
 

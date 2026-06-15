@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
-import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon } from "lucide-react";
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
@@ -324,6 +324,10 @@ export default function GraphPage() {
         <div className="flex-1 text-center font-semibold text-primary">
           {controller.state.grafoNome}
         </div>
+
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => router.push(`/vr/${graphId}`)} title="Visualizar em AR/VR">
+          <GlobeIcon className="size-4" />
+        </Button>
 
         <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setIsDashboardOpen(v => !v); }} title="Analytics do grafo">
           <BarChart2Icon className="size-4" />

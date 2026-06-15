@@ -13,6 +13,7 @@ Flashcards inteligentes com grafo de conhecimento e notas Zettelkasten. Crie car
 - **Notas Zettelkasten** com suporte a Markdown e geração de cartões inline
 - **Dashboard** com cartões para revisar hoje, taxa de acerto e histórico de sessões
 - **Vault sync** — exporta e importa notas em `.md` para uso com Obsidian ou qualquer editor externo; cada grafo tem sua própria subpasta (`<slug>--<id>/`) com estrutura PARA isolada; Pull detecta conflitos com edições locais antes de sobrescrever; layout do grafo usa posições salvas — novos nós do vault assentam entre os existentes sem embaralhar o mapa; timestamps do último Pull/Push visíveis no modal
+- **Visualização VR/AR no Meta Quest 3** — botão "Visualizar em XR" na toolbar do grafo abre a rota `/vr/:id`; o grafo é renderizado em 3D (Three.js + WebXR) com controles por joystick; clicar em um nó abre um painel de propriedades 3D (billboard) com label, tipo, domínio, prioridade, pergunta, relações clicáveis, stats de baralho e metadata de nota
 - **Aplicativo desktop** via Electron — roda sem navegador, aponta para um backend configurável
 - **Auth JWT** com registro e login; cada usuário tem seu próprio espaço isolado
 
@@ -91,6 +92,16 @@ Ao gerar cartões a partir de uma nota, o backend aplica duas estratégias em se
 ### Grafo de conhecimento
 
 Os nós podem ser de 7 tipos: `ASSUNTO`, `TOPICO`, `CONCEITO`, `NOTA`, `FLASHCARD`, `TEXTO_BRUTO`, `BARALHO`. As relações entre eles seguem regras tipadas (ex: um `TOPICO` pertence a um `ASSUNTO`; um `CONCEITO` pode ter relação `APROFUNDA`, `CONTRASTA`, `DEPENDE_DE`, etc.). O layout usa força física via `@xyflow/react`.
+
+### Visualização VR/AR (Meta Quest 3)
+
+A rota `/vr/:id` carrega o grafo numa cena Three.js com suporte a WebXR. Use o botão com ícone de globo na toolbar do grafo 2D para entrar. No Quest 3:
+
+- **Controles**: stick esquerdo orbita em torno do usuário; stick direito rotaciona o grafo
+- **Selecionar nó**: mire o laser do controle e pressione o gatilho
+- **Painel de propriedades 3D**: abre ao selecionar um nó, sempre de frente para o usuário (billboard). Exibe tipo, label, ID, barra de domínio, prioridade, pergunta, stats do baralho, metadata de nota e lista de relações clicáveis
+- **Navegar pelas relações**: clicar no label de um nó relacionado seleciona aquele nó sem sair do modo VR
+- **Requisito**: acesse via HTTPS (`npm run dev` usa `@vitejs/plugin-basic-ssl`); o backend é proxied via `/api`
 
 ### Vault sync
 
