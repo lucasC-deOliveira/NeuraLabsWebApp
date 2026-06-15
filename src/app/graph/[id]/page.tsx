@@ -101,6 +101,7 @@ export default function GraphPage() {
   const graph3DRef = useRef<Graph3DHandle>(null);
   const [legendVisible, setLegendVisible] = useState(false);
   const [is3D, setIs3D] = useState(false);
+  const [has3DBeenOpened, setHas3DBeenOpened] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [focusDepth, setFocusDepth] = useState(DEFAULT_FOCUS_DEPTH);
@@ -146,6 +147,21 @@ export default function GraphPage() {
     loadEdges();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graphId]);
+
+  // Lazy mount: só cria o contexto WebGL na primeira vez que 3D é ativado
+  useEffect(() => {
+    if (is3D) setHas3DBeenOpened(true);
+  }, [is3D]);
+
+  // Pausa/retoma o loop de animação ao alternar entre modos
+  useEffect(() => {
+    if (!has3DBeenOpened) return;
+    if (is3D) {
+      graph3DRef.current?.resume();
+    } else {
+      graph3DRef.current?.pause();
+    }
+  }, [is3D, has3DBeenOpened]);
 
   const handleOpenEdgeManager = async () => {
     closeToolbarModals();
@@ -370,21 +386,24 @@ export default function GraphPage() {
             is3D={is3D}
             onToggle3D={() => setIs3D((v) => !v)}
           />
-          {is3D ? (
-            <Graph3DRenderer
-              ref={graph3DRef}
-              nodes={controller.state.filteredNodes}
-              edges={controller.state.filteredEdges}
-              isDark={isDark}
-              matchedIds={combinedMatchedIds}
-              selectedNodeIds={controller.state.selectedNodeIds}
-              onNodeClick={controller.actions.selectNode}
-              highContrast={highContrast}
-              focusMode={focusMode}
-              focusDepth={focusDepth}
-              physicsEnabled={controller.state.physicsEnabled}
-            />
-          ) : (
+          {has3DBeenOpened && (
+            <div className={`absolute inset-0${!is3D ? " invisible pointer-events-none" : ""}`}>
+              <Graph3DRenderer
+                ref={graph3DRef}
+                nodes={controller.state.filteredNodes}
+                edges={controller.state.filteredEdges}
+                isDark={isDark}
+                matchedIds={combinedMatchedIds}
+                selectedNodeIds={controller.state.selectedNodeIds}
+                onNodeClick={controller.actions.selectNode}
+                highContrast={highContrast}
+                focusMode={focusMode}
+                focusDepth={focusDepth}
+                physicsEnabled={controller.state.physicsEnabled}
+              />
+            </div>
+          )}
+          {!is3D && (
             <GraphRenderer
               nodes={controller.state.filteredNodes}
               edges={controller.state.filteredEdges}

@@ -10,6 +10,8 @@ import type { SimNode, SimEdge } from "@/modules/graph/infra/layout/force-layout
 export interface Graph3DHandle {
   zoomIn: () => void;
   zoomOut: () => void;
+  pause: () => void;
+  resume: () => void;
 }
 
 interface Graph3DRendererProps {
@@ -194,6 +196,8 @@ export const Graph3DRenderer = forwardRef<Graph3DHandle, Graph3DRendererProps>(f
       const pos = fgRef.current?.cameraPosition();
       if (pos) fgRef.current.cameraPosition({ z: pos.z * 1.33 }, undefined, 300);
     },
+    pause:  () => fgRef.current?.pauseAnimation?.(),
+    resume: () => fgRef.current?.resumeAnimation?.(),
   }), []);
 
   // Reheat a simulação apenas quando física passa de desligada → ligada
