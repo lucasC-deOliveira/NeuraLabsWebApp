@@ -22,12 +22,13 @@ interface VRSceneProps {
   onClosePanel: () => void;
   onSelectNode: (nodeId: string) => void;
   grafoId: string;
+  onEdgesChanged: () => void;
 }
 
 export function VRScene({
   mode, nodes, edges, isDark, grafoNome,
   selectedNodeIds, onNodeClick, onExit,
-  selectedNode, onClosePanel, onSelectNode, grafoId,
+  selectedNode, onClosePanel, onSelectNode, grafoId, onEdgesChanged,
 }: VRSceneProps) {
   const store = useMemo(() => createXRStore({ controller: DefaultXRController }), []);
 
@@ -84,6 +85,7 @@ export function VRScene({
               grafoNome={grafoNome}
               onClose={onClosePanel}
               onSelectNode={onSelectNode}
+              onEdgesChanged={onEdgesChanged}
             />
           )}
         </XR>

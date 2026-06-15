@@ -2,7 +2,8 @@
 
 import { useParams, useRouter } from "@/lib/navigation";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { getGraphNodes } from "@/lib/graph-api";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, GlobeIcon, BoxIcon, Loader2Icon } from "lucide-react";
 import { VRScene } from "@/modules/vr/components/VRScene";
@@ -41,6 +42,13 @@ export default function VRPage() {
     setSelectedNodeIds(new Set());
   };
 
+  const handleEdgesChanged = useCallback(async () => {
+    try {
+      const result = await getGraphNodes(graphId);
+      controller.actions.setRawEdges(result.edges);
+    } catch { /**/ }
+  }, [graphId, controller.actions]);
+
   const handleSelectNode = (nodeId: string) => {
     const target = controller.state.filteredNodes.find((n) => n.id === nodeId);
     if (target) {
@@ -73,6 +81,7 @@ export default function VRPage() {
           selectedNode={selectedNode}
           onClosePanel={handleClosePanel}
           onSelectNode={handleSelectNode}
+          onEdgesChanged={handleEdgesChanged}
         />
       </>
     );
