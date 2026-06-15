@@ -130,6 +130,7 @@ function getNodeColors(
   effectiveMatchedIds: Set<string> | null,
   isDark: boolean,
   highContrast: boolean,
+  primaryHex: string,
 ): { bg: string; border: string; text: string } {
   if (selectedNodeIds.has(nodeId)) {
     return { bg: "#1d4ed8", border: "#3b82f6", text: "#ffffff" };
@@ -140,9 +141,9 @@ function getNodeColors(
       : { bg: "#e5e7eb", border: "#d1d5db", text: "#9ca3af" };
   }
   if (highContrast) {
-    return isDark
-      ? { bg: "#1e1b4b", border: "#6366f1", text: "#c7d2fe" }
-      : { bg: "#e0e7ff", border: "#6366f1", text: "#312e81" };
+    // Todos os nós na cor principal do tema, texto na cor do fundo da cena
+    const textColor = isDark ? BG_LIGHT : BG_DARK;
+    return { bg: primaryHex, border: primaryHex, text: textColor };
   }
   const entry = NODE_TYPE_COLORS[nodeGroup as keyof typeof NODE_TYPE_COLORS];
   const palette = isDark ? entry?.dark : entry?.light;
@@ -171,6 +172,18 @@ export const Graph3DRenderer = forwardRef<Graph3DHandle, Graph3DRendererProps>(f
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<any>(null);
   const [dims, setDims] = useState({ w: 800, h: 600 });
+
+  // Resolve --primary para hex: THREE.js não suporta oklch/CSS variables
+  const primaryHex = useMemo(() => {
+    const tmp = document.createElement("div");
+    tmp.style.cssText = "position:absolute;visibility:hidden;background:var(--primary)";
+    document.body.appendChild(tmp);
+    const rgba = getComputedStyle(tmp).backgroundColor; // "rgb(r, g, b)"
+    document.body.removeChild(tmp);
+    const m = rgba.match(/\d+/g);
+    if (!m) return isDark ? "#e4e4e7" : "#18181b";
+    return "#" + m.slice(0, 3).map((n: string) => (+n).toString(16).padStart(2, "0")).join("");
+  }, [isDark]);
 
   useImperativeHandle(ref, () => ({
     zoomIn: () => {
@@ -246,22 +259,23 @@ export const Graph3DRenderer = forwardRef<Graph3DHandle, Graph3DRendererProps>(f
   }), [nodes, edges]);
 
   const nodeThreeObject = useCallback((node: any) => {
-    const c = getNodeColors(node.id, node.group, selectedNodeIds, effectiveMatchedIds, isDark, highContrast);
+    const c = getNodeColors(node.id, node.group, selectedNodeIds, effectiveMatchedIds, isDark, highContrast, primaryHex);
     return buildNodeObj(node, c.bg, c.border, c.text);
-  }, [isDark, effectiveMatchedIds, selectedNodeIds, highContrast]);
+  }, [isDark, effectiveMatchedIds, selectedNodeIds, highContrast, primaryHex]);
 
   const getLinkWidth = useCallback((link: any) => Math.min(0.6 + (link.peso ?? 1) * 0.7, 4), []);
 
   const getLinkSprite = useCallback((link: any) => {
-    const color = getRelationColor(link.type, isDark);
+    const color = highContrast ? primaryHex : getRelationColor(link.type, isDark);
     return makeLinkSprite(link.label ?? link.type, link.peso ?? 1, color);
-  }, [isDark]);
+  }, [isDark, highContrast, primaryHex]);
 
   const updateLinkSpritePos = useCallback((obj: THREE.Object3D, { start, end }: { start: any; end: any }) => {
     obj.position.set((start.x + end.x) / 2, (start.y + end.y) / 2, (start.z + end.z) / 2);
   }, []);
 
   const getLinkColor = useCallback((link: any) => {
+    if (highContrast) return primaryHex + "cc";
     const active = effectiveMatchedIds;
     if (active) {
       const s = typeof link.source === "object" ? link.source.id : link.source;
@@ -271,7 +285,7 @@ export const Graph3DRenderer = forwardRef<Graph3DHandle, Graph3DRendererProps>(f
       }
     }
     return getRelationColor(link.type, isDark) + "aa";
-  }, [isDark, effectiveMatchedIds]);
+  }, [isDark, effectiveMatchedIds, highContrast, primaryHex]);
 
   const bg = isDark ? BG_DARK : BG_LIGHT;
 
