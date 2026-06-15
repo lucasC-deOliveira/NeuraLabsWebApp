@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "@/lib/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
@@ -12,7 +12,7 @@ import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon } from "lucid
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
-import { Graph3DRenderer } from "@/modules/graph/presentation/components/Graph3DRenderer";
+import { Graph3DRenderer, type Graph3DHandle } from "@/modules/graph/presentation/components/Graph3DRenderer";
 import { GraphLegend } from "@/modules/graph/presentation/components/GraphLegend";
 import { GraphToolbar } from "@/modules/graph/presentation/components/GraphToolbar";
 import { GraphSideToolbar } from "@/modules/graph/presentation/components/GraphSideToolbar";
@@ -98,6 +98,7 @@ export default function GraphPage() {
     return sources.reduce((acc, s) => new Set([...acc].filter(id => s.has(id))));
   }, [dashFilterIds, search.matchedIds, roadmapSpotlightId]);
   const desktopApp = isDesktop();
+  const graph3DRef = useRef<Graph3DHandle>(null);
   const [legendVisible, setLegendVisible] = useState(false);
   const [is3D, setIs3D] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
@@ -357,12 +358,10 @@ export default function GraphPage() {
           <GraphToolbar
             legendVisible={legendVisible}
             onToggleLegend={() => setLegendVisible((v) => !v)}
-            onZoomIn={() => handleZoomButton(0.1)}
-            onZoomOut={() => handleZoomButton(-0.1)}
+            onZoomIn={() => is3D ? graph3DRef.current?.zoomIn() : handleZoomButton(0.1)}
+            onZoomOut={() => is3D ? graph3DRef.current?.zoomOut() : handleZoomButton(-0.1)}
             physicsEnabled={controller.state.physicsEnabled}
-            onTogglePhysics={() =>
-              controller.actions.setPhysicsEnabled((v: boolean) => !v)
-            }
+            onTogglePhysics={() => controller.actions.setPhysicsEnabled((v: boolean) => !v)}
             highContrast={highContrast}
             onToggleHighContrast={() => setHighContrast((v) => !v)}
             focusMode={focusMode}
@@ -373,12 +372,17 @@ export default function GraphPage() {
           />
           {is3D ? (
             <Graph3DRenderer
+              ref={graph3DRef}
               nodes={controller.state.filteredNodes}
               edges={controller.state.filteredEdges}
               isDark={isDark}
               matchedIds={combinedMatchedIds}
               selectedNodeIds={controller.state.selectedNodeIds}
               onNodeClick={controller.actions.selectNode}
+              highContrast={highContrast}
+              focusMode={focusMode}
+              focusDepth={focusDepth}
+              physicsEnabled={controller.state.physicsEnabled}
             />
           ) : (
             <GraphRenderer

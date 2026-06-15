@@ -84,24 +84,20 @@ export function GraphToolbar({
   return (
     <TooltipProvider delay={200}>
       <div className="graph-toolbar absolute bottom-3 right-3 z-10 flex flex-row items-center gap-1 rounded-md border bg-background/90 backdrop-blur-sm p-1 shadow-sm">
-        {!is3D && (
-          <>
-            <ToolbarButton label="Aumentar zoom" onClick={onZoomIn}>
-              <ZoomInIcon className="size-4" />
-            </ToolbarButton>
-            <ToolbarButton label="Diminuir zoom" onClick={onZoomOut}>
-              <ZoomOutIcon className="size-4" />
-            </ToolbarButton>
-            <div className="w-px h-5 bg-border" />
-            <ToolbarButton
-              label={physicsEnabled ? "Desligar física" : "Ligar física (órbita lenta)"}
-              active={physicsEnabled}
-              onClick={onTogglePhysics}
-            >
-              <OrbitIcon className="size-4" />
-            </ToolbarButton>
-          </>
-        )}
+        <ToolbarButton label="Aumentar zoom" onClick={onZoomIn}>
+          <ZoomInIcon className="size-4" />
+        </ToolbarButton>
+        <ToolbarButton label="Diminuir zoom" onClick={onZoomOut}>
+          <ZoomOutIcon className="size-4" />
+        </ToolbarButton>
+        <div className="w-px h-5 bg-border" />
+        <ToolbarButton
+          label={physicsEnabled ? "Desligar física" : "Ligar física"}
+          active={physicsEnabled}
+          onClick={onTogglePhysics}
+        >
+          <OrbitIcon className="size-4" />
+        </ToolbarButton>
 
         <ToolbarButton
           label={highContrast ? "Desligar alto contraste" : "Alto contraste (tudo na cor do tema)"}
@@ -111,15 +107,13 @@ export function GraphToolbar({
           <ContrastIcon className="size-4" />
         </ToolbarButton>
 
-        {!is3D && (
-          <ToolbarButton
-            label={focusMode ? "Desligar destaque de conexões" : "Destacar conexões (ofusca o resto ao selecionar)"}
-            active={focusMode}
-            onClick={onToggleFocus}
-          >
-            <FocusIcon className="size-4" />
-          </ToolbarButton>
-        )}
+        <ToolbarButton
+          label={focusMode ? "Desligar destaque de conexões" : "Destacar conexões (ofusca o resto ao selecionar)"}
+          active={focusMode}
+          onClick={onToggleFocus}
+        >
+          <FocusIcon className="size-4" />
+        </ToolbarButton>
 
         <div className="w-px h-5 bg-border" />
 
