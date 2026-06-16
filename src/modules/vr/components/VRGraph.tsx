@@ -1,17 +1,23 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { NODE_TYPE_COLORS } from "@/modules/graph/constants/graph-ui.constants";
-import { getRelationColor } from "@/modules/graph/presentation/services/graph-style.service";
+import { physicsStep, DEFAULT_PHYSICS_OPTIONS } from "@/modules/graph/presentation/services/graph-physics.service";
 import type { SimNode, SimEdge } from "@/modules/graph/infra/layout/force-layout.engine";
 
 const GRAPH_CENTER = new THREE.Vector3(0, 1.5, -1.5);
 const GRAPH_SCALE  = 1.4;
 const STICK_DEAD   = 0.15;
 const STICK_SPEED  = 1.8;
+
+const VR_PHYSICS_OPTIONS = {
+  ...DEFAULT_PHYSICS_OPTIONS,
+  orbitalStrength: 0.12,
+  damping: 0.45,
+};
 
 const GROUP_Y: Record<string, number> = {
   ASSUNTO: 0.38, TOPICO: 0.18, CONCEITO: 0.0,
@@ -51,57 +57,27 @@ function getNodeColors(group: string, isDark: boolean) {
   };
 }
 
-function computePositions(nodes: SimNode[]): Map<string, THREE.Vector3> {
-  if (!nodes.length) return new Map();
+/** Converte coordenadas 2D da física para posição 3D normalizada. */
+function toVR3D(x: number, y: number, group: string, bx: number, by: number, spread: number): THREE.Vector3 {
+  return new THREE.Vector3(
+    ((x - bx) / spread) * GRAPH_SCALE,
+    GROUP_Y[group] ?? 0,
+    ((y - by) / spread) * GRAPH_SCALE,
+  );
+}
+
+function computeBounds(nodes: SimNode[]): { bx: number; by: number; spread: number } {
+  if (!nodes.length) return { bx: 0, by: 0, spread: 1 };
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const n of nodes) {
     if (n.x < minX) minX = n.x; if (n.x > maxX) maxX = n.x;
     if (n.y < minY) minY = n.y; if (n.y > maxY) maxY = n.y;
   }
-  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-  const spread = Math.max(maxX - minX, maxY - minY) || 1;
-  return new Map(nodes.map((n) => [n.id, new THREE.Vector3(
-    ((n.x - cx) / spread) * GRAPH_SCALE,
-    GROUP_Y[n.group] ?? 0,
-    ((n.y - cy) / spread) * GRAPH_SCALE,
-  )]));
-}
-
-// ── Edge ─────────────────────────────────────────────────────────────────────
-function EdgeCylinder({ start, end, color }: { start: THREE.Vector3; end: THREE.Vector3; color: string }) {
-  const { mid, quat, length } = useMemo(() => {
-    const dir = end.clone().sub(start);
-    const len = dir.length();
-    return {
-      length: len,
-      mid: start.clone().add(end).multiplyScalar(0.5),
-      quat: new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()),
-    };
-  }, [start, end]);
-  return (
-    <mesh position={mid} quaternion={quat}>
-      <cylinderGeometry args={[0.005, 0.005, length, 6]} />
-      <meshBasicMaterial color={color} transparent opacity={0.7} />
-    </mesh>
-  );
-}
-
-function EdgeLabel({ position, label, color, localGroupRef }: {
-  position: THREE.Vector3; label: string; color: string;
-  localGroupRef: React.RefObject<THREE.Group | null>;
-}) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame(() => {
-    if (ref.current && localGroupRef.current)
-      ref.current.quaternion.copy(localGroupRef.current.quaternion).invert();
-  });
-  return (
-    <group ref={ref} position={[position.x, position.y + 0.028, position.z]}>
-      <Text fontSize={0.018} color={color} anchorX="center" anchorY="middle" outlineWidth={0.002} outlineColor="#000000">
-        {label}
-      </Text>
-    </group>
-  );
+  return {
+    bx: (minX + maxX) / 2,
+    by: (minY + maxY) / 2,
+    spread: Math.max(maxX - minX, maxY - minY) || 1,
+  };
 }
 
 // ── Geometria por tipo ────────────────────────────────────────────────────────
@@ -112,20 +88,38 @@ function NodeGeo({ cfg }: { cfg: GeoConfig }) {
 }
 
 // ── Nó ───────────────────────────────────────────────────────────────────────
-function VRNode({ node, position, isDark, selected, onSelect, localGroupRef }: {
-  node: SimNode; position: THREE.Vector3; isDark: boolean;
-  selected: boolean; onSelect: (n: SimNode) => void;
+// A posição do grupo externo é controlada imperativamente pela física.
+// O React nunca recebe uma prop `position` no grupo externo, então re-renders
+// por seleção/hover NÃO sobrescrevem a posição calculada pela física.
+function VRNode({ node, initialPos, isDark, selected, onSelect, localGroupRef, onGroupMount }: {
+  node: SimNode;
+  initialPos: THREE.Vector3;
+  isDark: boolean;
+  selected: boolean;
+  onSelect: (n: SimNode) => void;
   localGroupRef: React.RefObject<THREE.Group | null>;
+  onGroupMount: (id: string, group: THREE.Group) => void;
 }) {
-  const pulseRef = useRef<THREE.Group>(null);
-  const labelRef = useRef<THREE.Group>(null);
+  const nodeGroupRef = useRef<THREE.Group>(null);
+  const pulseRef     = useRef<THREE.Group>(null);
+  const labelRef     = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
+
   const cfg    = GROUP_GEO[node.group] ?? ({ shape: "box" as const, w: 0.09, h: 0.07, d: 0.07 });
   const colors = getNodeColors(node.group, isDark);
   const labelY = LABEL_Y[node.group] ?? 0.09;
 
   const meshScale   = cfg.shape === "ellipsoid" ? new THREE.Vector3(cfg.sx, cfg.sy, cfg.sz) : new THREE.Vector3(1, 1, 1);
   const borderScale = cfg.shape === "ellipsoid" ? new THREE.Vector3(cfg.sx * 1.09, cfg.sy * 1.09, cfg.sz * 1.09) : new THREE.Vector3(1.09, 1.09, 1.09);
+
+  // Registra o grupo externo na física e aplica posição inicial antes do primeiro frame.
+  useLayoutEffect(() => {
+    const g = nodeGroupRef.current;
+    if (!g) return;
+    g.position.copy(initialPos);
+    onGroupMount(node.id, g);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // uma vez no mount
 
   useFrame(({ clock }) => {
     if (pulseRef.current)
@@ -135,7 +129,8 @@ function VRNode({ node, position, isDark, selected, onSelect, localGroupRef }: {
   });
 
   return (
-    <group position={position}>
+    // Sem prop `position` — posição controlada pela física via nodeGroupRef
+    <group ref={nodeGroupRef}>
       <group
         ref={pulseRef}
         onClick={() => onSelect(node)}
@@ -184,13 +179,107 @@ interface VRGraphProps {
 }
 
 export function VRGraph({ nodes, edges, isDark, selectedNodeIds, onNodeClick }: VRGraphProps) {
-  const dragGroupRef = useRef<THREE.Group>(null);
-  const dragRot      = useRef({ x: 0, y: 0 });
+  const dragGroupRef  = useRef<THREE.Group>(null);
+  const dragRot       = useRef({ x: 0, y: 0 });
   const localGroupRef = useRef<THREE.Group>(null);
 
-  const positions = useMemo(() => computePositions(nodes), [nodes]);
+  // ── Física — tudo em refs, sem React state (estado não é lido no render) ─────
+  const physNodesRef   = useRef<SimNode[]>([...nodes]);
+  const edgesRef       = useRef(edges);
+  edgesRef.current     = edges;
+  const settledRef     = useRef(false);
+  const isDarkRef      = useRef(isDark);
+  isDarkRef.current    = isDark;
+
+  // Mapa nodeId → THREE.Group (preenchido por cada VRNode no mount)
+  const nodeGroupMap   = useRef(new Map<string, THREE.Group>());
+
+  // LineSegments para todas as arestas (atualizado imperativamente)
+  const edgeLinesRef   = useRef<THREE.LineSegments | null>(null);
+
+  // Reinicia física quando o grafo muda.
+  // NÃO limpa nodeGroupMap aqui — useLayoutEffect dos VRNodes roda antes deste
+  // useEffect (children-first), então clear() apagaria o mapa recém-preenchido.
+  // Os grupos obsoletos no mapa são inofensivos: só nós de physNodesRef são lidos.
+  useEffect(() => {
+    // Kick inicial: pequena velocidade aleatória garante que physicsStep saia do
+    // equilíbrio do runForceLayout (parâmetros diferentes) e produza movimento visível.
+    physNodesRef.current = nodes.map(n => ({
+      ...n,
+      vx: (Math.random() - 0.5) * 60,
+      vy: (Math.random() - 0.5) * 60,
+    }));
+    settledRef.current = false;
+  }, [nodes]);
+
+  // Posições iniciais para o primeiro frame (antes da física rodar)
+  const initialPositions = useMemo(() => {
+    const { bx, by, spread } = computeBounds(nodes);
+    return new Map(nodes.map(n => [n.id, toVR3D(n.x, n.y, n.group, bx, by, spread)]));
+  }, [nodes]);
+
+  // Callback estável para VRNode registrar seu group
+  const handleGroupMount = useCallback((id: string, group: THREE.Group) => {
+    nodeGroupMap.current.set(id, group);
+  }, []);
 
   useFrame((state, delta) => {
+    // ── Passo de física (imperativo, sem setState) ────────────────────────
+    if (!settledRef.current) {
+      const next = physicsStep(physNodesRef.current, edgesRef.current, VR_PHYSICS_OPTIONS);
+      if (next === physNodesRef.current) {
+        settledRef.current = true;
+      } else {
+        physNodesRef.current = next;
+      }
+    }
+
+    const curr = physNodesRef.current;
+    const { bx, by, spread } = computeBounds(curr);
+
+    // Atualiza posição de cada nó diretamente no Group Three.js
+    for (const node of curr) {
+      const group = nodeGroupMap.current.get(node.id);
+      if (group) {
+        group.position.x = ((node.x - bx) / spread) * GRAPH_SCALE;
+        group.position.y = GROUP_Y[node.group] ?? 0;
+        group.position.z = ((node.y - by) / spread) * GRAPH_SCALE;
+      }
+    }
+
+    // Atualiza o buffer de arestas (LineSegments)
+    const edgeLines = edgeLinesRef.current;
+    if (edgeLines) {
+      const nodeMap = new Map(curr.map(n => [n.id, n]));
+      const posArr: number[] = [];
+      const colArr: number[] = [];
+      const edgeColor = new THREE.Color(isDarkRef.current ? "#818cf8" : "#6366f1");
+
+      for (const e of edgesRef.current) {
+        const src = nodeMap.get(e.source);
+        const tgt = nodeMap.get(e.target);
+        if (!src || !tgt) continue;
+        posArr.push(
+          ((src.x - bx) / spread) * GRAPH_SCALE, GROUP_Y[src.group] ?? 0, ((src.y - by) / spread) * GRAPH_SCALE,
+          ((tgt.x - bx) / spread) * GRAPH_SCALE, GROUP_Y[tgt.group] ?? 0, ((tgt.y - by) / spread) * GRAPH_SCALE,
+        );
+        colArr.push(edgeColor.r, edgeColor.g, edgeColor.b, edgeColor.r, edgeColor.g, edgeColor.b);
+      }
+
+      const geom = edgeLines.geometry;
+      const posAttr = geom.getAttribute("position") as THREE.BufferAttribute | undefined;
+      if (posAttr && posAttr.array.length === posArr.length) {
+        (posAttr.array as Float32Array).set(posArr);
+        posAttr.needsUpdate = true;
+        const colAttr = geom.getAttribute("color") as THREE.BufferAttribute | undefined;
+        if (colAttr) { (colAttr.array as Float32Array).set(colArr); colAttr.needsUpdate = true; }
+      } else {
+        geom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(posArr), 3));
+        geom.setAttribute("color",    new THREE.BufferAttribute(new Float32Array(colArr), 3));
+      }
+    }
+
+    // ── Rotação via joysticks ────────────────────────────────────────────
     if (dragGroupRef.current) {
       dragGroupRef.current.rotation.y = dragRot.current.y;
       dragGroupRef.current.rotation.x = dragRot.current.x;
@@ -226,41 +315,33 @@ export function VRGraph({ nodes, edges, isDark, selectedNodeIds, onNodeClick }: 
     }
   });
 
-  const edgeData = useMemo(() => edges.flatMap((e) => {
-    const src = positions.get(e.source);
-    const tgt = positions.get(e.target);
-    if (!src || !tgt) return [];
-    return [{ key: `${e.source}>${e.target}`, start: src.clone(), end: tgt.clone(), type: e.type, label: e.label }];
-  }), [edges, positions]);
-
   return (
     <group ref={dragGroupRef}>
       <group ref={localGroupRef} position={[GRAPH_CENTER.x, GRAPH_CENTER.y, GRAPH_CENTER.z]}>
-        {edgeData.map((ed) => (
-          <EdgeCylinder key={ed.key} start={ed.start} end={ed.end} color={getRelationColor(ed.type, isDark)} />
-        ))}
-        {edgeData.map((ed) => {
-          if (!ed.label) return null;
-          const mid = ed.start.clone().add(ed.end).multiplyScalar(0.5);
-          return (
-            <EdgeLabel key={ed.key + "-l"} position={mid} label={ed.label} color={getRelationColor(ed.type, isDark)} localGroupRef={localGroupRef} />
-          );
-        })}
+
+        {/* Arestas — LineSegments atualizado imperativamente a cada frame */}
+        <lineSegments ref={edgeLinesRef}>
+          <bufferGeometry />
+          <lineBasicMaterial vertexColors={true} transparent opacity={0.7} />
+        </lineSegments>
+
+        {/* Nós */}
         {nodes.map((node) => {
-          const pos = positions.get(node.id);
-          if (!pos) return null;
+          const initialPos = initialPositions.get(node.id) ?? new THREE.Vector3();
           return (
             <VRNode
               key={node.id}
               node={node}
-              position={pos}
+              initialPos={initialPos}
               isDark={isDark}
               selected={selectedNodeIds.has(node.id)}
               onSelect={onNodeClick}
               localGroupRef={localGroupRef}
+              onGroupMount={handleGroupMount}
             />
           );
         })}
+
       </group>
     </group>
   );

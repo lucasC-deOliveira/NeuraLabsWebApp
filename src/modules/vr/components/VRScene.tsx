@@ -2,13 +2,16 @@
 
 import { Canvas } from "@react-three/fiber";
 import { XR, createXRStore, PointerEvents, DefaultXRController } from "@react-three/xr";
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import { VRGraph } from "./VRGraph";
 import { VRPanel3D } from "./VRPanel3D";
-import { VREditForm } from "./VREditForm";
+import { VRContentPanel3D } from "./VRContentPanel3D";
+import { VRStudyPanel3D } from "./VRStudyPanel3D";
+import { VREditPanel3D } from "./VREditPanel3D";
 import type { SimNode, SimEdge } from "@/modules/graph/infra/layout/force-layout.engine";
 
 type XRMode = "ar" | "vr";
+type Overlay = "edit" | "content" | "study" | null;
 
 interface VRSceneProps {
   mode: XRMode;
@@ -33,8 +36,19 @@ export function VRScene({
   selectedNode, onClosePanel, onSelectNode,
   grafoId, onEdgesChanged, onGraphChanged,
 }: VRSceneProps) {
-  const store = useMemo(() => createXRStore({ controller: DefaultXRController }), []);
-  const [editingNode, setEditingNode] = useState<SimNode | null>(null);
+  const storeRef = useRef<ReturnType<typeof createXRStore> | null>(null);
+  if (!storeRef.current) storeRef.current = createXRStore({ controller: DefaultXRController });
+  const store = storeRef.current;
+
+  const [overlay,     setOverlay]     = useState<Overlay>(null);
+  const [overlayNode, setOverlayNode] = useState<SimNode | null>(null);
+
+  const openOverlay = (type: Overlay) => {
+    if (!selectedNode) return;
+    setOverlayNode(selectedNode);
+    setOverlay(type);
+  };
+  const closeOverlay = () => { setOverlay(null); setOverlayNode(null); };
 
   return (
     <div className="fixed inset-0 bg-black">
@@ -56,7 +70,7 @@ export function VRScene({
         </button>
       </div>
 
-      {/* Canvas com PointerEvents do @react-three/xr */}
+      {/* Canvas 3D — todo o conteúdo renderizado aqui dentro */}
       <Canvas
         style={{ width: "100%", height: "100%" }}
         camera={{ position: [0, 1.6, 0.5], fov: 70 }}
@@ -78,7 +92,8 @@ export function VRScene({
             onNodeClick={onNodeClick}
           />
 
-          {selectedNode && (
+          {/* Painel de propriedades — oculto quando um overlay 3D está aberto */}
+          {selectedNode && overlay === null && (
             <VRPanel3D
               node={selectedNode}
               nodes={nodes}
@@ -89,23 +104,30 @@ export function VRScene({
               onClose={onClosePanel}
               onSelectNode={onSelectNode}
               onEdgesChanged={onEdgesChanged}
-              onEditNode={() => setEditingNode(selectedNode)}
+              onEditNode={()    => openOverlay("edit")}
+              onShowContent={() => openOverlay("content")}
+              onStudy={()       => openOverlay("study")}
+            />
+          )}
+
+          {/* Painéis de overlay 3D — substituem VRPanel3D na mesma posição */}
+          {overlayNode && overlay === "content" && (
+            <VRContentPanel3D node={overlayNode} isDark={isDark} onClose={closeOverlay} />
+          )}
+          {overlayNode && overlay === "study" && (
+            <VRStudyPanel3D node={overlayNode} isDark={isDark} onClose={closeOverlay} />
+          )}
+          {overlayNode && overlay === "edit" && (
+            <VREditPanel3D
+              node={overlayNode}
+              isDark={isDark}
+              grafoId={grafoId}
+              onSuccess={() => { closeOverlay(); onGraphChanged(); }}
+              onClose={closeOverlay}
             />
           )}
         </XR>
       </Canvas>
-
-      {/* Overlay HTML de edição de nó — teclado virtual do Quest 3 aparece em inputs */}
-      {editingNode && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-black/80 overflow-y-auto">
-          <VREditForm
-            node={editingNode}
-            grafoId={grafoId}
-            onSuccess={() => { setEditingNode(null); onGraphChanged(); }}
-            onCancel={() => setEditingNode(null)}
-          />
-        </div>
-      )}
     </div>
   );
 }

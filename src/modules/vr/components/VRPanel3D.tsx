@@ -28,6 +28,7 @@ const ADD_ROW_H  = 0.032;
 const NODE_PAGE  = 7;
 const ADD_BTN_H  = 0.036;
 const CONN_ROW_H = 0.024;
+const BTN_ROW_H  = 0.042;
 const RELATION_TYPES = Object.keys(RELATION_LABELS);
 
 function Sep({ y, isDark }: { y: number; isDark: boolean }) {
@@ -73,11 +74,13 @@ interface VRPanel3DProps {
   onSelectNode: (nodeId: string) => void;
   onEdgesChanged: () => void;
   onEditNode: () => void;
+  onShowContent: () => void;
+  onStudy: () => void;
 }
 
 export function VRPanel3D({
   node, nodes, edges, isDark, grafoId, grafoNome,
-  onClose, onSelectNode, onEdgesChanged, onEditNode,
+  onClose, onSelectNode, onEdgesChanged, onEditNode, onShowContent, onStudy,
 }: VRPanel3DProps) {
   const groupRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
@@ -236,12 +239,15 @@ export function VRPanel3D({
   const pageNodes = nonSelf.slice(pageStart, pageStart + NODE_PAGE);
 
   // ── Altura dinâmica ──────────────────────────────────────────────────────
+  const hasContent = ["BARALHO", "NOTA", "TEXTO_BRUTO", "FLASHCARD"].includes(node.group);
+  const hasStudy   = ["BARALHO", "FLASHCARD"].includes(node.group);
+
   const baseNoRels = panelHeight({
     hasPergunta:    !!node.pergunta,
     hasDeckStats:   !!deckStats,
     notaLinesCount: notaLines.length,
     numRels: 0,
-  }) + CONN_ROW_H;
+  }) + CONN_ROW_H + BTN_ROW_H;
 
   let H: number;
   if (addStep === "target") {
@@ -271,6 +277,9 @@ export function VRPanel3D({
   if (deckStats) { cur -= 0.006; yDeck = cur; cur -= 0.052; }
   let yNotaStart: number | null = null;
   if (notaLines.length > 0) { cur -= 0.006; yNotaStart = cur; cur -= notaLines.length * 0.022 + 0.012; }
+
+  cur -= 0.006;
+  const yActions = cur - BTN_ROW_H / 2; cur -= BTN_ROW_H;
 
   const ySep3    = cur; cur -= 0.016;
   const yRelHdr  = cur; cur -= 0.022;
@@ -302,13 +311,6 @@ export function VRPanel3D({
       <Text position={[-W/2+PX, yHeader, 0.002]} fontSize={0.015} color={accent} anchorX="left" anchorY="middle">
         {node.tipoReal.toLowerCase()}
       </Text>
-      {/* Botão editar nó */}
-      <group onClick={onEditNode}>
-        <mesh position={[W/2-0.072, yHeader, 0.003]}>
-          <planeGeometry args={[0.038, 0.026]} /><meshBasicMaterial color={track} />
-        </mesh>
-        <Text position={[W/2-0.072, yHeader, 0.004]} fontSize={0.015} color={muted} anchorX="center" anchorY="middle">✏</Text>
-      </group>
       {/* Botão fechar */}
       <group onClick={onClose}>
         <mesh position={[W/2-0.028, yHeader, 0.003]}>
@@ -392,6 +394,37 @@ export function VRPanel3D({
           {line}
         </Text>
       ))}
+
+      {/* ── Botões de ação ───────────────────────────────────── */}
+      {(() => {
+        const numBtns = hasStudy ? 3 : hasContent ? 2 : 1;
+        const gap  = 0.006;
+        const bw   = (W - PX * 2 - gap * (numBtns - 1)) / numBtns;
+        const by   = yActions;
+        const bh   = 0.030;
+
+        const x1 = -W / 2 + PX + bw / 2;
+        const x2 = numBtns === 3 ? 0 : W / 2 - PX - bw / 2;
+        const x3 = W / 2 - PX - bw / 2;
+
+        return (
+          <>
+            {/* Editar — sempre */}
+            <Btn3D x={x1} y={by} w={bw} h={bh} label="Editar" bg={track} color={text} fontSize={0.013}
+              onClick={onEditNode} />
+            {/* Conteúdo — para BARALHO, NOTA, TEXTO_BRUTO, FLASHCARD */}
+            {hasContent && (
+              <Btn3D x={x2} y={by} w={bw} h={bh} label="Conteúdo" bg={accent} color="#fff" fontSize={0.013}
+                onClick={onShowContent} />
+            )}
+            {/* Estudar — para BARALHO e FLASHCARD */}
+            {hasStudy && (
+              <Btn3D x={x3} y={by} w={bw} h={bh} label="Estudar" bg="#22c55e" color="#fff" fontSize={0.013}
+                onClick={onStudy} />
+            )}
+          </>
+        );
+      })()}
 
       <Sep y={ySep3} isDark={isDark} />
 
