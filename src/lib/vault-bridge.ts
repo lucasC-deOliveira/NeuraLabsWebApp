@@ -9,6 +9,7 @@ export interface VaultFile {
 export interface VaultSyncState {
   lastPull?: string; // ISO 8601
   lastPush?: string; // ISO 8601
+  dir?: string;      // caminho absoluto da pasta do vault deste grafo
 }
 
 interface NeuralabsBridge {

@@ -53,6 +53,10 @@ export default function GraphListPage() {
             await desktop.vault.write(graphDir, [
               { relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() },
             ]);
+            await desktop.vault.writeSyncState(graphDir, {
+              dir: graphDir,
+              lastPull: new Date().toISOString(),
+            });
           }
         } catch {
           // não-fatal: vault pode não estar configurado ainda
