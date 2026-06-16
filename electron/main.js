@@ -325,7 +325,11 @@ ipcMain.handle("vault:read", async (_e, dir) => {
 });
 
 ipcMain.handle("vault:open-folder", async (_e, dir) => {
-  if (dir) await shell.openPath(path.resolve(dir));
+  if (!dir) return;
+  const abs = path.resolve(dir);
+  fs.mkdirSync(abs, { recursive: true });
+  for (const folder of PARA_FOLDERS) fs.mkdirSync(path.join(abs, folder), { recursive: true });
+  await shell.openPath(abs);
 });
 
 // ---------------------------------------------------------------------------
