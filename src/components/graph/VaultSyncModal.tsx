@@ -157,7 +157,16 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
                 <p className="text-[11px] text-muted-foreground font-mono truncate flex-1 min-w-0">📁 {graphDir}</p>
                 <Button
                   type="button" variant="ghost" size="sm"
-                  onClick={() => desktop.vault.openFolder(graphDir)}
+                  onClick={async () => {
+                    if (!graphDir) return;
+                    try {
+                      // Garante que a pasta e as subpastas PARA existam antes de abrir
+                      await desktop.vault.write(graphDir, []);
+                      await desktop.vault.openFolder(graphDir);
+                    } catch (e) {
+                      toast.error("Não foi possível abrir a pasta: " + (e instanceof Error ? e.message : String(e)));
+                    }
+                  }}
                   className="h-6 px-2 gap-1 text-[11px] text-muted-foreground shrink-0"
                 >
                   <FolderOpenIcon className="size-3" /> Abrir
