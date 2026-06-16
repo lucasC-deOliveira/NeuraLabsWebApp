@@ -70,6 +70,12 @@ async function boot() {
   try {
     createWindow();
     if (isDev) {
+      // Se USE_LOCAL_DIST=1, carrega o build estático local (sem dev server).
+      const localDist = path.join(__dirname, "../dist/index.html");
+      if (process.env.USE_LOCAL_DIST === "1" && fs.existsSync(localDist)) {
+        await mainWindow.loadFile(localDist);
+        return;
+      }
       await mainWindow.loadURL(DEV_URL);
       return;
     }

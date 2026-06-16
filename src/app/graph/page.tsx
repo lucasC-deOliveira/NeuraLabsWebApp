@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeftIcon, PlusIcon, Trash2Icon, Loader2Icon, FolderIcon } from "lucide-react";
 import { toast } from "sonner";
+import { isDesktop, desktop } from "@/lib/vault-bridge";
+import { graphVaultDir } from "@/lib/vault-sync";
+import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 
 interface GrafosList {
   id: string;
@@ -41,6 +44,21 @@ export default function GraphListPage() {
     setCreatingGrafo(true);
     try {
       const { id } = await createGrafo(newGrafoName.trim());
+
+      if (isDesktop()) {
+        try {
+          const vaultPath = await desktop.vault.getPath();
+          if (vaultPath) {
+            const graphDir = graphVaultDir(vaultPath, id, newGrafoName.trim());
+            await desktop.vault.write(graphDir, [
+              { relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() },
+            ]);
+          }
+        } catch {
+          // não-fatal: vault pode não estar configurado ainda
+        }
+      }
+
       toast.success("Grafo criado");
       router.push(`/graph/${id}`);
     } catch (e) {
