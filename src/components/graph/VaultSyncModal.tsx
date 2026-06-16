@@ -18,6 +18,7 @@ import {
   type SyncDiff,
 } from "@/lib/vault-sync";
 import type { VaultSyncState } from "@/lib/vault-bridge";
+import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 
 type BusyState = "pull" | "push" | "compare" | null;
 
@@ -160,8 +161,10 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
                   onClick={async () => {
                     if (!graphDir) return;
                     try {
-                      // Garante que a pasta e as subpastas PARA existam antes de abrir
-                      await desktop.vault.write(graphDir, []);
+                      // Garante que a pasta, subpastas PARA e guia existam antes de abrir
+                      await desktop.vault.write(graphDir, [
+                        { relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() },
+                      ]);
                       await desktop.vault.openFolder(graphDir);
                     } catch (e) {
                       toast.error("Não foi possível abrir a pasta: " + (e instanceof Error ? e.message : String(e)));
