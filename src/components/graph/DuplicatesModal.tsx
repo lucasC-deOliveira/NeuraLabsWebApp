@@ -10,9 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2Icon, Trash2Icon, CheckCircle2Icon, AlertCircleIcon, CopyIcon } from "lucide-react";
+import { Loader2Icon, Trash2Icon, CheckCircle2Icon, AlertCircleIcon, CopyIcon, GitMergeIcon } from "lucide-react";
 import { toast } from "sonner";
-import { detectDuplicates } from "@/lib/ai-api";
+import { detectDuplicates, mergeDuplicates } from "@/lib/ai-api";
 import { deleteGraphNode } from "@/lib/graph-api";
 
 interface DuplicateNode { id: string; nome: string; tipo: string; }
@@ -37,6 +37,8 @@ export function DuplicatesModal({ open, onOpenChange, grafoId, onDeleted }: Dupl
   const [step, setStep] = useState<Step>("loading");
   const [groups, setGroups] = useState<DuplicateGroup[]>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [merging, setMerging] = useState<Set<number>>(new Set());
+  const [keepSelection, setKeepSelection] = useState<Map<number, string>>(new Map());
   const [errorMsg, setErrorMsg] = useState("");
 
   const load = async () => {
@@ -55,6 +57,29 @@ export function DuplicatesModal({ open, onOpenChange, grafoId, onDeleted }: Dupl
     if (open) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useEffect(() => {
+    setKeepSelection(new Map(groups.map((g, i) => [i, g.nodes[0]?.id ?? ""])));
+  }, [groups]);
+
+  const handleMerge = async (groupIdx: number) => {
+    const g = groups[groupIdx];
+    const keepId = keepSelection.get(groupIdx) ?? g.nodes[0]?.id;
+    if (!keepId) return;
+    const deleteIds = g.nodes.filter(n => n.id !== keepId).map(n => n.id);
+    if (!deleteIds.length) return;
+    setMerging(prev => new Set(prev).add(groupIdx));
+    try {
+      const res = await mergeDuplicates(grafoId, keepId, deleteIds);
+      toast.success(`Mesclados: ${res.merged} nó(s) removido(s), ${res.edgesMoved} aresta(s) movida(s).`);
+      onDeleted();
+      setGroups(prev => prev.filter((_, i) => i !== groupIdx));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao mesclar nós.");
+    } finally {
+      setMerging(prev => { const next = new Set(prev); next.delete(groupIdx); return next; });
+    }
+  };
 
   const handleDelete = async (node: DuplicateNode, groupIdx: number) => {
     if (!window.confirm(`Excluir "${node.nome}" permanentemente?`)) return;
@@ -118,42 +143,65 @@ export function DuplicatesModal({ open, onOpenChange, grafoId, onDeleted }: Dupl
             </div>
           )}
 
-          {step === "results" && groups.map((g, gi) => (
-            <div key={gi} className="rounded-lg border border-border p-3 space-y-2.5">
-              <div className="flex flex-wrap gap-2">
-                {g.nodes.map(n => (
-                  <div
-                    key={n.id}
-                    className="flex items-center gap-1.5 rounded-md border px-2 py-1"
-                    style={{ borderColor: (TIPO_COLORS[n.tipo] ?? "#71717a") + "50" }}
+          {step === "results" && groups.map((g, gi) => {
+            const keepId = keepSelection.get(gi) ?? g.nodes[0]?.id;
+            const isMerging = merging.has(gi);
+            return (
+              <div key={gi} className="rounded-lg border border-border p-3 space-y-2.5">
+                <p className="text-[11px] text-muted-foreground">Clique num nó para marcá-lo como principal (mantido na mesclagem).</p>
+                <div className="flex flex-wrap gap-2">
+                  {g.nodes.map(n => {
+                    const isKeep = keepId === n.id;
+                    return (
+                      <button
+                        key={n.id}
+                        onClick={() => setKeepSelection(prev => new Map(prev).set(gi, n.id))}
+                        className={`flex items-center gap-1.5 rounded-md border px-2 py-1 transition-colors text-left ${isKeep ? "border-primary/60 bg-primary/5" : ""}`}
+                        style={isKeep ? {} : { borderColor: (TIPO_COLORS[n.tipo] ?? "#71717a") + "50" }}
+                      >
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1 py-0"
+                          style={{ borderColor: TIPO_COLORS[n.tipo] ?? "#71717a", color: TIPO_COLORS[n.tipo] ?? "#71717a" }}
+                        >
+                          {n.tipo.toLowerCase()}
+                        </Badge>
+                        <span className={`text-sm ${isKeep ? "font-semibold text-primary" : "font-medium"}`}>{n.nome}</span>
+                        {isKeep
+                          ? <span className="text-[10px] text-primary font-medium">manter</span>
+                          : (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="size-5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              disabled={deleting === n.id || isMerging}
+                              onClick={(e) => { e.stopPropagation(); handleDelete(n, gi); }}
+                            >
+                              {deleting === n.id ? <Loader2Icon className="size-3 animate-spin" /> : <Trash2Icon className="size-3" />}
+                            </Button>
+                          )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {g.sugestao && (
+                  <p className="text-[11px] text-muted-foreground italic">{g.sugestao}</p>
+                )}
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-xs h-7"
+                    disabled={isMerging || !!deleting}
+                    onClick={() => handleMerge(gi)}
                   >
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] px-1 py-0"
-                      style={{ borderColor: TIPO_COLORS[n.tipo] ?? "#71717a", color: TIPO_COLORS[n.tipo] ?? "#71717a" }}
-                    >
-                      {n.tipo.toLowerCase()}
-                    </Badge>
-                    <span className="text-sm font-medium">{n.nome}</span>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-5 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      disabled={deleting === n.id}
-                      onClick={() => handleDelete(n, gi)}
-                    >
-                      {deleting === n.id
-                        ? <Loader2Icon className="size-3 animate-spin" />
-                        : <Trash2Icon className="size-3" />}
-                    </Button>
-                  </div>
-                ))}
+                    {isMerging ? <Loader2Icon className="size-3 animate-spin" /> : <GitMergeIcon className="size-3" />}
+                    Mesclar grupo
+                  </Button>
+                </div>
               </div>
-              {g.sugestao && (
-                <p className="text-[11px] text-muted-foreground italic">{g.sugestao}</p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </DialogContent>
     </Dialog>

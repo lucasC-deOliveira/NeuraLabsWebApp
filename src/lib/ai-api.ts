@@ -134,3 +134,42 @@ export function addMissingPrerequisite(
 ): Promise<{ nodeId: string }> {
   return apiFetch(`/ai/graph/graphs/${grafoId}/missing-prerequisites/add`, { method: "POST", body: JSON.stringify({ nome, tipo, connectToIds }) });
 }
+
+// ── Trilha de aprendizado ──────────────────────────────────────────────────
+export interface LearningStep { nodeId: string; nome: string; tipo: string; motivo: string; }
+export function generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/learning-path`, { method: "POST" });
+}
+
+// ── Chat com o grafo ───────────────────────────────────────────────────────
+export interface ChatHistoryItem { role: "user" | "assistant"; content: string; }
+export interface ChatReferencedNode { id: string; nome: string; tipo: string; }
+export function chatWithGraph(
+  grafoId: string,
+  question: string,
+  history: ChatHistoryItem[],
+): Promise<{ answer: string; referencedNodes: ChatReferencedNode[] }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/chat`, { method: "POST", body: JSON.stringify({ question, history }) });
+}
+
+// ── Avaliação de completude ────────────────────────────────────────────────
+export interface CompletenessAssessment {
+  assuntoId: string;
+  assuntoNome: string;
+  score: number;
+  wellCovered: string[];
+  shallow: string[];
+  missing: string[];
+}
+export function assessCompleteness(grafoId: string): Promise<{ assessments: CompletenessAssessment[] }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/assess-completeness`, { method: "POST" });
+}
+
+// ── Merge de duplicatas ────────────────────────────────────────────────────
+export function mergeDuplicates(
+  grafoId: string,
+  keepId: string,
+  deleteIds: string[],
+): Promise<{ merged: number; edgesMoved: number }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/merge-duplicates`, { method: "POST", body: JSON.stringify({ keepId, deleteIds }) });
+}

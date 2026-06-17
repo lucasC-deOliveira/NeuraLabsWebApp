@@ -158,7 +158,7 @@ export class AiService {
   }
 
   async generateNodeInsights(userId: string, grafoId: string, nodeId: string) {
-    const target = await this.prisma.nodeConhecimento.findFirst({ where: { grafoId, usuarioId: userId, referenciaId: nodeId }, select: { tipoNode: true } });
+    const target = await this.prisma.nodeConhecimento.findFirst({ where: { grafoId, usuarioId: userId, referenciaId: nodeId }, select: { id: true, tipoNode: true } });
     if (!target) throw new NotFoundException('Nó não encontrado neste grafo.');
 
     const graphNodes = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { tipoNode: true, referenciaId: true } });
@@ -179,9 +179,23 @@ export class AiService {
     for (const n of notas) ctx.set(n.id, { id: n.id, tipo: 'NOTA', nome: n.titulo || 'Nota', corpo: n.conteudo });
     for (const f of flashcards) ctx.set(f.id, { id: f.id, tipo: 'FLASHCARD', nome: f.pergunta, corpo: f.resposta });
 
+    // Load direct neighbors for richer context
+    const neighborEdges = await this.prisma.conhecimentoAresta.findMany({
+      where: { grafoId, OR: [{ nodeOrigemId: target.id }, { nodeDestinoId: target.id }] },
+      select: { nodeOrigemId: true, nodeDestinoId: true },
+    });
+    const neighborNcIds = neighborEdges.map(e => e.nodeOrigemId === target.id ? e.nodeDestinoId : e.nodeOrigemId).filter((id): id is string => !!id);
+    const neighborNcNodes = await this.prisma.nodeConhecimento.findMany({ where: { id: { in: neighborNcIds } }, select: { referenciaId: true } });
+    const neighborRefIds = new Set(neighborNcNodes.map(n => n.referenciaId));
+
     const alvo = ctx.get(nodeId);
     if (!alvo) throw new NotFoundException('Conteúdo do nó não encontrado.');
-    const contextoLista = [...ctx.values()].filter((c) => c.id !== nodeId).slice(0, 100).map((c) => `- [${TIPO_LABEL[c.tipo] ?? c.tipo}] ${c.nome}`).join('\n');
+    const neighborCtx = [...ctx.values()].filter(c => c.id !== nodeId && neighborRefIds.has(c.id));
+    const otherCtx = [...ctx.values()].filter(c => c.id !== nodeId && !neighborRefIds.has(c.id));
+    const neighborSection = neighborCtx.length > 0
+      ? `VIZINHOS DIRETOS:\n${neighborCtx.map(c => `- [${TIPO_LABEL[c.tipo] ?? c.tipo}] ${c.nome}${c.corpo ? ': ' + c.corpo.slice(0, 200) : ''}`).join('\n')}`
+      : '';
+    const contextoLista = otherCtx.slice(0, 80).map(c => `- [${TIPO_LABEL[c.tipo] ?? c.tipo}] ${c.nome}`).join('\n');
     const targets = getInsightTargets(target.tipoNode);
     const targetsDesc = targets.map((t) => `- tipoNo "${t.tipo}" → relacoes possíveis: ${t.relacoes.join(', ')}`).join('\n');
     const defaultCombo = targets[0] ? { tipoNo: targets[0].tipo, relacao: targets[0].relacoes[0] } : null;
@@ -194,7 +208,7 @@ export class AiService {
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: `Você é um tutor que analisa um nó de um grafo de conhecimento e gera INSIGHTS. Cada insight: categoria (uma de [${INSIGHT_CATEGORIES.join(', ')}]), titulo (3-8 palavras), descricao (1-2 frases), tipoNo e relacao escolhidos SOMENTE entre os combos válidos:\n${targetsDesc}\nEntre 4 e 8 insights. Responda em JSON: {"insights":[{"categoria":"...","titulo":"...","descricao":"...","tipoNo":"...","relacao":"..."}]}` },
-        { role: 'user', content: `NÓ-ALVO (${tipoAlvo}): ${alvo.nome}\n${alvo.corpo ? `Conteúdo:\n${alvo.corpo.slice(0, 3000)}` : '(sem conteúdo)'}\n\nCONTEXTO DO GRAFO:\n${contextoLista || '(sem outros nós)'}` },
+        { role: 'user', content: `NÓ-ALVO (${tipoAlvo}): ${alvo.nome}\n${alvo.corpo ? `Conteúdo:\n${alvo.corpo.slice(0, 2000)}` : '(sem conteúdo)'}\n\n${neighborSection}\n\nOUTROS NÓS DO GRAFO:\n${contextoLista || '(sem outros nós)'}` },
       ],
     });
     let parsed: any;
@@ -734,6 +748,189 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
       try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: res.nodeId, targetNodeId: targetId, tipoRelacao: relacao }); } catch { /* ignore duplicate */ }
     }
     return { nodeId: res.nodeId };
+  }
+
+  // ── Feature: Trilha de aprendizado ────────────────────────────────────────
+  async generateLearningPath(userId: string, grafoId: string): Promise<{ steps: Array<{ nodeId: string; nome: string; tipo: string; motivo: string }> }> {
+    const graphNodes = await this.prisma.nodeConhecimento.findMany({
+      where: { grafoId, usuarioId: userId, tipoNode: { in: ['ASSUNTO', 'TOPICO', 'CONCEITO'] } },
+      select: { tipoNode: true, referenciaId: true },
+    });
+    const ids: Record<string, string[]> = {};
+    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
+    const [assuntos, topicos, conceitos] = await Promise.all([
+      this.prisma.assunto.findMany({ where: { id: { in: ids.ASSUNTO ?? [] } }, select: { id: true, nome: true } }),
+      this.prisma.topico.findMany({ where: { id: { in: ids.TOPICO ?? [] } }, select: { id: true, nome: true } }),
+      this.prisma.conceito.findMany({ where: { id: { in: ids.CONCEITO ?? [] } }, select: { id: true, nome: true } }),
+    ]);
+    const allNodes = [
+      ...assuntos.map(a => ({ id: a.id, tipo: 'ASSUNTO', nome: a.nome })),
+      ...topicos.map(t => ({ id: t.id, tipo: 'TOPICO', nome: t.nome })),
+      ...conceitos.map(c => ({ id: c.id, tipo: 'CONCEITO', nome: c.nome })),
+    ];
+    if (allNodes.length === 0) return { steps: [] };
+    const [existingEdges, ncNodes] = await Promise.all([
+      this.prisma.conhecimentoAresta.findMany({ where: { grafoId }, select: { nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true } }),
+      this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { id: true, referenciaId: true } }),
+    ]);
+    const refByNcId = new Map(ncNodes.map(n => [n.id, n.referenciaId]));
+    const edgeList = existingEdges
+      .filter(e => e.nodeOrigemId && e.nodeDestinoId)
+      .map(e => `${refByNcId.get(e.nodeOrigemId!)}→${refByNcId.get(e.nodeDestinoId!)} (${e.tipoRelacao})`)
+      .join('\n');
+    const nodeList = allNodes.map(n => `id:${n.id} tipo:${n.tipo} nome:"${n.nome}"`).join('\n');
+    const content = await this.callAI(userId, [
+      { role: 'system', content: 'Crie uma TRILHA DE APRENDIZADO ordenada do mais básico ao mais avançado. Considere PREREQUISITO, DEPENDE_DE e SUBTOPICO_DE para ordenar. JSON: {"steps":[{"nodeId":"...","motivo":"frase curta (max 15 palavras) explicando por que estudar agora"}]}' },
+      { role: 'user', content: `NÓS:\n${nodeList.slice(0, 6000)}\n\nRELAÇÕES EXISTENTES:\n${edgeList.slice(0, 2000)}` },
+    ]);
+    let parsed: any;
+    try { parsed = JSON.parse(content ?? '{}'); } catch { return { steps: [] }; }
+    const nodeById = new Map(allNodes.map(n => [n.id, n]));
+    const out: Array<{ nodeId: string; nome: string; tipo: string; motivo: string }> = [];
+    const seen = new Set<string>();
+    for (const s of parsed?.steps ?? []) {
+      const node = nodeById.get(s?.nodeId);
+      if (!node || seen.has(node.id)) continue;
+      seen.add(node.id);
+      out.push({ nodeId: node.id, nome: node.nome, tipo: node.tipo, motivo: typeof s?.motivo === 'string' ? s.motivo : '' });
+    }
+    return { steps: out };
+  }
+
+  // ── Feature: Chat com o grafo ──────────────────────────────────────────────
+  async chatWithGraph(userId: string, grafoId: string, question: string, history: Array<{ role: 'user' | 'assistant'; content: string }> = []): Promise<{ answer: string; referencedNodes: Array<{ id: string; nome: string; tipo: string }> }> {
+    const graphNodes = await this.prisma.nodeConhecimento.findMany({
+      where: { grafoId, usuarioId: userId },
+      select: { tipoNode: true, referenciaId: true },
+    });
+    const ids: Record<string, string[]> = {};
+    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
+    const [topicos, conceitos, notas] = await Promise.all([
+      this.prisma.topico.findMany({ where: { id: { in: ids.TOPICO ?? [] } }, select: { id: true, nome: true, descricao: true } }),
+      this.prisma.conceito.findMany({ where: { id: { in: ids.CONCEITO ?? [] } }, select: { id: true, nome: true, descricao: true } }),
+      this.prisma.nota.findMany({ where: { id: { in: ids.NOTA ?? [] } }, select: { id: true, titulo: true, conteudo: true } }),
+    ]);
+    const allNodes = [
+      ...topicos.map(t => ({ id: t.id, tipo: 'TOPICO', nome: t.nome })),
+      ...conceitos.map(c => ({ id: c.id, tipo: 'CONCEITO', nome: c.nome })),
+    ];
+    const ctx = [
+      ...topicos.map(t => `[TÓPICO:${t.id}] ${t.nome}${t.descricao ? ': ' + t.descricao.slice(0, 200) : ''}`),
+      ...conceitos.map(c => `[CONCEITO:${c.id}] ${c.nome}${c.descricao ? ': ' + c.descricao.slice(0, 300) : ''}`),
+      ...notas.map(n => `[NOTA:${n.id}] ${n.titulo || 'Nota'}: ${(n.conteudo ?? '').slice(0, 500)}`),
+    ].join('\n\n');
+    const messages: any[] = [
+      { role: 'system', content: `Responda a pergunta do usuário baseado EXCLUSIVAMENTE no grafo de conhecimento abaixo. Seja direto. Responda em Markdown. Ao FINAL da resposta, em uma linha separada, inclua EXATAMENTE este JSON (sem markdown): {"referencedNodeIds":["id1","id2"]}\n\nGRAFO:\n${ctx.slice(0, 8000)}` },
+      ...history.slice(-6),
+      { role: 'user', content: question },
+    ];
+    const content = await this.callAI(userId, messages);
+    if (!content) return { answer: '', referencedNodes: [] };
+    const jsonMatch = content.match(/\{"referencedNodeIds"\s*:\s*\[[\s\S]*?\]\s*\}/);
+    let referencedIds: string[] = [];
+    let answer = content;
+    if (jsonMatch) {
+      try { referencedIds = JSON.parse(jsonMatch[0]).referencedNodeIds ?? []; } catch { }
+      answer = content.slice(0, content.lastIndexOf(jsonMatch[0])).trim();
+    }
+    const nodeById = new Map(allNodes.map(n => [n.id, n]));
+    const referencedNodes = referencedIds
+      .map(id => nodeById.get(id))
+      .filter((n): n is typeof allNodes[0] => !!n)
+      .map(n => ({ id: n.id, nome: n.nome, tipo: n.tipo }));
+    return { answer, referencedNodes };
+  }
+
+  // ── Feature: Avaliação de completude ───────────────────────────────────────
+  async assessCompleteness(userId: string, grafoId: string): Promise<{ assessments: Array<{ assuntoId: string; assuntoNome: string; score: number; wellCovered: string[]; shallow: string[]; missing: string[] }> }> {
+    const graphNodes = await this.prisma.nodeConhecimento.findMany({
+      where: { grafoId, usuarioId: userId },
+      select: { tipoNode: true, referenciaId: true },
+    });
+    const ids: Record<string, string[]> = {};
+    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
+    const [assuntos, topicos, conceitos] = await Promise.all([
+      this.prisma.assunto.findMany({ where: { id: { in: ids.ASSUNTO ?? [] } }, select: { id: true, nome: true } }),
+      this.prisma.topico.findMany({ where: { id: { in: ids.TOPICO ?? [] } }, select: { id: true, nome: true } }),
+      this.prisma.conceito.findMany({ where: { id: { in: ids.CONCEITO ?? [] } }, select: { id: true, nome: true } }),
+    ]);
+    if (!assuntos.length) return { assessments: [] };
+    const ctx = [
+      ...assuntos.map(a => `[ASSUNTO:${a.id}] ${a.nome}`),
+      ...topicos.map(t => `[TÓPICO] ${t.nome}`),
+      ...conceitos.map(c => `[CONCEITO] ${c.nome}`),
+    ].join('\n');
+    const content = await this.callAI(userId, [
+      { role: 'system', content: 'Avalie a COMPLETUDE do conhecimento para cada ASSUNTO listado. Score 0-10. JSON: {"assessments":[{"assuntoId":"...","score":7,"wellCovered":["tópico/conceito bem coberto"],"shallow":["área presente mas rasa"],"missing":["conceito importante AUSENTE"]}]} — wellCovered/shallow/missing: máx 6 itens cada, strings curtas.' },
+      { role: 'user', content: `GRAFO:\n${ctx.slice(0, 8000)}` },
+    ]);
+    let parsed: any;
+    try { parsed = JSON.parse(content ?? '{}'); } catch { return { assessments: [] }; }
+    const assuntoById = new Map(assuntos.map(a => [a.id, a]));
+    const out: Array<{ assuntoId: string; assuntoNome: string; score: number; wellCovered: string[]; shallow: string[]; missing: string[] }> = [];
+    for (const a of parsed?.assessments ?? []) {
+      const assunto = assuntoById.get(a?.assuntoId);
+      if (!assunto) continue;
+      const toStrArr = (v: any, max: number) => Array.isArray(v) ? v.filter((s: any) => typeof s === 'string').slice(0, max) : [];
+      out.push({
+        assuntoId: assunto.id,
+        assuntoNome: assunto.nome,
+        score: typeof a?.score === 'number' ? Math.min(10, Math.max(0, Math.round(a.score))) : 5,
+        wellCovered: toStrArr(a?.wellCovered, 6),
+        shallow: toStrArr(a?.shallow, 6),
+        missing: toStrArr(a?.missing, 6),
+      });
+    }
+    return { assessments: out };
+  }
+
+  // ── Feature: Mesclar duplicatas ────────────────────────────────────────────
+  async mergeDuplicateNodes(userId: string, grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }> {
+    const ncKeep = await this.prisma.nodeConhecimento.findFirst({
+      where: { grafoId, usuarioId: userId, referenciaId: keepId },
+      select: { id: true },
+    });
+    if (!ncKeep) throw new BadRequestException('Nó principal não encontrado');
+    let totalEdgesMoved = 0;
+    for (const deleteId of deleteIds) {
+      const ncDel = await this.prisma.nodeConhecimento.findFirst({
+        where: { grafoId, usuarioId: userId, referenciaId: deleteId },
+        select: { id: true },
+      });
+      if (!ncDel || ncDel.id === ncKeep.id) continue;
+      const [src, tgt] = await Promise.all([
+        this.prisma.conhecimentoAresta.updateMany({
+          where: { nodeOrigemId: ncDel.id, nodeDestinoId: { not: ncKeep.id } },
+          data: { nodeOrigemId: ncKeep.id },
+        }),
+        this.prisma.conhecimentoAresta.updateMany({
+          where: { nodeDestinoId: ncDel.id, nodeOrigemId: { not: ncKeep.id } },
+          data: { nodeDestinoId: ncKeep.id },
+        }),
+      ]);
+      totalEdgesMoved += src.count + tgt.count;
+      await this.prisma.conhecimentoAresta.deleteMany({
+        where: { OR: [{ nodeOrigemId: ncDel.id }, { nodeDestinoId: ncDel.id }] },
+      });
+      await this.graph.deleteNode(userId, grafoId, deleteId);
+    }
+    // Remove duplicate edges on keep node
+    const keepEdges = await this.prisma.conhecimentoAresta.findMany({
+      where: { OR: [{ nodeOrigemId: ncKeep.id }, { nodeDestinoId: ncKeep.id }] },
+      select: { id: true, nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true },
+      orderBy: { id: 'asc' },
+    });
+    const seen = new Set<string>();
+    const dupeIds: string[] = [];
+    for (const e of keepEdges) {
+      const key = `${e.nodeOrigemId}:${e.nodeDestinoId}:${e.tipoRelacao}`;
+      if (seen.has(key)) dupeIds.push(e.id);
+      else seen.add(key);
+    }
+    if (dupeIds.length > 0) {
+      await this.prisma.conhecimentoAresta.deleteMany({ where: { id: { in: dupeIds } } });
+    }
+    return { merged: deleteIds.length, edgesMoved: totalEdgesMoved };
   }
 
   // Gap Detection: sugere nós que poderiam conectar dois clusters sem arestas entre si.

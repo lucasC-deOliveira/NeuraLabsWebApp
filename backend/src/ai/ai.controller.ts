@@ -99,4 +99,32 @@ export class AiController {
   ) {
     return this.ai.addMissingPrerequisite(userId, grafoId, body.nome, body.tipo, body.connectToIds ?? []);
   }
+
+  @Post('graphs/:grafoId/learning-path')
+  learningPath(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
+    return this.ai.generateLearningPath(userId, grafoId);
+  }
+
+  @Post('graphs/:grafoId/chat')
+  chat(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { question: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> },
+  ) {
+    return this.ai.chatWithGraph(userId, grafoId, body.question ?? '', body.history ?? []);
+  }
+
+  @Post('graphs/:grafoId/assess-completeness')
+  assessCompleteness(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
+    return this.ai.assessCompleteness(userId, grafoId);
+  }
+
+  @Post('graphs/:grafoId/merge-duplicates')
+  mergeDuplicates(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { keepId: string; deleteIds: string[] },
+  ) {
+    return this.ai.mergeDuplicateNodes(userId, grafoId, body.keepId, body.deleteIds ?? []);
+  }
 }

@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
-import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, RouteIcon, MessageCircleIcon } from "lucide-react";
 import { CommunitiesPanel } from "@/components/graph/CommunitiesPanel";
 import { GapDetectionModal } from "@/components/graph/GapDetectionModal";
 import { GenerateGraphModal } from "@/components/graph/GenerateGraphModal";
@@ -16,6 +16,9 @@ import { AutoLinkModal } from "@/components/graph/AutoLinkModal";
 import { DuplicatesModal } from "@/components/graph/DuplicatesModal";
 import { CommunitySummaryModal } from "@/components/graph/CommunitySummaryModal";
 import { MissingPrereqsModal } from "@/components/graph/MissingPrereqsModal";
+import { LearningPathModal } from "@/components/graph/LearningPathModal";
+import { GraphChatModal } from "@/components/graph/GraphChatModal";
+import { CompletenessModal } from "@/components/graph/CompletenessModal";
 import { detectCommunities, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
 import { createBaralhoNode } from "@/lib/graph-api";
 
@@ -109,6 +112,9 @@ export default function GraphPage() {
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [missingPrereqsOpen, setMissingPrereqsOpen] = useState(false);
   const [communitySummary, setCommunitySummary] = useState<{ label: string; nodeIds: string[] } | null>(null);
+  const [learningPathOpen, setLearningPathOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [completenessOpen, setCompletenessOpen] = useState(false);
 
   // P3 — detecta comunidades a partir do layout atual
   const communities = useMemo<Community[]>(() => {
@@ -210,6 +216,9 @@ export default function GraphPage() {
     setAutoLinkOpen(false);
     setDuplicatesOpen(false);
     setMissingPrereqsOpen(false);
+    setLearningPathOpen(false);
+    setChatOpen(false);
+    setCompletenessOpen(false);
   };
 
   const handleOpenCreateNode = () => {
@@ -439,6 +448,18 @@ export default function GraphPage() {
 
         <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setMissingPrereqsOpen(v => !v); }} title="Detectar pré-requisitos faltantes">
           <GitBranchIcon className="size-4" />
+        </Button>
+
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setLearningPathOpen(v => !v); }} title="Trilha de aprendizado com IA">
+          <RouteIcon className="size-4" />
+        </Button>
+
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setChatOpen(v => !v); }} title="Chat com o grafo">
+          <MessageCircleIcon className="size-4" />
+        </Button>
+
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setCompletenessOpen(v => !v); }} title="Avaliar completude do conhecimento">
+          <BarChart2Icon className="size-4" />
         </Button>
 
         {desktopApp && (
@@ -836,6 +857,21 @@ export default function GraphPage() {
         grafoId={graphId}
         communityLabel={communitySummary?.label ?? ""}
         nodeIds={communitySummary?.nodeIds ?? []}
+      />
+      <LearningPathModal
+        open={learningPathOpen}
+        onOpenChange={setLearningPathOpen}
+        grafoId={graphId}
+      />
+      <GraphChatModal
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        grafoId={graphId}
+      />
+      <CompletenessModal
+        open={completenessOpen}
+        onOpenChange={setCompletenessOpen}
+        grafoId={graphId}
       />
       <EdgeManagerModal
         open={isEdgeManagerOpen}
