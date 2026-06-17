@@ -210,8 +210,14 @@ export function PropertiesPanel({
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3">
         {!selectedNode ? (
-          <div className="text-center text-muted-foreground text-sm py-8">
-            <p>Selecione um nó para ver suas propriedades</p>
+          <div className="flex flex-col items-center gap-3 text-center text-muted-foreground text-sm py-10">
+            <div className="size-10 rounded-full bg-violet-500/10 flex items-center justify-center">
+              <SparklesIcon className="size-5 text-violet-500" />
+            </div>
+            <p className="font-medium text-foreground">Selecione um nó</p>
+            <p className="text-xs leading-relaxed max-w-[180px]">
+              Clique em qualquer nó para ver suas propriedades e acessar o assistente de IA
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -264,7 +270,44 @@ export function PropertiesPanel({
 
             <Separator />
 
-            {/* Estudar vizinhança (ego network) — nós de conhecimento com flashcards na vizinhança */}
+            {/* ── Seção de IA ──────────────────────────────── */}
+            {(onGenerateInsights || onExpandNode) &&
+              ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA", "FLASHCARD"].includes(selectedNode.tipoReal) && (
+              <>
+                <div className="rounded-lg border border-violet-500/25 bg-violet-500/5 p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <SparklesIcon className="size-3.5 text-violet-500" />
+                    <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">
+                      IA
+                    </span>
+                  </div>
+                  {onGenerateInsights && (
+                    <Button
+                      size="sm"
+                      className="w-full gap-2 bg-violet-600 hover:bg-violet-700 text-white border-0"
+                      onClick={onGenerateInsights}
+                    >
+                      <SparklesIcon className="size-3.5" />
+                      Insights da IA
+                    </Button>
+                  )}
+                  {onExpandNode && ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA"].includes(selectedNode.tipoReal) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full gap-2 border-violet-500/40 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 hover:border-violet-500/60"
+                      onClick={onExpandNode}
+                    >
+                      <WandSparklesIcon className="size-3.5" />
+                      Expandir com IA
+                    </Button>
+                  )}
+                </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Estudar vizinhança (ego network) */}
             {onStudyNeighborhood &&
               ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA"].includes(selectedNode.tipoReal) && (
                 <>
@@ -277,40 +320,6 @@ export function PropertiesPanel({
                   >
                     <BookOpenIcon className="size-4" />
                     Estudar vizinhança
-                  </Button>
-                  <Separator />
-                </>
-              )}
-
-            {/* Insights da IA — disponível para os nós de conhecimento */}
-            {onGenerateInsights &&
-              ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA", "FLASHCARD"].includes(selectedNode.tipoReal) && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/10"
-                    onClick={onGenerateInsights}
-                  >
-                    <SparklesIcon className="size-4" />
-                    Insights da IA
-                  </Button>
-                  <Separator />
-                </>
-              )}
-
-            {/* Expandir nó com IA */}
-            {onExpandNode &&
-              ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA"].includes(selectedNode.tipoReal) && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/10"
-                    onClick={onExpandNode}
-                  >
-                    <WandSparklesIcon className="size-4" />
-                    Expandir com IA
                   </Button>
                   <Separator />
                 </>

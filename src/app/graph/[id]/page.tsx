@@ -8,7 +8,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
-import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, RouteIcon, MessageCircleIcon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, RouteIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { CommunitiesPanel } from "@/components/graph/CommunitiesPanel";
 import { GapDetectionModal } from "@/components/graph/GapDetectionModal";
 import { GenerateGraphModal } from "@/components/graph/GenerateGraphModal";
@@ -434,33 +442,76 @@ export default function GraphPage() {
           {gaps.length > 0 && <span className="text-xs">{gaps.length}</span>}
         </Button>
 
-        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setGenerateGraphOpen(v => !v); }} title="Gerar grafo a partir de texto">
-          <WandSparklesIcon className="size-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={
+            <Button variant="ghost" className="gap-1.5 text-violet-600 dark:text-violet-400 font-medium hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400">
+              <SparklesIcon className="size-4" />
+              IA
+              <ChevronDownIcon className="size-3 opacity-60" />
+            </Button>
+          } />
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuLabel>Construir</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => { closeToolbarModals(); setGenerateGraphOpen(true); }}>
+              <WandSparklesIcon className="size-4 shrink-0 text-violet-500" />
+              <div>
+                <div className="font-medium">Gerar grafo por texto</div>
+                <div className="text-[11px] text-muted-foreground">Cria nós a partir de qualquer material</div>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { closeToolbarModals(); setAutoLinkOpen(true); }}>
+              <Link2Icon className="size-4 shrink-0 text-violet-500" />
+              <div>
+                <div className="font-medium">Auto-conectar nós</div>
+                <div className="text-[11px] text-muted-foreground">Sugere arestas faltantes com IA</div>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { closeToolbarModals(); setMissingPrereqsOpen(true); }}>
+              <GitBranchIcon className="size-4 shrink-0 text-violet-500" />
+              <div>
+                <div className="font-medium">Pré-requisitos faltantes</div>
+                <div className="text-[11px] text-muted-foreground">Adiciona conceitos base que faltam</div>
+              </div>
+            </DropdownMenuItem>
 
-        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setAutoLinkOpen(v => !v); }} title="Auto-conectar nós relacionados com IA">
-          <Link2Icon className="size-4" />
-        </Button>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Analisar</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => { closeToolbarModals(); setCompletenessOpen(true); }}>
+              <GaugeIcon className="size-4 shrink-0 text-violet-500" />
+              <div>
+                <div className="font-medium">Completude do conhecimento</div>
+                <div className="text-[11px] text-muted-foreground">Score por assunto com lacunas</div>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { closeToolbarModals(); setLearningPathOpen(true); }}>
+              <RouteIcon className="size-4 shrink-0 text-violet-500" />
+              <div>
+                <div className="font-medium">Trilha de aprendizado</div>
+                <div className="text-[11px] text-muted-foreground">Sequência do básico ao avançado</div>
+              </div>
+            </DropdownMenuItem>
 
-        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setDuplicatesOpen(v => !v); }} title="Detectar nós duplicados">
-          <CopyIcon className="size-4" />
-        </Button>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Limpar</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => { closeToolbarModals(); setDuplicatesOpen(true); }}>
+              <CopyIcon className="size-4 shrink-0 text-violet-500" />
+              <div>
+                <div className="font-medium">Detectar duplicatas</div>
+                <div className="text-[11px] text-muted-foreground">Identifica e mescla nós equivalentes</div>
+              </div>
+            </DropdownMenuItem>
 
-        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setMissingPrereqsOpen(v => !v); }} title="Detectar pré-requisitos faltantes">
-          <GitBranchIcon className="size-4" />
-        </Button>
-
-        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setLearningPathOpen(v => !v); }} title="Trilha de aprendizado com IA">
-          <RouteIcon className="size-4" />
-        </Button>
-
-        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setChatOpen(v => !v); }} title="Chat com o grafo">
-          <MessageCircleIcon className="size-4" />
-        </Button>
-
-        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setCompletenessOpen(v => !v); }} title="Avaliar completude do conhecimento">
-          <BarChart2Icon className="size-4" />
-        </Button>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Explorar</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => { closeToolbarModals(); setChatOpen(true); }}>
+              <MessageCircleIcon className="size-4 shrink-0 text-violet-500" />
+              <div>
+                <div className="font-medium">Chat com o grafo</div>
+                <div className="text-[11px] text-muted-foreground">Pergunte sobre seu conhecimento</div>
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {desktopApp && (
           <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setIsVaultOpen(true); }} title="Sincronizar com vault Markdown">
