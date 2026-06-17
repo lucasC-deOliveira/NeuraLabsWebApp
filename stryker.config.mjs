@@ -9,6 +9,9 @@ export default {
   // Skipping DB/IO-heavy server actions (false-negative rate is too high there).
   mutate: [
     "src/lib/vault-format.ts",
+    "src/lib/graph-communities.ts",
+    "src/lib/graph-metrics.ts",
+    "src/lib/srs-local.ts",
     "src/modules/graph/domain/services/relation-rules.ts",
     "src/modules/graph/domain/services/roadmap.service.ts",
     "src/modules/graph/domain/selectors/graph.selectors.ts",

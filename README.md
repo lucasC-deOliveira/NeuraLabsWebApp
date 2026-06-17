@@ -10,6 +10,10 @@ Flashcards inteligentes com grafo de conhecimento e notas Zettelkasten. Crie car
 - **Fase de elaboração** durante o estudo — o usuário escreve a resposta com as próprias palavras antes de ver o gabarito
 - **Grafo de conhecimento interativo** — visualiza assuntos, tópicos, conceitos, notas e flashcards como nós conectados por relações tipadas
 - **Insights de nó por IA** — sugere conexões, lacunas e aprofundamentos para qualquer nó do grafo
+- **Análise de comunidades** — detecta automaticamente clusters de nós com mais conexões internas do que externas (Label Propagation); botão de rede na toolbar exibe os clusters e permite criar baralhos a partir deles
+- **Detecção de lacunas estruturais** — identifica pares de clusters sem nenhuma aresta entre si; IA sugere 4–6 nós (CONCEITO ou NOTA) que poderiam fazer a ponte; overlay visual no grafo com linhas tracejadas entre os nós mais próximos de cada cluster desconectado
+- **Centralidade de betweenness** — calcula quais nós são pontes estratégicas entre clusters (algoritmo de Brandes); exposto no dashboard de analytics do grafo
+- **Estudo por vizinhança (ego network)** — botão "Estudar vizinhança" no painel de propriedades de qualquer nó: coleta todos os flashcards a até N saltos de distância e abre uma sessão de estudo focada naquele contexto
 - **Notas Zettelkasten** com suporte a Markdown e geração de cartões inline
 - **Dashboard** com cartões para revisar hoje, taxa de acerto e histórico de sessões
 - **Vault sync** — exporta e importa notas em `.md` para uso com Obsidian ou qualquer editor externo; cada grafo tem sua própria subpasta (`<slug>--<id>/`) com estrutura PARA isolada; Pull detecta conflitos com edições locais antes de sobrescrever; layout do grafo usa posições salvas — novos nós do vault assentam entre os existentes sem embaralhar o mapa; timestamps do último Pull/Push visíveis no modal
@@ -93,6 +97,18 @@ Ao gerar cartões a partir de uma nota, o backend aplica duas estratégias em se
 
 Os nós podem ser de 7 tipos: `ASSUNTO`, `TOPICO`, `CONCEITO`, `NOTA`, `FLASHCARD`, `TEXTO_BRUTO`, `BARALHO`. As relações entre eles seguem regras tipadas (ex: um `TOPICO` pertence a um `ASSUNTO`; um `CONCEITO` pode ter relação `APROFUNDA`, `CONTRASTA`, `DEPENDE_DE`, etc.). O layout usa força física via `@xyflow/react`.
 
+### Análise de grafo (inspirado no InfraNodus)
+
+Quatro ferramentas de análise de rede acessíveis pela toolbar do grafo:
+
+**Comunidades** (ícone de rede): executa Label Propagation no grafo atual e agrupa nós em clusters. Cada cluster recebe uma cor e exibe quantos flashcards contém. Botão "Criar baralho" gera um `BARALHO` com os flashcards do cluster.
+
+**Lacunas estruturais** (ícone de raio): detecta pares de clusters sem nenhuma aresta entre si. Para cada lacuna, exibe os nós mais próximos de cada lado ("pontes potenciais") e oferece o botão "Preencher com IA", que chama o LLM configurado pedindo 4–6 sugestões de novos nós que conectariam os clusters. As sugestões podem ser selecionadas individualmente antes de adicionar ao grafo.
+
+**Betweenness centrality**: calculada com o algoritmo de Brandes (O(VE)) e exibida no painel de Analytics → seção "Nós-ponte". Nós com score alto são aqueles cuja remoção mais desconectaria o grafo.
+
+**Estudar vizinhança**: disponível no painel de propriedades de qualquer nó (tipos ASSUNTO / TOPICO / CONCEITO / NOTA). Faz um BFS a partir do nó selecionado até a profundidade configurada no focusDepth e coleta os IDs de todos os FLASHCARDs alcançados. Abre uma sessão de estudo SRS com esses cards, sem precisar criar um baralho manualmente.
+
 ### Visualização VR/AR (Meta Quest 3)
 
 A rota `/vr/:id` carrega o grafo numa cena Three.js com suporte a WebXR. Use o botão com ícone de globo na toolbar do grafo 2D para entrar. No Quest 3:
@@ -136,9 +152,17 @@ flashcard-app/
 ## Testes
 
 ```bash
-# Frontend
+# Frontend — unitários e integração
 npm run test
+
+# Frontend — com cobertura
+npm run test -- --coverage
+
+# Testes de mutação (Stryker) — verifica a qualidade dos testes
+npm run test:mutation
 
 # Backend
 cd backend && npm run test
 ```
+
+Os testes de mutação cobrem os módulos de lógica pura: `vault-format`, `graph-communities`, `graph-metrics`, `srs-local`, `relation-rules`, `roadmap.service`, `graph.selectors`, `graph-style.service`, `graph-physics.service`, `force-layout.engine` e `card-styles`. O relatório HTML é gerado em `reports/mutation/index.html`.

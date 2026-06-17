@@ -86,6 +86,7 @@ interface PropertiesPanelProps {
   onViewFlashcard?: () => void;
   onStudyDeck?: () => void;
   onViewDeck?: () => void;
+  onStudyNeighborhood?: () => void;
   onGenerateInsights?: () => void;
   onSelectNode?: (nodeId: string) => void;
   grafoId?: string;
@@ -113,6 +114,7 @@ export function PropertiesPanel({
   onViewFlashcard,
   onStudyDeck,
   onViewDeck,
+  onStudyNeighborhood,
   onGenerateInsights,
   onSelectNode,
   grafoId,
@@ -258,6 +260,24 @@ export function PropertiesPanel({
             </div>
 
             <Separator />
+
+            {/* Estudar vizinhança (ego network) — nós de conhecimento com flashcards na vizinhança */}
+            {onStudyNeighborhood &&
+              ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA"].includes(selectedNode.tipoReal) && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/10"
+                    onClick={onStudyNeighborhood}
+                    title="Estuda os flashcards conectados a este nó e seus vizinhos"
+                  >
+                    <BookOpenIcon className="size-4" />
+                    Estudar vizinhança
+                  </Button>
+                  <Separator />
+                </>
+              )}
 
             {/* Insights da IA — disponível para os nós de conhecimento */}
             {onGenerateInsights &&

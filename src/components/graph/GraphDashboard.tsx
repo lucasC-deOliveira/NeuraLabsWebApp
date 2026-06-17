@@ -19,7 +19,7 @@ const SECTION_TITLE = "text-[11px] font-semibold uppercase tracking-wider text-m
 
 function KpiCard({ label, value, sub, icon: Icon, color = "text-foreground" }: {
   label: string; value: string | number; sub?: string;
-  icon: React.ElementType; color?: string;
+  icon: React.ComponentType<{ className?: string }>; color?: string;
 }) {
   return (
     <div className="flex-1 min-w-0 rounded-lg border bg-card px-3 py-2 flex flex-col gap-0.5">

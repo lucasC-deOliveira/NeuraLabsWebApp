@@ -8,7 +8,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
-import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon } from "lucide-react";
+import { CommunitiesPanel } from "@/components/graph/CommunitiesPanel";
+import { GapDetectionModal } from "@/components/graph/GapDetectionModal";
+import { GenerateGraphModal } from "@/components/graph/GenerateGraphModal";
+import { detectCommunities, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
+import { createBaralhoNode } from "@/lib/graph-api";
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
@@ -88,6 +93,71 @@ export default function GraphPage() {
   const [dashFilterIds, setDashFilterIds] = useState<Set<string> | null>(null);
   const [roadmapSpotlightId, setRoadmapSpotlightId] = useState<string | null>(null);
 
+  // P3 — Comunidades / P1 — Lacunas / P4 — Ego Network (estados declarados antes dos useMemos que os usam)
+  const [communitiesOpen, setCommunitiesOpen] = useState(false);
+  const [gapsOpen, setGapsOpen] = useState(false);
+  const [highlightedCommunityId, setHighlightedCommunityId] = useState<string | null>(null);
+  const [highlightedGap, setHighlightedGap] = useState<StructuralGap | null>(null);
+  const [neighborhoodStudyIds, setNeighborhoodStudyIds] = useState<string[] | null>(null);
+  const [generateGraphOpen, setGenerateGraphOpen] = useState(false);
+
+  // P3 — detecta comunidades a partir do layout atual
+  const communities = useMemo<Community[]>(() => {
+    if (controller.state.layout.length < 3) return [];
+    return detectCommunities(controller.state.layout, controller.state.edges);
+  }, [controller.state.layout, controller.state.edges]);
+
+  // P1 — detecta lacunas entre comunidades
+  const gaps = useMemo<StructuralGap[]>(
+    () => detectGaps(communities, controller.state.edges),
+    [communities, controller.state.edges],
+  );
+
+  // P5 — coordenadas das pontes para overlay no renderer
+  const gapBridges = useMemo(
+    () => gapsOpen
+      ? gaps.map(g => ({ x1: g.bridgeA.x, y1: g.bridgeA.y, x2: g.bridgeB.x, y2: g.bridgeB.y, colorA: g.communityA.color, colorB: g.communityB.color }))
+      : [],
+    [gaps, gapsOpen],
+  );
+
+  // Ids da comunidade em hover para destacar no renderer
+  const highlightedCommunityNodeIds = useMemo<Set<string> | null>(() => {
+    if (highlightedCommunityId) {
+      const c = communities.find(c => c.id === highlightedCommunityId);
+      return c ? new Set(c.nodes.map(n => n.id)) : null;
+    }
+    if (highlightedGap) {
+      return new Set([
+        ...highlightedGap.communityA.nodes.map(n => n.id),
+        ...highlightedGap.communityB.nodes.map(n => n.id),
+      ]);
+    }
+    return null;
+  }, [highlightedCommunityId, highlightedGap, communities]);
+
+  // P4 — BFS a partir do nó selecionado para coletar IDs de FLASHCARDs vizinhos
+  const getNeighborhoodFlashcardIds = (nodeId: string, depth: number): string[] => {
+    const adj = new Map<string, string[]>();
+    for (const e of controller.state.edges) {
+      (adj.get(e.source) ?? (adj.set(e.source, []), adj.get(e.source)!)).push(e.target);
+      (adj.get(e.target) ?? (adj.set(e.target, []), adj.get(e.target)!)).push(e.source);
+    }
+    const dist = new Map<string, number>([[nodeId, 0]]);
+    const queue: string[] = [nodeId];
+    let head = 0;
+    while (head < queue.length) {
+      const cur = queue[head++];
+      const d = dist.get(cur)!;
+      if (d >= depth) continue;
+      for (const nb of adj.get(cur) ?? []) {
+        if (!dist.has(nb)) { dist.set(nb, d + 1); queue.push(nb); }
+      }
+    }
+    const nodeMap = new Map(controller.state.layout.map(n => [n.id, n]));
+    return [...dist.keys()].filter(id => nodeMap.get(id)?.group === "FLASHCARD");
+  };
+
   const combinedMatchedIds = useMemo(() => {
     const a = dashFilterIds;
     const b = search.matchedIds;
@@ -127,6 +197,7 @@ export default function GraphPage() {
     setIsSettingsOpen(false);
     setIsEdgeManagerOpen(false);
     setRoadmapOpen(false);
+    setGenerateGraphOpen(false);
   };
 
   const handleOpenCreateNode = () => {
@@ -333,6 +404,19 @@ export default function GraphPage() {
           <BarChart2Icon className="size-4" />
         </Button>
 
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setCommunitiesOpen(v => !v); }} title={`Comunidades detectadas (${communities.length})`}>
+          <NetworkIcon className="size-4" />
+        </Button>
+
+        <Button variant="ghost" className={`gap-1.5 ${gaps.length > 0 ? "text-amber-500" : "text-primary"}`} onClick={() => { closeToolbarModals(); setGapsOpen(v => !v); }} title={`Lacunas estruturais (${gaps.length})`}>
+          <ZapIcon className="size-4" />
+          {gaps.length > 0 && <span className="text-xs">{gaps.length}</span>}
+        </Button>
+
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setGenerateGraphOpen(v => !v); }} title="Gerar grafo a partir de texto">
+          <WandSparklesIcon className="size-4" />
+        </Button>
+
         {desktopApp && (
           <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setIsVaultOpen(true); }} title="Sincronizar com vault Markdown">
             <FolderTreeIcon className="size-4" /> Vault
@@ -422,6 +506,8 @@ export default function GraphPage() {
               focusMode={focusMode}
               focusDepth={focusDepth}
               matchedIds={combinedMatchedIds}
+              gapBridges={gapBridges}
+              highlightedCommunityIds={highlightedCommunityNodeIds}
               onNodeClick={controller.actions.selectNode}
               onNodeContextMenu={(node, x, y) => setNodeMenu({ node, x, y })}
               onNodeHover={controller.actions.setHoveredNodeId}
@@ -470,6 +556,13 @@ export default function GraphPage() {
           onViewFlashcard={() => setViewFlashcardId(controller.state.selectedNode?.id ?? null)}
           onStudyDeck={() => setStudyDeckId(controller.state.selectedNode?.id ?? null)}
           onViewDeck={() => setViewDeckId(controller.state.selectedNode?.id ?? null)}
+          onStudyNeighborhood={() => {
+            const node = controller.state.selectedNode;
+            if (!node) return;
+            const ids = getNeighborhoodFlashcardIds(node.id, focusDepth);
+            if (ids.length === 0) { toast.error("Nenhum flashcard na vizinhança."); return; }
+            setNeighborhoodStudyIds(ids);
+          }}
           onGenerateInsights={() => setInsightsNode(controller.state.selectedNode ?? null)}
           onSelectNode={(nodeId) => {
             const node = controller.state.layout.find((n) => n.id === nodeId);
@@ -639,6 +732,43 @@ export default function GraphPage() {
         baralhoId={viewDeckId}
         grafoId={graphId}
         grafoNome={controller.state.grafoNome}
+      />
+      <CommunitiesPanel
+        open={communitiesOpen}
+        onOpenChange={setCommunitiesOpen}
+        communities={communities}
+        onCreateDeck={async (community) => {
+          const ids = community.nodes.filter(n => n.group === "FLASHCARD").map(n => n.id);
+          try {
+            await createBaralhoNode(graphId, `Baralho — ${community.label}`, ids);
+            await refreshGraph();
+            toast.success("Baralho criado!");
+          } catch { toast.error("Erro ao criar baralho."); }
+        }}
+        onHighlightCommunity={setHighlightedCommunityId}
+      />
+      <GapDetectionModal
+        open={gapsOpen}
+        onOpenChange={setGapsOpen}
+        grafoId={graphId}
+        gaps={gaps}
+        onAdded={refreshGraph}
+        onHighlightGap={setHighlightedGap}
+      />
+      <StudyDeckModal
+        open={!!neighborhoodStudyIds}
+        onOpenChange={(open) => { if (!open) { setNeighborhoodStudyIds(null); refreshGraph(); } }}
+        baralhoId={null}
+        grafoId={graphId}
+        grafoNome={controller.state.grafoNome}
+        customFlashcardIds={neighborhoodStudyIds ?? undefined}
+        customTitulo={`Vizinhança: ${controller.state.selectedNode?.label ?? ""}`}
+      />
+      <GenerateGraphModal
+        open={generateGraphOpen}
+        onOpenChange={setGenerateGraphOpen}
+        grafoId={graphId}
+        onGenerated={refreshGraph}
       />
       <EdgeManagerModal
         open={isEdgeManagerOpen}

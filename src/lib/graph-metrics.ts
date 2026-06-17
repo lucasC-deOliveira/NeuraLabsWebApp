@@ -19,6 +19,9 @@ export interface GraphMetrics {
   degreeHistogram: { bucket: string; count: number }[];
   topHubs: { id: string; label: string; group: string; degree: number; centrality: number }[];
 
+  // betweenness centrality — nós que fazem ponte entre clusters
+  betweennessTop: { id: string; label: string; group: string; score: number }[];
+
   // maestria
   dominioByType: { type: string; label: string; dominio: number; color: string }[];
 
@@ -47,6 +50,49 @@ export const TYPE_COLORS: Record<string, string> = {
   TEXTO_BRUTO: "#475569",
   BARALHO:     "#ea580c",
 };
+
+// Betweenness centrality (Brandes algorithm, O(VE)) — score normalizado 0-1.
+// Identifica nós que servem de ponte entre clusters: removê-los desconecta partes do grafo.
+export function computeBetweenness(nodes: SimNode[], edges: GraphEdgeType[]): Map<string, number> {
+  const N = nodes.length;
+  if (N < 3) return new Map(nodes.map(n => [n.id, 0]));
+
+  const idx = new Map(nodes.map((n, i) => [n.id, i]));
+  const adj: number[][] = Array.from({ length: N }, () => []);
+  for (const e of edges) {
+    const s = idx.get(e.source);
+    const t = idx.get(e.target);
+    if (s !== undefined && t !== undefined) { adj[s].push(t); adj[t].push(s); }
+  }
+
+  const betw = new Float64Array(N);
+  for (let s = 0; s < N; s++) {
+    const stack: number[] = [];
+    const pred: number[][] = Array.from({ length: N }, () => []);
+    const sigma = new Float64Array(N);
+    sigma[s] = 1;
+    const dist = new Int32Array(N).fill(-1);
+    dist[s] = 0;
+    const queue = [s];
+    while (queue.length) {
+      const v = queue.shift()!;
+      stack.push(v);
+      for (const w of adj[v]) {
+        if (dist[w] < 0) { dist[w] = dist[v] + 1; queue.push(w); }
+        if (dist[w] === dist[v] + 1) { sigma[w] += sigma[v]; pred[w].push(v); }
+      }
+    }
+    const delta = new Float64Array(N);
+    while (stack.length) {
+      const w = stack.pop()!;
+      for (const v of pred[w]) delta[v] += (sigma[v] / sigma[w]) * (1 + delta[w]);
+      if (w !== s) betw[w] += delta[w];
+    }
+  }
+
+  const norm = N > 2 ? ((N - 1) * (N - 2)) / 2 : 1;
+  return new Map(nodes.map((n, i) => [n.id, betw[i] / norm]));
+}
 
 export function computeGraphMetrics(nodes: SimNode[], edges: GraphEdgeType[]): GraphMetrics {
   const N = nodes.length;
@@ -93,6 +139,13 @@ export function computeGraphMetrics(nodes: SimNode[], edges: GraphEdgeType[]): G
   const topHubs = nodes
     .map(n => ({ id: n.id, label: n.label, group: n.group, degree: degMap.get(n.id) ?? 0, centrality: N > 1 ? (degMap.get(n.id) ?? 0) / (N - 1) : 0 }))
     .sort((a, b) => b.degree - a.degree)
+    .slice(0, 8);
+
+  // ---- betweenness centrality: top 8 por score ----
+  const betwMap = computeBetweenness(nodes, edges);
+  const betweennessTop = nodes
+    .map(n => ({ id: n.id, label: n.label, group: n.group, score: betwMap.get(n.id) ?? 0 }))
+    .sort((a, b) => b.score - a.score)
     .slice(0, 8);
 
   // ---- maestria média por tipo ----
@@ -171,6 +224,7 @@ export function computeGraphMetrics(nodes: SimNode[], edges: GraphEdgeType[]): G
     edgesByType,
     degreeHistogram,
     topHubs,
+    betweennessTop,
     dominioByType,
     radarData,
     scatter,

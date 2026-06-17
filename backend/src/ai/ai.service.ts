@@ -368,4 +368,169 @@ ${conceptContext}`,
     }
     return out;
   }
+
+  // Gera grafo completo (ASSUNTO → TOPICOs → CONCEITOs → NOTAs + FLASHCARDs + BARALHO) a partir de texto bruto.
+  async generateGraphFromText(
+    userId: string,
+    grafoId: string,
+    rawText: string,
+  ): Promise<{ assunto: string; topicos: number; conceitos: number; notas: number; flashcards: number; baralho: string | null }> {
+    if (!rawText.trim()) throw new BadRequestException('Texto não pode estar vazio');
+
+    const content = await this.callAI(userId, [
+      {
+        role: 'system',
+        content: `Você é especialista em organização curricular. A partir de um texto bruto, gere um grafo de conhecimento completo e hierárquico.
+Responda APENAS JSON válido (sem markdown, sem blocos de código):
+{
+  "assunto": { "nome": "...", "descricao": "..." },
+  "topicos": [
+    {
+      "nome": "...",
+      "descricao": "...",
+      "conceitos": [
+        {
+          "nome": "...",
+          "descricao": "...",
+          "nota": { "titulo": "...", "conteudo": "explicação detalhada em Markdown" },
+          "flashcards": [
+            { "pergunta": "...", "resposta": "..." }
+          ]
+        }
+      ]
+    }
+  ],
+  "baralho": "Nome do baralho de estudo"
+}
+Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por tópico; 1 NOTA por conceito com explicação detalhada; 1-3 FLASHCARDs por conceito com pergunta e resposta claras.`,
+      },
+      { role: 'user', content: rawText.slice(0, 15000) },
+    ]);
+
+    if (!content) throw new BadRequestException('A IA não retornou conteúdo.');
+    let parsed: any;
+    try { parsed = JSON.parse(content); } catch { throw new BadRequestException('A IA retornou JSON inválido.'); }
+
+    const assuntoNome = String(parsed?.assunto?.nome || 'Assunto').trim() || 'Assunto';
+    const assuntoRes = await this.graph.createNode(userId, grafoId, {
+      tipoNode: 'ASSUNTO',
+      nome: assuntoNome,
+      descricao: String(parsed?.assunto?.descricao || ''),
+    });
+    const assuntoId = assuntoRes.nodeId;
+
+    let topicoCount = 0;
+    let conceitoCount = 0;
+    let notaCount = 0;
+    let flashcardCount = 0;
+    const allFlashcardIds: string[] = [];
+
+    for (const t of (Array.isArray(parsed?.topicos) ? parsed.topicos : []).slice(0, 8)) {
+      const topicoNome = String(t?.nome || '').trim();
+      if (!topicoNome) continue;
+      const topicoRes = await this.graph.createNode(userId, grafoId, {
+        tipoNode: 'TOPICO',
+        nome: topicoNome,
+        descricao: String(t?.descricao || ''),
+      });
+      const topicoId = topicoRes.nodeId;
+      topicoCount++;
+      try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: topicoId, targetNodeId: assuntoId, tipoRelacao: 'PERTENCE_A' }); } catch { /* ignore */ }
+
+      for (const c of (Array.isArray(t?.conceitos) ? t.conceitos : []).slice(0, 6)) {
+        const conceitoNome = String(c?.nome || '').trim();
+        if (!conceitoNome) continue;
+        const conceitoRes = await this.graph.createNode(userId, grafoId, {
+          tipoNode: 'CONCEITO',
+          nome: conceitoNome,
+          descricao: String(c?.descricao || ''),
+        });
+        const conceitoId = conceitoRes.nodeId;
+        conceitoCount++;
+        try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: conceitoId, targetNodeId: topicoId, tipoRelacao: 'PERTENCE_A' }); } catch { /* ignore */ }
+
+        if (c?.nota?.titulo) {
+          const notaTitulo = String(c.nota.titulo).trim();
+          if (notaTitulo) {
+            try {
+              const notaRes = await this.graph.createNode(userId, grafoId, {
+                tipoNode: 'NOTA',
+                titulo: notaTitulo,
+                conteudo: String(c.nota.conteudo || ''),
+                subtipo: 'EXPLICACAO',
+                tipoNota: 'PERMANENTE',
+              });
+              notaCount++;
+              try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: notaRes.nodeId, targetNodeId: conceitoId, tipoRelacao: 'EXPLICA' }); } catch { /* ignore */ }
+            } catch { /* ignore */ }
+          }
+        }
+
+        for (const fc of (Array.isArray(c?.flashcards) ? c.flashcards : []).slice(0, 4)) {
+          const pergunta = String(fc?.pergunta || '').trim();
+          const resposta = String(fc?.resposta || '').trim();
+          if (!pergunta || !resposta) continue;
+          try {
+            const fcRes = await this.graph.createNode(userId, grafoId, { tipoNode: 'FLASHCARD', pergunta, resposta });
+            flashcardCount++;
+            allFlashcardIds.push(fcRes.nodeId);
+            try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: fcRes.nodeId, targetNodeId: conceitoId, tipoRelacao: 'HERDA' }); } catch { /* ignore */ }
+          } catch { /* ignore */ }
+        }
+      }
+    }
+
+    let baralhoNome: string | null = null;
+    if (allFlashcardIds.length > 0) {
+      baralhoNome = String(parsed?.baralho || assuntoNome).trim() || assuntoNome;
+      try { await this.graph.createBaralho(userId, grafoId, baralhoNome, allFlashcardIds); } catch { /* ignore */ }
+    }
+
+    return { assunto: assuntoNome, topicos: topicoCount, conceitos: conceitoCount, notas: notaCount, flashcards: flashcardCount, baralho: baralhoNome };
+  }
+
+  // Gap Detection: sugere nós que poderiam conectar dois clusters sem arestas entre si.
+  async suggestGapFill(
+    userId: string,
+    grafoId: string,
+    body: { labelsA: string[]; labelsB: string[]; bridgeA: string; bridgeB: string },
+  ): Promise<{ insights: NodeInsight[] }> {
+    const { labelsA, labelsB, bridgeA, bridgeB } = body;
+    if (!labelsA.length || !labelsB.length) return { insights: [] };
+
+    const targets = [
+      { tipo: 'CONCEITO', relacoes: getAllowedRelations('CONCEITO', 'CONCEITO') },
+      { tipo: 'NOTA',     relacoes: getAllowedRelations('NOTA', 'CONCEITO') },
+    ];
+    const targetsDesc = targets.map(t => `- tipoNo "${t.tipo}" → relações: ${t.relacoes.join(', ')}`).join('\n');
+
+    const content = await this.callAI(userId, [
+      {
+        role: 'system',
+        content: `Você analisa dois clusters de um grafo de conhecimento que NÃO têm nenhuma conexão entre si — isso é uma lacuna estrutural (structural gap). Sugira 4-6 novos nós (conceitos ou notas) que poderiam criar pontes intelectuais entre eles.\nCada nó sugerido deve: (1) relacionar-se semanticamente com ambos os clusters; (2) usar tipoNo e relacao SOMENTE dos combos válidos:\n${targetsDesc}\nResponda em JSON: {"insights":[{"categoria":"Lacuna","titulo":"...","descricao":"...","tipoNo":"...","relacao":"..."}]}`,
+      },
+      {
+        role: 'user',
+        content: `CLUSTER A (${labelsA.length} nós): ${labelsA.slice(0, 20).join(', ')}\nNó de borda de A mais próximo de B: "${bridgeA}"\n\nCLUSTER B (${labelsB.length} nós): ${labelsB.slice(0, 20).join(', ')}\nNó de borda de B mais próximo de A: "${bridgeB}"`,
+      },
+    ]);
+
+    let parsed: any;
+    try { parsed = JSON.parse(content ?? '{}'); } catch { return { insights: [] }; }
+
+    const insights: NodeInsight[] = [];
+    for (const i of parsed?.insights ?? []) {
+      const titulo = typeof i?.titulo === 'string' ? i.titulo.trim() : '';
+      if (!titulo) continue;
+      insights.push({
+        categoria: 'Lacuna',
+        titulo,
+        descricao: typeof i?.descricao === 'string' ? i.descricao.trim() : '',
+        tipoNo: typeof i?.tipoNo === 'string' ? i.tipoNo : 'CONCEITO',
+        relacao: typeof i?.relacao === 'string' ? i.relacao : 'RELACIONADO',
+      });
+      if (insights.length >= 6) break;
+    }
+    return { insights };
+  }
 }

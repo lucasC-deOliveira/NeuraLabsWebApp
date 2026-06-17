@@ -33,6 +33,9 @@ interface StudyDeckModalProps {
   baralhoId: string | null;
   grafoId?: string;
   grafoNome?: string;
+  // Modo ego network: estuda estes flashcard IDs em vez de um baralho
+  customFlashcardIds?: string[];
+  customTitulo?: string;
 }
 
 interface QueueCard extends FlashcardData {
@@ -48,7 +51,7 @@ const GRADE_BUTTONS: Array<{ grade: ReviewGrade; label: string; sublabel: string
   { grade: "easy",  label: "Fácil",    sublabel: "mais dias",className: "border-green-500/50 text-green-600 hover:bg-green-500/10 dark:text-green-400" },
 ];
 
-export function StudyDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNome }: StudyDeckModalProps) {
+export function StudyDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNome, customFlashcardIds, customTitulo }: StudyDeckModalProps) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [titulo, setTitulo] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -61,7 +64,7 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNo
   const finalizedRef = useRef(false);
 
   useEffect(() => {
-    if (!open || !baralhoId) return;
+    if (!open || (!baralhoId && !customFlashcardIds)) return;
     let active = true;
 
     setPhase("loading");
@@ -73,6 +76,48 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNo
     finalizedRef.current = false;
 
     async function load() {
+      // Modo ego network: flashcards customizados (apenas desktop)
+      if (customFlashcardIds && customFlashcardIds.length > 0) {
+        if (!isDesktop() || !grafoId || !grafoNome) {
+          if (active) setPhase("error");
+          return;
+        }
+        const vaultDir = await desktop.vault.getPath().catch(() => null);
+        if (!vaultDir) { if (active) setPhase("error"); return; }
+        const dir = graphVaultDir(vaultDir, grafoId, grafoNome);
+
+        const [vaultNodes, srsLog] = await Promise.all([
+          readAllVaultNodes(grafoId, grafoNome),
+          readSrsLog(dir),
+        ]);
+        const nodeById = new Map(vaultNodes.map((n) => [n.id, n]));
+        const dueCards: QueueCard[] = customFlashcardIds
+          .map((id) => nodeById.get(id))
+          .filter((n) => n && n.tipo === "FLASHCARD" && isDue(srsLog.schedule[n.id]))
+          .map((n) => ({
+            id: n!.id,
+            pergunta: n!.pergunta ?? "",
+            resposta: n!.resposta ?? "",
+            conceito: null,
+            schedule: srsLog.schedule[n!.id] ?? null,
+          }));
+
+        if (!active) return;
+        setTitulo(customTitulo ?? "Vizinhança");
+        setTotalNoDeck(customFlashcardIds.length);
+        setGraphDir(dir);
+
+        if (dueCards.length === 0) { setPhase("complete"); return; }
+
+        const sessId = await startLocalSession(dir, "neighborhood-" + Date.now());
+        if (!active) { finalizeLocalSession(dir, sessId).catch(() => {}); return; }
+        setSessionId(sessId);
+        setQueue(dueCards);
+        setStartedAt(Date.now());
+        setPhase("question");
+        return;
+      }
+
       if (isDesktop() && grafoId && grafoNome) {
         const vaultDir = await desktop.vault.getPath().catch(() => null);
         if (!vaultDir) { if (active) setPhase("error"); return; }

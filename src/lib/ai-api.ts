@@ -47,6 +47,25 @@ export function generateNodeInsights(grafoId: string, nodeId: string): Promise<N
   return apiFetch(`/ai/graph/graphs/${grafoId}/nodes/${nodeId}/insights`, { method: "POST" });
 }
 
+export function suggestGapFill(
+  grafoId: string,
+  body: { labelsA: string[]; labelsB: string[]; bridgeA: string; bridgeB: string },
+): Promise<{ insights: NodeInsight[] }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/gap-suggestions`, { method: "POST", body: JSON.stringify(body) });
+}
+
+export interface GenerateGraphResult {
+  assunto: string;
+  topicos: number;
+  conceitos: number;
+  notas: number;
+  flashcards: number;
+  baralho: string | null;
+}
+export function generateGraphFromText(grafoId: string, rawText: string): Promise<GenerateGraphResult> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/generate-graph`, { method: "POST", body: JSON.stringify({ rawText }) });
+}
+
 export function addInsightsToGraph(
   grafoId: string,
   sourceNodeId: string,

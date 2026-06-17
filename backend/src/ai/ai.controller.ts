@@ -42,4 +42,18 @@ export class AiController {
   saveSelectedNotas(@CurrentUser() userId: string, @Body() body: { candidatas: Array<{ titulo: string; conteudo: string }> }) {
     return this.ai.saveSelectedNotas(userId, body.candidatas ?? []);
   }
+
+  @Post('graphs/:grafoId/generate-graph')
+  generateGraph(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { rawText: string }) {
+    return this.ai.generateGraphFromText(userId, grafoId, body.rawText ?? '');
+  }
+
+  @Post('graphs/:grafoId/gap-suggestions')
+  gapSuggestions(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { labelsA: string[]; labelsB: string[]; bridgeA: string; bridgeB: string },
+  ) {
+    return this.ai.suggestGapFill(userId, grafoId, body);
+  }
 }

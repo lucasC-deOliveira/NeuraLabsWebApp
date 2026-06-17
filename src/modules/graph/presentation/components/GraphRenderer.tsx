@@ -91,6 +91,10 @@ type Props = {
   // busca/filtros: quando não-nulo, só os ids deste conjunto ficam em destaque
   // (os demais são esmaecidos). Nulo = sem filtro ativo.
   matchedIds?: Set<string> | null;
+  // overlay de lacunas estruturais: linhas tracejadas entre os nós-ponte de gaps
+  gapBridges?: Array<{ x1: number; y1: number; x2: number; y2: number; colorA: string; colorB: string }>;
+  // ids de nós pertencentes a uma comunidade destacada (hover no CommunitiesPanel)
+  highlightedCommunityIds?: Set<string> | null;
 
   onNodeClick: (node: any, additive?: boolean) => void;
   onNodeContextMenu?: (node: any, clientX: number, clientY: number) => void;
@@ -115,6 +119,8 @@ export function GraphRenderer({
   focusMode = false,
   focusDepth = 1,
   matchedIds = null,
+  gapBridges,
+  highlightedCommunityIds = null,
   onNodeClick,
   onNodeContextMenu,
   onNodeDragStart,
@@ -238,6 +244,19 @@ export function GraphRenderer({
 
       <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
 
+        {/* GAP OVERLAY — linhas tracejadas entre nós-ponte de lacunas estruturais */}
+        {gapBridges?.map((b, i) => (
+          <line
+            key={`gap-${i}`}
+            x1={b.x1} y1={b.y1} x2={b.x2} y2={b.y2}
+            stroke={b.colorA}
+            strokeWidth={2 / zoom}
+            strokeDasharray={`${10 / zoom},${5 / zoom}`}
+            strokeOpacity={0.55}
+            pointerEvents="none"
+          />
+        ))}
+
         {/* EDGES — curvas suaves, partindo da borda dos nós, com rótulo inclinado */}
         {edges.map((edge: any, i: number) => {
           const src = nodeById.get(edge.source);
@@ -298,10 +317,11 @@ export function GraphRenderer({
           const colors = getNodeColors(node.group, isDark);
           const shape = getNodeShape(node.group);
           const isSelected = selectedNodeIds.has(node.id);
-          // ofusca nós fora da cadeia (destaque) ou fora da busca (filtros)
+          // ofusca nós fora da cadeia (destaque), fora da busca (filtros), ou fora da comunidade destacada
           const dimmed =
             (focusActive && !reachableIds!.has(node.id)) ||
-            (matchedIds != null && !matchedIds.has(node.id));
+            (matchedIds != null && !matchedIds.has(node.id)) ||
+            (highlightedCommunityIds != null && !highlightedCommunityIds.has(node.id));
 
           return (
             <g
