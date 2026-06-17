@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2Icon, FileTextIcon, CopyIcon, AlertCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { generateCommunitySummary } from "@/lib/ai-api";
+import { MarkdownContent } from "@/components/markdown-content";
 
 interface CommunitySummaryModalProps {
   open: boolean;
@@ -37,7 +38,7 @@ export function CommunitySummaryModal({
   const [errorMsg, setErrorMsg] = useState("");
 
   const load = async () => {
-    if (nodeIds.length === 0) return;
+    if (nodeIds.length === 0) { setStep("error"); setErrorMsg("Nenhum nó neste cluster."); return; }
     setStep("loading");
     try {
       const res = await generateCommunitySummary(grafoId, nodeIds);
@@ -98,9 +99,9 @@ export function CommunitySummaryModal({
               {titulo && (
                 <h3 className="text-base font-semibold text-foreground">{titulo}</h3>
               )}
-              <pre className="whitespace-pre-wrap text-sm text-foreground leading-relaxed font-sans bg-muted/30 rounded-lg p-3">
-                {resumo}
-              </pre>
+              <div className="text-sm text-foreground leading-relaxed bg-muted/30 rounded-lg p-3">
+                <MarkdownContent>{resumo}</MarkdownContent>
+              </div>
             </div>
           )}
         </div>

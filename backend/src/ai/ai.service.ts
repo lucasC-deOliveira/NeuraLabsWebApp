@@ -507,6 +507,17 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t√
       ...notas.map(n => ({ id: n.id, tipo: 'NOTA', nome: n.titulo || 'Nota' })),
     ];
     if (allNodes.length < 2) return { suggestions: [] };
+    // Load existing edges to avoid suggesting duplicates
+    const [existingEdges, ncNodes] = await Promise.all([
+      this.prisma.conhecimentoAresta.findMany({ where: { grafoId }, select: { nodeOrigemId: true, nodeDestinoId: true } }),
+      this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { id: true, referenciaId: true } }),
+    ]);
+    const refByNcId = new Map(ncNodes.map(n => [n.id, n.referenciaId]));
+    const existingPairs = new Set(
+      existingEdges
+        .filter(e => e.nodeOrigemId && e.nodeDestinoId)
+        .map(e => `${refByNcId.get(e.nodeOrigemId!)}:${refByNcId.get(e.nodeDestinoId!)}`)
+    );
     const nodeList = allNodes.map(n => `id:${n.id} tipo:${n.tipo} nome:"${n.nome}"`).join('\n');
     const allowedDesc = 'TOPICO‚ÜíASSUNTO: PERTENCE_A | CONCEITO‚ÜíTOPICO: PERTENCE_A, FUNDAMENTA | CONCEITO‚ÜíCONCEITO: IS_A, PART_OF, PREREQUISITO, DERIVA_DE, EVOLUI_PARA, REFORCA, ALTERNATIVA_A, CONTRASTA_COM | NOTA‚ÜíCONCEITO: DEFINE, EXPLICA, APROFUNDA, EXEMPLIFICA | NOTA‚ÜíTOPICO: PERTENCE_A';
     const content = await this.callAI(userId, [
@@ -520,6 +531,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t√
     for (const s of parsed?.suggestions ?? []) {
       const src = nodeById.get(s?.sourceId); const tgt = nodeById.get(s?.targetId);
       if (!src || !tgt || !isRelationAllowed(src.tipo, tgt.tipo, s?.relacao)) continue;
+      if (existingPairs.has(`${s.sourceId}:${s.targetId}`) || existingPairs.has(`${s.targetId}:${s.sourceId}`)) continue;
       out.push({ sourceId: s.sourceId, targetId: s.targetId, sourceNome: src.nome, targetNome: tgt.nome, relacao: String(s.relacao), motivo: typeof s?.motivo === 'string' ? s.motivo : '' });
       if (out.length >= 15) break;
     }
@@ -705,8 +717,21 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t√
 
   async addMissingPrerequisite(userId: string, grafoId: string, nome: string, tipo: string, connectToIds: string[]): Promise<{ nodeId: string }> {
     const res = await this.graph.createNode(userId, grafoId, { tipoNode: tipo as any, nome, descricao: '' });
+    const targetNodes = await this.prisma.nodeConhecimento.findMany({
+      where: { grafoId, usuarioId: userId, referenciaId: { in: connectToIds } },
+      select: { referenciaId: true, tipoNode: true },
+    });
+    const typeByRefId = new Map(targetNodes.map(n => [n.referenciaId, n.tipoNode]));
     for (const targetId of connectToIds) {
-      try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: res.nodeId, targetNodeId: targetId, tipoRelacao: 'PREREQUISITO' }); } catch { /* ignore */ }
+      const targetType = typeByRefId.get(targetId);
+      if (!targetType) continue;
+      let relacao: string;
+      if (tipo === 'CONCEITO' && targetType === 'CONCEITO') relacao = 'PREREQUISITO';
+      else if (tipo === 'CONCEITO' && targetType === 'TOPICO') relacao = 'PERTENCE_A';
+      else if (tipo === 'TOPICO' && targetType === 'TOPICO') relacao = 'DEPENDE_DE';
+      else if (tipo === 'TOPICO' && targetType === 'ASSUNTO') relacao = 'PERTENCE_A';
+      else continue;
+      try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: res.nodeId, targetNodeId: targetId, tipoRelacao: relacao }); } catch { /* ignore duplicate */ }
     }
     return { nodeId: res.nodeId };
   }

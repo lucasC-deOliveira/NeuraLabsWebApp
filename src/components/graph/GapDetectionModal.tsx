@@ -40,7 +40,7 @@ export function GapDetectionModal({
   onHighlightGap,
 }: GapDetectionModalProps) {
   const [loading, setLoading] = useState<number | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<Set<number>>(new Set());
   const [results, setResults] = useState<Map<number, GapResult>>(new Map());
 
   const handleFill = async (gapIdx: number) => {
@@ -82,7 +82,7 @@ export function GapDetectionModal({
     const gap = gaps[gapIdx];
     const toAdd = r.insights.filter((_, i) => r.selected.has(i));
     if (!toAdd.length) { toast.error("Selecione ao menos um nó."); return; }
-    setAdding(true);
+    setAdding(prev => new Set(prev).add(gapIdx));
     try {
       // Adiciona a partir do nó ponte de A
       const { added } = await addInsightsToGraph(grafoId, gap.bridgeA.id, toAdd);
@@ -92,7 +92,7 @@ export function GapDetectionModal({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao adicionar nós.");
     } finally {
-      setAdding(false);
+      setAdding(prev => { const next = new Set(prev); next.delete(gapIdx); return next; });
     }
   };
 
@@ -175,9 +175,9 @@ export function GapDetectionModal({
                         size="sm"
                         className="flex-1 gap-2"
                         onClick={() => handleAdd(i)}
-                        disabled={adding || r.selected.size === 0}
+                        disabled={adding.has(i) || r.selected.size === 0}
                       >
-                        {adding ? <Loader2Icon className="size-3.5 animate-spin" /> : <PlusIcon className="size-3.5" />}
+                        {adding.has(i) ? <Loader2Icon className="size-3.5 animate-spin" /> : <PlusIcon className="size-3.5" />}
                         Adicionar ao grafo ({r.selected.size})
                       </Button>
                       <Button

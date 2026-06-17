@@ -207,6 +207,9 @@ export default function GraphPage() {
     setIsEdgeManagerOpen(false);
     setRoadmapOpen(false);
     setGenerateGraphOpen(false);
+    setAutoLinkOpen(false);
+    setDuplicatesOpen(false);
+    setMissingPrereqsOpen(false);
   };
 
   const handleOpenCreateNode = () => {
