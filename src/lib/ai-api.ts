@@ -73,3 +73,64 @@ export function addInsightsToGraph(
 ): Promise<{ added: number }> {
   return apiFetch(`/ai/graph/graphs/${grafoId}/nodes/${sourceNodeId}/insights/add`, { method: "POST", body: JSON.stringify({ insights }) });
 }
+
+// ── Auto-link ──────────────────────────────────────────────────────────────
+export interface AutoLinkSuggestion {
+  sourceId: string;
+  targetId: string;
+  sourceNome: string;
+  targetNome: string;
+  relacao: string;
+  motivo: string;
+}
+export function autoLinkGraph(grafoId: string): Promise<{ suggestions: AutoLinkSuggestion[] }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/auto-link`, { method: "POST" });
+}
+export function applyAutoLink(
+  grafoId: string,
+  edges: Array<{ sourceId: string; targetId: string; relacao: string }>,
+): Promise<{ added: number }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/auto-link/apply`, { method: "POST", body: JSON.stringify({ edges }) });
+}
+
+// ── Duplicatas ─────────────────────────────────────────────────────────────
+export interface DuplicateNode { id: string; nome: string; tipo: string; }
+export interface DuplicateGroup { nodes: DuplicateNode[]; sugestao: string; }
+export function detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/detect-duplicates`, { method: "POST" });
+}
+
+// ── Expansão de nó ─────────────────────────────────────────────────────────
+export function expandNode(
+  grafoId: string,
+  nodeId: string,
+): Promise<{ topicos: number; conceitos: number; notas: number; flashcards: number }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/nodes/${nodeId}/expand`, { method: "POST" });
+}
+
+// ── Resumo de comunidade ───────────────────────────────────────────────────
+export function generateCommunitySummary(
+  grafoId: string,
+  nodeIds: string[],
+): Promise<{ titulo: string; resumo: string }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/community-summary`, { method: "POST", body: JSON.stringify({ nodeIds }) });
+}
+
+// ── Pré-requisitos faltantes ───────────────────────────────────────────────
+export interface MissingPrereq {
+  nome: string;
+  tipo: string;
+  motivo: string;
+  shouldConnectTo: Array<{ id: string; nome: string }>;
+}
+export function detectMissingPrerequisites(grafoId: string): Promise<{ prerequisites: MissingPrereq[] }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/missing-prerequisites`, { method: "POST" });
+}
+export function addMissingPrerequisite(
+  grafoId: string,
+  nome: string,
+  tipo: string,
+  connectToIds: string[],
+): Promise<{ nodeId: string }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/missing-prerequisites/add`, { method: "POST", body: JSON.stringify({ nome, tipo, connectToIds }) });
+}

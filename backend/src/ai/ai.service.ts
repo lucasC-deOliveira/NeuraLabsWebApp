@@ -489,6 +489,228 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     return { assunto: assuntoNome, topicos: topicoCount, conceitos: conceitoCount, notas: notaCount, flashcards: flashcardCount, baralho: baralhoNome };
   }
 
+  // ── Feature: Auto-link ─────────────────────────────────────────────────
+  async autoLinkGraph(userId: string, grafoId: string): Promise<{ suggestions: Array<{ sourceId: string; targetId: string; sourceNome: string; targetNome: string; relacao: string; motivo: string }> }> {
+    const graphNodes = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { tipoNode: true, referenciaId: true } });
+    const ids: Record<string, string[]> = {};
+    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
+    const [assuntos, topicos, conceitos, notas] = await Promise.all([
+      this.prisma.assunto.findMany({ where: { id: { in: ids.ASSUNTO ?? [] } }, select: { id: true, nome: true } }),
+      this.prisma.topico.findMany({ where: { id: { in: ids.TOPICO ?? [] } }, select: { id: true, nome: true } }),
+      this.prisma.conceito.findMany({ where: { id: { in: ids.CONCEITO ?? [] } }, select: { id: true, nome: true } }),
+      this.prisma.nota.findMany({ where: { id: { in: ids.NOTA ?? [] } }, select: { id: true, titulo: true } }),
+    ]);
+    const allNodes = [
+      ...assuntos.map(a => ({ id: a.id, tipo: 'ASSUNTO', nome: a.nome })),
+      ...topicos.map(t => ({ id: t.id, tipo: 'TOPICO', nome: t.nome })),
+      ...conceitos.map(c => ({ id: c.id, tipo: 'CONCEITO', nome: c.nome })),
+      ...notas.map(n => ({ id: n.id, tipo: 'NOTA', nome: n.titulo || 'Nota' })),
+    ];
+    if (allNodes.length < 2) return { suggestions: [] };
+    const nodeList = allNodes.map(n => `id:${n.id} tipo:${n.tipo} nome:"${n.nome}"`).join('\n');
+    const allowedDesc = 'TOPICO→ASSUNTO: PERTENCE_A | CONCEITO→TOPICO: PERTENCE_A, FUNDAMENTA | CONCEITO→CONCEITO: IS_A, PART_OF, PREREQUISITO, DERIVA_DE, EVOLUI_PARA, REFORCA, ALTERNATIVA_A, CONTRASTA_COM | NOTA→CONCEITO: DEFINE, EXPLICA, APROFUNDA, EXEMPLIFICA | NOTA→TOPICO: PERTENCE_A';
+    const content = await this.callAI(userId, [
+      { role: 'system', content: `Analise o grafo e sugira 5-15 ARESTAS que deveriam existir mas ainda não existem. Relações válidas: ${allowedDesc}\nJSON: {"suggestions":[{"sourceId":"...","targetId":"...","relacao":"...","motivo":"frase curta"}]}` },
+      { role: 'user', content: `NÓS:\n${nodeList.slice(0, 7000)}` },
+    ]);
+    let parsed: any;
+    try { parsed = JSON.parse(content ?? '{}'); } catch { return { suggestions: [] }; }
+    const nodeById = new Map(allNodes.map(n => [n.id, n]));
+    const out: Array<{ sourceId: string; targetId: string; sourceNome: string; targetNome: string; relacao: string; motivo: string }> = [];
+    for (const s of parsed?.suggestions ?? []) {
+      const src = nodeById.get(s?.sourceId); const tgt = nodeById.get(s?.targetId);
+      if (!src || !tgt || !isRelationAllowed(src.tipo, tgt.tipo, s?.relacao)) continue;
+      out.push({ sourceId: s.sourceId, targetId: s.targetId, sourceNome: src.nome, targetNome: tgt.nome, relacao: String(s.relacao), motivo: typeof s?.motivo === 'string' ? s.motivo : '' });
+      if (out.length >= 15) break;
+    }
+    return { suggestions: out };
+  }
+
+  async applyAutoLink(userId: string, grafoId: string, edges: Array<{ sourceId: string; targetId: string; relacao: string }>): Promise<{ added: number }> {
+    let added = 0;
+    for (const e of edges) {
+      try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: e.sourceId, targetNodeId: e.targetId, tipoRelacao: e.relacao }); added++; } catch { /* duplicata/inválida: ignora */ }
+    }
+    return { added };
+  }
+
+  // ── Feature: Detectar duplicatas ───────────────────────────────────────
+  async detectDuplicates(userId: string, grafoId: string): Promise<{ groups: Array<{ nodes: Array<{ id: string; nome: string; tipo: string }>; sugestao: string }> }> {
+    const graphNodes = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { tipoNode: true, referenciaId: true } });
+    const ids: Record<string, string[]> = {};
+    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
+    const [assuntos, topicos, conceitos] = await Promise.all([
+      this.prisma.assunto.findMany({ where: { id: { in: ids.ASSUNTO ?? [] } }, select: { id: true, nome: true } }),
+      this.prisma.topico.findMany({ where: { id: { in: ids.TOPICO ?? [] } }, select: { id: true, nome: true } }),
+      this.prisma.conceito.findMany({ where: { id: { in: ids.CONCEITO ?? [] } }, select: { id: true, nome: true } }),
+    ]);
+    const allNodes = [
+      ...assuntos.map(a => ({ id: a.id, tipo: 'ASSUNTO', nome: a.nome })),
+      ...topicos.map(t => ({ id: t.id, tipo: 'TOPICO', nome: t.nome })),
+      ...conceitos.map(c => ({ id: c.id, tipo: 'CONCEITO', nome: c.nome })),
+    ];
+    if (allNodes.length < 2) return { groups: [] };
+    const nodeList = allNodes.map(n => `id:${n.id} tipo:${n.tipo} nome:"${n.nome}"`).join('\n');
+    const content = await this.callAI(userId, [
+      { role: 'system', content: 'Detecte DUPLICATAS semânticas (ex: "QuickSort" e "Algoritmo Quick Sort"). Agrupe apenas nós com 2+ equivalentes. JSON: {"groups":[{"nodes":[{"id":"..."},{"id":"..."}],"sugestao":"manter X, remover Y"}]}' },
+      { role: 'user', content: `NÓS:\n${nodeList.slice(0, 8000)}` },
+    ]);
+    let parsed: any;
+    try { parsed = JSON.parse(content ?? '{}'); } catch { return { groups: [] }; }
+    const nodeById = new Map(allNodes.map(n => [n.id, n]));
+    const groups: Array<{ nodes: Array<{ id: string; nome: string; tipo: string }>; sugestao: string }> = [];
+    for (const g of parsed?.groups ?? []) {
+      const nodes = (g?.nodes ?? []).map((n: any) => nodeById.get(n?.id)).filter(Boolean).map((n: any) => ({ id: n.id, nome: n.nome, tipo: n.tipo }));
+      if (nodes.length < 2) continue;
+      groups.push({ nodes, sugestao: typeof g?.sugestao === 'string' ? g.sugestao : '' });
+      if (groups.length >= 10) break;
+    }
+    return { groups };
+  }
+
+  // ── Feature: Expandir nó ──────────────────────────────────────────────
+  async expandNode(userId: string, grafoId: string, nodeId: string): Promise<{ topicos: number; conceitos: number; notas: number; flashcards: number }> {
+    const nodeInGraph = await this.prisma.nodeConhecimento.findFirst({ where: { grafoId, usuarioId: userId, referenciaId: nodeId }, select: { tipoNode: true } });
+    if (!nodeInGraph) throw new NotFoundException('Nó não encontrado neste grafo');
+    const tipo = nodeInGraph.tipoNode;
+    let nomeAlvo = '', descAlvo = '';
+    if (tipo === 'ASSUNTO') { const a = await this.prisma.assunto.findFirst({ where: { id: nodeId } }); nomeAlvo = a?.nome ?? ''; descAlvo = a?.descricao ?? ''; }
+    else if (tipo === 'TOPICO') { const t = await this.prisma.topico.findFirst({ where: { id: nodeId } }); nomeAlvo = t?.nome ?? ''; descAlvo = t?.descricao ?? ''; }
+    else if (tipo === 'CONCEITO') { const c = await this.prisma.conceito.findFirst({ where: { id: nodeId } }); nomeAlvo = c?.nome ?? ''; descAlvo = c?.descricao ?? ''; }
+    else if (tipo === 'NOTA') { const n = await this.prisma.nota.findFirst({ where: { id: nodeId } }); nomeAlvo = n?.titulo ?? ''; descAlvo = n?.conteudo?.slice(0, 2000) ?? ''; }
+    else throw new BadRequestException('Tipo não suportado para expansão. Use ASSUNTO, TOPICO, CONCEITO ou NOTA.');
+    const SCHEMAS: Record<string, string> = {
+      ASSUNTO:  '{"topicos":[{"nome":"...","descricao":"...","conceitos":[{"nome":"...","descricao":"..."}]}]}',
+      TOPICO:   '{"conceitos":[{"nome":"...","descricao":"..."}]}',
+      CONCEITO: '{"nota":{"titulo":"...","conteudo":"(Markdown)"},"flashcards":[{"pergunta":"...","resposta":"..."}]}',
+      NOTA:     '{"flashcards":[{"pergunta":"...","resposta":"..."}]}',
+    };
+    const PROMPTS: Record<string, string> = {
+      ASSUNTO:  `Expanda o ASSUNTO "${nomeAlvo}" criando 2-4 TOPICOs principais, cada um com 2-3 CONCEITOs chave.`,
+      TOPICO:   `Expanda o TÓPICO "${nomeAlvo}" criando 3-5 CONCEITOs que compõem este tópico.`,
+      CONCEITO: `Expanda o CONCEITO "${nomeAlvo}" com 1 NOTA explicativa detalhada em Markdown e 2-4 FLASHCARDs.`,
+      NOTA:     `A partir da NOTA "${nomeAlvo}", gere 3-6 FLASHCARDs de estudo com pergunta e resposta.`,
+    };
+    const content = await this.callAI(userId, [
+      { role: 'system', content: `Expanda o nó de grafo com sub-nós em português. Responda APENAS JSON: ${SCHEMAS[tipo]}` },
+      { role: 'user', content: `${PROMPTS[tipo]}\n\nDescrição/Conteúdo: ${descAlvo.slice(0, 2000)}` },
+    ]);
+    if (!content) return { topicos: 0, conceitos: 0, notas: 0, flashcards: 0 };
+    let parsed: any;
+    try { parsed = JSON.parse(content); } catch { return { topicos: 0, conceitos: 0, notas: 0, flashcards: 0 }; }
+    let topicoCount = 0, conceitoCount = 0, notaCount = 0, flashcardCount = 0;
+    if (tipo === 'ASSUNTO') {
+      for (const t of (parsed?.topicos ?? []).slice(0, 6)) {
+        const tn = String(t?.nome || '').trim(); if (!tn) continue;
+        const tRes = await this.graph.createNode(userId, grafoId, { tipoNode: 'TOPICO', nome: tn, descricao: String(t?.descricao || '') }); topicoCount++;
+        try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: tRes.nodeId, targetNodeId: nodeId, tipoRelacao: 'PERTENCE_A' }); } catch { /* ignore */ }
+        for (const c of (t?.conceitos ?? []).slice(0, 4)) {
+          const cn = String(c?.nome || '').trim(); if (!cn) continue;
+          const cRes = await this.graph.createNode(userId, grafoId, { tipoNode: 'CONCEITO', nome: cn, descricao: String(c?.descricao || '') }); conceitoCount++;
+          try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: cRes.nodeId, targetNodeId: tRes.nodeId, tipoRelacao: 'PERTENCE_A' }); } catch { /* ignore */ }
+        }
+      }
+    } else if (tipo === 'TOPICO') {
+      for (const c of (parsed?.conceitos ?? []).slice(0, 6)) {
+        const cn = String(c?.nome || '').trim(); if (!cn) continue;
+        const cRes = await this.graph.createNode(userId, grafoId, { tipoNode: 'CONCEITO', nome: cn, descricao: String(c?.descricao || '') }); conceitoCount++;
+        try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: cRes.nodeId, targetNodeId: nodeId, tipoRelacao: 'PERTENCE_A' }); } catch { /* ignore */ }
+      }
+    } else if (tipo === 'CONCEITO') {
+      if (parsed?.nota?.titulo) {
+        try {
+          const nRes = await this.graph.createNode(userId, grafoId, { tipoNode: 'NOTA', titulo: String(parsed.nota.titulo).trim(), conteudo: String(parsed.nota.conteudo || ''), subtipo: 'EXPLICACAO', tipoNota: 'PERMANENTE' });
+          notaCount++;
+          await this.graph.createEdge(userId, grafoId, { sourceNodeId: nRes.nodeId, targetNodeId: nodeId, tipoRelacao: 'EXPLICA' }).catch(() => {});
+        } catch { /* ignore */ }
+      }
+      for (const fc of (parsed?.flashcards ?? []).slice(0, 5)) {
+        const p = String(fc?.pergunta || '').trim(), r = String(fc?.resposta || '').trim(); if (!p || !r) continue;
+        try {
+          const fcRes = await this.graph.createNode(userId, grafoId, { tipoNode: 'FLASHCARD', pergunta: p, resposta: r });
+          flashcardCount++;
+          await this.graph.createEdge(userId, grafoId, { sourceNodeId: fcRes.nodeId, targetNodeId: nodeId, tipoRelacao: 'HERDA' }).catch(() => {});
+        } catch { /* ignore */ }
+      }
+    } else if (tipo === 'NOTA') {
+      for (const fc of (parsed?.flashcards ?? []).slice(0, 6)) {
+        const p = String(fc?.pergunta || '').trim(), r = String(fc?.resposta || '').trim(); if (!p || !r) continue;
+        try {
+          const fcRes = await this.graph.createNode(userId, grafoId, { tipoNode: 'FLASHCARD', pergunta: p, resposta: r });
+          flashcardCount++;
+          await this.graph.createEdge(userId, grafoId, { sourceNodeId: fcRes.nodeId, targetNodeId: nodeId, tipoRelacao: 'TESTA' }).catch(() => {});
+        } catch { /* ignore */ }
+      }
+    }
+    return { topicos: topicoCount, conceitos: conceitoCount, notas: notaCount, flashcards: flashcardCount };
+  }
+
+  // ── Feature: Resumo de comunidade ──────────────────────────────────────
+  async generateCommunitySummary(userId: string, grafoId: string, nodeIds: string[]): Promise<{ titulo: string; resumo: string }> {
+    if (!nodeIds.length) throw new BadRequestException('Lista de nós vazia');
+    const graphNodes = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId, referenciaId: { in: nodeIds } }, select: { tipoNode: true, referenciaId: true } });
+    const ids: Record<string, string[]> = {};
+    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
+    const [assuntos, topicos, conceitos, notas] = await Promise.all([
+      this.prisma.assunto.findMany({ where: { id: { in: ids.ASSUNTO ?? [] } }, select: { nome: true, descricao: true } }),
+      this.prisma.topico.findMany({ where: { id: { in: ids.TOPICO ?? [] } }, select: { nome: true, descricao: true } }),
+      this.prisma.conceito.findMany({ where: { id: { in: ids.CONCEITO ?? [] } }, select: { nome: true, descricao: true } }),
+      this.prisma.nota.findMany({ where: { id: { in: ids.NOTA ?? [] } }, select: { titulo: true, conteudo: true } }),
+    ]);
+    const ctx = [
+      ...assuntos.map(a => `[ASSUNTO] ${a.nome}${a.descricao ? ': ' + a.descricao.slice(0, 150) : ''}`),
+      ...topicos.map(t => `[TÓPICO] ${t.nome}${t.descricao ? ': ' + t.descricao.slice(0, 150) : ''}`),
+      ...conceitos.map(c => `[CONCEITO] ${c.nome}${c.descricao ? ': ' + c.descricao.slice(0, 200) : ''}`),
+      ...notas.map(n => `[NOTA] ${n.titulo || 'Nota'}: ${n.conteudo?.slice(0, 400) || ''}`),
+    ].join('\n\n');
+    if (!ctx.trim()) throw new BadRequestException('Nós sem conteúdo para resumir');
+    const content = await this.callAI(userId, [
+      { role: 'system', content: 'Gere um RESUMO DE ESTUDO coerente em Markdown (200-500 palavras) dos nós de um cluster. Explique os conceitos de forma conectada, não apenas liste. JSON: {"titulo":"...","resumo":"(Markdown)"}' },
+      { role: 'user', content: `NÓDES DO CLUSTER:\n${ctx.slice(0, 8000)}` },
+    ]);
+    let parsed: any;
+    try { parsed = JSON.parse(content ?? '{}'); } catch { throw new BadRequestException('A IA retornou resposta inválida.'); }
+    return { titulo: typeof parsed?.titulo === 'string' ? parsed.titulo : 'Resumo do cluster', resumo: typeof parsed?.resumo === 'string' ? parsed.resumo : '' };
+  }
+
+  // ── Feature: Pré-requisitos faltantes ─────────────────────────────────
+  async detectMissingPrerequisites(userId: string, grafoId: string): Promise<{ prerequisites: Array<{ nome: string; tipo: string; motivo: string; shouldConnectTo: Array<{ id: string; nome: string }> }> }> {
+    const graphNodes = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { tipoNode: true, referenciaId: true } });
+    const ids: Record<string, string[]> = {};
+    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
+    const [topicos, conceitos] = await Promise.all([
+      this.prisma.topico.findMany({ where: { id: { in: ids.TOPICO ?? [] } }, select: { id: true, nome: true } }),
+      this.prisma.conceito.findMany({ where: { id: { in: ids.CONCEITO ?? [] } }, select: { id: true, nome: true } }),
+    ]);
+    const allNodes = [...topicos.map(t => ({ id: t.id, tipo: 'TOPICO', nome: t.nome })), ...conceitos.map(c => ({ id: c.id, tipo: 'CONCEITO', nome: c.nome }))];
+    if (allNodes.length === 0) return { prerequisites: [] };
+    const nodeList = allNodes.map(n => `id:${n.id} tipo:${n.tipo} nome:"${n.nome}"`).join('\n');
+    const content = await this.callAI(userId, [
+      { role: 'system', content: 'Detecte PRÉ-REQUISITOS faltantes no grafo. Sugira 3-8 novos nós (CONCEITO ou TOPICO) que deveriam existir como pré-requisito. JSON: {"prerequisites":[{"nome":"...","tipo":"CONCEITO","motivo":"...","shouldConnectTo":[{"id":"..."}]}]}' },
+      { role: 'user', content: `NÓS:\n${nodeList.slice(0, 7000)}` },
+    ]);
+    let parsed: any;
+    try { parsed = JSON.parse(content ?? '{}'); } catch { return { prerequisites: [] }; }
+    const nodeById = new Map(allNodes.map(n => [n.id, n]));
+    const out: Array<{ nome: string; tipo: string; motivo: string; shouldConnectTo: Array<{ id: string; nome: string }> }> = [];
+    for (const p of parsed?.prerequisites ?? []) {
+      const nome = typeof p?.nome === 'string' ? p.nome.trim() : ''; if (!nome) continue;
+      const tipo = ['CONCEITO', 'TOPICO'].includes(p?.tipo) ? String(p.tipo) : 'CONCEITO';
+      const connects = (p?.shouldConnectTo ?? []).map((c: any) => nodeById.get(c?.id)).filter(Boolean).map((n: any) => ({ id: n.id, nome: n.nome }));
+      out.push({ nome, tipo, motivo: typeof p?.motivo === 'string' ? p.motivo : '', shouldConnectTo: connects });
+      if (out.length >= 8) break;
+    }
+    return { prerequisites: out };
+  }
+
+  async addMissingPrerequisite(userId: string, grafoId: string, nome: string, tipo: string, connectToIds: string[]): Promise<{ nodeId: string }> {
+    const res = await this.graph.createNode(userId, grafoId, { tipoNode: tipo as any, nome, descricao: '' });
+    for (const targetId of connectToIds) {
+      try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: res.nodeId, targetNodeId: targetId, tipoRelacao: 'PREREQUISITO' }); } catch { /* ignore */ }
+    }
+    return { nodeId: res.nodeId };
+  }
+
   // Gap Detection: sugere nós que poderiam conectar dois clusters sem arestas entre si.
   async suggestGapFill(
     userId: string,

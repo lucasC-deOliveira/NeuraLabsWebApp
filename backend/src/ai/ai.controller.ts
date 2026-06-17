@@ -56,4 +56,47 @@ export class AiController {
   ) {
     return this.ai.suggestGapFill(userId, grafoId, body);
   }
+
+  @Post('graphs/:grafoId/auto-link')
+  autoLink(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
+    return this.ai.autoLinkGraph(userId, grafoId);
+  }
+
+  @Post('graphs/:grafoId/auto-link/apply')
+  applyAutoLink(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { edges: Array<{ sourceId: string; targetId: string; relacao: string }> },
+  ) {
+    return this.ai.applyAutoLink(userId, grafoId, body.edges ?? []);
+  }
+
+  @Post('graphs/:grafoId/detect-duplicates')
+  detectDuplicates(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
+    return this.ai.detectDuplicates(userId, grafoId);
+  }
+
+  @Post('graphs/:grafoId/nodes/:nodeId/expand')
+  expandNode(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Param('nodeId') nodeId: string) {
+    return this.ai.expandNode(userId, grafoId, nodeId);
+  }
+
+  @Post('graphs/:grafoId/community-summary')
+  communitySummary(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { nodeIds: string[] }) {
+    return this.ai.generateCommunitySummary(userId, grafoId, body.nodeIds ?? []);
+  }
+
+  @Post('graphs/:grafoId/missing-prerequisites')
+  missingPrerequisites(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
+    return this.ai.detectMissingPrerequisites(userId, grafoId);
+  }
+
+  @Post('graphs/:grafoId/missing-prerequisites/add')
+  addPrerequisite(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { nome: string; tipo: string; connectToIds: string[] },
+  ) {
+    return this.ai.addMissingPrerequisite(userId, grafoId, body.nome, body.tipo, body.connectToIds ?? []);
+  }
 }

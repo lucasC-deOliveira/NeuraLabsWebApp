@@ -15,6 +15,7 @@ import {
   PencilIcon,
   PlusIcon,
   SparklesIcon,
+  WandSparklesIcon,
 } from "lucide-react";
 import { useRouter } from "@/lib/navigation";
 import { useEffect, useState } from "react";
@@ -88,6 +89,7 @@ interface PropertiesPanelProps {
   onViewDeck?: () => void;
   onStudyNeighborhood?: () => void;
   onGenerateInsights?: () => void;
+  onExpandNode?: () => void;
   onSelectNode?: (nodeId: string) => void;
   grafoId?: string;
   grafoNome?: string;
@@ -116,6 +118,7 @@ export function PropertiesPanel({
   onViewDeck,
   onStudyNeighborhood,
   onGenerateInsights,
+  onExpandNode,
   onSelectNode,
   grafoId,
   grafoNome,
@@ -291,6 +294,23 @@ export function PropertiesPanel({
                   >
                     <SparklesIcon className="size-4" />
                     Insights da IA
+                  </Button>
+                  <Separator />
+                </>
+              )}
+
+            {/* Expandir nó com IA */}
+            {onExpandNode &&
+              ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA"].includes(selectedNode.tipoReal) && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/10"
+                    onClick={onExpandNode}
+                  >
+                    <WandSparklesIcon className="size-4" />
+                    Expandir com IA
                   </Button>
                   <Separator />
                 </>

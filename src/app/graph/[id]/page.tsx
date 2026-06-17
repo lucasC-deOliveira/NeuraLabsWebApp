@@ -8,10 +8,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
-import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon } from "lucide-react";
 import { CommunitiesPanel } from "@/components/graph/CommunitiesPanel";
 import { GapDetectionModal } from "@/components/graph/GapDetectionModal";
 import { GenerateGraphModal } from "@/components/graph/GenerateGraphModal";
+import { AutoLinkModal } from "@/components/graph/AutoLinkModal";
+import { DuplicatesModal } from "@/components/graph/DuplicatesModal";
+import { CommunitySummaryModal } from "@/components/graph/CommunitySummaryModal";
+import { MissingPrereqsModal } from "@/components/graph/MissingPrereqsModal";
 import { detectCommunities, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
 import { createBaralhoNode } from "@/lib/graph-api";
 
@@ -100,6 +104,11 @@ export default function GraphPage() {
   const [highlightedGap, setHighlightedGap] = useState<StructuralGap | null>(null);
   const [neighborhoodStudyIds, setNeighborhoodStudyIds] = useState<string[] | null>(null);
   const [generateGraphOpen, setGenerateGraphOpen] = useState(false);
+  // IA automática
+  const [autoLinkOpen, setAutoLinkOpen] = useState(false);
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
+  const [missingPrereqsOpen, setMissingPrereqsOpen] = useState(false);
+  const [communitySummary, setCommunitySummary] = useState<{ label: string; nodeIds: string[] } | null>(null);
 
   // P3 — detecta comunidades a partir do layout atual
   const communities = useMemo<Community[]>(() => {
@@ -417,6 +426,18 @@ export default function GraphPage() {
           <WandSparklesIcon className="size-4" />
         </Button>
 
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setAutoLinkOpen(v => !v); }} title="Auto-conectar nós relacionados com IA">
+          <Link2Icon className="size-4" />
+        </Button>
+
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setDuplicatesOpen(v => !v); }} title="Detectar nós duplicados">
+          <CopyIcon className="size-4" />
+        </Button>
+
+        <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setMissingPrereqsOpen(v => !v); }} title="Detectar pré-requisitos faltantes">
+          <GitBranchIcon className="size-4" />
+        </Button>
+
         {desktopApp && (
           <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setIsVaultOpen(true); }} title="Sincronizar com vault Markdown">
             <FolderTreeIcon className="size-4" /> Vault
@@ -564,6 +585,20 @@ export default function GraphPage() {
             setNeighborhoodStudyIds(ids);
           }}
           onGenerateInsights={() => setInsightsNode(controller.state.selectedNode ?? null)}
+          onExpandNode={async () => {
+            const node = controller.state.selectedNode;
+            if (!node) return;
+            const { expandNode } = await import("@/lib/ai-api");
+            const tid = toast.loading("Expandindo nó com IA...");
+            try {
+              const r = await expandNode(graphId, node.id);
+              const parts = [r.topicos && `${r.topicos} tópico(s)`, r.conceitos && `${r.conceitos} conceito(s)`, r.notas && `${r.notas} nota(s)`, r.flashcards && `${r.flashcards} flashcard(s)`].filter(Boolean);
+              toast.success(`Criados: ${parts.join(", ") || "nenhum"}`, { id: tid });
+              await refreshGraph();
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Erro ao expandir", { id: tid });
+            }
+          }}
           onSelectNode={(nodeId) => {
             const node = controller.state.layout.find((n) => n.id === nodeId);
             if (!node) return;
@@ -746,6 +781,10 @@ export default function GraphPage() {
           } catch { toast.error("Erro ao criar baralho."); }
         }}
         onHighlightCommunity={setHighlightedCommunityId}
+        onSummarizeCommunity={(community) => {
+          setCommunitySummary({ label: community.label, nodeIds: community.nodes.map(n => n.id) });
+          setCommunitiesOpen(false);
+        }}
       />
       <GapDetectionModal
         open={gapsOpen}
@@ -769,6 +808,31 @@ export default function GraphPage() {
         onOpenChange={setGenerateGraphOpen}
         grafoId={graphId}
         onGenerated={refreshGraph}
+      />
+      <AutoLinkModal
+        open={autoLinkOpen}
+        onOpenChange={setAutoLinkOpen}
+        grafoId={graphId}
+        onApplied={refreshGraph}
+      />
+      <DuplicatesModal
+        open={duplicatesOpen}
+        onOpenChange={setDuplicatesOpen}
+        grafoId={graphId}
+        onDeleted={refreshGraph}
+      />
+      <MissingPrereqsModal
+        open={missingPrereqsOpen}
+        onOpenChange={setMissingPrereqsOpen}
+        grafoId={graphId}
+        onAdded={refreshGraph}
+      />
+      <CommunitySummaryModal
+        open={!!communitySummary}
+        onOpenChange={(open) => { if (!open) setCommunitySummary(null); }}
+        grafoId={graphId}
+        communityLabel={communitySummary?.label ?? ""}
+        nodeIds={communitySummary?.nodeIds ?? []}
       />
       <EdgeManagerModal
         open={isEdgeManagerOpen}

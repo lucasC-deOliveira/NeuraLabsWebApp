@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { PlusIcon, NetworkIcon } from "lucide-react";
+import { PlusIcon, NetworkIcon, FileTextIcon } from "lucide-react";
 import type { Community } from "@/lib/graph-communities";
 import { TYPE_COLORS } from "@/lib/graph-metrics";
 
@@ -20,6 +20,7 @@ interface CommunitiesPanelProps {
   communities: Community[];
   onCreateDeck: (community: Community) => void;
   onHighlightCommunity: (communityId: string | null) => void;
+  onSummarizeCommunity: (community: Community) => void;
 }
 
 export function CommunitiesPanel({
@@ -28,6 +29,7 @@ export function CommunitiesPanel({
   communities,
   onCreateDeck,
   onHighlightCommunity,
+  onSummarizeCommunity,
 }: CommunitiesPanelProps) {
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onHighlightCommunity(null); onOpenChange(v); }}>
@@ -81,19 +83,30 @@ export function CommunitiesPanel({
                       ))}
                     </div>
 
-                    {flashcardCount > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
                       <Button
                         size="sm"
                         variant="outline"
                         className="gap-1.5 text-xs h-7"
-                        onClick={(e) => { e.stopPropagation(); onCreateDeck(c); }}
+                        onClick={(e) => { e.stopPropagation(); onSummarizeCommunity(c); }}
                       >
-                        <PlusIcon className="size-3" />
-                        Criar baralho ({flashcardCount} cards)
+                        <FileTextIcon className="size-3" />
+                        Resumir
                       </Button>
-                    )}
+                      {flashcardCount > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-xs h-7"
+                          onClick={(e) => { e.stopPropagation(); onCreateDeck(c); }}
+                        >
+                          <PlusIcon className="size-3" />
+                          Criar baralho ({flashcardCount} cards)
+                        </Button>
+                      )}
+                    </div>
                     {flashcardCount === 0 && (
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground mt-1">
                         Sem flashcards neste cluster para criar baralho.
                       </p>
                     )}
