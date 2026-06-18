@@ -7,9 +7,17 @@ export class NotesService {
   constructor(private readonly prisma: PrismaService) {}
 
   // Cria a nota (conteúdo). Relações com conceitos/grafo são feitas pela UI do grafo.
-  async createNotaManual(userId: string, input: { titulo: string; conteudo: string }) {
+  async createNotaManual(userId: string, input: { titulo: string; conteudo: string; subtipo?: string | null; tipoNota?: string }) {
     const rawText = `# ${input.titulo}\n\n${input.conteudo}`;
-    const nota = await this.prisma.nota.create({ data: { usuarioId: userId, titulo: input.titulo, conteudo: rawText } });
+    const nota = await this.prisma.nota.create({
+      data: {
+        usuarioId: userId,
+        titulo: input.titulo,
+        conteudo: rawText,
+        subtipo: (input.subtipo as any) ?? null,
+        tipoNota: input.tipoNota ?? 'PERMANENTE',
+      },
+    });
     return { notaId: nota.id };
   }
 
@@ -67,7 +75,7 @@ export class NotesService {
       const titulo = conteudo.split('\n')[0].replace(/^#+\s*/, '').slice(0, 80) || 'Sem titulo';
       const preview = conteudo.replace(/^#+\s.*\n?/, '').slice(0, 200).trim();
       const wordCount = conteudo.trim().split(/\s+/).filter(Boolean).length;
-      return { id: nota.id, titulo, preview, dataCriacao: nota.dataCriacao, conceitosRelacionados, flashcardCount: fcCountMap.get(nota.id) ?? 0, wordCount };
+      return { id: nota.id, titulo, preview, dataCriacao: nota.dataCriacao, conceitosRelacionados, flashcardCount: fcCountMap.get(nota.id) ?? 0, wordCount, subtipo: nota.subtipo ?? null, tipoNota: nota.tipoNota };
     });
   }
 
@@ -81,7 +89,7 @@ export class NotesService {
         if (conceito) conceitosRelacionados.push({ nome: conceito.nome, tipoRelacao: edge.tipoRelacao });
       }
     }
-    return { id: nota.id, conteudo: nota.conteudo, dataCriacao: nota.dataCriacao, conceitosRelacionados };
+    return { id: nota.id, conteudo: nota.conteudo, dataCriacao: nota.dataCriacao, conceitosRelacionados, subtipo: nota.subtipo ?? null, tipoNota: nota.tipoNota };
   }
 
   async deleteNota(userId: string, id: string) {

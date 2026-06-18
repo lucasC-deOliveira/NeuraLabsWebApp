@@ -19,7 +19,7 @@ export class NotesController {
   }
 
   @Post()
-  create(@CurrentUser() userId: string, @Body() body: { titulo: string; conteudo: string }) {
+  create(@CurrentUser() userId: string, @Body() body: { titulo: string; conteudo: string; subtipo?: string | null; tipoNota?: string }) {
     return this.notes.createNotaManual(userId, body);
   }
 

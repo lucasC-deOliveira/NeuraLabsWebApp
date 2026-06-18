@@ -17,6 +17,8 @@ interface NotaDetail {
   conteudo: string;
   dataCriacao: Date;
   conceitosRelacionados: { nome: string; tipoRelacao: string }[];
+  subtipo: string | null;
+  tipoNota: string;
 }
 
 export default function NotaDetailPage() {
@@ -94,8 +96,15 @@ export default function NotaDetailPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Detalhes da nota</h1>
-          <p className="text-xs text-zinc-400 mt-1">
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-xl sm:text-2xl font-bold">Detalhes da nota</h1>
+            {nota.subtipo && (
+              <Badge variant="outline" className="text-xs text-violet-600 border-violet-300 dark:border-violet-700 dark:text-violet-400">
+                {nota.subtipo.replace("_", " ").toLowerCase()}
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-zinc-400">
             Criada em {new Date(nota.dataCriacao).toLocaleString("pt-BR")}
           </p>
         </div>

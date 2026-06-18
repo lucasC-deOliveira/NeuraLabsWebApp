@@ -12,11 +12,13 @@ import { Separator } from "@/components/ui/separator";
 import {
   Loader2Icon, SparklesIcon, CheckCircle2Icon, ChevronDownIcon,
   ChevronRightIcon, BrainIcon, XIcon, PlusIcon, PlusCircleIcon,
-  ArrowRightIcon, LinkIcon, SearchIcon, LayersIcon,
+  ArrowRightIcon, LinkIcon, SearchIcon, LayersIcon, BookOpenIcon,
+  MessageSquareIcon, LightbulbIcon, GitMergeIcon, AlertTriangleIcon, ZapIcon,
+  ArrowUpCircleIcon, FileScanIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { analyzeRawText, saveSelectedNotas, type NotaCandidata } from "@/lib/ai-api";
-import { createNotaManual } from "@/lib/notes-api";
+import { createNotaManual, type SubtipoNota } from "@/lib/notes-api";
 import {
   getHierarquiaConceitos,
   createFullConcept,
@@ -233,6 +235,51 @@ function IAModeContent({ router }: { router: ReturnType<typeof useRouter> }) {
 }
 
 // ==========================================
+// Subtipo config
+// ==========================================
+
+const SUBTIPO_CONFIG: Array<{
+  value: SubtipoNota;
+  label: string;
+  icon: React.FC<{ className?: string }>;
+  desc: string;
+  template: string;
+}> = [
+  {
+    value: "DEFINICAO", label: "Definição", icon: BookOpenIcon, desc: "O que é um conceito",
+    template: "## Definição\n\n[Defina o conceito em uma frase clara e precisa]\n\n## Características\n\n- [Característica 1]\n- [Característica 2]\n\n## Por que é importante?\n\n[Explique a relevância]",
+  },
+  {
+    value: "EXPLICACAO", label: "Explicação", icon: MessageSquareIcon, desc: "Como funciona, por que existe",
+    template: "## Explicação\n\n[Explique o conceito com suas próprias palavras]\n\n## Como funciona?\n\n[Descreva o mecanismo ou processo]\n\n## Pontos-chave\n\n- [Ponto 1]\n- [Ponto 2]",
+  },
+  {
+    value: "EXEMPLO", label: "Exemplo", icon: LightbulbIcon, desc: "Caso concreto que ilustra um conceito",
+    template: "## Exemplo\n\n[Descreva o exemplo concreto]\n\n## Conceito ilustrado\n\n[Que conceito este exemplo ilustra?]\n\n## Por que funciona?\n\n[Explique a conexão com o conceito]",
+  },
+  {
+    value: "COMPARACAO", label: "Comparação", icon: GitMergeIcon, desc: "Diferenças e semelhanças entre conceitos",
+    template: "## Comparação: [Conceito A] vs [Conceito B]\n\n| Aspecto | [A] | [B] |\n|---------|-----|-----|\n| [Aspecto 1] | | |\n| [Aspecto 2] | | |\n\n## Quando usar cada um?\n\n[Descreva os contextos]",
+  },
+  {
+    value: "SINTESE", label: "Síntese", icon: LayersIcon, desc: "Resumo integrado de um tema",
+    template: "## Síntese: [Tema]\n\n### Ideia central\n\n[A ideia mais importante em uma frase]\n\n### Pontos principais\n\n1. [Ponto 1]\n2. [Ponto 2]\n3. [Ponto 3]\n\n### Conexões\n\n- [Como se conecta com outros conceitos?]",
+  },
+  {
+    value: "PREREQUISITO", label: "Pré-requisito", icon: ArrowUpCircleIcon, desc: "Base necessária antes de avançar",
+    template: "## Pré-requisito: [Conceito base]\n\n[Explique o conceito base]\n\n## Por que é necessário?\n\n[Por que este conhecimento é fundamental]\n\n## O que se torna possível?\n\n- [Conceito avançado 1]\n- [Conceito avançado 2]",
+  },
+  {
+    value: "ERRO_COMUM", label: "Erro Comum", icon: AlertTriangleIcon, desc: "Confusão frequente e como evitar",
+    template: "## Erro Comum: [Descreva o erro]\n\n### Por que acontece?\n\n[Explique a confusão ou mal-entendido]\n\n### O correto é:\n\n[Explique a forma correta]\n\n### Exemplo\n\n❌ Errado: [exemplo errado]\n✅ Correto: [exemplo correto]",
+  },
+  {
+    value: "APLICACAO", label: "Aplicação", icon: ZapIcon, desc: "Como usar o conceito na prática",
+    template: "## Aplicação: [Descreva o caso de uso]\n\n### Contexto\n\n[Em que situação isso é aplicado?]\n\n### Como aplicar?\n\n1. [Passo 1]\n2. [Passo 2]\n\n### Resultado esperado\n\n[O que se obtém com esta aplicação?]",
+  },
+];
+
+// ==========================================
 // Manual Mode
 // ==========================================
 
@@ -278,6 +325,7 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [saving, setSaving] = useState(false);
+  const [subtipo, setSubtipo] = useState<SubtipoNota | null>(null);
 
   const titleError = titulo.trim().length === 0 && conteudo.trim().length > 0;
   const contentError = conteudo.trim().length === 0 && titulo.trim().length > 0;
@@ -480,7 +528,7 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
       }
       const allIds = new Set([...selectedConcepts, ...createdConceptIds]);
       const { notaId } = await createNotaManual({
-        titulo: titulo.trim(), conteudo: conteudo.trim(), selectedConceitoIds: Array.from(allIds),
+        titulo: titulo.trim(), conteudo: conteudo.trim(), subtipo, selectedConceitoIds: Array.from(allIds),
         notaConceitoRels: notaConceitoRels.concat(createdConceptIds.map((id) => ({ conceitoId: id, tipoRelacao: "DEFINE" as const }))),
         conceitoConceitoRels,
       });
@@ -498,11 +546,47 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
 
   return (
     <div className="space-y-5">
-      {/* Step 1: Note data */}
+      {/* Step 0: Subtipo */}
       <Card className="border-zinc-200 dark:border-zinc-800">
         <CardHeader className="px-3 sm:px-5 pb-3">
           <div className="flex items-center gap-2">
             <div className="size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold">1</div>
+            <div>
+              <CardTitle className="text-sm">Tipo de conteúdo</CardTitle>
+              <CardDescription className="text-[10px]">O que esta nota representa? Isso guia o template.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="px-3 sm:px-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {SUBTIPO_CONFIG.map((cfg) => {
+              const Icon = cfg.icon;
+              const sel = subtipo === cfg.value;
+              return (
+                <button
+                  key={cfg.value}
+                  type="button"
+                  onClick={() => {
+                    setSubtipo(sel ? null : cfg.value);
+                    if (!sel && !conteudo.trim()) setConteudo(cfg.template);
+                  }}
+                  className={`flex flex-col items-start gap-1 rounded-md border px-3 py-2.5 text-left transition-colors ${sel ? "border-primary bg-primary/[0.05]" : "border-zinc-200 dark:border-zinc-700 hover:border-primary/40"}`}
+                >
+                  <Icon className={`size-4 ${sel ? "text-primary" : "text-zinc-400"}`} />
+                  <span className={`text-xs font-medium leading-tight ${sel ? "text-primary" : ""}`}>{cfg.label}</span>
+                  <span className="text-[10px] text-zinc-400 leading-tight">{cfg.desc}</span>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Step 1: Note data */}
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader className="px-3 sm:px-5 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold">2</div>
             <div>
               <CardTitle className="text-sm">Dados da nota</CardTitle>
               <CardDescription className="text-[10px]">Titulo e conteudo da nota.</CardDescription>
@@ -527,7 +611,7 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
         <CardHeader className="px-3 sm:px-5 pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold">2</div>
+              <div className="size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold">3</div>
               <div>
                 <CardTitle className="text-sm">Conceitos</CardTitle>
                 <CardDescription className="text-[10px]">Selecione existentes ou crie novos abaixo.</CardDescription>

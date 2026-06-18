@@ -103,7 +103,7 @@ export class GraphService {
         if (!titulo) throw new BadRequestException('O título da nota é obrigatório');
         if (!input.subtipo || !NOTA_SUBTIPOS.includes(input.subtipo)) throw new BadRequestException('Selecione o subtipo da nota');
         if ((input.tipoNota ?? 'PERMANENTE') === 'LITERATURA' && !input.fonte?.trim()) throw new BadRequestException('Notas de literatura exigem a fonte');
-        entityId = (await this.prisma.nota.create({ data: { titulo, tipoNota: input.tipoNota ?? 'PERMANENTE', subtipo: input.subtipo, fonte: input.fonte?.trim() || null, slug: notaSlug(titulo, now), conteudo: input.conteudo ?? '', usuarioId: userId, dataCriacao: now } })).id;
+        entityId = (await this.prisma.nota.create({ data: { titulo, tipoNota: input.tipoNota ?? 'PERMANENTE', subtipo: input.subtipo as any, fonte: input.fonte?.trim() || null, slug: notaSlug(titulo, now), conteudo: input.conteudo ?? '', usuarioId: userId, dataCriacao: now } })).id;
         break;
       }
       case 'TEXTO_BRUTO':
@@ -141,7 +141,7 @@ export class GraphService {
       case 'FLASHCARD': count = (await this.prisma.flashcard.updateMany({ where, data: { pergunta: data.pergunta, resposta: data.resposta } })).count; break;
       case 'NOTA':
         if (data.subtipo && !NOTA_SUBTIPOS.includes(data.subtipo)) throw new BadRequestException('Subtipo inválido');
-        count = (await this.prisma.nota.updateMany({ where, data: { titulo: data.titulo?.trim(), conteudo: data.conteudo, tipoNota: data.tipoNota, subtipo: data.subtipo, fonte: data.fonte === undefined ? undefined : data.fonte?.trim() || null } })).count;
+        count = (await this.prisma.nota.updateMany({ where, data: { titulo: data.titulo?.trim(), conteudo: data.conteudo, tipoNota: data.tipoNota, subtipo: data.subtipo as any, fonte: data.fonte === undefined ? undefined : data.fonte?.trim() || null } })).count;
         break;
       case 'TEXTO_BRUTO': count = (await this.prisma.textoBruto.updateMany({ where, data: { titulo: data.titulo?.trim(), texto: data.texto?.trim() } })).count; break;
       default: throw new BadRequestException(`Tipo de nó desconhecido: ${tipoNode}`);

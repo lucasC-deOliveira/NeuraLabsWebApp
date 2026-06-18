@@ -1,6 +1,16 @@
 // Notas → API NestJS.
 import { apiFetch } from "./api";
 
+export type SubtipoNota =
+  | "DEFINICAO"
+  | "EXPLICACAO"
+  | "EXEMPLO"
+  | "COMPARACAO"
+  | "SINTESE"
+  | "PREREQUISITO"
+  | "ERRO_COMUM"
+  | "APLICACAO";
+
 export interface NotaListItem {
   id: string;
   titulo: string;
@@ -9,6 +19,8 @@ export interface NotaListItem {
   conceitosRelacionados: { nome: string; id: string }[];
   flashcardCount: number;
   wordCount: number;
+  subtipo: SubtipoNota | null;
+  tipoNota: string;
 }
 export async function getNotas(): Promise<NotaListItem[]> {
   const rows = await apiFetch<Array<Omit<NotaListItem, "dataCriacao"> & { dataCriacao: string }>>("/notes");
@@ -20,6 +32,8 @@ export interface NotaDetail {
   conteudo: string;
   dataCriacao: Date;
   conceitosRelacionados: { nome: string; tipoRelacao: string }[];
+  subtipo: SubtipoNota | null;
+  tipoNota: string;
 }
 export async function getNotaById(notaId: string): Promise<NotaDetail | null> {
   const n = await apiFetch<(Omit<NotaDetail, "dataCriacao"> & { dataCriacao: string }) | null>(`/notes/${notaId}`);
@@ -29,11 +43,16 @@ export async function getNotaById(notaId: string): Promise<NotaDetail | null> {
 export function createNotaManual(input: {
   titulo: string;
   conteudo: string;
+  subtipo?: SubtipoNota | null;
+  tipoNota?: string;
   selectedConceitoIds?: string[];
   notaConceitoRels?: Array<{ conceitoId: string; tipoRelacao: string }>;
   conceitoConceitoRels?: Array<{ origemId: string; destinoId: string; tipoRelacao: string }>;
 }): Promise<{ notaId: string }> {
-  return apiFetch("/notes", { method: "POST", body: JSON.stringify({ titulo: input.titulo, conteudo: input.conteudo }) });
+  return apiFetch("/notes", {
+    method: "POST",
+    body: JSON.stringify({ titulo: input.titulo, conteudo: input.conteudo, subtipo: input.subtipo ?? null, tipoNota: input.tipoNota }),
+  });
 }
 
 export function generateFlashcardsFromNota(notaId: string): Promise<{ flashcards: { id: string; pergunta: string }[] }> {

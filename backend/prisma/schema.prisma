@@ -122,12 +122,23 @@ model Baralho {
   @@map("baralhos")
 }
 
+enum SubtipoNota {
+  DEFINICAO
+  EXPLICACAO
+  EXEMPLO
+  COMPARACAO
+  SINTESE
+  PREREQUISITO
+  ERRO_COMUM
+  APLICACAO
+}
+
 model Nota {
-  id              String   @id @default(cuid())
-  usuarioId       String   @map("id_usuario")
-  titulo          String   @default("Sem título")
-  tipoNota        String   @default("PERMANENTE") @map("tipo_nota")
-  subtipo         String?
+  id              String       @id @default(cuid())
+  usuarioId       String       @map("id_usuario")
+  titulo          String       @default("Sem título")
+  tipoNota        String       @default("PERMANENTE") @map("tipo_nota")
+  subtipo         SubtipoNota?
   fonte           String?
   slug            String?
   conteudo        String

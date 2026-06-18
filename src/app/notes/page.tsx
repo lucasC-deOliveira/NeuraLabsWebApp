@@ -31,6 +31,8 @@ interface NotaItem {
   conceitosRelacionados: { nome: string; id: string }[];
   flashcardCount: number;
   wordCount: number;
+  subtipo: string | null;
+  tipoNota: string;
 }
 
 // ── Time helpers ──
@@ -458,6 +460,12 @@ export default function NotesPage() {
 
                     {/* Meta row */}
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {/* Subtipo badge */}
+                      {nota.subtipo && (
+                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 text-violet-600 border-violet-300 dark:border-violet-700 dark:text-violet-400">
+                          {nota.subtipo.replace("_", " ").toLowerCase()}
+                        </Badge>
+                      )}
                       {/* Word count */}
                       <Badge variant="secondary" className="text-[10px] h-5 px-1.5 tabular-nums">
                         {nota.wordCount} palavras

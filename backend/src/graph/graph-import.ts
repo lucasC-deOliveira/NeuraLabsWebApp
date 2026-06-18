@@ -121,7 +121,7 @@ export async function runImportGraph(
           case 'TOPICO': return (await tx.topico.create({ data: { nome: n.nome!.trim(), descricao: n.descricao ?? null, usuarioId: userId } })).id;
           case 'CONCEITO': return (await tx.conceito.create({ data: { nome: n.nome!.trim(), descricao: n.descricao ?? null, usuarioId: userId } })).id;
           case 'FLASHCARD': return (await tx.flashcard.create({ data: { pergunta: n.pergunta!.trim(), resposta: n.resposta!.trim(), usuarioId: userId, dataCriacao: now } })).id;
-          case 'NOTA': { const t = n.titulo?.trim() || deriveNotaTitulo(n.conteudo ?? ''); return (await tx.nota.create({ data: { titulo: t, conteudo: n.conteudo!, tipoNota: n.tipoNota || 'PERMANENTE', subtipo: n.subtipo!, fonte: n.fonte?.trim() || null, slug: notaSlug(t, now), usuarioId: userId, dataCriacao: now } })).id; }
+          case 'NOTA': { const t = n.titulo?.trim() || deriveNotaTitulo(n.conteudo ?? ''); return (await tx.nota.create({ data: { titulo: t, conteudo: n.conteudo!, tipoNota: n.tipoNota || 'PERMANENTE', subtipo: n.subtipo as any, fonte: n.fonte?.trim() || null, slug: notaSlug(t, now), usuarioId: userId, dataCriacao: now } })).id; }
           case 'TEXTO_BRUTO': return (await tx.textoBruto.create({ data: { titulo: n.titulo?.trim() || 'Texto sem título', texto: n.texto!, usuarioId: userId, dataCriacao: now } })).id;
           case 'BARALHO': return (await tx.baralho.create({ data: { titulo: (n.titulo ?? n.nome ?? '').trim(), usuarioId: userId, dataCriacao: now } })).id;
           default: throw new BadRequestException(`Tipo desconhecido: ${n.tipo}`);
