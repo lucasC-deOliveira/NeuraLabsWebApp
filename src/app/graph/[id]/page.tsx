@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
-import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, RouteIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -24,7 +24,6 @@ import { AutoLinkModal } from "@/components/graph/AutoLinkModal";
 import { DuplicatesModal } from "@/components/graph/DuplicatesModal";
 import { CommunitySummaryModal } from "@/components/graph/CommunitySummaryModal";
 import { MissingPrereqsModal } from "@/components/graph/MissingPrereqsModal";
-import { LearningPathModal } from "@/components/graph/LearningPathModal";
 import { GraphChatModal } from "@/components/graph/GraphChatModal";
 import { CompletenessModal } from "@/components/graph/CompletenessModal";
 import { detectCommunities, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
@@ -483,14 +482,6 @@ export default function GraphPage() {
                 <div className="text-[11px] text-muted-foreground">Score por assunto com lacunas</div>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { closeToolbarModals(); setLearningPathOpen(true); }}>
-              <RouteIcon className="size-4 shrink-0 text-violet-500" />
-              <div>
-                <div className="font-medium">Trilha de aprendizado</div>
-                <div className="text-[11px] text-muted-foreground">Sequência do básico ao avançado</div>
-              </div>
-            </DropdownMenuItem>
-
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Limpar</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => { closeToolbarModals(); setDuplicatesOpen(true); }}>
@@ -545,6 +536,7 @@ export default function GraphPage() {
           <RoadmapPanel
             open={roadmapOpen}
             onClose={() => { setRoadmapOpen(false); setRoadmapSpotlightId(null); }}
+            grafoId={graphId}
             nodes={controller.state.layout}
             edges={controller.state.edges}
             onFocusNode={(n) => {
@@ -909,11 +901,6 @@ export default function GraphPage() {
         communityLabel={communitySummary?.label ?? ""}
         nodeIds={communitySummary?.nodeIds ?? []}
       />
-      <LearningPathModal
-        open={learningPathOpen}
-        onOpenChange={setLearningPathOpen}
-        grafoId={graphId}
-      />
       <GraphChatModal
         open={chatOpen}
         onOpenChange={setChatOpen}
@@ -923,6 +910,7 @@ export default function GraphPage() {
         open={completenessOpen}
         onOpenChange={setCompletenessOpen}
         grafoId={graphId}
+        onGenerated={refreshGraph}
       />
       <EdgeManagerModal
         open={isEdgeManagerOpen}

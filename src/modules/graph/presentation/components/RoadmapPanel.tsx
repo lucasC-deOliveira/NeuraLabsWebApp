@@ -1,31 +1,104 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import {
   CheckCircle2Icon,
   CircleDotIcon,
   CircleIcon,
   RouteIcon,
   XIcon,
+  SparklesIcon,
+  Loader2Icon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  AlertCircleIcon,
+  RefreshCwIcon,
+  SaveIcon,
+  ClockIcon,
+  TriangleAlertIcon,
 } from "lucide-react";
 import {
   buildRoadmap,
   type RoadmapItem,
   type RoadmapStatus,
 } from "../../domain/services/roadmap.service";
+import { generateLearningPath } from "@/lib/ai-api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  grafoId: string;
   nodes: Array<{ id: string; label?: string; group?: string; dominio?: number }>;
   edges: Array<{ source: string; target: string; type?: string; peso?: number }>;
   onFocusNode: (node: { id: string }) => void;
 };
 
+type AIStep = { nodeId: string; nome: string; tipo: string; motivo: string };
+type Mode = "urgency" | "ai";
+
+interface SavedTrail {
+  steps: AIStep[];
+  generatedAt: string; // ISO
+  nodeCount: number;   // para detectar grafo desatualizado
+}
+
+// ── localStorage helpers ──────────────────────────────────────────────────────
+
+function trailKey(grafoId: string) {
+  return `neuralabs:trail:${grafoId}`;
+}
+
+function loadSavedTrail(grafoId: string): SavedTrail | null {
+  try {
+    const raw = localStorage.getItem(trailKey(grafoId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SavedTrail;
+    // valida shape mínima
+    if (!Array.isArray(parsed.steps) || !parsed.generatedAt) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveTrail(grafoId: string, trail: SavedTrail): boolean {
+  try {
+    localStorage.setItem(trailKey(grafoId), JSON.stringify(trail));
+    return true;
+  } catch {
+    // QuotaExceededError ou outro erro de storage
+    return false;
+  }
+}
+
+function clearSavedTrail(grafoId: string) {
+  try { localStorage.removeItem(trailKey(grafoId)); } catch { /* ignore */ }
+}
+
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  return `há ${Math.floor(h / 24)}d`;
+}
+
+// ── Componentes auxiliares ────────────────────────────────────────────────────
+
 const STATUS_STYLE: Record<RoadmapStatus, { icon: typeof CircleIcon; color: string; label: string }> = {
   mastered: { icon: CheckCircle2Icon, color: "text-green-600 dark:text-green-500", label: "Dominado" },
-  partial: { icon: CircleDotIcon, color: "text-amber-500", label: "Parcial" },
-  todo: { icon: CircleIcon, color: "text-muted-foreground/60", label: "A estudar" },
+  partial:  { icon: CircleDotIcon,    color: "text-amber-500",                     label: "Parcial"  },
+  todo:     { icon: CircleIcon,       color: "text-muted-foreground/60",            label: "A estudar" },
+};
+
+const TYPE_COLOR: Record<string, string> = {
+  ASSUNTO: "text-blue-500",
+  TOPICO:  "text-purple-500",
+  CONCEITO:"text-green-500",
 };
 
 function StatusIcon({ status }: { status: RoadmapStatus }) {
@@ -40,19 +113,135 @@ function ConceptRow({ item, onFocus }: { item: RoadmapItem; onFocus: () => void 
     <button
       onClick={onFocus}
       className="group flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-accent"
-      title={item.label}
     >
       <StatusIcon status={item.status} />
-      <span className="flex-1 truncate text-muted-foreground group-hover:text-foreground">
-        {item.label}
-      </span>
+      <span className="flex-1 truncate text-muted-foreground group-hover:text-foreground">{item.label}</span>
       <span className="font-mono text-[10px] text-muted-foreground">{pct(item.dominio)}</span>
     </button>
   );
 }
 
-export function RoadmapPanel({ open, onClose, nodes, edges, onFocusNode }: Props) {
-  // só calcula quando o painel está aberto
+// ── Componente principal ──────────────────────────────────────────────────────
+
+export function RoadmapPanel({ open, onClose, grafoId, nodes, edges, onFocusNode }: Props) {
+  const [mode, setMode] = useState<Mode>("urgency");
+  const [aiSteps, setAiSteps] = useState<AIStep[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [currentStep, setCurrentStep] = useState(0);
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+  const [savedNodeCount, setSavedNodeCount] = useState<number | null>(null);
+  // isSaved: true = trilha atual veio do localStorage ou foi salva manualmente
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+
+  const relevantNodeCount = nodes.filter(n =>
+    n.group === "ASSUNTO" || n.group === "TOPICO" || n.group === "CONCEITO"
+  ).length;
+
+  // IDs válidos no grafo atual (para filtrar steps stale)
+  const validNodeIds = useMemo(() => new Set(nodes.map(n => n.id)), [nodes]);
+
+  // Filtra steps cujo nodeId não existe mais no grafo
+  const validSteps = useMemo(
+    () => aiSteps.filter(s => validNodeIds.has(s.nodeId)),
+    [aiSteps, validNodeIds],
+  );
+  const staleCount = aiSteps.length - validSteps.length;
+
+  // Detecta se o grafo mudou muito desde que a trilha foi salva
+  const graphChangedSignificantly = isSaved && savedNodeCount !== null && relevantNodeCount > 0 &&
+    Math.abs(relevantNodeCount - savedNodeCount) / Math.max(savedNodeCount, 1) > 0.2;
+
+  // Carrega trail salva ao abrir o modo IA
+  const loadSaved = useCallback(() => {
+    const saved = loadSavedTrail(grafoId);
+    if (!saved) return false;
+    setAiSteps(saved.steps);
+    setGeneratedAt(saved.generatedAt);
+    setSavedNodeCount(saved.nodeCount);
+    setCurrentStep(0);
+    setAiError("");
+    setIsSaved(true);
+    setSaveFailed(false);
+    return true;
+  }, [grafoId]);
+
+  useEffect(() => {
+    if (mode === "ai" && open) {
+      // Tenta carregar do storage primeiro; só busca da IA se não houver trail salva
+      const hasSaved = loadSaved();
+      if (!hasSaved && !aiLoading) {
+        fetchAiTrail();
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, open, grafoId]);
+
+  // Reseta estado da IA ao trocar de grafo
+  useEffect(() => {
+    setAiSteps([]);
+    setGeneratedAt(null);
+    setSavedNodeCount(null);
+    setCurrentStep(0);
+    setAiError("");
+    setIsSaved(false);
+    setSaveFailed(false);
+  }, [grafoId]);
+
+  const fetchAiTrail = async () => {
+    if (aiLoading) return; // previne fetch duplicado
+    setAiLoading(true);
+    setAiError("");
+    setIsSaved(false);
+    setSaveFailed(false);
+    setCurrentStep(0);
+    try {
+      const res = await generateLearningPath(grafoId);
+      const now = new Date().toISOString();
+      setAiSteps(res.steps);
+      setGeneratedAt(now);
+      setSavedNodeCount(relevantNodeCount);
+      // NÃO salva automaticamente — usuário decide clicando em "Salvar trilha"
+
+      // Foca o primeiro passo válido
+      const firstValid = res.steps.find(s => validNodeIds.has(s.nodeId));
+      if (firstValid) onFocusNode({ id: firstValid.nodeId });
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "Erro ao gerar trilha.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleSave = () => {
+    if (!aiSteps.length || !generatedAt) return;
+    const trail: SavedTrail = { steps: aiSteps, generatedAt, nodeCount: relevantNodeCount };
+    const ok = saveTrail(grafoId, trail);
+    if (ok) {
+      setIsSaved(true);
+      setSaveFailed(false);
+    } else {
+      setSaveFailed(true);
+    }
+  };
+
+  const handleDeleteSaved = () => {
+    clearSavedTrail(grafoId);
+    setIsSaved(false);
+    setAiSteps([]);
+    setGeneratedAt(null);
+    setSavedNodeCount(null);
+    setCurrentStep(0);
+  };
+
+  const goToStep = (idx: number) => {
+    const step = validSteps[idx];
+    if (!step) return;
+    setCurrentStep(idx);
+    onFocusNode({ id: step.nodeId });
+  };
+
   const roadmap = useMemo(
     () => (open ? buildRoadmap(nodes, edges) : { sections: [], total: 0, mastered: 0 }),
     [open, nodes, edges],
@@ -64,100 +253,288 @@ export function RoadmapPanel({ open, onClose, nodes, edges, onFocusNode }: Props
 
   return (
     <div className="graph-toolbar absolute left-16 top-3 bottom-3 z-20 flex w-[360px] max-w-[calc(100%-5rem)] flex-col rounded-md border bg-background/95 backdrop-blur-sm shadow-lg">
+
       {/* cabeçalho */}
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
         <div className="flex items-center gap-2">
           <RouteIcon className="size-4 text-primary" />
           <h3 className="text-sm font-semibold">Roadmap de estudo</h3>
         </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground" title="Fechar">
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
           <XIcon className="size-4" />
         </button>
       </div>
 
-      {/* progresso + legenda */}
-      <div className="border-b px-3 py-2">
-        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>
-            {roadmap.mastered} de {roadmap.total} dominados
-          </span>
-          <span className="font-mono text-primary">{pct(progress)}</span>
-        </div>
-        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-primary transition-all" style={{ width: pct(progress) }} />
-        </div>
-        <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
-          {(["mastered", "partial", "todo"] as RoadmapStatus[]).map((s) => (
-            <span key={s} className="flex items-center gap-1">
-              <StatusIcon status={s} />
-              {STATUS_STYLE[s].label}
-            </span>
-          ))}
-        </div>
+      {/* toggle de modo */}
+      <div className="flex border-b">
+        <button
+          className={`flex-1 py-1.5 text-xs font-medium transition-colors ${mode === "urgency" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setMode("urgency")}
+        >
+          Por urgência
+        </button>
+        <button
+          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium transition-colors ${mode === "ai" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setMode("ai")}
+        >
+          <SparklesIcon className="size-3" />
+          Trilha IA
+        </button>
       </div>
 
-      {/* trilha */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        {roadmap.sections.length === 0 ? (
-          <p className="py-10 text-center text-xs text-muted-foreground">
-            Nenhum tópico ou conceito para montar o roadmap ainda.
-          </p>
-        ) : (
-          <div className="space-y-5">
-            {roadmap.sections.map((section) => (
-              <div key={section.id}>
-                {/* seção (assunto) */}
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="h-3.5 w-1 rounded-full bg-primary" />
-                  <h4 className="text-xs font-bold uppercase tracking-wide text-foreground">
-                    {section.label}
-                  </h4>
-                </div>
+      {/* barra de progresso (modo urgência) */}
+      {mode === "urgency" && (
+        <div className="border-b px-3 py-2">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>{roadmap.mastered} de {roadmap.total} dominados</span>
+            <span className="font-mono text-primary">{pct(progress)}</span>
+          </div>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: pct(progress) }} />
+          </div>
+          <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
+            {(["mastered", "partial", "todo"] as RoadmapStatus[]).map((s) => (
+              <span key={s} className="flex items-center gap-1">
+                <StatusIcon status={s} />
+                {STATUS_STYLE[s].label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
-                {/* espinha de tópicos */}
-                <div className="relative pl-7">
-                  <div className="absolute left-[0.6rem] top-1 bottom-1 w-px bg-border" />
-                  {section.topics.map((topic, i) => (
-                    <div key={topic.id} className="relative mb-3 last:mb-0">
-                      {/* badge numerado na espinha */}
-                      <span className="absolute -left-[1.55rem] top-1.5 flex size-5 items-center justify-center rounded-full border bg-background text-[10px] font-bold text-primary">
-                        {i + 1}
-                      </span>
-                      {/* card do tópico */}
-                      <button
-                        onClick={() => onFocusNode({ id: topic.id })}
-                        className="flex w-full items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-left text-sm hover:border-primary"
-                        title={topic.label}
-                      >
-                        <StatusIcon status={topic.status} />
-                        <span className="flex-1 truncate font-medium">{topic.label}</span>
-                        <span className="font-mono text-[10px] text-muted-foreground">
-                          {pct(topic.dominio)}
-                        </span>
-                      </button>
-                      {/* ramos: conceitos */}
-                      {topic.concepts.length > 0 && (
-                        <div className="mt-1 ml-1 space-y-0.5 border-l pl-2">
-                          {topic.concepts.map((c) => (
+      {/* metadados da trail IA */}
+      {mode === "ai" && !aiLoading && validSteps.length > 0 && (
+        <div className="border-b px-3 py-1.5 flex items-center gap-2">
+          {isSaved ? (
+            <>
+              <SaveIcon className="size-3 text-green-500 shrink-0" />
+              <span className="text-[11px] text-muted-foreground flex-1">
+                Salva {generatedAt ? formatRelativeTime(generatedAt) : ""}
+              </span>
+              <button
+                className="text-[11px] text-destructive/70 hover:text-destructive"
+                onClick={handleDeleteSaved}
+                title="Remover trilha salva"
+              >
+                Remover
+              </button>
+              <span className="text-muted-foreground/30">·</span>
+              <button
+                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                onClick={fetchAiTrail}
+              >
+                <RefreshCwIcon className="size-3" />
+                Regerar
+              </button>
+            </>
+          ) : (
+            <>
+              <ClockIcon className="size-3 text-muted-foreground shrink-0" />
+              <span className="text-[11px] text-muted-foreground flex-1">
+                Gerada {generatedAt ? formatRelativeTime(generatedAt) : ""}
+              </span>
+              {saveFailed ? (
+                <span className="text-[10px] text-destructive flex items-center gap-1">
+                  <SaveIcon className="size-3" /> Falha ao salvar
+                </span>
+              ) : (
+                <button
+                  className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80"
+                  onClick={handleSave}
+                >
+                  <SaveIcon className="size-3" />
+                  Salvar trilha
+                </button>
+              )}
+              <span className="text-muted-foreground/30">·</span>
+              <button
+                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                onClick={fetchAiTrail}
+              >
+                <RefreshCwIcon className="size-3" />
+                Regerar
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* aviso de grafo desatualizado */}
+      {mode === "ai" && !aiLoading && graphChangedSignificantly && validSteps.length > 0 && (
+        <div className="border-b px-3 py-1.5 flex items-start gap-2 bg-amber-500/8">
+          <TriangleAlertIcon className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-snug">
+            O grafo mudou desde a última geração. Regenerar pode melhorar a trilha.
+          </p>
+        </div>
+      )}
+
+      {/* aviso de nós removidos */}
+      {mode === "ai" && !aiLoading && staleCount > 0 && (
+        <div className="border-b px-3 py-1.5 flex items-start gap-2 bg-amber-500/8">
+          <TriangleAlertIcon className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-snug">
+            {staleCount} passo{staleCount > 1 ? "s foram removidos" : " foi removido"} do grafo e ocultado{staleCount > 1 ? "s" : ""}.
+          </p>
+        </div>
+      )}
+
+      {/* navegador de passos IA */}
+      {mode === "ai" && validSteps.length > 0 && !aiLoading && (
+        <div className="border-b px-3 py-1.5 flex items-center gap-2">
+          <button
+            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
+            disabled={currentStep === 0}
+            onClick={() => goToStep(currentStep - 1)}
+          >
+            <ChevronLeftIcon className="size-4" />
+          </button>
+          <span className="flex-1 text-center text-xs text-muted-foreground tabular-nums">
+            Passo <span className="font-semibold text-foreground">{currentStep + 1}</span> de {validSteps.length}
+          </span>
+          <button
+            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
+            disabled={currentStep === validSteps.length - 1}
+            onClick={() => goToStep(currentStep + 1)}
+          >
+            <ChevronRightIcon className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {/* conteúdo */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+
+        {/* ── MODO URGÊNCIA ── */}
+        {mode === "urgency" && (
+          <>
+            {roadmap.sections.length === 0 ? (
+              <p className="py-10 text-center text-xs text-muted-foreground">
+                Nenhum tópico ou conceito para montar o roadmap ainda.
+              </p>
+            ) : (
+              <div className="space-y-5">
+                {roadmap.sections.map((section) => (
+                  <div key={section.id}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="h-3.5 w-1 rounded-full bg-primary" />
+                      <h4 className="text-xs font-bold uppercase tracking-wide text-foreground">
+                        {section.label}
+                      </h4>
+                    </div>
+                    <div className="relative pl-7">
+                      <div className="absolute left-[0.6rem] top-1 bottom-1 w-px bg-border" />
+                      {section.topics.map((topic, i) => (
+                        <div key={topic.id} className="relative mb-3 last:mb-0">
+                          <span className="absolute -left-[1.55rem] top-1.5 flex size-5 items-center justify-center rounded-full border bg-background text-[10px] font-bold text-primary">
+                            {i + 1}
+                          </span>
+                          <button
+                            onClick={() => onFocusNode({ id: topic.id })}
+                            className="flex w-full items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-left text-sm hover:border-primary"
+                          >
+                            <StatusIcon status={topic.status} />
+                            <span className="flex-1 truncate font-medium">{topic.label}</span>
+                            <span className="font-mono text-[10px] text-muted-foreground">{pct(topic.dominio)}</span>
+                          </button>
+                          {topic.concepts.length > 0 && (
+                            <div className="mt-1 ml-1 space-y-0.5 border-l pl-2">
+                              {topic.concepts.map((c) => (
+                                <ConceptRow key={c.id} item={c} onFocus={() => onFocusNode({ id: c.id })} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {section.looseConcepts.length > 0 && (
+                        <div className="ml-1 space-y-0.5 border-l pl-2">
+                          {section.looseConcepts.map((c) => (
                             <ConceptRow key={c.id} item={c} onFocus={() => onFocusNode({ id: c.id })} />
                           ))}
                         </div>
                       )}
                     </div>
-                  ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-                  {/* conceitos soltos (sem tópico) */}
-                  {section.looseConcepts.length > 0 && (
-                    <div className="ml-1 space-y-0.5 border-l pl-2">
-                      {section.looseConcepts.map((c) => (
-                        <ConceptRow key={c.id} item={c} onFocus={() => onFocusNode({ id: c.id })} />
-                      ))}
-                    </div>
-                  )}
+        {/* ── MODO IA ── */}
+        {mode === "ai" && (
+          <>
+            {aiLoading && (
+              <div className="space-y-4 py-6 px-1">
+                <div className="flex items-start gap-3">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 mt-0.5 shrink-0">
+                    <Loader2Icon className="size-3.5 animate-spin text-primary" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium">Gerando trilha com IA</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Analisando dependências e nível de domínio...</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 opacity-40">
+                  <span className="flex size-6 items-center justify-center rounded-full border border-border text-xs text-muted-foreground font-medium mt-0.5 shrink-0">2</span>
+                  <p className="text-sm font-medium text-muted-foreground">Apresentar trilha ordenada</p>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+
+            {!aiLoading && aiError && (
+              <div className="flex flex-col items-center gap-3 py-10 text-center">
+                <AlertCircleIcon className="size-8 text-destructive" />
+                <p className="text-sm text-muted-foreground">{aiError}</p>
+                <Button variant="outline" size="sm" className="gap-2" onClick={fetchAiTrail}>
+                  <RefreshCwIcon className="size-3.5" />
+                  Tentar novamente
+                </Button>
+              </div>
+            )}
+
+            {!aiLoading && !aiError && validSteps.length === 0 && (
+              <p className="py-10 text-center text-xs text-muted-foreground">
+                Nenhum passo gerado. Adicione mais nós ao grafo.
+              </p>
+            )}
+
+            {!aiLoading && !aiError && validSteps.length > 0 && (
+              <div className="space-y-2">
+                {validSteps.map((step, i) => {
+                  const isActive = i === currentStep;
+                  return (
+                    <button
+                      key={step.nodeId}
+                      onClick={() => goToStep(i)}
+                      className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                        isActive
+                          ? "border-primary/50 bg-primary/8"
+                          : "border-border hover:border-primary/30 hover:bg-accent/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                          {i + 1}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 ${TYPE_COLOR[step.tipo] ?? "text-foreground"}`}
+                        >
+                          {step.tipo.toLowerCase()}
+                        </Badge>
+                        <span className="text-sm font-medium truncate flex-1">{step.nome}</span>
+                      </div>
+                      {step.motivo && (
+                        <p className="text-[11px] text-muted-foreground leading-snug ml-7">{step.motivo}</p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
