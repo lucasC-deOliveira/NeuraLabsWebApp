@@ -441,24 +441,30 @@ function FromNotaMode({ router }: { router: ReturnType<typeof useRouter> }) {
 // ==========================================
 
 type ManualCardType =
-  | "pergunta_resposta"
-  | "cloze"
-  | "bidirecional"
-  | "explicacao_profunda"
-  | "comparacao"
-  | "lista_fragmentada"
-  | "aplicacao_problema"
-  | "erro_comum";
+  | "DEFINICAO"
+  | "EXPLICACAO"
+  | "EXEMPLO"
+  | "APLICACAO"
+  | "CONTRASTE"
+  | "COMPLETAR"
+  | "ORDENACAO"
+  | "VERDADEIRO_FALSO"
+  | "MULTIPLA_ESCOLHA"
+  | "RELACIONAL"
+  | "ERRO_COMUM";
 
 const MANUAL_TYPES: Array<{ value: ManualCardType; label: string; icon: string; description: string }> = [
-  { value: "pergunta_resposta", label: "P. → R.", icon: "🧠", description: "Pergunta direta com resposta" },
-  { value: "cloze", label: "Cloze", icon: "🔁", description: "Preenchimento de lacuna" },
-  { value: "bidirecional", label: "Bidirecional", icon: "🔄", description: "Ida e volta" },
-  { value: "explicacao_profunda", label: "Expl. Profunda", icon: "🧩", description: "Compreensao detalhada" },
-  { value: "comparacao", label: "Comparacao", icon: "⚖️", description: "Diferencas entre conceitos" },
-  { value: "lista_fragmentada", label: "Lista", icon: "📊", description: "Pontos-chave (max 4)" },
-  { value: "aplicacao_problema", label: "Problema", icon: "🔮", description: "Cenario de raciocinio" },
-  { value: "erro_comum", label: "Erro Comum", icon: "⚠️", description: "Pegadinha frequente" },
+  { value: "DEFINICAO",        label: "Definição",      icon: "📖", description: "O que é este conceito?" },
+  { value: "EXPLICACAO",       label: "Explicação",     icon: "🧩", description: "Como funciona? Por quê?" },
+  { value: "EXEMPLO",          label: "Exemplo",        icon: "💡", description: "Ilustração concreta" },
+  { value: "APLICACAO",        label: "Aplicação",      icon: "🔮", description: "Cenário prático" },
+  { value: "CONTRASTE",        label: "Contraste",      icon: "⚖️", description: "Diferenças entre conceitos" },
+  { value: "COMPLETAR",        label: "Completar",      icon: "🔁", description: "Preencher lacuna" },
+  { value: "ORDENACAO",        label: "Ordenação",      icon: "📊", description: "Sequência correta" },
+  { value: "VERDADEIRO_FALSO", label: "V / F",          icon: "✅", description: "Afirmação verdadeira ou falsa" },
+  { value: "MULTIPLA_ESCOLHA", label: "Múltipla",       icon: "🎯", description: "Alternativas A / B / C / D" },
+  { value: "RELACIONAL",       label: "Relacional",     icon: "🔗", description: "Relacionar termos" },
+  { value: "ERRO_COMUM",       label: "Erro Comum",     icon: "⚠️", description: "Identificar e corrigir erro" },
 ];
 
 // Concept node for flat list
@@ -472,28 +478,41 @@ interface FlatConcept {
 }
 
 function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> }) {
-  const [tipo, setTipo] = useState<ManualCardType>("pergunta_resposta");
+  const [tipo, setTipo] = useState<ManualCardType>("DEFINICAO");
   const [saving, setSaving] = useState(false);
 
-  // Form fields per type
+  // Campos compartilhados (pergunta/resposta genéricas)
   const [pergunta, setPergunta] = useState("");
   const [resposta, setResposta] = useState("");
+  // COMPLETAR
   const [frase, setFrase] = useState("");
   const [lacuna, setLacuna] = useState("");
-  const [perguntaIda, setPerguntaIda] = useState("");
-  const [perguntaVolta, setPerguntaVolta] = useState("");
-  const [respostaIda, setRespostaIda] = useState("");
-  const [respostaVolta, setRespostaVolta] = useState("");
+  // CONTRASTE
   const [conceitoA, setConceitoA] = useState("");
   const [conceitoB, setConceitoB] = useState("");
   const [explicacaoComp, setExplicacaoComp] = useState("");
+  // ORDENACAO
   const [temaLista, setTemaLista] = useState("");
   const [itens, setItens] = useState<string[]>(["", "", ""]);
+  // APLICACAO
   const [cenario, setCenario] = useState("");
   const [explicacaoApp, setExplicacaoApp] = useState("");
+  // ERRO_COMUM
   const [temaErro, setTemaErro] = useState("");
   const [erro, setErro] = useState("");
   const [correto, setCorreto] = useState("");
+  // VERDADEIRO_FALSO
+  const [afirmacao, setAfirmacao] = useState("");
+  const [vfEhVerdadeiro, setVfEhVerdadeiro] = useState(true);
+  const [vfJustificativa, setVfJustificativa] = useState("");
+  // MULTIPLA_ESCOLHA
+  const [perguntaMC, setPerguntaMC] = useState("");
+  const [opcaoA, setOpcaoA] = useState("");
+  const [opcaoB, setOpcaoB] = useState("");
+  const [opcaoC, setOpcaoC] = useState("");
+  const [opcaoD, setOpcaoD] = useState("");
+  const [opcaoCorreta, setOpcaoCorreta] = useState<"A" | "B" | "C" | "D">("A");
+  const [opcaoJustificativa, setOpcaoJustificativa] = useState("");
 
   // Concept data
   const [arvore, setArvore] = useState<ConceitoArvore[]>([]);
@@ -666,28 +685,32 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
 
   // Build card data for preview and save
   const buildCardData = (): Array<{ pergunta: string; resposta: string }> => {
-    const cid = selectedConceptId;
-    if (!cid) return [];
+    if (!selectedConceptId) return [];
     switch (tipo) {
-      case "pergunta_resposta":
+      case "DEFINICAO":
+        return [{ pergunta: pergunta.trim() ? `O que é ${pergunta.trim()}?` : "", resposta: resposta.trim() }];
+      case "EXPLICACAO":
         return [{ pergunta: pergunta.trim(), resposta: resposta.trim() }];
-      case "cloze":
-        return [{ pergunta: frase.trim() ? `Complete: ${frase}` : "", resposta: lacuna.trim() }];
-      case "bidirecional":
-        return [
-          { pergunta: perguntaIda.trim(), resposta: respostaIda.trim() },
-          { pergunta: perguntaVolta.trim(), resposta: respostaVolta.trim() },
-        ];
-      case "explicacao_profunda":
-        return [{ pergunta: pergunta.trim(), resposta: resposta.trim() }];
-      case "comparacao":
-        return [{ pergunta: conceitoA.trim() && conceitoB.trim() ? `Qual a diferenca entre ${conceitoA} e ${conceitoB}?` : "", resposta: explicacaoComp.trim() }];
-      case "lista_fragmentada":
-        return [{ pergunta: temaLista.trim() ? `Cite os pontos principais sobre ${temaLista}` : "", resposta: itens.filter(Boolean).map((v, i) => `${i + 1}. ${v}`).join("\n") }];
-      case "aplicacao_problema":
+      case "EXEMPLO":
+        return [{ pergunta: pergunta.trim() ? `Dê um exemplo de ${pergunta.trim()}` : "", resposta: resposta.trim() }];
+      case "APLICACAO":
         return [{ pergunta: cenario.trim(), resposta: explicacaoApp.trim() }];
-      case "erro_comum":
-        return [{ pergunta: temaErro.trim() ? `Qual o erro comum sobre ${temaErro}?` : "", resposta: `ERRO: ${erro.trim()}\n\nCORRETO: ${correto.trim()}` }];
+      case "CONTRASTE":
+        return [{ pergunta: conceitoA.trim() && conceitoB.trim() ? `Qual a diferença entre ${conceitoA} e ${conceitoB}?` : "", resposta: explicacaoComp.trim() }];
+      case "COMPLETAR":
+        return [{ pergunta: frase.trim() ? `Complete: ${frase}` : "", resposta: lacuna.trim() }];
+      case "ORDENACAO":
+        return [{ pergunta: temaLista.trim() ? `Coloque em ordem: ${temaLista}` : "", resposta: itens.filter(Boolean).map((v, i) => `${i + 1}. ${v}`).join("\n") }];
+      case "VERDADEIRO_FALSO":
+        return [{ pergunta: afirmacao.trim() ? `Verdadeiro ou Falso: "${afirmacao.trim()}"` : "", resposta: `${vfEhVerdadeiro ? "VERDADEIRO" : "FALSO"}${vfJustificativa.trim() ? ` — ${vfJustificativa.trim()}` : ""}` }];
+      case "MULTIPLA_ESCOLHA": {
+        const opts = [opcaoA, opcaoB, opcaoC, opcaoD].map((o, i) => `${["A","B","C","D"][i]}) ${o.trim()}`).join("\n");
+        return [{ pergunta: perguntaMC.trim() ? `${perguntaMC.trim()}\n\n${opts}` : "", resposta: `Alternativa ${opcaoCorreta}${opcaoJustificativa.trim() ? ` — ${opcaoJustificativa.trim()}` : ""}` }];
+      }
+      case "RELACIONAL":
+        return [{ pergunta: pergunta.trim(), resposta: resposta.trim() }];
+      case "ERRO_COMUM":
+        return [{ pergunta: temaErro.trim() ? `Qual o erro comum sobre "${temaErro}"?` : "", resposta: `ERRO: ${erro.trim()}\n\nCORRETO: ${correto.trim()}` }];
     }
   };
 
@@ -700,34 +723,38 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
   // Form validation per field
   const formErrors: Record<string, boolean> = {};
   switch (tipo) {
-    case "pergunta_resposta":
-    case "explicacao_profunda":
+    case "DEFINICAO":
+    case "EXPLICACAO":
+    case "EXEMPLO":
+    case "RELACIONAL":
       formErrors.query = !pergunta.trim();
       formErrors.response = !resposta.trim();
       break;
-    case "cloze":
-      formErrors.query = !frase.trim();
-      formErrors.response = !lacuna.trim();
-      break;
-    case "bidirecional":
-      formErrors.query = !perguntaIda.trim();
-      formErrors.response = !respostaIda.trim();
-      formErrors.query2 = !perguntaVolta.trim();
-      formErrors.response2 = !respostaVolta.trim();
-      break;
-    case "comparacao":
-      formErrors.query = !conceitoA.trim() || !conceitoB.trim();
-      formErrors.response = !explicacaoComp.trim();
-      break;
-    case "lista_fragmentada":
-      formErrors.query = !temaLista.trim();
-      formErrors.response = !itens.some((v) => v.trim());
-      break;
-    case "aplicacao_problema":
+    case "APLICACAO":
       formErrors.query = !cenario.trim();
       formErrors.response = !explicacaoApp.trim();
       break;
-    case "erro_comum":
+    case "CONTRASTE":
+      formErrors.query = !conceitoA.trim() || !conceitoB.trim();
+      formErrors.response = !explicacaoComp.trim();
+      break;
+    case "COMPLETAR":
+      formErrors.query = !frase.trim();
+      formErrors.response = !lacuna.trim();
+      break;
+    case "ORDENACAO":
+      formErrors.query = !temaLista.trim();
+      formErrors.response = !itens.some((v) => v.trim());
+      break;
+    case "VERDADEIRO_FALSO":
+      formErrors.query = !afirmacao.trim();
+      formErrors.response = false;
+      break;
+    case "MULTIPLA_ESCOLHA":
+      formErrors.query = !perguntaMC.trim();
+      formErrors.response = !opcaoA.trim() || !opcaoB.trim() || !opcaoC.trim() || !opcaoD.trim();
+      break;
+    case "ERRO_COMUM":
       formErrors.query = !temaErro.trim();
       formErrors.response = !erro.trim() || !correto.trim();
       break;
@@ -802,7 +829,7 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
       }
 
       for (const card of cardsToBuild) {
-        await createFlashcard({ pergunta: card.pergunta, resposta: card.resposta, conceitoId: effectiveConceptId });
+        await createFlashcard({ pergunta: card.pergunta, resposta: card.resposta, conceitoId: effectiveConceptId, tipo });
       }
       toast.success(`${cardsToBuild.length} flashcard(s) criado(s)!`);
       router.push("/flashcards");
@@ -1164,81 +1191,120 @@ function ManualModeContent({ router }: { router: ReturnType<typeof useRouter> })
         </CardHeader>
         <CardContent className="px-3 sm:px-5 space-y-4">
           {/* Render form fields with validation */}
-          {tipo === "pergunta_resposta" && (<>
-            <FormTextArea label="Pergunta" value={pergunta} onChange={setPergunta} placeholder="Ex: O que e o principio da legalidade?" error={formErrors.query} minH={80} />
-            <FormTextArea label="Resposta" value={resposta} onChange={setResposta} placeholder="Ex: E o principio segundo o qual..." error={formErrors.response} minH={100} />
+
+          {tipo === "DEFINICAO" && (<>
+            <FormField label="Termo / Conceito" error={formErrors.query}>
+              <input value={pergunta} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPergunta(e.target.value)} placeholder="Ex: Princípio da legalidade" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
+            </FormField>
+            <FormTextArea label="Definição" value={resposta} onChange={setResposta} placeholder="Ex: Princípio segundo o qual..." error={formErrors.response} minH={100} />
           </>)}
 
-          {tipo === "cloze" && (<>
-            <FormField label="Frase com lacuna" error={formErrors.query}>
+          {tipo === "EXPLICACAO" && (<>
+            <FormTextArea label="Pergunta / Tópico" value={pergunta} onChange={setPergunta} placeholder="Ex: Como funciona a fotossíntese?" error={formErrors.query} minH={80} />
+            <FormTextArea label="Explicação" value={resposta} onChange={setResposta} placeholder="1. A luz solar é absorvida...\n2. A água é decomposta..." error={formErrors.response} minH={140} />
+          </>)}
+
+          {tipo === "EXEMPLO" && (<>
+            <FormField label="Conceito a exemplificar" error={formErrors.query}>
+              <input value={pergunta} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPergunta(e.target.value)} placeholder="Ex: Metáfora" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
+            </FormField>
+            <FormTextArea label="Exemplo concreto" value={resposta} onChange={setResposta} placeholder="Ex: 'A vida é uma viagem sem mapa'" error={formErrors.response} minH={100} />
+          </>)}
+
+          {tipo === "APLICACAO" && (<>
+            <FormTextArea label="Cenário / Problema" value={cenario} onChange={setCenario} placeholder="Ex: Um paciente com deficiência de vitamina B12..." error={formErrors.query} minH={80} />
+            <FormTextArea label="Como aplicar / Solução" value={explicacaoApp} onChange={setExplicacaoApp} placeholder="A deficiência de B12 compromete..." error={formErrors.response} minH={100} />
+          </>)}
+
+          {tipo === "CONTRASTE" && (<>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField label="Conceito A" error={formErrors.query}>
+                <input value={conceitoA} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConceitoA(e.target.value)} placeholder="Ex: Célula procarionte" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
+              </FormField>
+              <FormField label="Conceito B" error={formErrors.query}>
+                <input value={conceitoB} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConceitoB(e.target.value)} placeholder="Ex: Célula eucarionte" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
+              </FormField>
+            </div>
+            <FormTextArea label="Diferenças / Comparativo" value={explicacaoComp} onChange={setExplicacaoComp} placeholder="- Procarionte: sem núcleo...\n- Eucarionte: com núcleo..." error={formErrors.response} minH={100} />
+          </>)}
+
+          {tipo === "COMPLETAR" && (<>
+            <FormField label="Frase com lacuna (use {{...}})" error={formErrors.query}>
               <input value={frase} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFrase(e.target.value)} placeholder="Ex: A mitocôndria produz {{...}}." className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
             </FormField>
-            <FormField label="Termo da lacuna" error={formErrors.response}>
+            <FormField label="Resposta da lacuna" error={formErrors.response}>
               <input value={lacuna} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLacuna(e.target.value)} placeholder="Ex: ATP" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
             </FormField>
           </>)}
 
-          {tipo === "bidirecional" && (<>
-            <div className="p-3 rounded-md bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800 space-y-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Ida</p>
-              <FormTextArea label="Pergunta" value={perguntaIda} onChange={setPerguntaIda} placeholder="Ex: O que e ATP?" error={formErrors.query} minH={60} />
-              <FormTextArea label="Resposta" value={respostaIda} onChange={setRespostaIda} placeholder="Molecula de energia..." error={formErrors.response} minH={60} />
-            </div>
-            <Separator />
-            <div className="p-3 rounded-md bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200 dark:border-zinc-800 space-y-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Volta</p>
-              <FormTextArea label="Pergunta" value={perguntaVolta} onChange={setPerguntaVolta} placeholder="Ex: Qual molecula responsavel pela energia?" error={formErrors.query2} minH={60} />
-              <FormTextArea label="Resposta" value={respostaVolta} onChange={setRespostaVolta} placeholder="ATP (Adenosina Trifosfato)..." error={formErrors.response2} minH={60} />
-            </div>
-          </>)}
-
-          {tipo === "explicacao_profunda" && (<>
-            <FormTextArea label="Pergunta / Topico" value={pergunta} onChange={setPergunta} placeholder="Ex: Como funciona a fotossíntese?" error={formErrors.query} minH={80} />
-            <FormTextArea label="Explicação (etapas)" value={resposta} onChange={setResposta} placeholder="1. A luz solar e absorvida...\n2. A água e decomposta..." error={formErrors.response} minH={140} />
-          </>)}
-
-          {tipo === "comparacao" && (<>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField label="Conceito A" error={formErrors.query}>
-                <input value={conceitoA} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConceitoA(e.target.value)} placeholder="Ex: Celula procarionte" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
-              </FormField>
-              <FormField label="Conceito B" error={formErrors.query}>
-                <input value={conceitoB} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConceitoB(e.target.value)} placeholder="Ex: Celula eucarionte" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
-              </FormField>
-            </div>
-            <FormTextArea label="Explicação / Comparativo" value={explicacaoComp} onChange={setExplicacaoComp} placeholder="- Procarionte: sem nucleo...\n- Eucarionte: com nucleo..." error={formErrors.response} minH={100} />
-          </>)}
-
-          {tipo === "lista_fragmentada" && (<>
-            <FormField label="Tema" error={formErrors.query}>
-              <input value={temaLista} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemaLista(e.target.value)} placeholder="Ex: Funcoes do figado" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
+          {tipo === "ORDENACAO" && (<>
+            <FormField label="O que ordenar" error={formErrors.query}>
+              <input value={temaLista} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemaLista(e.target.value)} placeholder="Ex: Etapas da mitose" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
             </FormField>
             <div className="space-y-2">
-              <Label>Itens</Label>
+              <Label>Itens na ordem correta</Label>
               {itens.map((item, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <span className="text-[10px] text-zinc-400 w-6 text-right">{i + 1}.</span>
-                  <input value={item} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setItem(i, e.target.value)} placeholder={`Item ${i + 1}`} className="flex-1 h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
+                  <input value={item} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setItem(i, e.target.value)} placeholder={`Passo ${i + 1}`} className="flex-1 h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
                   {item && <XIcon className="size-3.5 text-zinc-300 cursor-pointer flex-shrink-0" onClick={() => setItem(i, "")} />}
                 </div>
               ))}
-              {itens.length < 4 && (
-                <button type="button" onClick={() => setItens((p) => [...p, ""])} className="text-xs text-primary hover:underline flex items-center gap-1"><PlusIcon className="size-3" />Adicionar item</button>
+              {itens.length < 8 && (
+                <button type="button" onClick={() => setItens((p) => [...p, ""])} className="text-xs text-primary hover:underline flex items-center gap-1"><PlusIcon className="size-3" />Adicionar passo</button>
               )}
             </div>
           </>)}
 
-          {tipo === "aplicacao_problema" && (<>
-            <FormTextArea label="Cenário / Problema" value={cenario} onChange={setCenario} placeholder="Ex: Um paciente com deficiencia de vitamina B12..." error={formErrors.query} minH={80} />
-            <FormTextArea label="Explicação / Solução" value={explicacaoApp} onChange={setExplicacaoApp} placeholder="A deficiencia de B12 compromete..." error={formErrors.response} minH={100} />
+          {tipo === "VERDADEIRO_FALSO" && (<>
+            <FormTextArea label="Afirmação" value={afirmacao} onChange={setAfirmacao} placeholder="Ex: A mitocôndria é responsável pela síntese proteica." error={formErrors.query} minH={80} />
+            <FormField label="É verdadeiro?">
+              <div className="flex gap-3">
+                {[true, false].map((v) => (
+                  <button key={String(v)} type="button" onClick={() => setVfEhVerdadeiro(v)}
+                    className={`flex-1 h-9 rounded-md border text-sm font-medium transition-colors ${vfEhVerdadeiro === v ? (v ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "border-red-500 bg-red-500/10 text-red-700 dark:text-red-400") : "border-zinc-200 dark:border-zinc-700 text-muted-foreground hover:border-zinc-300"}`}>
+                    {v ? "Verdadeiro" : "Falso"}
+                  </button>
+                ))}
+              </div>
+            </FormField>
+            <FormTextArea label="Justificativa (opcional)" value={vfJustificativa} onChange={setVfJustificativa} placeholder="Ex: A mitocôndria produz ATP, não proteínas. Quem sintetiza proteínas é o ribossomo." minH={80} />
           </>)}
 
-          {tipo === "erro_comum" && (<>
+          {tipo === "MULTIPLA_ESCOLHA" && (<>
+            <FormTextArea label="Pergunta" value={perguntaMC} onChange={setPerguntaMC} placeholder="Ex: Qual organela é responsável pela produção de ATP?" error={formErrors.query} minH={70} />
+            <div className="space-y-2">
+              <Label className={formErrors.response ? "text-destructive" : ""}>Alternativas</Label>
+              {(["A", "B", "C", "D"] as const).map((letra, i) => {
+                const vals = [opcaoA, opcaoB, opcaoC, opcaoD];
+                const setters = [setOpcaoA, setOpcaoB, setOpcaoC, setOpcaoD];
+                return (
+                  <div key={letra} className="flex items-center gap-2">
+                    <button type="button" onClick={() => setOpcaoCorreta(letra)}
+                      className={`size-7 shrink-0 rounded-full border text-xs font-bold transition-colors ${opcaoCorreta === letra ? "border-primary bg-primary text-primary-foreground" : "border-zinc-300 dark:border-zinc-600 text-zinc-500 hover:border-primary"}`}>
+                      {letra}
+                    </button>
+                    <input value={vals[i]} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setters[i](e.target.value)} placeholder={`Opção ${letra}`}
+                      className={`flex-1 h-9 rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400 ${formErrors.response && !vals[i].trim() ? "border-destructive" : "border-zinc-200 dark:border-zinc-700"}`} />
+                  </div>
+                );
+              })}
+              <p className="text-[10px] text-muted-foreground">Clique na letra para marcar a correta</p>
+            </div>
+            <FormTextArea label="Justificativa (opcional)" value={opcaoJustificativa} onChange={setOpcaoJustificativa} placeholder="Ex: A mitocôndria converte energia em ATP via fosforilação oxidativa." minH={70} />
+          </>)}
+
+          {tipo === "RELACIONAL" && (<>
+            <FormTextArea label="Termos a relacionar" value={pergunta} onChange={setPergunta} placeholder="Ex: Relacione: DNA / RNA / Proteína" error={formErrors.query} minH={80} />
+            <FormTextArea label="Relações / Correspondências" value={resposta} onChange={setResposta} placeholder="Ex: DNA → transcrito em RNA → traduzido em Proteína" error={formErrors.response} minH={100} />
+          </>)}
+
+          {tipo === "ERRO_COMUM" && (<>
             <FormField label="Tema" error={formErrors.query}>
               <input value={temaErro} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemaErro(e.target.value)} placeholder="Ex: Fotossíntese" className="w-full h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-zinc-400" />
             </FormField>
-            <FormTextArea label="Erro comum" value={erro} onChange={setErro} placeholder="Muitos acham que..." error={formErrors.response} minH={70} accent="red" />
-            <FormTextArea label="Explicação correta" value={correto} onChange={setCorreto} placeholder="Na verdade, o correto e..." error={formErrors.response} minH={70} accent="emerald" />
+            <FormTextArea label="Erro comum" value={erro} onChange={setErro} placeholder="Muitos acham que a fotossíntese ocorre à noite..." error={formErrors.response} minH={70} accent="red" />
+            <FormTextArea label="Explicação correta" value={correto} onChange={setCorreto} placeholder="Na verdade, a fotossíntese depende de luz solar..." error={formErrors.response} minH={70} accent="emerald" />
           </>)}
         </CardContent>
       </Card>

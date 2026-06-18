@@ -18,8 +18,22 @@ export interface SpacedRepetition {
   ultimaRevisao: Date;
   estagioAprendizado: number;
 }
+export type TipoFlashcard =
+  | "DEFINICAO"
+  | "EXPLICACAO"
+  | "EXEMPLO"
+  | "APLICACAO"
+  | "CONTRASTE"
+  | "COMPLETAR"
+  | "ORDENACAO"
+  | "VERDADEIRO_FALSO"
+  | "MULTIPLA_ESCOLHA"
+  | "RELACIONAL"
+  | "ERRO_COMUM";
+
 export interface FlashcardListItem {
   id: string;
+  tipo: TipoFlashcard | null;
   pergunta: string;
   resposta: string;
   conceito: string;
@@ -50,10 +64,10 @@ export function getConceptHierarchy(): Promise<ConceptHierarchy[]> {
   return apiFetch<ConceptHierarchy[]>("/subjects/hierarchy");
 }
 
-export function createFlashcard(data: { pergunta: string; resposta: string; conceitoId?: string | null }): Promise<{ flashcardId: string }> {
+export function createFlashcard(data: { pergunta: string; resposta: string; conceitoId?: string | null; tipo?: TipoFlashcard | null }): Promise<{ flashcardId: string }> {
   return apiFetch("/flashcards", { method: "POST", body: JSON.stringify(data) });
 }
-export function updateFlashcard(id: string, data: { pergunta?: string; resposta?: string }): Promise<{ success: boolean }> {
+export function updateFlashcard(id: string, data: { pergunta?: string; resposta?: string; tipo?: TipoFlashcard | null }): Promise<{ success: boolean }> {
   return apiFetch(`/flashcards/${id}`, { method: "PATCH", body: JSON.stringify(data) });
 }
 export function deleteFlashcard(id: string): Promise<{ success: boolean }> {

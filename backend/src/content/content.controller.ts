@@ -49,12 +49,12 @@ export class ContentController {
   }
 
   @Post('flashcards')
-  createFlashcard(@CurrentUser() userId: string, @Body() body: { pergunta: string; resposta: string; conceitoId?: string | null }) {
+  createFlashcard(@CurrentUser() userId: string, @Body() body: { pergunta: string; resposta: string; conceitoId?: string | null; tipo?: string | null }) {
     return this.content.createFlashcard(userId, body);
   }
 
   @Patch('flashcards/:id')
-  updateFlashcard(@CurrentUser() userId: string, @Param('id') id: string, @Body() body: { pergunta?: string; resposta?: string }) {
+  updateFlashcard(@CurrentUser() userId: string, @Param('id') id: string, @Body() body: { pergunta?: string; resposta?: string; tipo?: string | null }) {
     return this.content.updateFlashcard(userId, id, body);
   }
 

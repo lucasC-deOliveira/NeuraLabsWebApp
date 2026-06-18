@@ -43,6 +43,7 @@ import {
 import type { FlashcardData, SpacedRepetitionData } from "@/types";
 
 interface FlashcardWithMeta extends FlashcardData {
+  tipo: string | null;
   topico: string;
   topicoId: string;
   assunto: string;
@@ -611,10 +612,17 @@ export default function FlashcardsPage() {
                   className="group flex flex-col transition-all hover:border-primary/30 hover:shadow-sm cursor-pointer"
                 >
                   <CardContent className="flex-1 px-4 pt-4 pb-2 space-y-2.5" onClick={() => setDetailCard(fc)}>
-                    {/* Concept */}
-                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium">
-                      {fc.conceito}
-                    </Badge>
+                    {/* Concept + tipo */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium">
+                        {fc.conceito}
+                      </Badge>
+                      {fc.tipo && (
+                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-medium text-primary/80">
+                          {fc.tipo.replace("_", " ").toLowerCase()}
+                        </Badge>
+                      )}
+                    </div>
 
                     {/* Question/Answer */}
                     <div>

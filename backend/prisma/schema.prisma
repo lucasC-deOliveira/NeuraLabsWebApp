@@ -78,13 +78,28 @@ model Conceito {
   @@map("conceitos")
 }
 
+enum TipoFlashcard {
+  DEFINICAO
+  EXPLICACAO
+  EXEMPLO
+  APLICACAO
+  CONTRASTE
+  COMPLETAR
+  ORDENACAO
+  VERDADEIRO_FALSO
+  MULTIPLA_ESCOLHA
+  RELACIONAL
+  ERRO_COMUM
+}
+
 model Flashcard {
-  id          String   @id @default(cuid())
-  conceitoId  String?  @map("id_concept")
-  usuarioId   String   @map("id_usuario")
+  id          String         @id @default(cuid())
+  conceitoId  String?        @map("id_concept")
+  usuarioId   String         @map("id_usuario")
+  tipo        TipoFlashcard? @map("tipo")
   pergunta    String
   resposta    String
-  dataCriacao DateTime @default(now()) @map("data_criacao")
+  dataCriacao DateTime       @default(now()) @map("data_criacao")
 
   conceito    Conceito?              @relation(fields: [conceitoId], references: [id], onDelete: Cascade)
   usuario     Usuario                @relation(fields: [usuarioId], references: [id], onDelete: Cascade)

@@ -30,22 +30,23 @@ export class ContentService {
   }
 
   // ---- Flashcards (CRUD) ----
-  async createFlashcard(userId: string, data: { pergunta: string; resposta: string; conceitoId?: string | null }) {
+  async createFlashcard(userId: string, data: { pergunta: string; resposta: string; conceitoId?: string | null; tipo?: string | null }) {
     const fc = await this.prisma.$transaction(async (tx) => {
       const created = await tx.flashcard.create({
-        data: { pergunta: data.pergunta, resposta: data.resposta, conceitoId: data.conceitoId ?? null, usuarioId: userId },
+        data: { pergunta: data.pergunta, resposta: data.resposta, conceitoId: data.conceitoId ?? null, usuarioId: userId, tipo: (data.tipo as any) ?? null },
       });
       return created;
     });
     return { flashcardId: fc.id };
   }
 
-  async updateFlashcard(userId: string, id: string, data: { pergunta?: string; resposta?: string }) {
+  async updateFlashcard(userId: string, id: string, data: { pergunta?: string; resposta?: string; tipo?: string | null }) {
     await this.prisma.flashcard.updateMany({
       where: { id, usuarioId: userId },
       data: {
         ...(data.pergunta !== undefined && { pergunta: data.pergunta }),
         ...(data.resposta !== undefined && { resposta: data.resposta }),
+        ...(data.tipo !== undefined && { tipo: (data.tipo as any) ?? null }),
       },
     });
     return { success: true };
@@ -183,6 +184,7 @@ export class ContentService {
 
     return records.map((fc) => ({
       id: fc.id,
+      tipo: fc.tipo ?? null,
       pergunta: fc.pergunta,
       resposta: fc.resposta,
       conceito: fc.conceito?.nome ?? '',
