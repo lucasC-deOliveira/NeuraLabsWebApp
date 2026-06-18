@@ -1,6 +1,17 @@
 // Ponte tipada para a API exposta pelo preload do Electron (window.neuralabs).
 // Só existe no app desktop; no web, isDesktop() é false e as funções lançam.
 
+export interface SavedApiConfig {
+  apiKey: string;
+  baseUrl: string;
+  modelo: string;
+}
+
+export interface ClaudeCodeConfigResult {
+  enabled: boolean;
+  savedApiConfig: SavedApiConfig | null;
+}
+
 export interface VaultFile {
   relPath: string; // ex.: "Resources/conceito--id.md"
   content: string;
@@ -16,6 +27,13 @@ interface NeuralabsBridge {
   isDesktop: boolean;
   getApiUrl: () => Promise<string>;
   setApiUrl: (url: string) => Promise<{ ok: boolean }>;
+  claudeCode: {
+    getConfig: () => Promise<ClaudeCodeConfigResult>;
+    setEnabled: (
+      enabled: boolean,
+      savedConfig?: SavedApiConfig
+    ) => Promise<{ ok: boolean; savedApiConfig?: SavedApiConfig | null }>;
+  };
   vault: {
     getPath: () => Promise<string | null>;
     pickFolder: () => Promise<string | null>;
@@ -51,6 +69,11 @@ function required(): NeuralabsBridge {
 export const desktop = {
   getApiUrl: () => required().getApiUrl(),
   setApiUrl: (url: string) => required().setApiUrl(url),
+  claudeCode: {
+    getConfig: () => required().claudeCode.getConfig(),
+    setEnabled: (enabled: boolean, savedConfig?: SavedApiConfig) =>
+      required().claudeCode.setEnabled(enabled, savedConfig),
+  },
   vault: {
     getPath: () => required().vault.getPath(),
     pickFolder: () => required().vault.pickFolder(),

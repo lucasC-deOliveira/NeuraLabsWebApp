@@ -38,6 +38,19 @@ export class AiService {
     return { client: new OpenAI({ apiKey: cfg.apiKey, baseURL: cfg.baseUrl }), model: cfg.model };
   }
 
+  private extractJSON(text: string): any {
+    // 1. Tenta direto
+    try { return JSON.parse(text); } catch { /* continua */ }
+    // 2. Strip de bloco markdown ```json ... ``` ou ``` ... ```
+    const mdMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (mdMatch) { try { return JSON.parse(mdMatch[1].trim()); } catch { /* continua */ } }
+    // 3. Extrai o maior bloco { ... } do texto
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first !== -1 && last > first) { try { return JSON.parse(text.slice(first, last + 1)); } catch { /* continua */ } }
+    throw new BadRequestException('A IA retornou JSON inválido.');
+  }
+
   private async callAI(userId: string, messages: Array<{ role: 'system' | 'user'; content: string }>): Promise<string> {
     const { client, model } = await this.openai(userId);
     const response = await client.chat.completions.create({ model, temperature: 0.3, response_format: { type: 'json_object' }, messages });
@@ -53,7 +66,7 @@ export class AiService {
     ]);
     if (!content) return { candidatas: [] };
     try {
-      const parsed = JSON.parse(content);
+      const parsed = this.extractJSON(content);
       return { candidatas: (parsed.notas || []).map((n: any) => ({ titulo: n.titulo || 'Nota sem título', conteudo: n.conteudo || '', conceitosPrevistos: [] })) };
     } catch {
       return { candidatas: [{ titulo: 'Nota', conteudo: rawText, conceitosPrevistos: [] }] };
@@ -82,7 +95,7 @@ export class AiService {
     ]);
 
     let parsed: any = {};
-    try { parsed = JSON.parse(content); } catch { parsed = {}; }
+    try { parsed = this.extractJSON(content); } catch { parsed = {}; }
     const aiAssuntos: Array<{ nome: string; topicos: string[] }> = (parsed.assuntos || []).map((a: any) => ({ nome: a.nome || 'Assunto', topicos: a.topicos || [] }));
     const aiTopicos: Array<{ nome: string; conceitos: string[] }> = (parsed.topicos || []).map((t: any) => ({ nome: t.nome || 'Tópico', conceitos: t.conceitos || [] }));
     const aiConceitos: Array<{ nome: string }> = (parsed.conceitos || []).map((c: any) => ({ nome: c.nome || 'Conceito' }));
@@ -317,7 +330,7 @@ ${conceptContext}`,
     if (!content) return [];
     const { resolveFallback } = makeConceptResolver(allConcepts);
     let parsed: any;
-    try { parsed = JSON.parse(content); } catch { throw new BadRequestException('A IA retornou resposta inválida.'); }
+    try { parsed = this.extractJSON(content); } catch { throw new BadRequestException('A IA retornou resposta inválida.'); }
 
     const out: FlashcardPreview[] = [];
     for (const fc of parsed?.flashcards ?? []) {
@@ -383,18 +396,7 @@ ${conceptContext}`,
     return out;
   }
 
-  // Gera grafo completo (ASSUNTO → TOPICOs → CONCEITOs → NOTAs + FLASHCARDs + BARALHO) a partir de texto bruto.
-  async generateGraphFromText(
-    userId: string,
-    grafoId: string,
-    rawText: string,
-  ): Promise<{ assunto: string; topicos: number; conceitos: number; notas: number; flashcards: number; baralho: string | null }> {
-    if (!rawText.trim()) throw new BadRequestException('Texto não pode estar vazio');
-
-    const content = await this.callAI(userId, [
-      {
-        role: 'system',
-        content: `Você é especialista em organização curricular. A partir de um texto bruto, gere um grafo de conhecimento completo e hierárquico.
+  private readonly GRAPH_SYSTEM_PROMPT = `Você é especialista em organização curricular. A partir de um texto bruto, gere um grafo de conhecimento completo e hierárquico.
 Responda APENAS JSON válido (sem markdown, sem blocos de código):
 {
   "assunto": { "nome": "...", "descricao": "..." },
@@ -416,15 +418,54 @@ Responda APENAS JSON válido (sem markdown, sem blocos de código):
   ],
   "baralho": "Nome do baralho de estudo"
 }
-Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por tópico; 1 NOTA por conceito com explicação detalhada; 1-3 FLASHCARDs por conceito com pergunta e resposta claras.`,
-      },
+Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por tópico; 1 NOTA por conceito com explicação detalhada; 1-3 FLASHCARDs por conceito com pergunta e resposta claras.`;
+
+  // Etapa 1: só chama a IA e devolve o plano (sem escrever no DB).
+  async planGraphFromText(userId: string, rawText: string): Promise<{ plan: any }> {
+    if (!rawText.trim()) throw new BadRequestException('Texto não pode estar vazio');
+    const content = await this.callAI(userId, [
+      { role: 'system', content: this.GRAPH_SYSTEM_PROMPT },
       { role: 'user', content: rawText.slice(0, 15000) },
     ]);
-
     if (!content) throw new BadRequestException('A IA não retornou conteúdo.');
-    let parsed: any;
-    try { parsed = JSON.parse(content); } catch { throw new BadRequestException('A IA retornou JSON inválido.'); }
+    return { plan: this.extractJSON(content) };
+  }
 
+  // Etapa 2: recebe o plano e persiste tudo no DB (sem chamar a IA).
+  async buildGraphFromPlan(
+    userId: string,
+    grafoId: string,
+    rawText: string,
+    plan: any,
+    saveBruto = true,
+  ): Promise<{ assunto: string; topicos: number; conceitos: number; notas: number; flashcards: number; baralho: string | null }> {
+    return this.persistGraphPlan(userId, grafoId, rawText, plan, saveBruto);
+  }
+
+  // Gera grafo completo em uma única chamada (mantido para compatibilidade).
+  async generateGraphFromText(
+    userId: string,
+    grafoId: string,
+    rawText: string,
+  ): Promise<{ assunto: string; topicos: number; conceitos: number; notas: number; flashcards: number; baralho: string | null }> {
+    if (!rawText.trim()) throw new BadRequestException('Texto não pode estar vazio');
+    const content = await this.callAI(userId, [
+      { role: 'system', content: this.GRAPH_SYSTEM_PROMPT },
+      { role: 'user', content: rawText.slice(0, 15000) },
+    ]);
+    if (!content) throw new BadRequestException('A IA não retornou conteúdo.');
+    const parsed = this.extractJSON(content);
+
+    return this.persistGraphPlan(userId, grafoId, rawText, parsed);
+  }
+
+  private async persistGraphPlan(
+    userId: string,
+    grafoId: string,
+    rawText: string,
+    parsed: any,
+    saveBruto = true,
+  ): Promise<{ assunto: string; topicos: number; conceitos: number; notas: number; flashcards: number; baralho: string | null }> {
     const assuntoNome = String(parsed?.assunto?.nome || 'Assunto').trim() || 'Assunto';
     const assuntoRes = await this.graph.createNode(userId, grafoId, {
       tipoNode: 'ASSUNTO',
@@ -438,6 +479,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     let notaCount = 0;
     let flashcardCount = 0;
     const allFlashcardIds: string[] = [];
+    const allNotaIds: string[] = [];
 
     for (const t of (Array.isArray(parsed?.topicos) ? parsed.topicos : []).slice(0, 8)) {
       const topicoNome = String(t?.nome || '').trim();
@@ -475,6 +517,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
                 tipoNota: 'PERMANENTE',
               });
               notaCount++;
+              allNotaIds.push(notaRes.nodeId);
               try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: notaRes.nodeId, targetNodeId: conceitoId, tipoRelacao: 'EXPLICA' }); } catch { /* ignore */ }
             } catch { /* ignore */ }
           }
@@ -498,6 +541,19 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     if (allFlashcardIds.length > 0) {
       baralhoNome = String(parsed?.baralho || assuntoNome).trim() || assuntoNome;
       try { await this.graph.createBaralho(userId, grafoId, baralhoNome, allFlashcardIds); } catch { /* ignore */ }
+    }
+
+    if (saveBruto && rawText.trim()) {
+      try {
+        const textoBrutoRes = await this.graph.createNode(userId, grafoId, {
+          tipoNode: 'TEXTO_BRUTO',
+          titulo: `Fonte: ${assuntoNome}`,
+          texto: rawText.trim(),
+        });
+        for (const notaId of allNotaIds) {
+          try { await this.graph.createEdge(userId, grafoId, { sourceNodeId: textoBrutoRes.nodeId, targetNodeId: notaId, tipoRelacao: 'GERA' }); } catch { /* ignore */ }
+        }
+      } catch { /* ignore */ }
     }
 
     return { assunto: assuntoNome, topicos: topicoCount, conceitos: conceitoCount, notas: notaCount, flashcards: flashcardCount, baralho: baralhoNome };
@@ -623,7 +679,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     ]);
     if (!content) return { topicos: 0, conceitos: 0, notas: 0, flashcards: 0 };
     let parsed: any;
-    try { parsed = JSON.parse(content); } catch { return { topicos: 0, conceitos: 0, notas: 0, flashcards: 0 }; }
+    try { parsed = this.extractJSON(content); } catch { return { topicos: 0, conceitos: 0, notas: 0, flashcards: 0 }; }
     let topicoCount = 0, conceitoCount = 0, notaCount = 0, flashcardCount = 0;
     if (tipo === 'ASSUNTO') {
       for (const t of (parsed?.topicos ?? []).slice(0, 6)) {
@@ -710,19 +766,30 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     ]);
     const allNodes = [...topicos.map(t => ({ id: t.id, tipo: 'TOPICO', nome: t.nome })), ...conceitos.map(c => ({ id: c.id, tipo: 'CONCEITO', nome: c.nome }))];
     if (allNodes.length === 0) return { prerequisites: [] };
-    const nodeList = allNodes.map(n => `id:${n.id} tipo:${n.tipo} nome:"${n.nome}"`).join('\n');
+    // Envia nome como identificador principal — mais fácil para a IA reproduzir
+    const nodeList = allNodes.map(n => `nome:"${n.nome}" tipo:${n.tipo}`).join('\n');
     const content = await this.callAI(userId, [
-      { role: 'system', content: 'Detecte PRÉ-REQUISITOS faltantes no grafo. Sugira 3-8 novos nós (CONCEITO ou TOPICO) que deveriam existir como pré-requisito. JSON: {"prerequisites":[{"nome":"...","tipo":"CONCEITO","motivo":"...","shouldConnectTo":[{"id":"..."}]}]}' },
-      { role: 'user', content: `NÓS:\n${nodeList.slice(0, 7000)}` },
+      {
+        role: 'system',
+        content: 'Detecte PRÉ-REQUISITOS faltantes no grafo. Sugira 3-8 novos nós (CONCEITO ou TOPICO) que deveriam existir como pré-requisito dos nós listados. JSON: {"prerequisites":[{"nome":"...","tipo":"CONCEITO","motivo":"...","shouldConnectTo":[{"nome":"nome exato do nó existente"}]}]} — use o nome exato dos nós existentes em shouldConnectTo.',
+      },
+      { role: 'user', content: `NÓS DO GRAFO:\n${nodeList.slice(0, 7000)}` },
     ]);
     let parsed: any;
-    try { parsed = JSON.parse(content ?? '{}'); } catch { return { prerequisites: [] }; }
+    try { parsed = this.extractJSON(content ?? '{}'); } catch { return { prerequisites: [] }; }
     const nodeById = new Map(allNodes.map(n => [n.id, n]));
+    const nodeByNome = new Map(allNodes.map(n => [n.nome.toLowerCase().trim(), n]));
     const out: Array<{ nome: string; tipo: string; motivo: string; shouldConnectTo: Array<{ id: string; nome: string }> }> = [];
     for (const p of parsed?.prerequisites ?? []) {
       const nome = typeof p?.nome === 'string' ? p.nome.trim() : ''; if (!nome) continue;
       const tipo = ['CONCEITO', 'TOPICO'].includes(p?.tipo) ? String(p.tipo) : 'CONCEITO';
-      const connects = (p?.shouldConnectTo ?? []).map((c: any) => nodeById.get(c?.id)).filter(Boolean).map((n: any) => ({ id: n.id, nome: n.nome }));
+      const connects = (p?.shouldConnectTo ?? []).map((c: any) => {
+        // Tenta por nome primeiro, depois por id
+        const nomeBusca = String(c?.nome ?? '').toLowerCase().trim();
+        return nodeByNome.get(nomeBusca)
+          ?? nodeById.get(c?.id ?? '')
+          ?? [...nodeByNome.entries()].find(([k]) => k.includes(nomeBusca) || nomeBusca.includes(k))?.[1];
+      }).filter(Boolean).map((n: any) => ({ id: n.id, nome: n.nome }));
       out.push({ nome, tipo, motivo: typeof p?.motivo === 'string' ? p.motivo : '', shouldConnectTo: connects });
       if (out.length >= 8) break;
     }
@@ -778,18 +845,25 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
       .filter(e => e.nodeOrigemId && e.nodeDestinoId)
       .map(e => `${refByNcId.get(e.nodeOrigemId!)}→${refByNcId.get(e.nodeDestinoId!)} (${e.tipoRelacao})`)
       .join('\n');
-    const nodeList = allNodes.map(n => `id:${n.id} tipo:${n.tipo} nome:"${n.nome}"`).join('\n');
+    const nodeList = allNodes.map(n => `tipo:${n.tipo} nome:"${n.nome}"`).join('\n');
     const content = await this.callAI(userId, [
-      { role: 'system', content: 'Crie uma TRILHA DE APRENDIZADO ordenada do mais básico ao mais avançado. Considere PREREQUISITO, DEPENDE_DE e SUBTOPICO_DE para ordenar. JSON: {"steps":[{"nodeId":"...","motivo":"frase curta (max 15 palavras) explicando por que estudar agora"}]}' },
+      {
+        role: 'system',
+        content: 'Crie uma TRILHA DE APRENDIZADO ordenada do mais básico ao mais avançado. Considere as relações existentes para ordenar. JSON: {"steps":[{"nome":"nome exato do nó","motivo":"frase curta (max 15 palavras) explicando por que estudar agora"}]} — use o nome exato de cada nó.',
+      },
       { role: 'user', content: `NÓS:\n${nodeList.slice(0, 6000)}\n\nRELAÇÕES EXISTENTES:\n${edgeList.slice(0, 2000)}` },
     ]);
     let parsed: any;
-    try { parsed = JSON.parse(content ?? '{}'); } catch { return { steps: [] }; }
+    try { parsed = this.extractJSON(content ?? '{}'); } catch { return { steps: [] }; }
     const nodeById = new Map(allNodes.map(n => [n.id, n]));
+    const nodeByNome = new Map(allNodes.map(n => [n.nome.toLowerCase().trim(), n]));
     const out: Array<{ nodeId: string; nome: string; tipo: string; motivo: string }> = [];
     const seen = new Set<string>();
     for (const s of parsed?.steps ?? []) {
-      const node = nodeById.get(s?.nodeId);
+      const nomeBusca = String(s?.nome ?? '').toLowerCase().trim();
+      const node = nodeByNome.get(nomeBusca)
+        ?? nodeById.get(s?.nodeId ?? '')
+        ?? [...nodeByNome.entries()].find(([k]) => k.includes(nomeBusca) || nomeBusca.includes(k))?.[1];
       if (!node || seen.has(node.id)) continue;
       seen.add(node.id);
       out.push({ nodeId: node.id, nome: node.nome, tipo: node.tipo, motivo: typeof s?.motivo === 'string' ? s.motivo : '' });
@@ -849,27 +923,84 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     });
     const ids: Record<string, string[]> = {};
     for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
+
     const [assuntos, topicos, conceitos] = await Promise.all([
       this.prisma.assunto.findMany({ where: { id: { in: ids.ASSUNTO ?? [] } }, select: { id: true, nome: true } }),
       this.prisma.topico.findMany({ where: { id: { in: ids.TOPICO ?? [] } }, select: { id: true, nome: true } }),
       this.prisma.conceito.findMany({ where: { id: { in: ids.CONCEITO ?? [] } }, select: { id: true, nome: true } }),
     ]);
+
     if (!assuntos.length) return { assessments: [] };
-    const ctx = [
-      ...assuntos.map(a => `[ASSUNTO:${a.id}] ${a.nome}`),
-      ...topicos.map(t => `[TÓPICO] ${t.nome}`),
-      ...conceitos.map(c => `[CONCEITO] ${c.nome}`),
-    ].join('\n');
+
+    // Busca relações para agrupar tópicos e conceitos por assunto
+    const edges = await this.prisma.conhecimentoAresta.findMany({
+      where: { grafoId, tipoRelacao: 'PERTENCE_A' as any },
+      select: { nodeOrigemId: true, nodeDestinoId: true },
+    });
+    const nodeById = await this.prisma.nodeConhecimento.findMany({
+      where: { grafoId, usuarioId: userId },
+      select: { id: true, tipoNode: true, referenciaId: true },
+    });
+    const ncById = new Map(nodeById.map(n => [n.id, n]));
+    const topicoNomeById = new Map(topicos.map(t => [t.id, t.nome]));
+    const conceitoNomeById = new Map(conceitos.map(c => [c.id, c.nome]));
+
+    // Mapeia assunto NC id → lista de tópicos/conceitos filhos
+    const childrenByAssuntoNcId = new Map<string, { topicos: string[]; conceitos: string[] }>();
+    for (const assunto of assuntos) {
+      const assuntoNc = nodeById.find(n => n.tipoNode === 'ASSUNTO' && n.referenciaId === assunto.id);
+      if (assuntoNc) childrenByAssuntoNcId.set(assuntoNc.id, { topicos: [], conceitos: [] });
+    }
+    for (const edge of edges) {
+      if (!edge.nodeOrigemId || !edge.nodeDestinoId) continue;
+      const src = ncById.get(edge.nodeOrigemId);
+      if (!src) continue;
+      const bucket = childrenByAssuntoNcId.get(edge.nodeDestinoId);
+      if (bucket) {
+        if (src.tipoNode === 'TOPICO') bucket.topicos.push(topicoNomeById.get(src.referenciaId) ?? src.referenciaId);
+        if (src.tipoNode === 'CONCEITO') bucket.conceitos.push(conceitoNomeById.get(src.referenciaId) ?? src.referenciaId);
+      }
+    }
+
+    // Monta contexto agrupado por assunto
+    const ctxLines: string[] = [];
+    for (const assunto of assuntos) {
+      const assuntoNc = nodeById.find(n => n.tipoNode === 'ASSUNTO' && n.referenciaId === assunto.id);
+      const children = assuntoNc ? childrenByAssuntoNcId.get(assuntoNc.id) : undefined;
+      ctxLines.push(`ASSUNTO: "${assunto.nome}"`);
+      if (children?.topicos.length) ctxLines.push(`  Tópicos: ${children.topicos.join(', ')}`);
+      if (children?.conceitos.length) ctxLines.push(`  Conceitos: ${children.conceitos.join(', ')}`);
+      // Conceitos sem ligação direta ao assunto, listados globalmente como fallback
+    }
+    // Tópicos/conceitos sem assunto pai
+    const orphanTopicos = topicos.filter(t => !ctxLines.join('').includes(t.nome));
+    const orphanConceitos = conceitos.filter(c => !ctxLines.join('').includes(c.nome));
+    if (orphanTopicos.length || orphanConceitos.length) {
+      ctxLines.push('Outros (sem assunto pai):');
+      if (orphanTopicos.length) ctxLines.push(`  Tópicos: ${orphanTopicos.map(t => t.nome).join(', ')}`);
+      if (orphanConceitos.length) ctxLines.push(`  Conceitos: ${orphanConceitos.map(c => c.nome).join(', ')}`);
+    }
+    const ctx = ctxLines.join('\n');
+
     const content = await this.callAI(userId, [
-      { role: 'system', content: 'Avalie a COMPLETUDE do conhecimento para cada ASSUNTO listado. Score 0-10. JSON: {"assessments":[{"assuntoId":"...","score":7,"wellCovered":["tópico/conceito bem coberto"],"shallow":["área presente mas rasa"],"missing":["conceito importante AUSENTE"]}]} — wellCovered/shallow/missing: máx 6 itens cada, strings curtas.' },
+      {
+        role: 'system',
+        content: 'Avalie a COMPLETUDE do conhecimento para cada ASSUNTO listado com seus tópicos e conceitos. Score 0-10. Responda JSON: {"assessments":[{"assuntoNome":"nome exato do assunto","score":7,"wellCovered":["tópico/conceito bem coberto"],"shallow":["área presente mas rasa"],"missing":["conceito importante AUSENTE"]}]} — wellCovered/shallow/missing: máx 6 itens cada, strings curtas. Use o nome exato do assunto no campo assuntoNome.',
+      },
       { role: 'user', content: `GRAFO:\n${ctx.slice(0, 8000)}` },
     ]);
     let parsed: any;
-    try { parsed = JSON.parse(content ?? '{}'); } catch { return { assessments: [] }; }
+    try { parsed = this.extractJSON(content ?? '{}'); } catch { return { assessments: [] }; }
+    const assuntoByNome = new Map(assuntos.map(a => [a.nome.toLowerCase().trim(), a]));
     const assuntoById = new Map(assuntos.map(a => [a.id, a]));
     const out: Array<{ assuntoId: string; assuntoNome: string; score: number; wellCovered: string[]; shallow: string[]; missing: string[] }> = [];
     for (const a of parsed?.assessments ?? []) {
-      const assunto = assuntoById.get(a?.assuntoId);
+      const nomeBusca = String(a?.assuntoNome ?? a?.nome ?? a?.assuntoId ?? '').toLowerCase().trim();
+      const assunto =
+        assuntoByNome.get(nomeBusca) ??
+        assuntoById.get(a?.assuntoId ?? '') ??
+        // Fallback: busca por correspondência parcial
+        [...assuntoByNome.entries()].find(([k]) => k.includes(nomeBusca) || nomeBusca.includes(k))?.[1];
       if (!assunto) continue;
       const toStrArr = (v: any, max: number) => Array.isArray(v) ? v.filter((s: any) => typeof s === 'string').slice(0, max) : [];
       out.push({
@@ -882,6 +1013,115 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
       });
     }
     return { assessments: out };
+  }
+
+  // ── Feature: Preencher lacunas de conhecimento ─────────────────────────────
+  async fillKnowledgeGaps(
+    userId: string,
+    grafoId: string,
+    gaps: Array<{ nome: string; tipo: 'missing' | 'shallow'; assuntoId: string; assuntoNome: string }>,
+  ): Promise<{ topicos: number; conceitos: number; notas: number; flashcards: number }> {
+    if (!gaps.length) return { topicos: 0, conceitos: 0, notas: 0, flashcards: 0 };
+
+    const gapList = gaps
+      .map(g => `- [${g.tipo === 'missing' ? 'FALTANDO' : 'RASO'}] "${g.nome}" no assunto "${g.assuntoNome}" (assuntoId: ${g.assuntoId})`)
+      .join('\n');
+
+    const content = await this.callAI(userId, [
+      {
+        role: 'system',
+        content:
+          'Você é especialista em conteúdo educacional. Dado lacunas de conhecimento, gere tópicos, conceitos, notas e flashcards para preenchê-las.\n\nPara cada lacuna, agrupe sob um TÓPICO com seus CONCEITOs, cada conceito com uma NOTA explicativa detalhada e até 2 FLASHCARDS de estudo.\n\nResponda APENAS JSON:\n{"topicos":[{"nome":"...","descricao":"...","assuntoId":"...","conceitos":[{"nome":"...","descricao":"...","nota":{"titulo":"...","conteudo":"..."},"flashcards":[{"pergunta":"...","resposta":"..."}]}]}]}',
+      },
+      { role: 'user', content: `Lacunas a preencher:\n${gapList}` },
+    ]);
+    if (!content) throw new BadRequestException('A IA não retornou conteúdo.');
+    const parsed = this.extractJSON(content);
+
+    let topicoCount = 0, conceitoCount = 0, notaCount = 0, flashcardCount = 0;
+
+    for (const t of (Array.isArray(parsed?.topicos) ? parsed.topicos : []).slice(0, 12)) {
+      const topicoNome = String(t?.nome || '').trim();
+      if (!topicoNome) continue;
+
+      const topicoRes = await this.graph.createNode(userId, grafoId, {
+        tipoNode: 'TOPICO',
+        nome: topicoNome,
+        descricao: String(t?.descricao || ''),
+      });
+      topicoCount++;
+
+      if (t?.assuntoId) {
+        const assuntoNc = await this.prisma.nodeConhecimento.findFirst({
+          where: { grafoId, usuarioId: userId, referenciaId: t.assuntoId, tipoNode: 'ASSUNTO' },
+          select: { id: true },
+        });
+        if (assuntoNc) {
+          try {
+            await this.graph.createEdge(userId, grafoId, {
+              sourceNodeId: topicoRes.nodeId,
+              targetNodeId: assuntoNc.id,
+              tipoRelacao: 'PERTENCE_A',
+            });
+          } catch { /* ignore */ }
+        }
+      }
+
+      for (const c of (Array.isArray(t?.conceitos) ? t.conceitos : []).slice(0, 6)) {
+        const conceitoNome = String(c?.nome || '').trim();
+        if (!conceitoNome) continue;
+        const conceitoRes = await this.graph.createNode(userId, grafoId, {
+          tipoNode: 'CONCEITO',
+          nome: conceitoNome,
+          descricao: String(c?.descricao || ''),
+        });
+        conceitoCount++;
+        try {
+          await this.graph.createEdge(userId, grafoId, {
+            sourceNodeId: conceitoRes.nodeId,
+            targetNodeId: topicoRes.nodeId,
+            tipoRelacao: 'PERTENCE_A',
+          });
+        } catch { /* ignore */ }
+
+        if (c?.nota?.titulo) {
+          try {
+            const notaRes = await this.graph.createNode(userId, grafoId, {
+              tipoNode: 'NOTA',
+              titulo: String(c.nota.titulo).trim(),
+              conteudo: String(c.nota.conteudo || ''),
+              subtipo: 'EXPLICACAO',
+              tipoNota: 'PERMANENTE',
+            });
+            notaCount++;
+            try {
+              await this.graph.createEdge(userId, grafoId, {
+                sourceNodeId: notaRes.nodeId,
+                targetNodeId: conceitoRes.nodeId,
+                tipoRelacao: 'EXPLICA',
+              });
+            } catch { /* ignore */ }
+          } catch { /* ignore */ }
+        }
+
+        for (const fc of (Array.isArray(c?.flashcards) ? c.flashcards : []).slice(0, 2)) {
+          const pergunta = String(fc?.pergunta || '').trim();
+          const resposta = String(fc?.resposta || '').trim();
+          if (!pergunta || !resposta) continue;
+          try {
+            const fcRes = await this.graph.createNode(userId, grafoId, { tipoNode: 'FLASHCARD', pergunta, resposta });
+            flashcardCount++;
+            await this.graph.createEdge(userId, grafoId, {
+              sourceNodeId: fcRes.nodeId,
+              targetNodeId: conceitoRes.nodeId,
+              tipoRelacao: 'HERDA',
+            });
+          } catch { /* ignore */ }
+        }
+      }
+    }
+
+    return { topicos: topicoCount, conceitos: conceitoCount, notas: notaCount, flashcards: flashcardCount };
   }
 
   // ── Feature: Mesclar duplicatas ────────────────────────────────────────────

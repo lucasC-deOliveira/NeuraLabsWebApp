@@ -48,6 +48,20 @@ export class AiController {
     return this.ai.generateGraphFromText(userId, grafoId, body.rawText ?? '');
   }
 
+  @Post('graphs/:grafoId/generate-graph/plan')
+  planGraph(@CurrentUser() userId: string, @Body() body: { rawText: string }) {
+    return this.ai.planGraphFromText(userId, body.rawText ?? '');
+  }
+
+  @Post('graphs/:grafoId/generate-graph/build')
+  buildGraph(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { rawText: string; plan: any; saveBruto?: boolean },
+  ) {
+    return this.ai.buildGraphFromPlan(userId, grafoId, body.rawText ?? '', body.plan, body.saveBruto !== false);
+  }
+
   @Post('graphs/:grafoId/gap-suggestions')
   gapSuggestions(
     @CurrentUser() userId: string,
@@ -117,6 +131,15 @@ export class AiController {
   @Post('graphs/:grafoId/assess-completeness')
   assessCompleteness(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
     return this.ai.assessCompleteness(userId, grafoId);
+  }
+
+  @Post('graphs/:grafoId/fill-gaps')
+  fillGaps(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { gaps: Array<{ nome: string; tipo: 'missing' | 'shallow'; assuntoId: string; assuntoNome: string }> },
+  ) {
+    return this.ai.fillKnowledgeGaps(userId, grafoId, body.gaps ?? []);
   }
 
   @Post('graphs/:grafoId/merge-duplicates')

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon, FolderTreeIcon, FolderOpenIcon } from "lucide-react";
+import { Loader2Icon, SettingsIcon, EyeIcon, EyeOffIcon, CheckCircle2Icon, PaletteIcon, CheckIcon, WandSparklesIcon, FolderTreeIcon, FolderOpenIcon, TerminalIcon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { getConfigAI, saveConfigAI } from "@/lib/settings-api";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
@@ -92,13 +92,16 @@ export default function SettingsPage() {
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Vault (só no app desktop): pasta global usada pelo sync por-grafo.
+  // Vault e Claude Code (só no app desktop)
   const desktopApp = isDesktop();
   const [vaultPath, setVaultPath] = useState<string | null>(null);
+  const [claudeCodeEnabled, setClaudeCodeEnabled] = useState(false);
+  const [claudeCodeLoading, setClaudeCodeLoading] = useState(false);
 
   useEffect(() => {
     if (!desktopApp) return;
     desktop.vault.getPath().then(setVaultPath).catch(() => {});
+    desktop.claudeCode.getConfig().then((cfg) => setClaudeCodeEnabled(cfg.enabled)).catch(() => {});
   }, [desktopApp]);
 
   const pickVaultFolder = async () => {
@@ -110,6 +113,40 @@ export default function SettingsPage() {
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao escolher a pasta.");
+    }
+  };
+
+  const handleToggleClaudeCode = async () => {
+    if (!desktopApp) return;
+    const enabling = !claudeCodeEnabled;
+    setClaudeCodeLoading(true);
+    try {
+      if (enabling) {
+        const savedConfig = { apiKey, baseUrl, modelo };
+        await desktop.claudeCode.setEnabled(true, savedConfig);
+        await saveConfigAI({
+          apiKey: "claude-code",
+          baseUrl: "http://host.docker.internal:11435/v1",
+          modelo: "claude-code",
+        });
+        setClaudeCodeEnabled(true);
+        toast.success("Claude Code ativado. As chamadas de IA usarão o claude local.");
+      } else {
+        const result = await desktop.claudeCode.setEnabled(false);
+        const saved = result.savedApiConfig;
+        if (saved) {
+          await saveConfigAI(saved);
+          setApiKey(saved.apiKey);
+          setBaseUrl(saved.baseUrl);
+          setModelo(saved.modelo);
+        }
+        setClaudeCodeEnabled(false);
+        toast.success("Claude Code desativado. Usando a API configurada.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao alternar Claude Code.");
+    } finally {
+      setClaudeCodeLoading(false);
     }
   };
 
@@ -345,6 +382,15 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 px-3 sm:px-6">
+          {claudeCodeEnabled && (
+            <div className="rounded-lg border border-violet-500/30 bg-violet-500/8 px-3 py-2.5 flex items-center gap-2">
+              <SparklesIcon className="size-4 text-violet-500 shrink-0" />
+              <p className="text-xs text-violet-700 dark:text-violet-300">
+                <span className="font-semibold">Claude Code ativo.</span>{" "}
+                Desative-o abaixo para editar a configuração de API.
+              </p>
+            </div>
+          )}
           {/* API Key */}
           <div className="space-y-2">
             <Label htmlFor="apiKey">API Key</Label>
@@ -356,11 +402,13 @@ export default function SettingsPage() {
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 className="pr-10"
+                disabled={claudeCodeEnabled}
               />
               <button
                 type="button"
                 onClick={() => setShowKey(!showKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 disabled:pointer-events-none"
+                disabled={claudeCodeEnabled}
               >
                 {showKey ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
               </button>
@@ -378,6 +426,7 @@ export default function SettingsPage() {
               placeholder="https://openrouter.ai/api/v1"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
+              disabled={claudeCodeEnabled}
             />
             <p className="text-[10px] text-muted-foreground">
               URL base da API. Para OpenRouter: {"https://openrouter.ai/api/v1"}
@@ -392,13 +441,14 @@ export default function SettingsPage() {
               placeholder="qwen/qwen3.6-plus:free"
               value={modelo}
               onChange={(e) => setModelo(e.target.value)}
+              disabled={claudeCodeEnabled}
             />
             <p className="text-[10px] text-muted-foreground">
               ID do modelo. Ex: {"gpt-4o-mini"}, {"qwen/qwen3.6-plus:free"}, etc.
             </p>
           </div>
 
-          <Button onClick={handleSave} disabled={saving} size="lg" className="w-full">
+          <Button onClick={handleSave} disabled={saving || claudeCodeEnabled} size="lg" className="w-full">
             {saved ? (
               <>
                 <CheckCircle2Icon className="size-4 mr-1 text-green-400" />
@@ -458,6 +508,62 @@ export default function SettingsPage() {
                 >
                   <FolderOpenIcon className="size-4" /> Abrir pasta
                 </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          <Separator />
+
+          {/* Claude Code local */}
+          <Card>
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <TerminalIcon className="size-5" />
+                Claude Code (local)
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Usa o <code className="font-mono text-xs">claude</code> instalado localmente em vez de uma API remota.
+                Requer autenticação prévia com <code className="font-mono text-xs">claude /login</code>.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 px-3 sm:px-6">
+              <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
+                <div>
+                  <p className="text-sm font-medium">Usar Claude Code para IA</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Instale com:{" "}
+                    <code className="font-mono">npm install -g @anthropic-ai/claude-code</code>
+                  </p>
+                </div>
+                <div
+                  className={`relative w-11 h-6 shrink-0 rounded-full transition-colors ${
+                    claudeCodeEnabled ? "bg-violet-600" : "bg-muted-foreground/30"
+                  } ${claudeCodeLoading ? "opacity-50 pointer-events-none" : ""}`}
+                  onClick={claudeCodeLoading ? undefined : handleToggleClaudeCode}
+                >
+                  <div
+                    className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform ${
+                      claudeCodeEnabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </div>
+              </label>
+
+              {claudeCodeEnabled && (
+                <div className="rounded-lg border border-violet-500/25 bg-violet-500/5 p-3 space-y-1.5">
+                  <p className="text-[11px] font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">
+                    Ativo
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Proxy rodando em{" "}
+                    <code className="font-mono">localhost:{11435}</code>. O backend Docker usa{" "}
+                    <code className="font-mono">host.docker.internal:{11435}</code>.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Verifique se está autenticado:{" "}
+                    <code className="font-mono">claude /status</code>
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>

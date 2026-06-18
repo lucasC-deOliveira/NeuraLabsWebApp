@@ -65,6 +65,12 @@ export interface GenerateGraphResult {
 export function generateGraphFromText(grafoId: string, rawText: string): Promise<GenerateGraphResult> {
   return apiFetch(`/ai/graph/graphs/${grafoId}/generate-graph`, { method: "POST", body: JSON.stringify({ rawText }) });
 }
+export function planGraphFromText(grafoId: string, rawText: string): Promise<{ plan: any }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/generate-graph/plan`, { method: "POST", body: JSON.stringify({ rawText }) });
+}
+export function buildGraphFromPlan(grafoId: string, rawText: string, plan: any, saveBruto = true): Promise<GenerateGraphResult> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/generate-graph/build`, { method: "POST", body: JSON.stringify({ rawText, plan, saveBruto }) });
+}
 
 export function addInsightsToGraph(
   grafoId: string,
@@ -163,6 +169,14 @@ export interface CompletenessAssessment {
 }
 export function assessCompleteness(grafoId: string): Promise<{ assessments: CompletenessAssessment[] }> {
   return apiFetch(`/ai/graph/graphs/${grafoId}/assess-completeness`, { method: "POST" });
+}
+
+export interface GapItem { nome: string; tipo: "missing" | "shallow"; assuntoId: string; assuntoNome: string; }
+export function fillKnowledgeGaps(
+  grafoId: string,
+  gaps: GapItem[],
+): Promise<{ topicos: number; conceitos: number; notas: number; flashcards: number }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/fill-gaps`, { method: "POST", body: JSON.stringify({ gaps }) });
 }
 
 // ── Merge de duplicatas ────────────────────────────────────────────────────

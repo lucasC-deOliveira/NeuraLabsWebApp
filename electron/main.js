@@ -6,9 +6,14 @@
 const { app, BrowserWindow, shell, dialog, ipcMain, Menu } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const http = require("http");
+const { spawn, execSync } = require("child_process");
 
 const isDev = !app.isPackaged;
-const DEV_URL = process.env.ELECTRON_DEV_URL || "http://localhost:5173";
+const DEV_URL = process.env.ELECTRON_DEV_URL || "https://localhost:5173";
+
+// Dev: aceita cert auto-assinado do basicSsl do Vite.
+if (isDev) app.commandLine.appendSwitch("ignore-certificate-errors");
 const DEFAULT_API_URL = process.env.NEURALABS_API_URL || "http://localhost:3001/api";
 
 // Pastas PARA do vault (espelha src/lib/vault-format.ts).
@@ -37,6 +42,138 @@ function writeConfig(patch) {
 }
 function getApiUrl() {
   return readConfig().apiUrl || DEFAULT_API_URL;
+}
+
+// ---------------------------------------------------------------------------
+// Claude Code proxy (porta 11435): expõe OpenAI-compatible endpoint que
+// encaminha chamadas para o `claude` CLI instalado localmente.
+// ---------------------------------------------------------------------------
+const CLAUDE_PROXY_PORT = 11435;
+let claudeProxyServer = null;
+
+function formatPromptFromMessages(messages) {
+  const system = messages.find((m) => m.role === "system")?.content ?? "";
+  const turns = messages.filter((m) => m.role !== "system");
+  let prompt = system ? system + "\n\n" : "";
+  for (let i = 0; i < turns.length; i++) {
+    const m = turns[i];
+    if (turns.length > 1) {
+      prompt += (m.role === "user" ? "Usuário" : "Assistente") + ":\n";
+    }
+    prompt += m.content;
+    if (i < turns.length - 1) prompt += "\n\n";
+  }
+  return prompt.trim();
+}
+
+function allowFirewallPort(port) {
+  // Tenta sem elevação primeiro (app rodando como admin).
+  try {
+    execSync(
+      `netsh advfirewall firewall delete rule name="NeuraLabs Claude Proxy" 2>nul & ` +
+      `netsh advfirewall firewall add rule name="NeuraLabs Claude Proxy" protocol=TCP dir=in localport=${port} action=allow profile=any`,
+      { shell: true, stdio: "pipe" }
+    );
+    console.log("Regra de firewall adicionada.");
+    return;
+  } catch {}
+  // Se falhar, pede elevação via UAC (Start-Process -Verb RunAs).
+  try {
+    execSync(
+      `powershell -Command "Start-Process -FilePath netsh -ArgumentList 'advfirewall firewall delete rule name=\\"NeuraLabs Claude Proxy\\"' -Verb RunAs -WindowStyle Hidden -Wait; ` +
+      `Start-Process -FilePath netsh -ArgumentList 'advfirewall firewall add rule name=\\"NeuraLabs Claude Proxy\\" protocol=TCP dir=in localport=${port} action=allow profile=any' -Verb RunAs -WindowStyle Hidden -Wait"`,
+      { shell: true, stdio: "pipe", timeout: 30000 }
+    );
+    console.log("Regra de firewall adicionada (elevado).");
+  } catch (e) {
+    console.error("Não foi possível adicionar regra de firewall:", e.message);
+  }
+}
+
+function startClaudeProxy() {
+  if (claudeProxyServer) return;
+  allowFirewallPort(CLAUDE_PROXY_PORT);
+  claudeProxyServer = http.createServer((req, res) => {
+    if (req.method !== "POST") {
+      res.writeHead(405); res.end("Method Not Allowed"); return;
+    }
+    let body = "";
+    req.on("data", (chunk) => { body += chunk; });
+    req.on("end", () => {
+      try {
+        const parsed = JSON.parse(body);
+        const messages = parsed.messages || [];
+        const wantsJson = parsed.response_format?.type === 'json_object';
+        // Se a API pediu JSON, reforça a instrução no system prompt
+        if (wantsJson) {
+          const sys = messages.find((m) => m.role === 'system');
+          if (sys) sys.content += '\n\nIMPORTANTE: Responda APENAS com JSON válido e nada mais. Sem blocos markdown, sem texto antes ou depois do JSON.';
+          else messages.unshift({ role: 'system', content: 'Responda APENAS com JSON válido e nada mais. Sem blocos markdown, sem texto antes ou depois do JSON.' });
+        }
+        const prompt = formatPromptFromMessages(messages);
+        const proc = spawn("claude", ["--print", "--output-format", "json"], {
+          env: { ...process.env },
+          shell: true, // necessário no Windows para encontrar o .cmd do npm
+        });
+        let stdout = "", stderr = "", responded = false;
+        const send = (status, body) => {
+          if (responded) return;
+          responded = true;
+          res.writeHead(status, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(body));
+        };
+        proc.stdin.write(prompt);
+        proc.stdin.end();
+        proc.stdout.on("data", (d) => { stdout += d; });
+        proc.stderr.on("data", (d) => { stderr += d; });
+        proc.on("error", (err) => {
+          const msg = err.code === "ENOENT"
+            ? "Claude Code não encontrado. Instale com: npm install -g @anthropic-ai/claude-code"
+            : err.message;
+          send(500, { error: { message: msg, type: "server_error" } });
+        });
+        proc.on("close", (code) => {
+          if (code !== 0) {
+            send(500, { error: { message: stderr || `claude saiu com código ${code}`, type: "server_error" } });
+            return;
+          }
+          let content = stdout.trim();
+          try {
+            const parsed = JSON.parse(stdout);
+            if (parsed.result !== undefined) content = parsed.result;
+          } catch { /* usa stdout bruto */ }
+          const response = {
+            id: `chatcmpl-cc-${Date.now()}`,
+            object: "chat.completion",
+            model: "claude-code",
+            choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
+            usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+          };
+          send(200, response);
+        });
+      } catch (err) {
+        if (!res.headersSent) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: { message: err.message, type: "invalid_request_error" } }));
+        }
+      }
+    });
+  });
+  // 0.0.0.0 para que o Docker Desktop consiga alcançar via host.docker.internal
+  claudeProxyServer.listen(CLAUDE_PROXY_PORT, "0.0.0.0", () => {
+    console.log(`Claude Code proxy rodando na porta ${CLAUDE_PROXY_PORT}`);
+  });
+  claudeProxyServer.on("error", (err) => {
+    console.error("Claude Code proxy erro:", err.message);
+    claudeProxyServer = null;
+  });
+}
+
+function stopClaudeProxy() {
+  if (claudeProxyServer) {
+    claudeProxyServer.close();
+    claudeProxyServer = null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +206,7 @@ function createWindow() {
 async function boot() {
   try {
     createWindow();
+    if (readConfig().claudeCodeEnabled) startClaudeProxy();
     if (isDev) {
       // Se USE_LOCAL_DIST=1, carrega o build estático local (sem dev server).
       const localDist = path.join(__dirname, "../dist/index.html");
@@ -93,7 +231,8 @@ async function boot() {
 // ---------------------------------------------------------------------------
 // IPC: backend configurável
 // ---------------------------------------------------------------------------
-ipcMain.on("neuralabs:get-api-url-sync", (e) => { e.returnValue = getApiUrl(); });
+// Em dev, não injetamos a URL para que o frontend use /api via proxy do Vite (evita mixed content).
+ipcMain.on("neuralabs:get-api-url-sync", (e) => { e.returnValue = isDev ? "" : getApiUrl(); });
 ipcMain.handle("neuralabs:get-api-url", () => getApiUrl());
 ipcMain.handle("neuralabs:set-api-url", (_e, url) => {
   if (typeof url === "string" && url.trim()) writeConfig({ apiUrl: url.trim() });
@@ -247,6 +386,30 @@ Texto de referência importado.
 - Não remova arquivos — o Pull ignora arquivos ausentes (use o app para deletar nós).
 - Não duplique \`id\`s.
 `;
+
+// ---------------------------------------------------------------------------
+// IPC: Claude Code (proxy local)
+// ---------------------------------------------------------------------------
+ipcMain.handle("neuralabs:get-claude-code-config", () => {
+  const cfg = readConfig();
+  return {
+    enabled: cfg.claudeCodeEnabled ?? false,
+    savedApiConfig: cfg.savedApiConfig ?? null,
+  };
+});
+
+ipcMain.handle("neuralabs:set-claude-code-enabled", (_e, { enabled, savedConfig }) => {
+  if (enabled) {
+    writeConfig({ claudeCodeEnabled: true, savedApiConfig: savedConfig ?? null });
+    startClaudeProxy();
+    return { ok: true };
+  } else {
+    const savedApiConfig = readConfig().savedApiConfig ?? null;
+    writeConfig({ claudeCodeEnabled: false, savedApiConfig: null });
+    stopClaudeProxy();
+    return { ok: true, savedApiConfig };
+  }
+});
 
 // ---------------------------------------------------------------------------
 // IPC: vault (sistema de arquivos)

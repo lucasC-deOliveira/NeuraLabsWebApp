@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Loader2Icon, Link2Icon, CheckCircle2Icon, AlertCircleIcon } from "lucide-react";
+import { Loader2Icon, Link2Icon, CheckCircle2Icon, AlertCircleIcon, CheckIcon } from "lucide-react";
 import { toast } from "sonner";
 import { autoLinkGraph, applyAutoLink } from "@/lib/ai-api";
 
@@ -30,7 +30,64 @@ interface AutoLinkModalProps {
   onApplied: () => void;
 }
 
-type Step = "loading" | "results" | "error";
+type Step = "loading" | "results" | "applying" | "error";
+
+const ANALYSIS_STEPS = [
+  "Lendo estrutura de nós do grafo...",
+  "Identificando conceitos relacionados semanticamente...",
+  "Calculando relações ausentes...",
+  "Pontuando relevância das sugestões...",
+  "Finalizando análise...",
+];
+
+function StepRow({
+  index,
+  label,
+  sublabel,
+  status,
+  elapsed,
+}: {
+  index: number;
+  label: string;
+  sublabel?: string;
+  status: "done" | "active" | "pending";
+  elapsed?: number;
+}) {
+  return (
+    <div className={`flex items-start gap-3 transition-opacity ${status === "pending" ? "opacity-40" : "opacity-100"}`}>
+      <div className="mt-0.5 shrink-0">
+        {status === "done" ? (
+          <span className="flex size-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
+            <CheckIcon className="size-3.5" />
+          </span>
+        ) : status === "active" ? (
+          <span className="flex size-6 items-center justify-center rounded-full bg-primary/10">
+            <Loader2Icon className="size-3.5 animate-spin text-primary" />
+          </span>
+        ) : (
+          <span className="flex size-6 items-center justify-center rounded-full border border-border text-xs text-muted-foreground font-medium">
+            {index}
+          </span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className={`text-sm font-medium leading-tight ${status === "active" ? "text-foreground" : "text-muted-foreground"}`}>
+          {label}
+        </p>
+        {status === "active" && sublabel && (
+          <p className="text-xs text-muted-foreground mt-0.5">{sublabel}</p>
+        )}
+        {status === "active" && elapsed !== undefined && (
+          <p className="text-xs text-muted-foreground/60 mt-0.5 tabular-nums">
+            {Math.floor(elapsed / 60) > 0
+              ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`
+              : `${elapsed}s`}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function AutoLinkModal({ open, onOpenChange, grafoId, onApplied }: AutoLinkModalProps) {
   const [step, setStep] = useState<Step>("loading");
@@ -38,6 +95,28 @@ export function AutoLinkModal({ open, onOpenChange, grafoId, onApplied }: AutoLi
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [applying, setApplying] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [elapsed, setElapsed] = useState(0);
+  const [subStep, setSubStep] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const subStepRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (step === "loading") {
+      setElapsed(0);
+      setSubStep(0);
+      timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
+      subStepRef.current = setInterval(() => {
+        setSubStep(s => Math.min(s + 1, ANALYSIS_STEPS.length - 1));
+      }, 2500);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (subStepRef.current) clearInterval(subStepRef.current);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (subStepRef.current) clearInterval(subStepRef.current);
+    };
+  }, [step]);
 
   const load = async () => {
     setStep("loading");
@@ -79,6 +158,7 @@ export function AutoLinkModal({ open, onOpenChange, grafoId, onApplied }: AutoLi
       .map(s => ({ sourceId: s.sourceId, targetId: s.targetId, relacao: s.relacao }));
     if (!edges.length) return;
     setApplying(true);
+    setStep("applying");
     try {
       const { added } = await applyAutoLink(grafoId, edges);
       toast.success(`${added} relação(ões) adicionada(s).`);
@@ -86,13 +166,19 @@ export function AutoLinkModal({ open, onOpenChange, grafoId, onApplied }: AutoLi
       onOpenChange(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao aplicar relações.");
+      setStep("results");
     } finally {
       setApplying(false);
     }
   };
 
+  const handleOpenChange = (o: boolean) => {
+    if (!o && (step === "loading" || step === "applying")) return;
+    onOpenChange(o);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[85dvh] flex flex-col gap-0 overflow-hidden">
         <DialogHeader className="shrink-0 pb-3">
           <DialogTitle className="flex items-center gap-2">
@@ -106,9 +192,40 @@ export function AutoLinkModal({ open, onOpenChange, grafoId, onApplied }: AutoLi
 
         <div className="flex-1 min-h-0 overflow-y-auto py-2">
           {step === "loading" && (
-            <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-muted-foreground">
-              <Loader2Icon className="size-8 animate-spin text-primary" />
-              <p className="font-medium">Analisando conexões do grafo...</p>
+            <div className="space-y-5 py-6 px-1">
+              <StepRow
+                index={1}
+                label="Analisando conexões com IA"
+                sublabel={ANALYSIS_STEPS[subStep]}
+                status="active"
+                elapsed={elapsed}
+              />
+              <StepRow
+                index={2}
+                label="Apresentar sugestões"
+                status="pending"
+              />
+              {elapsed > 15 && (
+                <p className="text-[11px] text-muted-foreground/60 text-center pt-2">
+                  A IA está processando — modelos locais podem levar 1-2 minutos.
+                </p>
+              )}
+            </div>
+          )}
+
+          {step === "applying" && (
+            <div className="space-y-5 py-6 px-1">
+              <StepRow
+                index={1}
+                label="Analisando conexões com IA"
+                status="done"
+              />
+              <StepRow
+                index={2}
+                label="Criando conexões no grafo"
+                sublabel={`Adicionando ${selected.size} relação(ões)...`}
+                status="active"
+              />
             </div>
           )}
 
@@ -184,6 +301,18 @@ export function AutoLinkModal({ open, onOpenChange, grafoId, onApplied }: AutoLi
               >
                 {applying ? <Loader2Icon className="size-4 animate-spin" /> : <Link2Icon className="size-4" />}
                 Adicionar selecionadas ({selected.size})
+              </Button>
+            </div>
+          </>
+        )}
+
+        {(step === "loading" || step === "applying") && (
+          <>
+            <Separator className="my-3 shrink-0" />
+            <div className="shrink-0">
+              <Button className="w-full" variant="secondary" disabled>
+                <Loader2Icon className="size-4 mr-2 animate-spin" />
+                Processando...
               </Button>
             </div>
           </>

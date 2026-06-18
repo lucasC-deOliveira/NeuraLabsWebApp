@@ -16,6 +16,11 @@ contextBridge.exposeInMainWorld("neuralabs", {
   isDesktop: true,
   getApiUrl: () => ipcRenderer.invoke("neuralabs:get-api-url"),
   setApiUrl: (url) => ipcRenderer.invoke("neuralabs:set-api-url", url),
+  claudeCode: {
+    getConfig: () => ipcRenderer.invoke("neuralabs:get-claude-code-config"),
+    setEnabled: (enabled, savedConfig) =>
+      ipcRenderer.invoke("neuralabs:set-claude-code-enabled", { enabled, savedConfig }),
+  },
   vault: {
     getPath: () => ipcRenderer.invoke("vault:get-path"),
     pickFolder: () => ipcRenderer.invoke("vault:pick-folder"),
