@@ -31,7 +31,18 @@ enforça (escopo estrito em `backend/src/modules/**`; legado é report-only). O 
 - **Sem duplicação** — extraia lógica compartilhada para função/módulo.
 - **Early return** em vez de ifs aninhados. **Máx. 2 níveis de indentação.**
 - Mensagens de exceção incluem **o valor ofensor e o formato esperado**.
-  Ex.: `` throw new Error(`grade inválido: "${g}". Esperado: again|hard|good|easy`) ``.
+  Ex.: `` throw new Error(`invalid grade: "${g}". Expected: again|hard|good|easy`) ``.
+
+## Idioma
+- **Código-fonte em inglês.** Identificadores (variáveis, funções, classes, tipos),
+  nomes de arquivos, comentários e mensagens de erro internas/de log.
+- **Português APENAS no que o usuário final vê:** textos de UI, e mensagens/campos
+  de resposta da API destinados a ser exibidos ao usuário.
+- Mensagens de exceção de domínio/internas são **inglês** (não chegam ao usuário
+  cru — a camada de interface as traduz para a resposta voltada ao usuário).
+- Vale para **código novo**. Nomes em português pré-existentes (ex.: schema Prisma,
+  `aprendizadoFlashcard`, `sessaoEstudo`) são legado — não renomeie em massa; ao
+  tocar um módulo, migre de forma incremental quando seguro.
 
 ## Comentários
 - **Preserve** os comentários existentes no refactor — carregam intenção/proveniência.
