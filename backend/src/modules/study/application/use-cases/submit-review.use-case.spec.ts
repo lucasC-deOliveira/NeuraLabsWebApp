@@ -59,7 +59,7 @@ describe('SubmitReviewUseCase', () => {
     useCase = new SubmitReviewUseCase(repo, new FakeClock(NOW));
   });
 
-  it('carta nova com good: grava revisão (acertou, confiança 4) e agenda LEARN passo 1', async () => {
+  it('new card with good: records review (correct, confidence 4) and schedules LEARN step 1', async () => {
     const res = await useCase.execute({ userId: 'u1', flashcardId: 'fc-1', grade: 'good' });
 
     expect(res).toEqual({ success: true });
@@ -75,7 +75,7 @@ describe('SubmitReviewUseCase', () => {
     expect(ap).toMatchObject({ fase: 'LEARN', learningStep: 1, fatorEase: 2.5 });
   });
 
-  it('again sobre carta em REVIEW: agenda RELEARN', async () => {
+  it('again on a REVIEW card: schedules RELEARN', async () => {
     repo.learning.set('fc-1', {
       fase: 'REVIEW',
       learningStep: 0,
@@ -95,7 +95,7 @@ describe('SubmitReviewUseCase', () => {
     });
   });
 
-  it('grava o nível de confiança correspondente a cada grade (hard=2, easy=5)', async () => {
+  it('stores the confidence level matching each grade (hard=2, easy=5)', async () => {
     await useCase.execute({ userId: 'u1', flashcardId: 'fc-1', grade: 'hard' });
     expect(repo.reviews.at(-1)).toMatchObject({ acertou: true, nivelConfianca: 2 });
 
@@ -103,13 +103,13 @@ describe('SubmitReviewUseCase', () => {
     expect(repo.reviews.at(-1)).toMatchObject({ acertou: true, nivelConfianca: 5 });
   });
 
-  it('deriva grade de campos legados (acertou + nivelConfianca)', async () => {
+  it('derives grade from legacy fields (acertou + nivelConfianca)', async () => {
     await useCase.execute({ userId: 'u1', flashcardId: 'fc-1', acertou: true, nivelConfianca: 3 });
     // confidence 3 → good → stored confidence 4
     expect(repo.reviews[0]).toMatchObject({ acertou: true, nivelConfianca: 4 });
   });
 
-  it('sem sessão ativa: lança NoActiveSessionError e não grava nada', async () => {
+  it('no active session: throws NoActiveSessionError and records nothing', async () => {
     repo.activeSession = null;
     await expect(
       useCase.execute({ userId: 'u1', flashcardId: 'fc-1', grade: 'good' }),
@@ -117,7 +117,7 @@ describe('SubmitReviewUseCase', () => {
     expect(repo.reviews).toHaveLength(0);
   });
 
-  it('flashcard de outro dono: lança CardNotFoundError', async () => {
+  it('flashcard owned by another user: throws CardNotFoundError', async () => {
     await expect(
       useCase.execute({ userId: 'u1', flashcardId: 'fc-desconhecido', grade: 'good' }),
     ).rejects.toBeInstanceOf(CardNotFoundError);

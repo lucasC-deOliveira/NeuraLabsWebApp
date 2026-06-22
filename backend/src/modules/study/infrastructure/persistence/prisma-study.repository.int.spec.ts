@@ -21,7 +21,7 @@ const TABLES = [
   '"usuarios"',
 ];
 
-describe('PrismaStudyRepository + SubmitReviewUseCase (integração — neuralabs_test)', () => {
+describe('PrismaStudyRepository + SubmitReviewUseCase (integration — neuralabs_test)', () => {
   let prisma: PrismaService;
   let useCase: SubmitReviewUseCase;
 
@@ -52,7 +52,7 @@ describe('PrismaStudyRepository + SubmitReviewUseCase (integração — neuralab
       where: { flashcardId_usuarioId: { flashcardId, usuarioId } },
     });
 
-  it('cria revisão e aprendizado (carta nova, good → LEARN passo 1)', async () => {
+  it('creates review and learning state (new card, good → LEARN step 1)', async () => {
     const user = await seedUser();
     const card = await seedCard(user.id);
     const sess = await prisma.sessaoEstudo.create({ data: { usuarioId: user.id } });
@@ -78,7 +78,7 @@ describe('PrismaStudyRepository + SubmitReviewUseCase (integração — neuralab
     expect(ap!.proximaRevisao.getTime()).toBeGreaterThan(Date.now());
   });
 
-  it('again numa carta em REVIEW manda para RELEARN', async () => {
+  it('again on a REVIEW card moves it to RELEARN', async () => {
     const user = await seedUser();
     const card = await seedCard(user.id);
     await prisma.sessaoEstudo.create({ data: { usuarioId: user.id } });
@@ -107,7 +107,7 @@ describe('PrismaStudyRepository + SubmitReviewUseCase (integração — neuralab
     expect(ap?.intervalo).toBe(2); // round(10 * 0.2)
   });
 
-  it('sem sessão ativa lança NoActiveSessionError', async () => {
+  it('throws NoActiveSessionError when there is no active session', async () => {
     const user = await seedUser();
     const card = await seedCard(user.id);
     await expect(

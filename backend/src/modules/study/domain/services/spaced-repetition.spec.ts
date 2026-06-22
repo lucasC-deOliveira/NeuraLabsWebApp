@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { scheduleCard, dbToState, gradeFromLegacy, type ScheduleState } from './spaced-repetition';
 
-// Testes de CARACTERIZAÇÃO: capturam o comportamento atual do SM-2 antes da
-// refatoração para hexagonal. Não devem mudar o comportamento — só travá-lo.
+// CHARACTERIZATION tests: capture the current SM-2 behavior before the hexagonal
+// refactor. They must not change behavior — only pin it down.
 //
-// O scheduler aplica `fuzz()` (usa Math.random) em intervalos >= 3 dias.
-// Fixando Math.random em 0.5, o delta do fuzz vira 0 → fuzz é identidade,
-// permitindo asserir intervalos exatos.
+// The scheduler applies `fuzz()` (uses Math.random) on intervals >= 3 days.
+// Pinning Math.random to 0.5 makes the fuzz delta 0 → fuzz is identity,
+// allowing exact interval assertions.
 
 const NOW = new Date('2026-06-22T12:00:00.000Z');
 const MIN = 60_000;
@@ -21,8 +21,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('scheduleCard — carta nova (state = null) → fase LEARN', () => {
-  it('again: volta ao passo 0, revisão em 1 min, dificuldade 10', () => {
+describe('scheduleCard — new card (state = null) → LEARN phase', () => {
+  it('again: back to step 0, review in 1 min, difficulty 10', () => {
     const s = scheduleCard('again', null, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'LEARN',
@@ -35,7 +35,7 @@ describe('scheduleCard — carta nova (state = null) → fase LEARN', () => {
     });
   });
 
-  it('hard: repete o passo atual (1 min), dificuldade 7', () => {
+  it('hard: repeats the current step (1 min), difficulty 7', () => {
     const s = scheduleCard('hard', null, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'LEARN',
@@ -48,7 +48,7 @@ describe('scheduleCard — carta nova (state = null) → fase LEARN', () => {
     });
   });
 
-  it('good: avança para o passo 1 (10 min), dificuldade 5', () => {
+  it('good: advances to step 1 (10 min), difficulty 5', () => {
     const s = scheduleCard('good', null, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'LEARN',
@@ -61,7 +61,7 @@ describe('scheduleCard — carta nova (state = null) → fase LEARN', () => {
     });
   });
 
-  it('easy: gradua direto para REVIEW com intervalo de 4 dias, dificuldade 1', () => {
+  it('easy: graduates straight to REVIEW with a 4-day interval, difficulty 1', () => {
     const s = scheduleCard('easy', null, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'REVIEW',
@@ -75,7 +75,7 @@ describe('scheduleCard — carta nova (state = null) → fase LEARN', () => {
   });
 });
 
-describe('scheduleCard — LEARN no último passo gradua com good', () => {
+describe('scheduleCard — LEARN on the last step graduates with good', () => {
   const learnStep1: ScheduleState = {
     fase: 'LEARN',
     learningStep: 1,
@@ -86,7 +86,7 @@ describe('scheduleCard — LEARN no último passo gradua com good', () => {
     ultimaRevisao: NOW,
   };
 
-  it('good no passo 1 gradua para REVIEW com intervalo 1 dia', () => {
+  it('good on step 1 graduates to REVIEW with a 1-day interval', () => {
     const s = scheduleCard('good', learnStep1, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'REVIEW',
@@ -100,7 +100,7 @@ describe('scheduleCard — LEARN no último passo gradua com good', () => {
   });
 });
 
-describe('scheduleCard — fase REVIEW', () => {
+describe('scheduleCard — REVIEW phase', () => {
   const review: ScheduleState = {
     fase: 'REVIEW',
     learningStep: 0,
@@ -111,7 +111,7 @@ describe('scheduleCard — fase REVIEW', () => {
     ultimaRevisao: NOW,
   };
 
-  it('again: lapso → RELEARN, ease -0.2, intervalo *0.2, revisão em 1 min', () => {
+  it('again: lapse → RELEARN, ease -0.2, interval *0.2, review in 1 min', () => {
     const s = scheduleCard('again', review, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'RELEARN',
@@ -124,7 +124,7 @@ describe('scheduleCard — fase REVIEW', () => {
     });
   });
 
-  it('hard: ease -0.15, intervalo = round(10*1.2) = 12', () => {
+  it('hard: ease -0.15, interval = round(10*1.2) = 12', () => {
     const s = scheduleCard('hard', review, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'REVIEW',
@@ -137,7 +137,7 @@ describe('scheduleCard — fase REVIEW', () => {
     });
   });
 
-  it('good: intervalo = round(10*ease) = 25, ease inalterado', () => {
+  it('good: interval = round(10*ease) = 25, ease unchanged', () => {
     const s = scheduleCard('good', review, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'REVIEW',
@@ -150,7 +150,7 @@ describe('scheduleCard — fase REVIEW', () => {
     });
   });
 
-  it('easy: ease +0.15, intervalo = round(10*ease*1.3) = 33', () => {
+  it('easy: ease +0.15, interval = round(10*ease*1.3) = 33', () => {
     const s = scheduleCard('easy', review, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'REVIEW',
@@ -163,14 +163,14 @@ describe('scheduleCard — fase REVIEW', () => {
     });
   });
 
-  it('ease nunca cai abaixo de MIN_EASE (1.3) com hard repetido', () => {
+  it('ease never drops below MIN_EASE (1.3) with repeated hard', () => {
     const low: ScheduleState = { ...review, fatorEase: 1.35 };
     const s = scheduleCard('hard', low, NOW);
     expect(s.fatorEase).toBe(1.3);
   });
 });
 
-describe('scheduleCard — fase RELEARN', () => {
+describe('scheduleCard — RELEARN phase', () => {
   const relearn: ScheduleState = {
     fase: 'RELEARN',
     learningStep: 0,
@@ -181,7 +181,7 @@ describe('scheduleCard — fase RELEARN', () => {
     ultimaRevisao: NOW,
   };
 
-  it('again: mantém intervalo/ease, volta ao passo 0, revisão em 1 min', () => {
+  it('again: keeps interval/ease, back to step 0, review in 1 min', () => {
     const s = scheduleCard('again', relearn, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'RELEARN',
@@ -194,7 +194,7 @@ describe('scheduleCard — fase RELEARN', () => {
     });
   });
 
-  it('easy: volta para REVIEW mantendo o intervalo', () => {
+  it('easy: returns to REVIEW keeping the interval', () => {
     const s = scheduleCard('easy', relearn, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'REVIEW',
@@ -207,7 +207,7 @@ describe('scheduleCard — fase RELEARN', () => {
     });
   });
 
-  it('good no passo 0: avança para passo 1 (10 min), continua RELEARN', () => {
+  it('good on step 0: advances to step 1 (10 min), stays RELEARN', () => {
     const s = scheduleCard('good', relearn, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'RELEARN',
@@ -220,7 +220,7 @@ describe('scheduleCard — fase RELEARN', () => {
     });
   });
 
-  it('good no último passo gradua de volta para REVIEW', () => {
+  it('good on the last step graduates back to REVIEW', () => {
     const s = scheduleCard('good', { ...relearn, learningStep: 1 }, NOW);
     expect(s).toEqual<ScheduleState>({
       fase: 'REVIEW',
@@ -233,7 +233,7 @@ describe('scheduleCard — fase RELEARN', () => {
     });
   });
 
-  it('hard repete o passo atual sem avançar', () => {
+  it('hard repeats the current step without advancing', () => {
     const s = scheduleCard('hard', relearn, NOW);
     expect(s.fase).toBe('RELEARN');
     expect(s.learningStep).toBe(0);
@@ -242,7 +242,7 @@ describe('scheduleCard — fase RELEARN', () => {
 });
 
 describe('dbToState', () => {
-  it('mapeia o registro e aplica defaults (fatorEase 2.5, learningStep 0)', () => {
+  it('maps the record and applies defaults (fatorEase 2.5, learningStep 0)', () => {
     const s = dbToState({
       fase: 'REVIEW',
       learningStep: undefined as unknown as number,
@@ -265,23 +265,23 @@ describe('dbToState', () => {
 });
 
 describe('gradeFromLegacy', () => {
-  it('não acertou → again (independente da confiança)', () => {
+  it('not correct → again (regardless of confidence)', () => {
     expect(gradeFromLegacy(false, 5)).toBe('again');
   });
-  it('acertou com confiança <= 2 → hard', () => {
+  it('correct with confidence <= 2 → hard', () => {
     expect(gradeFromLegacy(true, 0)).toBe('hard');
     expect(gradeFromLegacy(true, 2)).toBe('hard');
   });
-  it('acertou com confiança 3-4 → good', () => {
+  it('correct with confidence 3-4 → good', () => {
     expect(gradeFromLegacy(true, 3)).toBe('good');
     expect(gradeFromLegacy(true, 4)).toBe('good');
   });
-  it('acertou com confiança >= 5 → easy', () => {
+  it('correct with confidence >= 5 → easy', () => {
     expect(gradeFromLegacy(true, 5)).toBe('easy');
   });
 });
 
-describe('scheduleCard — bordas de intervalo (piso intervalo+1)', () => {
+describe('scheduleCard — interval edges (floor interval+1)', () => {
   const review = (intervalo: number, fatorEase: number): ScheduleState => ({
     fase: 'REVIEW',
     learningStep: 0,
@@ -292,20 +292,20 @@ describe('scheduleCard — bordas de intervalo (piso intervalo+1)', () => {
     ultimaRevisao: NOW,
   });
 
-  it('hard com intervalo 1: round(1*1.2)=1, mas o piso intervalo+1 garante 2', () => {
+  it('hard with interval 1: round(1*1.2)=1, but the interval+1 floor guarantees 2', () => {
     const s = scheduleCard('hard', review(1, 2.5), NOW);
     expect(s.intervalo).toBe(2);
   });
 
-  it('good com intervalo 1 e ease mínimo: round(1*1.3)=1, piso garante 2', () => {
+  it('good with interval 1 and minimum ease: round(1*1.3)=1, floor guarantees 2', () => {
     const s = scheduleCard('good', review(1, 1.3), NOW);
     expect(s.intervalo).toBe(2);
   });
 });
 
-describe('fuzz (via scheduleCard) — aplica spread quando intervalo >= 3 dias', () => {
-  it('com Math.random no extremo (1.0), good em REVIEW soma o spread: 25 → 26', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(1); // delta = +spread (=+1 para 25)
+describe('fuzz (via scheduleCard) — applies spread when interval >= 3 days', () => {
+  it('with Math.random at the extreme (1.0), good in REVIEW adds the spread: 25 → 26', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(1); // delta = +spread (=+1 for 25)
     const review: ScheduleState = {
       fase: 'REVIEW',
       learningStep: 0,

@@ -35,7 +35,8 @@ enforça (escopo estrito em `backend/src/modules/**`; legado é report-only). O 
 
 ## Idioma
 - **Código-fonte em inglês.** Identificadores (variáveis, funções, classes, tipos),
-  nomes de arquivos, comentários e mensagens de erro internas/de log.
+  nomes de arquivos, comentários e mensagens de erro internas/de log. Inclui os
+  **testes** — descrições de `describe`/`it` também em inglês.
 - **Português APENAS no que o usuário final vê:** textos de UI, e mensagens/campos
   de resposta da API destinados a ser exibidos ao usuário.
 - Mensagens de exceção de domínio/internas são **inglês** (não chegam ao usuário
