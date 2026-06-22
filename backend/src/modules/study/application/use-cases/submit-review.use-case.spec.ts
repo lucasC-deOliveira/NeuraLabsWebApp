@@ -35,6 +35,9 @@ class FakeStudySessionRepository implements StudySessionRepository {
   hasActive = true;
   readonly saved: StudySession[] = [];
 
+  async start(userId: string): Promise<StudySession> {
+    return StudySession.create({ id: 'sess-1', userId });
+  }
   async findActive(): Promise<StudySession | null> {
     return this.hasActive ? StudySession.create({ id: 'sess-1', userId: 'u1' }) : null;
   }

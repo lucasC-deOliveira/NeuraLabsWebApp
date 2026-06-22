@@ -7,6 +7,14 @@ import type { StudySessionRepository } from '../../domain/ports/study-session-re
 export class PrismaStudySessionRepository implements StudySessionRepository {
   constructor(private readonly tx: Prisma.TransactionClient) {}
 
+  async start(userId: string): Promise<StudySession> {
+    const row = await this.tx.sessaoEstudo.create({
+      data: { usuarioId: userId },
+      select: { id: true, usuarioId: true },
+    });
+    return StudySession.create({ id: row.id, userId: row.usuarioId });
+  }
+
   async findActive(userId: string, sessionId?: string): Promise<StudySession | null> {
     const row = await this.tx.sessaoEstudo.findFirst({
       where: sessionId

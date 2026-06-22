@@ -1,7 +1,5 @@
 import { Test } from '@nestjs/testing';
-import {
-  describe, it, expect, beforeAll, afterAll, beforeEach,
-} from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PrismaService } from '../prisma/prisma.service';
 import { StudyService } from './study.service';
 
@@ -37,9 +35,7 @@ describe('StudyService (integração — neuralabs_test)', () => {
   });
 
   beforeEach(async () => {
-    await prisma.$executeRawUnsafe(
-      `TRUNCATE TABLE ${TABLES.join(',')} RESTART IDENTITY CASCADE`,
-    );
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${TABLES.join(',')} RESTART IDENTITY CASCADE`);
   });
 
   let emailSeq = 0;
@@ -54,20 +50,8 @@ describe('StudyService (integração — neuralabs_test)', () => {
       where: { flashcardId_usuarioId: { flashcardId, usuarioId } },
     });
 
-  // submitReview migrou para SubmitReviewUseCase — ver
-  // src/modules/study/application/use-cases/submit-review.use-case.int.spec.ts
-
-  it('startSession: cria sessão e retorna cartas novas', async () => {
-    const user = await seedUser();
-    await seedCard(user.id);
-
-    const res = await service.startSession(user.id);
-    expect(res.sessionId).toBeTruthy();
-    expect(res.cards).toHaveLength(1);
-
-    const sess = await prisma.sessaoEstudo.findUnique({ where: { id: res.sessionId } });
-    expect(sess).not.toBeNull();
-  });
+  // submitReview migrou para SubmitReviewUseCase e startSession para
+  // StartSessionUseCase — ver os *.int.spec.ts em src/modules/study/.
 
   it('finalizeSession: remove sessão sem revisões', async () => {
     const user = await seedUser();
@@ -85,7 +69,10 @@ describe('StudyService (integração — neuralabs_test)', () => {
 
     const res = await service.syncVaultLog(user.id, [
       {
-        id: 's1', startedAt: now, endedAt: now, baralhoId: null,
+        id: 's1',
+        startedAt: now,
+        endedAt: now,
+        baralhoId: null,
         revisoes: [{ flashcardId: card.id, grade: 'good', tempoResposta: 1000, revisadoEm: now }],
       },
     ]);

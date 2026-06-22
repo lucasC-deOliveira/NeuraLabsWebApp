@@ -137,10 +137,11 @@ flashcard-app/
       auth/                    ← JWT (registro, login, guard)
       content/                 ← Flashcards, decks, geração por IA
       study/                   ← Controller/serviço de sessões (sessão, deck, vault sync)
-      modules/study/           ← Domínio de estudo em camadas hexagonais:
-        domain/                ←   SM-2, interleaving, ports (repository, clock), erros
-        application/           ←   use-cases (ex.: submit-review)
-        infrastructure/        ←   adapters Prisma + clock do sistema
+      modules/study/           ← Domínio de estudo em camadas hexagonais (DDD):
+        domain/                ←   VOs (Grade/Phase/EaseFactor), agregados (Flashcard/
+                               ←   StudySession), SM-2, interleaving, ports, erros
+        application/           ←   use-cases: submit-review, start-session
+        infrastructure/        ←   adapters Prisma (repos por agregado + UoW) + mappers
         interface/             ←   filtro de erros de domínio → HTTP
       graph/                   ← Nós, arestas, regras de relação, insights IA
       notes/                   ← Notas Zettelkasten
@@ -169,8 +170,11 @@ cd backend && npm run test
 # Backend — integração (requer o Postgres de teste neuralabs_test)
 cd backend && npm run test:integration
 
+# Backend — e2e (sobe a app Nest via supertest; requer o Postgres de teste)
+cd backend && npm run test:e2e
+
 # Backend — mutação (Stryker)
 cd backend && npm run test:mutation
 ```
 
-Os testes de mutação do frontend cobrem os módulos de lógica pura: `vault-format`, `graph-communities`, `graph-metrics`, `srs-local`, `relation-rules`, `roadmap.service`, `graph.selectors`, `graph-style.service`, `graph-physics.service`, `force-layout.engine` e `card-styles`. No backend, a mutação cobre o domínio de estudo (`spaced-repetition`, `interleaving`) e o use-case `submit-review`. O relatório HTML é gerado em `reports/mutation/index.html`.
+Os testes de mutação do frontend cobrem os módulos de lógica pura: `vault-format`, `graph-communities`, `graph-metrics`, `srs-local`, `relation-rules`, `roadmap.service`, `graph.selectors`, `graph-style.service`, `graph-physics.service`, `force-layout.engine` e `card-styles`. No backend, a mutação cobre o domínio de estudo (Value Objects, agregados `Flashcard`/`StudySession`, `spaced-repetition`, `interleaving`) e os use-cases `submit-review` e `start-session`. O relatório HTML é gerado em `reports/mutation/index.html`.

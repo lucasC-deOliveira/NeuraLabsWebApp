@@ -16,6 +16,7 @@ export default {
     "src/modules/study/domain/entities/study-session.ts",
     "src/modules/study/domain/entities/review.ts",
     "src/modules/study/application/use-cases/submit-review.use-case.ts",
+    "src/modules/study/application/use-cases/start-session.use-case.ts",
   ],
   reporters: ["clear-text", "progress", "html"],
   thresholds: { high: 85, low: 70, break: 70 },

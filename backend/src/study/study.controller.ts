@@ -6,6 +6,7 @@ import {
   SubmitReviewUseCase,
   type SubmitReviewCommand,
 } from '../modules/study/application/use-cases/submit-review.use-case';
+import { StartSessionUseCase } from '../modules/study/application/use-cases/start-session.use-case';
 import { StudyDomainExceptionFilter } from '../modules/study/interface/study-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -15,11 +16,12 @@ export class StudyController {
   constructor(
     private readonly study: StudyService,
     private readonly submitReview: SubmitReviewUseCase,
+    private readonly startSession: StartSessionUseCase,
   ) {}
 
   @Post('session')
   start(@CurrentUser() userId: string) {
-    return this.study.startSession(userId);
+    return this.startSession.execute(userId);
   }
 
   @Post('session/:id/end')
@@ -56,10 +58,7 @@ export class StudyController {
   }
 
   @Post('sync-vault-log')
-  syncVaultLog(
-    @CurrentUser() userId: string,
-    @Body() body: { sessions: any[] },
-  ) {
+  syncVaultLog(@CurrentUser() userId: string, @Body() body: { sessions: any[] }) {
     return this.study.syncVaultLog(userId, body.sessions ?? []);
   }
 }
