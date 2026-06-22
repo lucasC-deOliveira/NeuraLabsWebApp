@@ -11,6 +11,7 @@ import { EndSessionUseCase } from '../modules/study/application/use-cases/end-se
 import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/finalize-session.use-case';
 import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-cases/get-flashcard-for-study.use-case';
 import { StartSingleCardStudyUseCase } from '../modules/study/application/use-cases/start-single-card-study.use-case';
+import { StartDeckStudyUseCase } from '../modules/study/application/use-cases/start-deck-study.use-case';
 import { StudyDomainExceptionFilter } from '../modules/study/interface/study-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -25,6 +26,7 @@ export class StudyController {
     private readonly finalizeSession: FinalizeSessionUseCase,
     private readonly getFlashcardForStudy: GetFlashcardForStudyUseCase,
     private readonly startSingleCardStudy: StartSingleCardStudyUseCase,
+    private readonly startDeckStudy: StartDeckStudyUseCase,
   ) {}
 
   @Post('session')
@@ -47,7 +49,7 @@ export class StudyController {
 
   @Post('deck/:baralhoId')
   startDeck(@CurrentUser() userId: string, @Param('baralhoId') baralhoId: string) {
-    return this.study.startDeckStudy(userId, baralhoId);
+    return this.startDeckStudy.execute(userId, baralhoId);
   }
 
   @Get('flashcard/:flashcardId')

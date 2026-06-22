@@ -9,7 +9,12 @@ import { EndSessionUseCase } from '../modules/study/application/use-cases/end-se
 import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/finalize-session.use-case';
 import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-cases/get-flashcard-for-study.use-case';
 import { StartSingleCardStudyUseCase } from '../modules/study/application/use-cases/start-single-card-study.use-case';
+import { StartDeckStudyUseCase } from '../modules/study/application/use-cases/start-deck-study.use-case';
 import { CLOCK, type Clock } from '../modules/study/domain/ports/clock';
+import {
+  STUDY_DECK_QUERY,
+  type StudyDeckQuery,
+} from '../modules/study/domain/ports/study-deck-query';
 import {
   STUDY_FLASHCARD_QUERY,
   type StudyFlashcardQuery,
@@ -36,6 +41,7 @@ import { PrismaStudySessionRepository } from '../modules/study/infrastructure/pe
 import { PrismaStudyCardQuery } from '../modules/study/infrastructure/persistence/prisma-study-card.query';
 import { PrismaStudySessionLifecycle } from '../modules/study/infrastructure/persistence/prisma-study-session-lifecycle';
 import { PrismaStudyFlashcardQuery } from '../modules/study/infrastructure/persistence/prisma-study-flashcard.query';
+import { PrismaStudyDeckQuery } from '../modules/study/infrastructure/persistence/prisma-study-deck.query';
 
 @Module({
   imports: [AuthModule],
@@ -46,6 +52,7 @@ import { PrismaStudyFlashcardQuery } from '../modules/study/infrastructure/persi
     { provide: STUDY_CARD_QUERY, useClass: PrismaStudyCardQuery },
     { provide: STUDY_SESSION_LIFECYCLE, useClass: PrismaStudySessionLifecycle },
     { provide: STUDY_FLASHCARD_QUERY, useClass: PrismaStudyFlashcardQuery },
+    { provide: STUDY_DECK_QUERY, useClass: PrismaStudyDeckQuery },
     { provide: CLOCK, useClass: SystemClock },
     {
       provide: STUDY_SESSION_REPOSITORY,
@@ -83,6 +90,12 @@ import { PrismaStudyFlashcardQuery } from '../modules/study/infrastructure/persi
       useFactory: (cards: StudyFlashcardQuery, sessions: StudySessionRepository) =>
         new StartSingleCardStudyUseCase(cards, sessions),
       inject: [STUDY_FLASHCARD_QUERY, STUDY_SESSION_REPOSITORY],
+    },
+    {
+      provide: StartDeckStudyUseCase,
+      useFactory: (decks: StudyDeckQuery, sessions: StudySessionRepository) =>
+        new StartDeckStudyUseCase(decks, sessions),
+      inject: [STUDY_DECK_QUERY, STUDY_SESSION_REPOSITORY],
     },
   ],
 })

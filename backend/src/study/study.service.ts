@@ -26,57 +26,9 @@ interface VaultSession {
   revisoes: VaultRevisao[];
 }
 
-export interface StudyCard {
-  id: string;
-  pergunta: string;
-  resposta: string;
-  conceito: string | null;
-  fase?: string;
-  learningStep?: number;
-}
-
 @Injectable()
 export class StudyService {
   constructor(private readonly prisma: PrismaService) {}
-
-  async startDeckStudy(userId: string, baralhoId: string) {
-    const baralho = await this.prisma.baralho.findFirst({
-      where: { id: baralhoId, usuarioId: userId },
-      include: {
-        flashcards: {
-          include: {
-            conceito: { select: { nome: true } },
-            aprendizado: { where: { usuarioId: userId } },
-          },
-          orderBy: { dataCriacao: 'asc' },
-        },
-      },
-    });
-    if (!baralho) return null;
-    const now = new Date();
-    const due = baralho.flashcards.filter((fc: any) => {
-      const ap = fc.aprendizado[0];
-      return !ap || ap.proximaRevisao <= now;
-    });
-    const cards: StudyCard[] = due.map((fc: any) => ({
-      id: fc.id,
-      pergunta: fc.pergunta,
-      resposta: fc.resposta,
-      conceito: fc.conceito?.nome ?? null,
-      fase: fc.aprendizado[0]?.fase ?? 'LEARN',
-      learningStep: fc.aprendizado[0]?.learningStep ?? 0,
-    }));
-    const session = await this.prisma.sessaoEstudo.create({
-      data: { usuarioId: userId },
-      select: { id: true },
-    });
-    return {
-      sessionId: session.id,
-      titulo: baralho.titulo,
-      cards,
-      totalNoDeck: baralho.flashcards.length,
-    };
-  }
 
   async syncVaultLog(userId: string, sessions: VaultSession[]): Promise<{ synced: number }> {
     const sorted = [...sessions].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
