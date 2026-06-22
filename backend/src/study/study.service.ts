@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { applyInterleaving } from '../modules/study/domain/services/interleaving';
@@ -220,69 +220,5 @@ export class StudyService {
       } catch { /* sessão falhou — continua */ }
     }
     return { synced };
-  }
-
-  async submitReview(
-    userId: string,
-    data: {
-      flashcardId: string; respostaUsuario: string;
-      grade?: ReviewGrade;
-      // campos legados (compatibilidade)
-      acertou?: boolean; nivelConfianca?: number;
-      tempoResposta?: number; sessaoId?: string;
-    },
-  ): Promise<{ success: boolean }> {
-    const session = await this.prisma.sessaoEstudo.findFirst({
-      where: data.sessaoId ? { id: data.sessaoId, usuarioId: userId } : { usuarioId: userId, dataFim: null },
-      orderBy: { dataInicio: 'desc' },
-      select: { id: true },
-    });
-    if (!session) throw new BadRequestException('Nenhuma sessão de estudo ativa.');
-
-    const grade: ReviewGrade = data.grade ?? gradeFromLegacy(data.acertou ?? false, data.nivelConfianca ?? 0);
-    const now = new Date();
-
-    await this.prisma.$transaction(async (tx: any) => {
-      const fc = await tx.flashcard.findFirst({ where: { id: data.flashcardId, usuarioId: userId }, select: { usuarioId: true } });
-      if (!fc) throw new BadRequestException('Flashcard não encontrado');
-
-      await tx.revisaoFlashcard.create({
-        data: {
-          flashcardId: data.flashcardId, sessaoId: session.id,
-          respostaUsuario: data.respostaUsuario ?? '',
-          acertou: grade !== 'again',
-          nivelConfianca: { again: 0, hard: 2, good: 4, easy: 5 }[grade],
-          tempoResposta: data.tempoResposta,
-        },
-      });
-
-      const existing = await tx.aprendizadoFlashcard.findFirst({ where: { flashcardId: data.flashcardId, usuarioId: userId } });
-      const newState = scheduleCard(grade, existing ? dbToState(existing) : null, now);
-
-      if (!existing) {
-        await tx.aprendizadoFlashcard.create({
-          data: {
-            flashcardId: data.flashcardId, usuarioId: userId,
-            dificuldade: newState.dificuldade, intervalo: newState.intervalo,
-            fatorEase: newState.fatorEase, fase: newState.fase,
-            learningStep: newState.learningStep,
-            proximaRevisao: newState.proximaRevisao, ultimaRevisao: newState.ultimaRevisao,
-            estagioAprendizado: newState.fase === 'REVIEW' ? 5 : 0,
-          },
-        });
-      } else {
-        await tx.aprendizadoFlashcard.update({
-          where: { flashcardId_usuarioId: { flashcardId: data.flashcardId, usuarioId: userId } },
-          data: {
-            dificuldade: newState.dificuldade, intervalo: newState.intervalo,
-            fatorEase: newState.fatorEase, fase: newState.fase,
-            learningStep: newState.learningStep,
-            proximaRevisao: newState.proximaRevisao, ultimaRevisao: newState.ultimaRevisao,
-            estagioAprendizado: newState.fase === 'REVIEW' ? 5 : 0,
-          },
-        });
-      }
-    });
-    return { success: true };
   }
 }

@@ -136,7 +136,12 @@ flashcard-app/
     src/
       auth/                    ← JWT (registro, login, guard)
       content/                 ← Flashcards, decks, geração por IA
-      study/                   ← Sessões de estudo, SM-2, interleaving
+      study/                   ← Controller/serviço de sessões (sessão, deck, vault sync)
+      modules/study/           ← Domínio de estudo em camadas hexagonais:
+        domain/                ←   SM-2, interleaving, ports (repository, clock), erros
+        application/           ←   use-cases (ex.: submit-review)
+        infrastructure/        ←   adapters Prisma + clock do sistema
+        interface/             ←   filtro de erros de domínio → HTTP
       graph/                   ← Nós, arestas, regras de relação, insights IA
       notes/                   ← Notas Zettelkasten
       ai/                      ← AiService (OpenAI-compatible client)
@@ -158,8 +163,14 @@ npm run test -- --coverage
 # Testes de mutação (Stryker) — verifica a qualidade dos testes
 npm run test:mutation
 
-# Backend
+# Backend — unitários (sem banco)
 cd backend && npm run test
+
+# Backend — integração (requer o Postgres de teste neuralabs_test)
+cd backend && npm run test:integration
+
+# Backend — mutação (Stryker)
+cd backend && npm run test:mutation
 ```
 
-Os testes de mutação cobrem os módulos de lógica pura: `vault-format`, `graph-communities`, `graph-metrics`, `srs-local`, `relation-rules`, `roadmap.service`, `graph.selectors`, `graph-style.service`, `graph-physics.service`, `force-layout.engine` e `card-styles`. O relatório HTML é gerado em `reports/mutation/index.html`.
+Os testes de mutação do frontend cobrem os módulos de lógica pura: `vault-format`, `graph-communities`, `graph-metrics`, `srs-local`, `relation-rules`, `roadmap.service`, `graph.selectors`, `graph-style.service`, `graph-physics.service`, `force-layout.engine` e `card-styles`. No backend, a mutação cobre o domínio de estudo (`spaced-repetition`, `interleaving`) e o use-case `submit-review`. O relatório HTML é gerado em `reports/mutation/index.html`.

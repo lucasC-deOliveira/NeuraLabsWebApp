@@ -1,12 +1,21 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { StudyService } from './study.service';
+import {
+  SubmitReviewUseCase,
+  type SubmitReviewCommand,
+} from '../modules/study/application/use-cases/submit-review.use-case';
+import { StudyDomainExceptionFilter } from '../modules/study/interface/study-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
+@UseFilters(StudyDomainExceptionFilter)
 @Controller('study')
 export class StudyController {
-  constructor(private readonly study: StudyService) {}
+  constructor(
+    private readonly study: StudyService,
+    private readonly submitReview: SubmitReviewUseCase,
+  ) {}
 
   @Post('session')
   start(@CurrentUser() userId: string) {
@@ -21,9 +30,9 @@ export class StudyController {
   @Post('review')
   review(
     @CurrentUser() userId: string,
-    @Body() body: { flashcardId: string; respostaUsuario?: string; grade?: string; acertou?: boolean; nivelConfianca?: number; tempoResposta?: number; sessaoId?: string },
-  ) {
-    return this.study.submitReview(userId, body as any);
+    @Body() body: Omit<SubmitReviewCommand, 'userId'>,
+  ): Promise<{ success: boolean }> {
+    return this.submitReview.execute({ ...body, userId });
   }
 
   @Post('deck/:baralhoId')

@@ -9,6 +9,7 @@ export default {
   mutate: [
     "src/modules/study/domain/services/spaced-repetition.ts",
     "src/modules/study/domain/services/interleaving.ts",
+    "src/modules/study/application/use-cases/submit-review.use-case.ts",
   ],
   reporters: ["clear-text", "progress", "html"],
   thresholds: { high: 85, low: 70, break: 70 },

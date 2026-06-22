@@ -54,54 +54,8 @@ describe('StudyService (integração — neuralabs_test)', () => {
       where: { flashcardId_usuarioId: { flashcardId, usuarioId } },
     });
 
-  it('submitReview: cria revisão e aprendizado (carta nova, good → LEARN passo 1)', async () => {
-    const user = await seedUser();
-    const card = await seedCard(user.id);
-    const sess = await prisma.sessaoEstudo.create({ data: { usuarioId: user.id } });
-
-    const res = await service.submitReview(user.id, {
-      flashcardId: card.id, respostaUsuario: 'R', grade: 'good', sessaoId: sess.id,
-    });
-    expect(res.success).toBe(true);
-
-    const revs = await prisma.revisaoFlashcard.findMany({ where: { flashcardId: card.id } });
-    expect(revs).toHaveLength(1);
-    expect(revs[0].acertou).toBe(true);
-    expect(revs[0].nivelConfianca).toBe(4); // good → 4
-
-    const ap = await aprendizadoDe(card.id, user.id);
-    expect(ap?.fase).toBe('LEARN');
-    expect(ap?.learningStep).toBe(1);
-    expect(ap?.fatorEase).toBe(2.5);
-    expect(ap!.proximaRevisao.getTime()).toBeGreaterThan(Date.now());
-  });
-
-  it('submitReview: again numa carta em REVIEW manda para RELEARN', async () => {
-    const user = await seedUser();
-    const card = await seedCard(user.id);
-    await prisma.sessaoEstudo.create({ data: { usuarioId: user.id } });
-    await prisma.aprendizadoFlashcard.create({
-      data: {
-        flashcardId: card.id, usuarioId: user.id, fase: 'REVIEW',
-        intervalo: 10, fatorEase: 2.5, dificuldade: 3, learningStep: 0,
-      },
-    });
-
-    await service.submitReview(user.id, { flashcardId: card.id, respostaUsuario: '', grade: 'again' });
-
-    const ap = await aprendizadoDe(card.id, user.id);
-    expect(ap?.fase).toBe('RELEARN');
-    expect(ap?.fatorEase).toBeCloseTo(2.3, 5); // 2.5 - 0.2
-    expect(ap?.intervalo).toBe(2); // round(10 * 0.2)
-  });
-
-  it('submitReview: sem sessão ativa lança erro', async () => {
-    const user = await seedUser();
-    const card = await seedCard(user.id);
-    await expect(
-      service.submitReview(user.id, { flashcardId: card.id, respostaUsuario: '', grade: 'good' }),
-    ).rejects.toThrow();
-  });
+  // submitReview migrou para SubmitReviewUseCase — ver
+  // src/modules/study/application/use-cases/submit-review.use-case.int.spec.ts
 
   it('startSession: cria sessão e retorna cartas novas', async () => {
     const user = await seedUser();
