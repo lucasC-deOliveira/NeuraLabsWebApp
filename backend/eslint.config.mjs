@@ -18,10 +18,11 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-function-return-type': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
-      'max-lines-per-function': ['error', { max: 50, skipBlankLines: true, skipComments: true }],
-      'max-statements': ['error', 20],
-      'max-depth': ['error', 3],
-      'max-nested-callbacks': ['error', 3],
+      // Funções 4–20 linhas, arquivos <500, máx. 2 níveis de indentação.
+      'max-lines-per-function': ['error', { max: 20, skipBlankLines: true, skipComments: true }],
+      'max-lines': ['error', { max: 500, skipBlankLines: true, skipComments: true }],
+      'max-depth': ['error', 2],
+      'max-nested-callbacks': ['error', 2],
       complexity: ['error', 10],
       '@typescript-eslint/naming-convention': [
         'error',

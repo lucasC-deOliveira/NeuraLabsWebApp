@@ -15,24 +15,71 @@ de servidor — essa lógica vive no `backend/` (NestJS).
 
 ---
 
-# Regras de engenharia (obrigatórias no refactor)
+# Regras de engenharia (obrigatórias)
 
-Estas regras valem para humanos E agentes. Violá-las = PR rejeitado. Onde dá,
-são enforçadas por ferramenta (CI); o resto é checado em revisão.
+Valem para humanos E agentes. Violá-las = PR rejeitado. Onde há ferramenta, o CI
+enforça (escopo estrito em `backend/src/modules/**`; legado é report-only). O resto
+é revisão.
 
-| # | Regra | Como aplicar | Enforce |
-|---|---|---|---|
-| 1 | **Funções pequenas** | uma função faz uma coisa; extraia ao crescer | ESLint `max-lines-per-function`, `complexity`, `max-statements` |
-| 2 | **SRP** | uma responsabilidade por classe/módulo/use-case (1 use-case por arquivo) | revisão + fronteiras (dependency-cruiser) |
-| 3 | **Nomes significativos e únicos** | linguagem ubíqua do domínio; sem abreviação obscura; sem dois nomes p/ a mesma coisa | ESLint `@typescript-eslint/naming-convention` + revisão |
-| 4 | **Comentários com contexto** | explique o *porquê*/decisão; nunca descreva o óbvio | revisão |
-| 5 | **Tipos explícitos** | retorno e fronteiras tipados; **proibido `any`** | `explicit-function-return-type`, `explicit-module-boundary-types`, `no-explicit-any` |
-| 6 | **DRY** | extraia lógica repetida; uma fonte de verdade | revisão (+ `sonarjs` opcional) |
-| 7 | **Estrutura de diretórios previsível** | sempre `domain/ application/ infrastructure/ interface/` por contexto | dependency-cruiser (camadas) |
-| 8 | **Evitar aninhamento profundo** | early-return / guard clauses | ESLint `max-depth`, `max-nested-callbacks` |
-| 9 | **Dependency Injection** | dependa de *ports* (interfaces), nunca de implementações concretas; binding via tokens NestJS | revisão + fronteiras |
-| 10 | **Testabilidade** | DI + lógica pura no domínio → testável sem mock pesado; cobre com a pirâmide | thresholds de cobertura + mutação |
-| 11 | **Erros com contexto** | exceções tipadas com mensagem clara + `cause`/dados relevantes; nunca engolir erro silenciosamente | revisão |
-| 12 | **Formatação e estilo padrão** | seguir o linter/formatter mais popular do TS: **Prettier** (formatação) + **ESLint/typescript-eslint** (estilo). Sem estilo manual divergente | `prettier --check` + `eslint` no CI |
+## Code style
+- Funções: **4–20 linhas**. Maior que isso, divida.
+- Arquivos: **< 500 linhas**. Divida por responsabilidade.
+- Uma coisa por função; **uma responsabilidade por módulo (SRP)**.
+- Nomes específicos e únicos. Evite `data`, `handler`, `Manager`, `service` genérico.
+  Prefira nomes que retornem **< 5 hits no grep**. Use a linguagem ubíqua do domínio.
+- Tipos **explícitos**. Sem `any`, sem função sem tipo de retorno/fronteira.
+- **Sem duplicação** — extraia lógica compartilhada para função/módulo.
+- **Early return** em vez de ifs aninhados. **Máx. 2 níveis de indentação.**
+- Mensagens de exceção incluem **o valor ofensor e o formato esperado**.
+  Ex.: `` throw new Error(`grade inválido: "${g}". Esperado: again|hard|good|easy`) ``.
 
-Princípio TDD: **regra de domínio/use-case nova começa por um teste que falha** (Red→Green→Refactor); PR sem teste correspondente é rejeitado.
+## Comentários
+- **Preserve** os comentários existentes no refactor — carregam intenção/proveniência.
+- Escreva o **PORQUÊ**, não o O QUÊ. Nada de `// incrementa contador` sobre `i++`.
+- Funções/use-cases públicos: docstring com **intenção + um exemplo de uso**.
+- Referencie **issue/commit SHA** quando a linha existe por um bug ou restrição específica.
+
+## Tests
+- Comando único por suíte:
+  - backend unidade — `npm test` (em `backend/`)
+  - backend integração — `npm run test:integration`
+  - backend mutação — `npm run test:mutation`
+  - frontend — `npm test` (na raiz)
+- **Toda função nova tem teste. Todo bug-fix tem teste de regressão.**
+- I/O externo (DB, API, filesystem) é mockado por **classes fake nomeadas** que
+  implementam os *ports* (ex.: `FakeFlashcardRepository`), nunca stub inline.
+- Testes **F.I.R.S.T**: rápidos, independentes, repetíveis, auto-validáveis, no tempo certo.
+
+## Dependencies
+- Injete dependências por **construtor/parâmetro** (NestJS DI), nunca por global/import direto.
+- Envolva libs de terceiros (**Prisma, OpenAI**) atrás de uma **interface fina (port)**
+  deste projeto — só o adapter conhece a lib (Anti-Corruption Layer).
+
+## Structure
+- Siga a convenção do framework: **NestJS** no backend, **Vite/React** no frontend.
+- Módulos pequenos e focados, não "god files".
+- Caminhos previsíveis. No backend refatorado, por bounded context:
+  `domain/ application/ infrastructure/ interface/`.
+
+## Formatting
+- Use o formatter padrão da linguagem: **Prettier** (`npm run format`). Não discuta
+  estilo além disso.
+
+## Logging
+- **JSON estruturado** para debug/observabilidade (NestJS `Logger`).
+- Texto plano só para saída de CLI voltada ao usuário.
+
+## TDD
+- Regra de domínio/use-case nova **começa por um teste que falha** (Red→Green→Refactor).
+- PR sem teste correspondente é rejeitado.
+
+## Enforce automático (CI — escopo `backend/src/modules/**`)
+| Regra | Gate |
+|---|---|
+| Funções ≤20 linhas, ≤2 indentação, complexidade | `lint:strict` (`max-lines-per-function`, `max-depth`, `complexity`) |
+| Arquivos <500 linhas | `lint:strict` (`max-lines`) |
+| Sem `any` / tipos explícitos | `lint:strict` (`no-explicit-any`, `explicit-*-types`) |
+| Nomes | `lint:strict` (`naming-convention`) + revisão |
+| Fronteiras hexagonais / DI por ports | `arch:check` (dependency-cruiser) |
+| Formatação | `format:check` (Prettier) |
+| Qualidade de teste | `test:mutation` (Stryker, break 70) |
