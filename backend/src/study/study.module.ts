@@ -7,7 +7,13 @@ import { SubmitReviewUseCase } from '../modules/study/application/use-cases/subm
 import { StartSessionUseCase } from '../modules/study/application/use-cases/start-session.use-case';
 import { EndSessionUseCase } from '../modules/study/application/use-cases/end-session.use-case';
 import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/finalize-session.use-case';
+import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-cases/get-flashcard-for-study.use-case';
+import { StartSingleCardStudyUseCase } from '../modules/study/application/use-cases/start-single-card-study.use-case';
 import { CLOCK, type Clock } from '../modules/study/domain/ports/clock';
+import {
+  STUDY_FLASHCARD_QUERY,
+  type StudyFlashcardQuery,
+} from '../modules/study/domain/ports/study-flashcard-query';
 import {
   STUDY_SESSION_LIFECYCLE,
   type StudySessionLifecycle,
@@ -29,6 +35,7 @@ import { PrismaStudyUnitOfWork } from '../modules/study/infrastructure/persisten
 import { PrismaStudySessionRepository } from '../modules/study/infrastructure/persistence/prisma-study-session.repository';
 import { PrismaStudyCardQuery } from '../modules/study/infrastructure/persistence/prisma-study-card.query';
 import { PrismaStudySessionLifecycle } from '../modules/study/infrastructure/persistence/prisma-study-session-lifecycle';
+import { PrismaStudyFlashcardQuery } from '../modules/study/infrastructure/persistence/prisma-study-flashcard.query';
 
 @Module({
   imports: [AuthModule],
@@ -38,6 +45,7 @@ import { PrismaStudySessionLifecycle } from '../modules/study/infrastructure/per
     { provide: STUDY_UNIT_OF_WORK, useClass: PrismaStudyUnitOfWork },
     { provide: STUDY_CARD_QUERY, useClass: PrismaStudyCardQuery },
     { provide: STUDY_SESSION_LIFECYCLE, useClass: PrismaStudySessionLifecycle },
+    { provide: STUDY_FLASHCARD_QUERY, useClass: PrismaStudyFlashcardQuery },
     { provide: CLOCK, useClass: SystemClock },
     {
       provide: STUDY_SESSION_REPOSITORY,
@@ -64,6 +72,17 @@ import { PrismaStudySessionLifecycle } from '../modules/study/infrastructure/per
       provide: FinalizeSessionUseCase,
       useFactory: (sessions: StudySessionLifecycle) => new FinalizeSessionUseCase(sessions),
       inject: [STUDY_SESSION_LIFECYCLE],
+    },
+    {
+      provide: GetFlashcardForStudyUseCase,
+      useFactory: (cards: StudyFlashcardQuery) => new GetFlashcardForStudyUseCase(cards),
+      inject: [STUDY_FLASHCARD_QUERY],
+    },
+    {
+      provide: StartSingleCardStudyUseCase,
+      useFactory: (cards: StudyFlashcardQuery, sessions: StudySessionRepository) =>
+        new StartSingleCardStudyUseCase(cards, sessions),
+      inject: [STUDY_FLASHCARD_QUERY, STUDY_SESSION_REPOSITORY],
     },
   ],
 })

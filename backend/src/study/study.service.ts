@@ -78,60 +78,6 @@ export class StudyService {
     };
   }
 
-  async getFlashcardForStudy(userId: string, flashcardId: string) {
-    const fc = await this.prisma.flashcard.findFirst({
-      where: { id: flashcardId, usuarioId: userId },
-      include: {
-        conceito: { select: { nome: true } },
-        aprendizado: { where: { usuarioId: userId } },
-      },
-    });
-    if (!fc) return null;
-    const ap = fc.aprendizado[0];
-    return {
-      id: fc.id,
-      pergunta: fc.pergunta,
-      resposta: fc.resposta,
-      conceito: fc.conceito?.nome ?? null,
-      due: !ap || ap.proximaRevisao <= new Date(),
-      proximaRevisao: ap ? ap.proximaRevisao.toISOString() : null,
-      fase: ap?.fase ?? 'LEARN',
-    };
-  }
-
-  async startSingleCardStudy(userId: string, flashcardId: string) {
-    const fc = await this.prisma.flashcard.findFirst({
-      where: { id: flashcardId, usuarioId: userId },
-      include: {
-        conceito: { select: { nome: true } },
-        aprendizado: { where: { usuarioId: userId } },
-      },
-    });
-    if (!fc) return null;
-    const ap = fc.aprendizado[0];
-    const due = !ap || ap.proximaRevisao <= new Date();
-    const sessionId = due
-      ? (
-          await this.prisma.sessaoEstudo.create({
-            data: { usuarioId: userId },
-            select: { id: true },
-          })
-        ).id
-      : null;
-    return {
-      sessionId,
-      card: {
-        id: fc.id,
-        pergunta: fc.pergunta,
-        resposta: fc.resposta,
-        conceito: fc.conceito?.nome ?? null,
-      },
-      due,
-      proximaRevisao: ap ? ap.proximaRevisao.toISOString() : null,
-      fase: ap?.fase ?? 'LEARN',
-    };
-  }
-
   async syncVaultLog(userId: string, sessions: VaultSession[]): Promise<{ synced: number }> {
     const sorted = [...sessions].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
     let synced = 0;

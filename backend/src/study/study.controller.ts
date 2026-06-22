@@ -9,6 +9,8 @@ import {
 import { StartSessionUseCase } from '../modules/study/application/use-cases/start-session.use-case';
 import { EndSessionUseCase } from '../modules/study/application/use-cases/end-session.use-case';
 import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/finalize-session.use-case';
+import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-cases/get-flashcard-for-study.use-case';
+import { StartSingleCardStudyUseCase } from '../modules/study/application/use-cases/start-single-card-study.use-case';
 import { StudyDomainExceptionFilter } from '../modules/study/interface/study-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -21,6 +23,8 @@ export class StudyController {
     private readonly startSession: StartSessionUseCase,
     private readonly endSession: EndSessionUseCase,
     private readonly finalizeSession: FinalizeSessionUseCase,
+    private readonly getFlashcardForStudy: GetFlashcardForStudyUseCase,
+    private readonly startSingleCardStudy: StartSingleCardStudyUseCase,
   ) {}
 
   @Post('session')
@@ -48,12 +52,12 @@ export class StudyController {
 
   @Get('flashcard/:flashcardId')
   flashcardForStudy(@CurrentUser() userId: string, @Param('flashcardId') flashcardId: string) {
-    return this.study.getFlashcardForStudy(userId, flashcardId);
+    return this.getFlashcardForStudy.execute(userId, flashcardId);
   }
 
   @Post('flashcard/:flashcardId/start')
   startSingleCard(@CurrentUser() userId: string, @Param('flashcardId') flashcardId: string) {
-    return this.study.startSingleCardStudy(userId, flashcardId);
+    return this.startSingleCardStudy.execute(userId, flashcardId);
   }
 
   @Post('session/:id/finalize')
