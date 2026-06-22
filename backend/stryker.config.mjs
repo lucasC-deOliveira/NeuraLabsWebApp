@@ -9,6 +9,12 @@ export default {
   mutate: [
     "src/modules/study/domain/services/spaced-repetition.ts",
     "src/modules/study/domain/services/interleaving.ts",
+    "src/modules/study/domain/value-objects/grade.ts",
+    "src/modules/study/domain/value-objects/phase.ts",
+    "src/modules/study/domain/value-objects/ease-factor.ts",
+    "src/modules/study/domain/entities/flashcard.ts",
+    "src/modules/study/domain/entities/study-session.ts",
+    "src/modules/study/domain/entities/review.ts",
     "src/modules/study/application/use-cases/submit-review.use-case.ts",
   ],
   reporters: ["clear-text", "progress", "html"],

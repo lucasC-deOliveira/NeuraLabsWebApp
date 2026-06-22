@@ -1,15 +1,14 @@
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PrismaService } from '../../../../prisma/prisma.service';
-import { PrismaStudyRepository } from './prisma-study.repository';
+import { PrismaStudyUnitOfWork } from './prisma-study-unit-of-work';
 import { SystemClock } from '../clock/system-clock';
 import { SubmitReviewUseCase } from '../../application/use-cases/submit-review.use-case';
 import { NoActiveSessionError } from '../../domain/errors';
 
-// Integration of the Prisma adapter against the real DB (neuralabs_test), driven
-// by SubmitReviewUseCase. Replaces the characterizations that pinned
-// StudyService.submitReview: same behavior (review + SM-2 scheduling), now at the
-// hexagonal seam (use-case → port → Prisma adapter).
+// Integration of the Prisma unit of work + aggregate adapters against the real
+// DB (neuralabs_test), driven by SubmitReviewUseCase. Same behavior as the
+// previous single-repo seam (review + SM-2 scheduling), now split per aggregate.
 
 const TABLES = [
   '"revisoes_flashcard"',
@@ -21,7 +20,7 @@ const TABLES = [
   '"usuarios"',
 ];
 
-describe('PrismaStudyRepository + SubmitReviewUseCase (integration — neuralabs_test)', () => {
+describe('PrismaStudyUnitOfWork + SubmitReviewUseCase (integration — neuralabs_test)', () => {
   let prisma: PrismaService;
   let useCase: SubmitReviewUseCase;
 
@@ -29,7 +28,7 @@ describe('PrismaStudyRepository + SubmitReviewUseCase (integration — neuralabs
     const moduleRef = await Test.createTestingModule({ providers: [PrismaService] }).compile();
     prisma = moduleRef.get(PrismaService);
     await prisma.$connect();
-    useCase = new SubmitReviewUseCase(new PrismaStudyRepository(prisma), new SystemClock());
+    useCase = new SubmitReviewUseCase(new PrismaStudyUnitOfWork(prisma), new SystemClock());
   });
 
   afterAll(async () => {

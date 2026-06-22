@@ -5,23 +5,23 @@ import { StudyService } from './study.service';
 import { SubmitReviewUseCase } from '../modules/study/application/use-cases/submit-review.use-case';
 import { CLOCK, type Clock } from '../modules/study/domain/ports/clock';
 import {
-  STUDY_REPOSITORY,
-  type StudyRepository,
-} from '../modules/study/domain/ports/study-repository';
+  STUDY_UNIT_OF_WORK,
+  type StudyUnitOfWork,
+} from '../modules/study/domain/ports/study-unit-of-work';
 import { SystemClock } from '../modules/study/infrastructure/clock/system-clock';
-import { PrismaStudyRepository } from '../modules/study/infrastructure/persistence/prisma-study.repository';
+import { PrismaStudyUnitOfWork } from '../modules/study/infrastructure/persistence/prisma-study-unit-of-work';
 
 @Module({
   imports: [AuthModule],
   controllers: [StudyController],
   providers: [
     StudyService,
-    { provide: STUDY_REPOSITORY, useClass: PrismaStudyRepository },
+    { provide: STUDY_UNIT_OF_WORK, useClass: PrismaStudyUnitOfWork },
     { provide: CLOCK, useClass: SystemClock },
     {
       provide: SubmitReviewUseCase,
-      useFactory: (repo: StudyRepository, clock: Clock) => new SubmitReviewUseCase(repo, clock),
-      inject: [STUDY_REPOSITORY, CLOCK],
+      useFactory: (uow: StudyUnitOfWork, clock: Clock) => new SubmitReviewUseCase(uow, clock),
+      inject: [STUDY_UNIT_OF_WORK, CLOCK],
     },
   ],
 })

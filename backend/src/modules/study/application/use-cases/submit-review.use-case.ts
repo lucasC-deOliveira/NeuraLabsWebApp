@@ -1,21 +1,13 @@
 import { CardNotFoundError, NoActiveSessionError } from '../../domain/errors';
 import type { Clock } from '../../domain/ports/clock';
-import type {
-  ReviewRecord,
-  StudyRepository,
-  StudyTxRepository,
-} from '../../domain/ports/study-repository';
-import {
-  gradeFromLegacy,
-  scheduleCard,
-  type ReviewGrade,
-} from '../../domain/services/spaced-repetition';
+import type { StudyRepositories, StudyUnitOfWork } from '../../domain/ports/study-unit-of-work';
+import { Grade } from '../../domain/value-objects/grade';
 
 export interface SubmitReviewCommand {
   userId: string;
   flashcardId: string;
   respostaUsuario?: string;
-  grade?: ReviewGrade;
+  grade?: string;
   // Legacy fields (compat with old sessions, before the 4-button grading).
   acertou?: boolean;
   nivelConfianca?: number;
@@ -23,55 +15,48 @@ export interface SubmitReviewCommand {
   sessaoId?: string;
 }
 
-// Confidence level stored per grade (keeps compatibility with old data).
-const CONFIDENCE_BY_GRADE: Record<ReviewGrade, number> = { again: 0, hard: 2, good: 4, easy: 5 };
-
 /**
- * Records a flashcard review and reschedules it (SM-2), atomically.
+ * Records a flashcard review and reschedules it (SM-2), atomically across the
+ * StudySession and Flashcard aggregates.
  * @example useCase.execute({ userId, flashcardId, grade: 'good', sessaoId })
  */
 export class SubmitReviewUseCase {
   constructor(
-    private readonly repo: StudyRepository,
+    private readonly uow: StudyUnitOfWork,
     private readonly clock: Clock,
   ) {}
 
   async execute(cmd: SubmitReviewCommand): Promise<{ success: boolean }> {
-    const session = await this.repo.findActiveSession(cmd.userId, cmd.sessaoId);
-    if (!session) throw new NoActiveSessionError(cmd.userId);
-
-    const grade = cmd.grade ?? gradeFromLegacy(cmd.acertou ?? false, cmd.nivelConfianca ?? 0);
-    await this.repo.withTransaction((tx) => this.record(tx, cmd, session.id, grade));
+    const grade = this.resolveGrade(cmd);
+    await this.uow.execute((repos) => this.review(repos, cmd, grade));
     return { success: true };
   }
 
-  private async record(
-    tx: StudyTxRepository,
+  private async review(
+    repos: StudyRepositories,
     cmd: SubmitReviewCommand,
-    sessaoId: string,
-    grade: ReviewGrade,
+    grade: Grade,
   ): Promise<void> {
-    if (!(await tx.isCardOwnedBy(cmd.flashcardId, cmd.userId))) {
-      throw new CardNotFoundError(cmd.flashcardId);
-    }
-    await tx.createReview(this.toReviewRecord(cmd, sessaoId, grade));
-    const current = await tx.getLearningState(cmd.flashcardId, cmd.userId);
-    const next = scheduleCard(grade, current, this.clock.now());
-    await tx.saveLearningState(cmd.flashcardId, cmd.userId, next);
+    const session = await repos.sessions.findActive(cmd.userId, cmd.sessaoId);
+    if (!session) throw new NoActiveSessionError(cmd.userId);
+
+    const flashcard = await repos.flashcards.findOwnedBy(cmd.flashcardId, cmd.userId);
+    if (!flashcard) throw new CardNotFoundError(cmd.flashcardId);
+
+    session.recordReview({
+      flashcardId: flashcard.id,
+      grade,
+      answer: cmd.respostaUsuario,
+      responseTimeMs: cmd.tempoResposta,
+    });
+    flashcard.review(grade, this.clock.now());
+
+    await repos.sessions.save(session);
+    await repos.flashcards.save(flashcard);
   }
 
-  private toReviewRecord(
-    cmd: SubmitReviewCommand,
-    sessaoId: string,
-    grade: ReviewGrade,
-  ): ReviewRecord {
-    return {
-      flashcardId: cmd.flashcardId,
-      sessaoId,
-      respostaUsuario: cmd.respostaUsuario ?? '',
-      acertou: grade !== 'again',
-      nivelConfianca: CONFIDENCE_BY_GRADE[grade],
-      tempoResposta: cmd.tempoResposta,
-    };
+  private resolveGrade(cmd: SubmitReviewCommand): Grade {
+    if (cmd.grade) return Grade.create(cmd.grade);
+    return Grade.fromLegacy(cmd.acertou ?? false, cmd.nivelConfianca ?? 0);
   }
 }
