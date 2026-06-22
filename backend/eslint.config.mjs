@@ -36,10 +36,15 @@ export default tseslint.config(
   {
     files: ['**/*.spec.ts', 'test/**/*.ts'],
     rules: {
+      // describe/it/beforeEach são a API do framework de teste — aninhamento e
+      // tamanho de "função" não se aplicam a specs.
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
       'max-lines-per-function': 'off',
       'max-statements': 'off',
+      'max-nested-callbacks': 'off',
+      'max-depth': 'off',
+      complexity: 'off',
     },
   },
 

@@ -29,8 +29,12 @@ describe('applyInterleaving', () => {
 
   it('preserva todas as cartas (mesma quantidade por conceito)', () => {
     const input = [
-      card(1, 'A'), card(2, 'A'), card(3, 'A'), card(4, 'A'),
-      card(5, 'B'), card(6, 'B'),
+      card(1, 'A'),
+      card(2, 'A'),
+      card(3, 'A'),
+      card(4, 'A'),
+      card(5, 'B'),
+      card(6, 'B'),
       card(7, null),
     ];
     const out = applyInterleaving(input, 2);
@@ -40,8 +44,14 @@ describe('applyInterleaving', () => {
 
   it('não deixa mais de maxPerConcept do mesmo conceito seguidos quando há alternativa', () => {
     const input = [
-      card(1, 'A'), card(2, 'A'), card(3, 'A'), card(4, 'A'),
-      card(5, 'B'), card(6, 'B'), card(7, 'B'), card(8, 'B'),
+      card(1, 'A'),
+      card(2, 'A'),
+      card(3, 'A'),
+      card(4, 'A'),
+      card(5, 'B'),
+      card(6, 'B'),
+      card(7, 'B'),
+      card(8, 'B'),
     ];
     const out = applyInterleaving(input, 2);
     expect(maxRun(out)).toBeLessThanOrEqual(2);
@@ -49,8 +59,12 @@ describe('applyInterleaving', () => {
 
   it('respeita maxPerConcept = 1 (nunca dois iguais seguidos com alternativa)', () => {
     const input = [
-      card(1, 'A'), card(2, 'A'), card(3, 'A'),
-      card(4, 'B'), card(5, 'B'), card(6, 'B'),
+      card(1, 'A'),
+      card(2, 'A'),
+      card(3, 'A'),
+      card(4, 'B'),
+      card(5, 'B'),
+      card(6, 'B'),
     ];
     const out = applyInterleaving(input, 1);
     expect(maxRun(out)).toBeLessThanOrEqual(1);
@@ -67,8 +81,12 @@ describe('applyInterleaving', () => {
   // ordem de inserção dos conceitos), matando mutantes da lógica de fila.
   it('ordem exata: 4×A + 2×B (max 2) intercala os B entre os A', () => {
     const input = [
-      card(1, 'A'), card(2, 'A'), card(3, 'A'), card(4, 'A'),
-      card(5, 'B'), card(6, 'B'),
+      card(1, 'A'),
+      card(2, 'A'),
+      card(3, 'A'),
+      card(4, 'A'),
+      card(5, 'B'),
+      card(6, 'B'),
     ];
     const out = applyInterleaving(input, 2);
     expect(out.map((c) => c.id)).toEqual([1, 5, 2, 6, 3, 4]);
@@ -76,8 +94,12 @@ describe('applyInterleaving', () => {
 
   it('ordem exata com max 1: alterna estritamente A e B', () => {
     const input = [
-      card(1, 'A'), card(2, 'A'), card(3, 'A'),
-      card(4, 'B'), card(5, 'B'), card(6, 'B'),
+      card(1, 'A'),
+      card(2, 'A'),
+      card(3, 'A'),
+      card(4, 'B'),
+      card(5, 'B'),
+      card(6, 'B'),
     ];
     const out = applyInterleaving(input, 1);
     expect(out.map((c) => c.id)).toEqual([1, 4, 2, 5, 3, 6]);

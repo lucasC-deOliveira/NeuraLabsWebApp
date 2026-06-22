@@ -1,8 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { applyInterleaving } from './interleaving';
-import { scheduleCard, dbToState, gradeFromLegacy, type ReviewGrade } from './spaced-repetition';
+import { applyInterleaving } from '../modules/study/domain/services/interleaving';
+import {
+  scheduleCard,
+  dbToState,
+  gradeFromLegacy,
+  type ReviewGrade,
+} from '../modules/study/domain/services/spaced-repetition';
 
 interface VaultRevisao {
   flashcardId: string;
