@@ -37,11 +37,11 @@ export function CommunitiesPanel({
         <DialogHeader className="shrink-0 pb-3">
           <DialogTitle className="flex items-center gap-2">
             <NetworkIcon className="size-4" />
-            Comunidades detectadas
+            Clusters por assunto
           </DialogTitle>
           <DialogDescription>
-            Clusters de nós fortemente conectados entre si.
-            {communities.length === 0 && " Adicione mais nós e conexões para detectar comunidades."}
+            Cada assunto é um cluster com toda a sua subárvore (tópicos, conceitos e nós).
+            {communities.length === 0 && " Adicione assuntos, tópicos e conceitos conectados para formar clusters."}
           </DialogDescription>
         </DialogHeader>
 

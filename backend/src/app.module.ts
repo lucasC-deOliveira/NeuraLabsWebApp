@@ -8,6 +8,8 @@ import { StudyModule } from './study/study.module';
 import { SettingsModule } from './settings/settings.module';
 import { AiModule } from './ai/ai.module';
 import { NotesModule } from './notes/notes.module';
+import { QuestionsModule } from './questions/questions.module';
+import { ProvasModule } from './provas/provas.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -21,6 +23,8 @@ import { HealthController } from './health.controller';
     SettingsModule,
     AiModule,
     NotesModule,
+    QuestionsModule,
+    ProvasModule,
   ],
   controllers: [HealthController],
 })

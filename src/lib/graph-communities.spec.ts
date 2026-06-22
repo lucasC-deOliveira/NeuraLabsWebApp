@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { detectCommunities, detectGaps, type Community } from "./graph-communities";
+import { detectCommunities, clustersFromHierarchy, detectGaps, type Community } from "./graph-communities";
 import type { SimNode } from "@/modules/graph/infra/layout/force-layout.engine";
 import type { GraphEdgeType } from "@/lib/graph-api";
 
@@ -115,6 +115,73 @@ describe("detectCommunities", () => {
     const edges = [edge("A", "B"), edge("B", "C")];
     const result = detectCommunities(nodes, edges, 0);
     expect(result).toHaveLength(3);
+  });
+});
+
+// ── clustersFromHierarchy ───────────────────────────────────────────────────
+
+describe("clustersFromHierarchy", () => {
+  // nó com clusterId (já derivado pelo layout)
+  const cnode = (id: string, group: string, clusterId?: string): SimNode => ({
+    ...node(id, group), clusterId,
+  });
+
+  it("grafo vazio → sem clusters", () => {
+    expect(clustersFromHierarchy([])).toEqual([]);
+  });
+
+  it("agrupa toda a subárvore sob o ASSUNTO (um cluster por assunto)", () => {
+    const nodes = [
+      cnode("a", "ASSUNTO", "a"),
+      cnode("t", "TOPICO", "a"),
+      cnode("c", "CONCEITO", "a"),
+      cnode("f", "FLASHCARD", "a"),
+    ];
+    const result = clustersFromHierarchy(nodes);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("a");
+    expect(result[0].nodes).toHaveLength(4);
+  });
+
+  it("dois assuntos → dois clusters distintos", () => {
+    const nodes = [
+      cnode("a1", "ASSUNTO", "a1"), cnode("c1", "CONCEITO", "a1"),
+      cnode("a2", "ASSUNTO", "a2"), cnode("c2", "CONCEITO", "a2"),
+    ];
+    const result = clustersFromHierarchy(nodes);
+    expect(result).toHaveLength(2);
+    expect(new Set(result.map((c) => c.id))).toEqual(new Set(["a1", "a2"]));
+  });
+
+  it("folhas sem cluster (órfãs) ficam de fora — nunca formam cluster próprio", () => {
+    const nodes = [
+      cnode("a", "ASSUNTO", "a"), cnode("c", "CONCEITO", "a"),
+      cnode("orfa", "FLASHCARD", undefined), // sem clusterId
+    ];
+    const result = clustersFromHierarchy(nodes);
+    expect(result).toHaveLength(1);
+    expect(result[0].nodes.map((n) => n.id)).not.toContain("orfa");
+  });
+
+  it("rótulo usa o nome do assunto + contagens, e conta flashcards", () => {
+    const nodes = [
+      cnode("a", "ASSUNTO", "a"),
+      cnode("f1", "FLASHCARD", "a"),
+      cnode("f2", "FLASHCARD", "a"),
+    ];
+    const [c] = clustersFromHierarchy(nodes);
+    expect(c.label).toContain("a"); // nome do nó raiz (label = id nas factories)
+    expect(c.label).toContain("3 nós");
+    expect(c.label).toContain("2 flashcards");
+  });
+
+  it("ordena do maior para o menor cluster", () => {
+    const nodes = [
+      cnode("a1", "ASSUNTO", "a1"),
+      cnode("a2", "ASSUNTO", "a2"), cnode("x", "CONCEITO", "a2"), cnode("y", "CONCEITO", "a2"),
+    ];
+    const result = clustersFromHierarchy(nodes);
+    expect(result[0].id).toBe("a2"); // 3 nós vem antes de 1 nó
   });
 });
 

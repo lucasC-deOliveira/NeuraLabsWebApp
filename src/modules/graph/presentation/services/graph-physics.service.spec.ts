@@ -181,13 +181,16 @@ describe("physicsStep (modelo force-directed inspirado no vis-network)", () => {
 
   describe("integração", () => {
     it("o deslocamento por frame é limitado (sem saltos)", () => {
-      let prev: any[] = [node("a", 0, 0), node("b", 1, 0)]; // quase sobrepostos
+      // já separados (> minDist) para medir o movimento dirigido por velocidade.
+      // A separação de sobreposição inicial é uma correção geométrica do solver
+      // de restrição (Passo 2), limitada à parte e testada separadamente.
+      let prev: any[] = [node("a", 0, 0), node("b", 120, 0)];
       for (let i = 0; i < 30; i++) {
         const next = physicsStep(prev, [], opts());
         for (let k = 0; k < next.length; k++) {
           const moved = dist(next[k], prev[k]);
-          // MAX_VELOCITY (28) * TIMESTEP (0.85) ≈ 23.8
-          expect(moved).toBeLessThanOrEqual(28 * 0.85 + 1e-6);
+          // MAX_VELOCITY (16) * TIMESTEP (0.85) ≈ 13.6
+          expect(moved).toBeLessThanOrEqual(16 * 0.85 + 1e-6);
         }
         prev = next;
       }
@@ -213,6 +216,138 @@ describe("physicsStep (modelo force-directed inspirado no vis-network)", () => {
       const early = run(start, e, 30, opts());
       const late = run(early, e, 300, opts());
       expect(kinetic(late)).toBeLessThan(kinetic(early));
+    });
+  });
+
+  describe("clusters hierárquicos (clusterBy: hierarchy)", () => {
+    const hnode = (id: string, x: number, y: number, group: string, extra: any = {}) =>
+      ({ id, x, y, vx: 0, vy: 0, group, ...extra });
+
+    // só a força orbital ligada, para isolar a órbita do raio-alvo
+    const orbitalOnly = (patch: Partial<PhysicsOptions> = {}): PhysicsOptions => ({
+      ...DEFAULT_PHYSICS_OPTIONS,
+      gravitationalConstant: 0,
+      centralGravity: 0,
+      springConstant: 0,
+      clusterStrength: 0,
+      clusterRepulsion: 0,
+      avoidOverlap: 0,
+      minGap: 0,
+      orbitalStrength: 0.1,
+      ...patch,
+    });
+
+    it("um filho assenta perto do raio-alvo orbital ao redor do pai", () => {
+      // TOPICO orbita ASSUNTO → raio-alvo 300
+      const nodes = [
+        hnode("a", 0, 0, "ASSUNTO", { parentId: undefined, clusterId: "a" }),
+        hnode("t", 50, 0, "TOPICO", { parentId: "a", clusterId: "a" }),
+      ];
+      const { nodes: out } = runUntilStable(nodes, [], orbitalOnly());
+      const d = dist(find(out, "a"), find(out, "t"));
+      expect(Math.abs(d - 300)).toBeLessThan(50);
+    });
+
+    it("conceito orbita mais perto que tópico (anéis aninhados)", () => {
+      const topico = [
+        hnode("a", 0, 0, "ASSUNTO", { clusterId: "a" }),
+        hnode("t", 50, 0, "TOPICO", { parentId: "a", clusterId: "a" }),
+      ];
+      const conceito = [
+        hnode("t", 0, 0, "TOPICO", { clusterId: "a" }),
+        hnode("c", 50, 0, "CONCEITO", { parentId: "t", clusterId: "a" }),
+      ];
+      const dT = dist(...(runUntilStable(topico, [], orbitalOnly()).nodes as [any, any]));
+      const dC = dist(...(runUntilStable(conceito, [], orbitalOnly()).nodes as [any, any]));
+      // raio do tópico (300) > raio do conceito (180)
+      expect(dT).toBeGreaterThan(dC);
+    });
+
+    it("assuntos distintos (nível 0) se separam com a repulsão de cluster", () => {
+      const make = () => [
+        hnode("a1", -20, 0, "ASSUNTO", { clusterId: "a1", subtreeIds: ["a1", undefined, undefined] }),
+        hnode("c1", -10, 5, "CONCEITO", { parentId: "a1", clusterId: "a1", subtreeIds: ["a1", undefined, "c1"] }),
+        hnode("a2", 20, 0, "ASSUNTO", { clusterId: "a2", subtreeIds: ["a2", undefined, undefined] }),
+        hnode("c2", 10, -5, "CONCEITO", { parentId: "a2", clusterId: "a2", subtreeIds: ["a2", undefined, "c2"] }),
+      ];
+      const sep = (arr: any[]) => {
+        const c1 = centroid(arr.filter((nd) => nd.clusterId === "a1"));
+        const c2 = centroid(arr.filter((nd) => nd.clusterId === "a2"));
+        return dist(c1, c2);
+      };
+      const withRep = runUntilStable(make(), [], opts({ clusterBy: "hierarchy", clusterRepulsion: 20000 })).nodes;
+      const noRep = runUntilStable(make(), [], opts({ clusterBy: "hierarchy", clusterRepulsion: 0, clusterStrength: 0 })).nodes;
+      expect(sep(withRep)).toBeGreaterThan(sep(noRep));
+    });
+
+    it("tópicos-irmãos (nível 1) formam subclusters separados DENTRO do assunto", () => {
+      // um assunto, dois tópicos, cada tópico com um conceito. A repulsão
+      // aninhada deve afastar a subárvore do t1 da subárvore do t2.
+      const make = () => [
+        hnode("a", 0, 0, "ASSUNTO", { clusterId: "a", subtreeIds: ["a", undefined, undefined] }),
+        hnode("t1", 10, 4, "TOPICO", { parentId: "a", clusterId: "a", subtreeIds: ["a", "t1", undefined] }),
+        hnode("c1", 14, 6, "CONCEITO", { parentId: "t1", clusterId: "a", subtreeIds: ["a", "t1", "c1"] }),
+        hnode("t2", 8, -5, "TOPICO", { parentId: "a", clusterId: "a", subtreeIds: ["a", "t2", undefined] }),
+        hnode("c2", 12, -7, "CONCEITO", { parentId: "t2", clusterId: "a", subtreeIds: ["a", "t2", "c2"] }),
+      ];
+      const sep = (arr: any[]) => {
+        const s1 = centroid(arr.filter((nd) => nd.subtreeIds?.[1] === "t1"));
+        const s2 = centroid(arr.filter((nd) => nd.subtreeIds?.[1] === "t2"));
+        return dist(s1, s2);
+      };
+      const withRep = runUntilStable(make(), [], opts({ clusterBy: "hierarchy", clusterRepulsion: 20000 })).nodes;
+      const noRep = runUntilStable(make(), [], opts({ clusterBy: "hierarchy", clusterRepulsion: 0, clusterStrength: 0 })).nodes;
+      expect(sep(withRep)).toBeGreaterThan(sep(noRep));
+    });
+
+    it("não deriva: o centro de massa de uma árvore hierárquica fica parado", () => {
+      // regressão: a força orbital (reação amortecida) e a gravidade central
+      // (gFactor por filho/raiz) injetavam força líquida → o grafo derivava
+      // infinitamente numa direção. O centro de massa deve permanecer estável.
+      const nodes = [
+        hnode("a", 0, 0, "ASSUNTO", { clusterId: "a", subtreeIds: ["a", undefined, undefined] }),
+        hnode("t1", 40, 5, "TOPICO", { parentId: "a", clusterId: "a", subtreeIds: ["a", "t1", undefined] }),
+        hnode("t2", 35, -8, "TOPICO", { parentId: "a", clusterId: "a", subtreeIds: ["a", "t2", undefined] }),
+        hnode("c1", 60, 10, "CONCEITO", { parentId: "t1", clusterId: "a", subtreeIds: ["a", "t1", "c1"] }),
+        hnode("f1", 70, 12, "FLASHCARD", { parentId: "c1", clusterId: "a", subtreeIds: ["a", "t1", "c1"] }),
+        hnode("f2", 72, 9, "NOTA", { parentId: "c1", clusterId: "a", subtreeIds: ["a", "t1", "c1"] }),
+      ];
+      const c0 = centroid(nodes);
+      const out = run(nodes, [], 1500, opts()); // DEFAULT = hierárquico
+      const c1 = centroid(out);
+      // sem a correção de deriva, c1.x crescia centenas/milhares de px
+      expect(Math.abs(c1.x - c0.x)).toBeLessThan(20);
+      expect(Math.abs(c1.y - c0.y)).toBeLessThan(20);
+    });
+
+    it("nó fixo (Assunto-raiz) nunca se move e ancora os assuntos em órbita", () => {
+      const nodes = [
+        hnode("root", 0, 0, "ASSUNTO", { fixed: true, isRoot: true }),
+        hnode("a", 30, 0, "ASSUNTO", { parentId: "root", clusterId: "a", subtreeIds: ["a", undefined, undefined] }),
+      ];
+      const { nodes: out } = runUntilStable(nodes, [], opts());
+      const root = find(out, "root");
+      // root permanece exatamente onde estava
+      expect(root.x).toBe(0);
+      expect(root.y).toBe(0);
+      // o assunto assenta perto do raio-alvo orbital (560) ao redor do root
+      const d = dist(root, find(out, "a"));
+      expect(Math.abs(d - 560)).toBeLessThan(120);
+    });
+
+    it("clusterBy 'group' agrupa por tipo, não por clusterId", () => {
+      // dois assuntos: em modo 'group' os DOIS assuntos são atraídos um ao outro
+      // (mesmo tipo), reduzindo a distância entre eles ao longo do tempo.
+      const nodes = [
+        hnode("a1", -200, 0, "ASSUNTO", { clusterId: "a1" }),
+        hnode("a2", 200, 0, "ASSUNTO", { clusterId: "a2" }),
+      ];
+      const d0 = dist(nodes[0], nodes[1]);
+      const out = runUntilStable(nodes, [], opts({
+        clusterBy: "group", clusterStrength: 1, clusterRepulsion: 0, damping: 0.3,
+        gravitationalConstant: 0, centralGravity: 0, minGap: 0, avoidOverlap: 0,
+      })).nodes;
+      expect(dist(find(out, "a1"), find(out, "a2"))).toBeLessThan(d0);
     });
   });
 });

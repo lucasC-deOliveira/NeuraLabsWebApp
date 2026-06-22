@@ -22,8 +22,9 @@ export class GraphController {
   }
 
   @Delete('graphs/:id')
-  deleteGraph(@CurrentUser() userId: string, @Param('id') id: string) {
-    return this.graph.deleteGraph(userId, id);
+  deleteGraph(@CurrentUser() userId: string, @Param('id') id: string, @Query('keep') keep?: string) {
+    const keepTypes = keep ? keep.split(',').filter(Boolean) : [];
+    return this.graph.deleteGraph(userId, id, { keepTypes });
   }
 
   @Get('graphs/:id/info')
@@ -94,6 +95,11 @@ export class GraphController {
     return this.graph.createBaralho(userId, grafoId, body.titulo, body.flashcardIds ?? []);
   }
 
+  @Post('graphs/:grafoId/prova')
+  addProva(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { provaId: string }) {
+    return this.graph.addProvaToGraph(userId, grafoId, body.provaId);
+  }
+
   @Post('graphs/:grafoId/import')
   importGraph(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { nodes: unknown[]; edges: unknown[] }) {
     return this.graph.importGraph(userId, grafoId, body as never);
@@ -115,8 +121,13 @@ export class GraphController {
   }
 
   @Delete('nodes/:refId')
-  deleteNode(@CurrentUser() userId: string, @Param('refId') refId: string, @Query('grafoId') grafoId?: string) {
-    return this.graph.deleteNode(userId, refId, grafoId);
+  deleteNode(
+    @CurrentUser() userId: string,
+    @Param('refId') refId: string,
+    @Query('grafoId') grafoId?: string,
+    @Query('deleteConnected') deleteConnected?: string,
+  ) {
+    return this.graph.deleteNode(userId, refId, grafoId, deleteConnected === 'true');
   }
 
   // remove só o vínculo do nó com o grafo (mantém a entidade)
@@ -150,5 +161,29 @@ export class GraphController {
   @Post('graphs/:grafoId/positions')
   savePositions(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { positions: Record<string, { x: number; y: number }> }) {
     return this.graph.savePositions(userId, grafoId, body.positions);
+  }
+
+  // ---- Subgrafos ----
+  @Post('graphs/:grafoId/subgrafos')
+  createSubgrafo(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { nome: string; descricao?: string; tipoRelacao: string; posX?: number; posY?: number },
+  ) {
+    return this.graph.createSubgrafo(userId, grafoId, body);
+  }
+
+  @Post('graphs/:grafoId/extract')
+  extractSubgrafo(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { nodeIds: string[]; nome: string; tipoRelacao: string },
+  ) {
+    return this.graph.extractNodesToSubgrafo(userId, grafoId, body);
+  }
+
+  @Get('graphs/:grafoId/expand')
+  expandSubgrafo(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
+    return this.graph.expandSubgrafo(userId, grafoId);
   }
 }

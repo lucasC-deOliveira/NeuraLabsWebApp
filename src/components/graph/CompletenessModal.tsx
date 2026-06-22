@@ -118,7 +118,14 @@ function GapCheckItem({
   label, checked, onChange,
 }: { label: string; checked: boolean; onChange: () => void }) {
   return (
-    <label className="flex items-start gap-2 cursor-pointer group py-0.5" onClick={onChange}>
+    <div
+      role="checkbox"
+      aria-checked={checked}
+      tabIndex={0}
+      className="flex items-start gap-2 cursor-pointer group py-0.5"
+      onClick={onChange}
+      onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); onChange(); } }}
+    >
       <div
         className={`mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded border transition-all ${
           checked ? "border-primary bg-primary/15" : "border-muted-foreground/30 group-hover:border-primary/50"
@@ -127,7 +134,7 @@ function GapCheckItem({
         {checked && <CheckIcon className="size-2 text-primary" />}
       </div>
       <span className="text-xs text-muted-foreground leading-snug">{label}</span>
-    </label>
+    </div>
   );
 }
 
@@ -145,16 +152,19 @@ export function CompletenessModal({ open, onOpenChange, grafoId, onGenerated }: 
   const [genResult, setGenResult] = useState<{ topicos: number; conceitos: number; notas: number; flashcards: number } | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const subStepRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const loadIdRef = useRef(0);
 
   const startTimers = (steps: string[]) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (subStepRef.current) clearInterval(subStepRef.current);
     setElapsed(0);
     setSubStep(0);
     timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
     subStepRef.current = setInterval(() => setSubStep(s => Math.min(s + 1, steps.length - 1)), 2500);
   };
   const stopTimers = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (subStepRef.current) clearInterval(subStepRef.current);
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (subStepRef.current) { clearInterval(subStepRef.current); subStepRef.current = null; }
   };
 
   useEffect(() => {
@@ -165,23 +175,21 @@ export function CompletenessModal({ open, onOpenChange, grafoId, onGenerated }: 
   }, [uiStep]);
 
   const load = async () => {
+    const myId = ++loadIdRef.current;
     setUiStep("loading");
     setSelectedGaps(new Set());
     setGenResult(null);
     try {
       const res = await assessCompleteness(grafoId);
+      if (myId !== loadIdRef.current) return;
       setAssessments(res.assessments);
       setUiStep("done");
     } catch (e) {
+      if (myId !== loadIdRef.current) return;
       setErrorMsg(e instanceof Error ? e.message : "Erro ao avaliar completude.");
       setUiStep("error");
     }
   };
-
-  useEffect(() => {
-    if (open && uiStep === "idle") load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   const toggleGap = (assuntoId: string, tipo: "missing" | "shallow", nome: string) => {
     const key = itemKey(assuntoId, tipo, nome);
@@ -191,6 +199,11 @@ export function CompletenessModal({ open, onOpenChange, grafoId, onGenerated }: 
       return next;
     });
   };
+
+  useEffect(() => {
+    if (open) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const buildGapItems = (): GapItem[] => {
     const items: GapItem[] = [];

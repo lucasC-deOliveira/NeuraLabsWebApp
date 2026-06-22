@@ -4,11 +4,13 @@ import { useParams, useRouter } from "@/lib/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DeleteDeckModal } from "@/components/graph/DeleteDeckModal";
+import { GenerateDeckModal } from "@/components/graph/GenerateDeckModal";
 
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
 
-import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon } from "lucide-react";
+import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon, LayersIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -20,13 +22,14 @@ import {
 import { CommunitiesPanel } from "@/components/graph/CommunitiesPanel";
 import { GapDetectionModal } from "@/components/graph/GapDetectionModal";
 import { GenerateGraphModal } from "@/components/graph/GenerateGraphModal";
+import { GenerateGraphFromBaralhoModal } from "@/components/graph/GenerateGraphFromBaralhoModal";
 import { AutoLinkModal } from "@/components/graph/AutoLinkModal";
 import { DuplicatesModal } from "@/components/graph/DuplicatesModal";
 import { CommunitySummaryModal } from "@/components/graph/CommunitySummaryModal";
 import { MissingPrereqsModal } from "@/components/graph/MissingPrereqsModal";
 import { GraphChatModal } from "@/components/graph/GraphChatModal";
 import { CompletenessModal } from "@/components/graph/CompletenessModal";
-import { detectCommunities, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
+import { clustersFromHierarchy, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
 import { createBaralhoNode } from "@/lib/graph-api";
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
@@ -38,6 +41,7 @@ import { GraphSideToolbar } from "@/modules/graph/presentation/components/GraphS
 import { useGraphSearch } from "@/modules/graph/presentation/hooks/useGraphSearch";
 import { RoadmapPanel } from "@/modules/graph/presentation/components/RoadmapPanel";
 import { GraphSettingsModal, DEFAULT_FOCUS_DEPTH } from "@/modules/graph/presentation/components/GraphSettingsModal";
+import type { PhysicsMode } from "@/modules/graph/presentation/services/graph-physics.service";
 
 import {
   deleteGraphNode,
@@ -45,7 +49,12 @@ import {
   getGraphNodes,
   getGraphEdges,
   deleteEdge,
+  getGrafoInfo,
+  extractNodesToSubgrafo,
+  type GrafoInfoDetail,
 } from "@/lib/graph-api";
+import { CreateSubgrafoModal } from "@/components/graph/CreateSubgrafoModal";
+import { ExtractSubgrafoModal } from "@/components/graph/ExtractSubgrafoModal";
 import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
 import { ImportJsonModal } from "@/components/graph/ImportJsonModal";
 import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";
@@ -100,6 +109,9 @@ export default function GraphPage() {
   }, [controller.state.layout]);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
+  const [deleteDeckConfirm, setDeleteDeckConfirm] = useState<{ node: any } | null>(null);
+  const [generateDeckConfirm, setGenerateDeckConfirm] = useState<{ node: any; flashcardIds: string[] } | null>(null);
+  const [isGeneratingDeck, setIsGeneratingDeck] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportJsonOpen, setIsImportJsonOpen] = useState(false);
   const [isVaultOpen, setIsVaultOpen] = useState(false);
@@ -114,6 +126,7 @@ export default function GraphPage() {
   const [highlightedGap, setHighlightedGap] = useState<StructuralGap | null>(null);
   const [neighborhoodStudyIds, setNeighborhoodStudyIds] = useState<string[] | null>(null);
   const [generateGraphOpen, setGenerateGraphOpen] = useState(false);
+  const [generateFromBaralhoOpen, setGenerateFromBaralhoOpen] = useState(false);
   // IA automática
   const [autoLinkOpen, setAutoLinkOpen] = useState(false);
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
@@ -122,12 +135,23 @@ export default function GraphPage() {
   const [learningPathOpen, setLearningPathOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [completenessOpen, setCompletenessOpen] = useState(false);
+  const [isSplittingBaralhos, setIsSplittingBaralhos] = useState(false);
 
-  // P3 — detecta comunidades a partir do layout atual
+  // Chave topológica estável — muda só quando nós/arestas são adicionados/removidos,
+  // não a cada tick de física (posições não afetam comunidades).
+  const topologyKey = useMemo(
+    () => controller.state.layout.map(n => n.id).sort().join(','),
+    [controller.state.layout],
+  );
+
+  // P3 — clusters hierárquicos: um cluster principal por ASSUNTO (subárvore
+  // inteira), consistente com as regiões de cluster do grafo. Usa o clusterId
+  // já derivado em cada nó (independente de posições).
   const communities = useMemo<Community[]>(() => {
     if (controller.state.layout.length < 3) return [];
-    return detectCommunities(controller.state.layout, controller.state.edges);
-  }, [controller.state.layout, controller.state.edges]);
+    return clustersFromHierarchy(controller.state.layout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topologyKey, controller.state.edges]);
 
   // P1 — detecta lacunas entre comunidades
   const gaps = useMemo<StructuralGap[]>(
@@ -135,12 +159,18 @@ export default function GraphPage() {
     [communities, controller.state.edges],
   );
 
-  // P5 — coordenadas das pontes para overlay no renderer
+  // P5 — coordenadas das pontes para overlay no renderer (usa posições atuais)
   const gapBridges = useMemo(
-    () => gapsOpen
-      ? gaps.map(g => ({ x1: g.bridgeA.x, y1: g.bridgeA.y, x2: g.bridgeB.x, y2: g.bridgeB.y, colorA: g.communityA.color, colorB: g.communityB.color }))
-      : [],
-    [gaps, gapsOpen],
+    () => {
+      if (!gapsOpen) return [];
+      const layoutById = new Map(controller.state.layout.map(n => [n.id, n]));
+      return gaps.map(g => {
+        const bA = layoutById.get(g.bridgeA.id) ?? g.bridgeA;
+        const bB = layoutById.get(g.bridgeB.id) ?? g.bridgeB;
+        return { x1: bA.x, y1: bA.y, x2: bB.x, y2: bB.y, colorA: g.communityA.color, colorB: g.communityB.color };
+      });
+    },
+    [gaps, gapsOpen, controller.state.layout],
   );
 
   // Ids da comunidade em hover para destacar no renderer
@@ -197,6 +227,8 @@ export default function GraphPage() {
   const [highContrast, setHighContrast] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [focusDepth, setFocusDepth] = useState(DEFAULT_FOCUS_DEPTH);
+  const [physicsMode, setPhysicsMode] = useState<PhysicsMode>("default");
+  const [showClusters, setShowClusters] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEdgeManagerOpen, setIsEdgeManagerOpen] = useState(false);
   const [graphEdges, setGraphEdges] = useState<any[]>([]);
@@ -210,6 +242,13 @@ export default function GraphPage() {
   const [viewDeckId, setViewDeckId] = useState<string | null>(null);
   const [editEdge, setEditEdge] = useState<any>(null);
   const [addEdgeSourceId, setAddEdgeSourceId] = useState<string | null>(null);
+  const [grafoInfo, setGrafoInfo] = useState<GrafoInfoDetail | null>(null);
+  const [isCreateSubgrafoOpen, setIsCreateSubgrafoOpen] = useState(false);
+  const [isExtractSubgrafoOpen, setIsExtractSubgrafoOpen] = useState(false);
+
+  useEffect(() => {
+    getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
+  }, [graphId]);
 
   const closeToolbarModals = () => {
     setIsCreateModalOpen(false);
@@ -226,6 +265,58 @@ export default function GraphPage() {
     setLearningPathOpen(false);
     setChatOpen(false);
     setCompletenessOpen(false);
+    setIsCreateSubgrafoOpen(false);
+    setIsExtractSubgrafoOpen(false);
+  };
+
+  const handleOpenGrafoRef = (childGrafoId: string) => {
+    router.push(`/graph/${childGrafoId}`);
+  };
+
+  const handleSplitByBaralho = async () => {
+    const baralhos = controller.state.filteredNodes.filter((n: any) => n.group === "BARALHO");
+    if (baralhos.length === 0) {
+      toast.error("Nenhum baralho encontrado neste grafo.");
+      return;
+    }
+    const ok = window.confirm(
+      `Dividir ${baralhos.length} baralho(s) em subgrafos separados?\n\nCada baralho e seus flashcards serão movidos para um novo subgrafo com o nome do baralho.`,
+    );
+    if (!ok) return;
+
+    setIsSplittingBaralhos(true);
+    const toastId = toast.loading(`Dividindo 0/${baralhos.length} baralhos…`);
+    try {
+      // BARALHO → FLASHCARD via CONTEM edges
+      const contemByBaralho = new Map<string, string[]>();
+      for (const e of controller.state.filteredEdges) {
+        if ((e as any).type !== "CONTEM") continue;
+        const src = (e as any).source;
+        if (!contemByBaralho.has(src)) contemByBaralho.set(src, []);
+        contemByBaralho.get(src)!.push((e as any).target);
+      }
+
+      let done = 0;
+      for (const baralho of baralhos) {
+        const flashcardIds = contemByBaralho.get(baralho.id) ?? [];
+        await extractNodesToSubgrafo(graphId, {
+          nodeIds: [baralho.id, ...flashcardIds],
+          nome: baralho.label,
+          tipoRelacao: "CONTEM",
+        });
+        done++;
+        toast.loading(`Dividindo ${done}/${baralhos.length} baralhos…`, { id: toastId });
+      }
+
+      toast.success(`${baralhos.length} baralho(s) divididos com sucesso!`, { id: toastId });
+      const result = await getGraphNodes(graphId);
+      controller.actions.setRawNodes(result.nodes);
+      controller.actions.setRawEdges(result.edges);
+    } catch {
+      toast.error("Erro ao dividir baralhos.", { id: toastId });
+    } finally {
+      setIsSplittingBaralhos(false);
+    }
   };
 
   const handleOpenCreateNode = () => {
@@ -370,20 +461,30 @@ export default function GraphPage() {
   // ======================
   // DELETE NODE (exclui a entidade do app)
   // ======================
-  const deleteNodeFromApp = async (node: any) => {
-    if (!node) return;
-    if (!confirm(`Excluir “${node.label}” permanentemente do aplicativo?`)) return;
-
+  const performDeleteNode = async (node: any, deleteConnected: boolean) => {
+    controller.actions.selectNode(null);
     setIsDeletingNode(true);
     try {
-      await deleteGraphNode(node.id, graphId);
+      await deleteGraphNode(node.id, graphId, { deleteConnected });
+      controller.actions.removeNodeFromLayout(node.id);
       toast.success("Nó excluído do aplicativo");
       await refreshGraph();
-    } catch {
-      toast.error("Erro ao excluir node");
+    } catch (e) {
+      console.error("deleteNode error", e);
+      toast.error(e instanceof Error ? e.message : "Erro ao excluir node");
     } finally {
       setIsDeletingNode(false);
     }
+  };
+
+  const deleteNodeFromApp = async (node: any) => {
+    if (!node) return;
+    if (node.group === "BARALHO") {
+      setDeleteDeckConfirm({ node });
+      return;
+    }
+    if (!confirm(`Excluir "${node.label}" permanentemente do aplicativo?`)) return;
+    await performDeleteNode(node, false);
   };
 
   const handleDeleteNode = () => deleteNodeFromApp(controller.state.selectedNode);
@@ -409,6 +510,35 @@ export default function GraphPage() {
   const handleRemoveFromGraph = () => removeFromGraph(controller.state.selectedNode);
 
   // ======================
+  // GENERATE DECK FROM CONNECTED FLASHCARDS
+  // ======================
+  const handleGenerateDeck = () => {
+    const node = controller.state.selectedNode;
+    if (!node) return;
+    const layoutById = new Map(controller.state.layout.map((n: any) => [n.id, n]));
+    const flashcardIds = selectedNodeEdges
+      .map((e: any) => (e.source === node.id ? e.target : e.source))
+      .filter((id: string) => layoutById.get(id)?.group === "FLASHCARD");
+    setGenerateDeckConfirm({ node, flashcardIds });
+  };
+
+  const performGenerateDeck = async (titulo: string) => {
+    if (!generateDeckConfirm) return;
+    const { flashcardIds } = generateDeckConfirm;
+    setIsGeneratingDeck(true);
+    try {
+      await createBaralhoNode(graphId, titulo, flashcardIds);
+      setGenerateDeckConfirm(null);
+      toast.success("Baralho criado com sucesso");
+      await refreshGraph();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao criar baralho");
+    } finally {
+      setIsGeneratingDeck(false);
+    }
+  };
+
+  // ======================
   // RENDER
   // ======================
   return (
@@ -420,8 +550,19 @@ export default function GraphPage() {
           <ArrowLeftIcon />
         </Button>
 
-        <div className="flex-1 text-center font-semibold text-primary">
-          {controller.state.grafoNome}
+        <div className="flex-1 flex items-center justify-center gap-1.5 min-w-0">
+          {grafoInfo?.parentGrafoId && (
+            <>
+              <button
+                onClick={() => router.push(`/graph/${grafoInfo.parentGrafoId}`)}
+                className="text-xs text-zinc-400 hover:text-primary truncate max-w-24"
+              >
+                {grafoInfo.parentNome ?? "Pai"}
+              </button>
+              <ChevronRightIcon className="size-3 text-zinc-400 flex-shrink-0" />
+            </>
+          )}
+          <span className="font-semibold text-primary truncate">{controller.state.grafoNome}</span>
         </div>
 
         <Button variant="ghost" className="text-primary gap-1.5" onClick={() => router.push(`/vr/${graphId}`)} title="Visualizar em AR/VR">
@@ -458,6 +599,13 @@ export default function GraphPage() {
                 <div className="text-[11px] text-muted-foreground">Cria nós a partir de qualquer material</div>
               </div>
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { closeToolbarModals(); setGenerateFromBaralhoOpen(true); }}>
+              <LayersIcon className="size-4 shrink-0 text-violet-500" />
+              <div>
+                <div className="font-medium">Expandir grafo com baralho</div>
+                <div className="text-[11px] text-muted-foreground">Adiciona tópicos e conceitos dos flashcards</div>
+              </div>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => { closeToolbarModals(); setAutoLinkOpen(true); }}>
               <Link2Icon className="size-4 shrink-0 text-violet-500" />
               <div>
@@ -483,6 +631,24 @@ export default function GraphPage() {
               </div>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuLabel>Organizar</DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() => { closeToolbarModals(); handleSplitByBaralho(); }}
+              disabled={isSplittingBaralhos}
+            >
+              <ScissorsIcon className="size-4 shrink-0 text-violet-500" />
+              <div>
+                <div className="font-medium">Dividir por baralho</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {(() => {
+                    const n = controller.state.filteredNodes.filter((x: any) => x.group === "BARALHO").length;
+                    return n > 0 ? `Move ${n} baralho(s) para subgrafos separados` : "Nenhum baralho neste grafo";
+                  })()}
+                </div>
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
             <DropdownMenuLabel>Limpar</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => { closeToolbarModals(); setDuplicatesOpen(true); }}>
               <CopyIcon className="size-4 shrink-0 text-violet-500" />
@@ -503,6 +669,16 @@ export default function GraphPage() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button
+          variant="ghost"
+          className="text-primary gap-1.5"
+          onClick={() => { closeToolbarModals(); setIsCreateSubgrafoOpen(true); }}
+          title="Criar subgrafo"
+        >
+          <NetworkIcon className="size-4" />
+          <span className="hidden sm:inline text-xs">Subgrafo</span>
+        </Button>
 
         {desktopApp && (
           <Button variant="ghost" className="text-primary gap-1.5" onClick={() => { closeToolbarModals(); setIsVaultOpen(true); }} title="Sincronizar com vault Markdown">
@@ -558,6 +734,8 @@ export default function GraphPage() {
             onToggleHighContrast={() => setHighContrast((v) => !v)}
             focusMode={focusMode}
             onToggleFocus={() => setFocusMode((v) => !v)}
+            showClusters={showClusters}
+            onToggleShowClusters={() => setShowClusters((v) => !v)}
             onOpenSettings={() => { closeToolbarModals(); setIsSettingsOpen(true); }}
             is3D={is3D}
             onToggle3D={() => setIs3D((v) => !v)}
@@ -594,6 +772,7 @@ export default function GraphPage() {
               focusMode={focusMode}
               focusDepth={focusDepth}
               matchedIds={combinedMatchedIds}
+              showClusters={showClusters}
               gapBridges={gapBridges}
               highlightedCommunityIds={highlightedCommunityNodeIds}
               onNodeClick={controller.actions.selectNode}
@@ -612,12 +791,19 @@ export default function GraphPage() {
               className="absolute z-20 -translate-x-1/2 -translate-y-1/2"
               style={{ left: relateMenuPos.x, top: relateMenuPos.y }}
             >
-              <div className="rounded-md border bg-popover text-popover-foreground shadow-md py-1 min-w-32">
+              <div className="rounded-md border bg-popover text-popover-foreground shadow-md py-1 min-w-44">
                 <button
                   className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
                   onClick={handleOpenEdgeManager}
                 >
                   Relacionar
+                </button>
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground flex items-center gap-2"
+                  onClick={() => { closeToolbarModals(); setIsExtractSubgrafoOpen(true); }}
+                >
+                  <ScissorsIcon className="size-3.5 text-violet-500" />
+                  Extrair como subgrafo
                 </button>
               </div>
             </div>
@@ -644,6 +830,7 @@ export default function GraphPage() {
           onViewFlashcard={() => setViewFlashcardId(controller.state.selectedNode?.id ?? null)}
           onStudyDeck={() => setStudyDeckId(controller.state.selectedNode?.id ?? null)}
           onViewDeck={() => setViewDeckId(controller.state.selectedNode?.id ?? null)}
+          onGenerateDeck={handleGenerateDeck}
           onStudyNeighborhood={() => {
             const node = controller.state.selectedNode;
             if (!node) return;
@@ -696,35 +883,51 @@ export default function GraphPage() {
             className="fixed z-50 min-w-44 rounded-md border bg-popover text-popover-foreground shadow-md py-1"
             style={{ left: nodeMenu.x, top: nodeMenu.y }}
           >
-            <button
-              className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
-              onClick={() => {
-                setEditingNode(nodeMenu.node);
-                setNodeMenu(null);
-              }}
-            >
-              Editar
-            </button>
-            <button
-              className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
-              onClick={() => {
-                removeFromGraph(nodeMenu.node);
-                setNodeMenu(null);
-              }}
-            >
-              Remover do grafo
-            </button>
-            <div className="my-1 h-px bg-border" />
-            <button
-              className="w-full px-3 py-1.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-accent"
-              onClick={() => {
-                const node = nodeMenu.node;
-                setNodeMenu(null);
-                deleteNodeFromApp(node);
-              }}
-            >
-              Excluir do aplicativo
-            </button>
+            {nodeMenu.node?.group === "GRAFO_REF" && (
+              <button
+                className="w-full px-3 py-1.5 text-sm text-left font-medium text-violet-600 dark:text-violet-400 hover:bg-accent hover:text-accent-foreground"
+                onClick={() => { handleOpenGrafoRef(nodeMenu.node.id); setNodeMenu(null); }}
+              >
+                Abrir subgrafo →
+              </button>
+            )}
+            {nodeMenu.node?.isRoot ? (
+              <div className="px-3 py-1.5 text-xs text-muted-foreground">
+                Assunto-raiz do grafo. Renomeie pelo nome do grafo; só é removido ao excluir o grafo.
+              </div>
+            ) : (
+              <>
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => {
+                    setEditingNode(nodeMenu.node);
+                    setNodeMenu(null);
+                  }}
+                >
+                  Editar
+                </button>
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => {
+                    removeFromGraph(nodeMenu.node);
+                    setNodeMenu(null);
+                  }}
+                >
+                  Remover do grafo
+                </button>
+                <div className="my-1 h-px bg-border" />
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-accent"
+                  onClick={() => {
+                    const node = nodeMenu.node;
+                    setNodeMenu(null);
+                    deleteNodeFromApp(node);
+                  }}
+                >
+                  Excluir do aplicativo
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
@@ -742,6 +945,8 @@ export default function GraphPage() {
         onOpenChange={setIsSettingsOpen}
         options={controller.state.physicsOptions}
         onChange={controller.actions.setPhysicsOptions}
+        physicsMode={physicsMode}
+        onPhysicsModeChange={setPhysicsMode}
         focusDepth={focusDepth}
         onFocusDepthChange={setFocusDepth}
       />
@@ -876,6 +1081,12 @@ export default function GraphPage() {
         grafoId={graphId}
         onGenerated={refreshGraph}
       />
+      <GenerateGraphFromBaralhoModal
+        open={generateFromBaralhoOpen}
+        onOpenChange={setGenerateFromBaralhoOpen}
+        grafoId={graphId}
+        onGenerated={refreshGraph}
+      />
       <AutoLinkModal
         open={autoLinkOpen}
         onOpenChange={setAutoLinkOpen}
@@ -924,7 +1135,6 @@ export default function GraphPage() {
         grafoId={graphId}
         existingEdges={graphEdges}
         initialEditEdge={editEdge}
-        // origem do botão "Nova relação" do painel, ou os 2 nós selecionados
         initialSourceId={
           addEdgeSourceId ??
           (controller.state.selectedNodeIds.size === 2
@@ -942,6 +1152,49 @@ export default function GraphPage() {
           await loadEdges();
           await refreshGraph();
         }}
+      />
+      <CreateSubgrafoModal
+        open={isCreateSubgrafoOpen}
+        onClose={() => setIsCreateSubgrafoOpen(false)}
+        parentGrafoId={graphId}
+        onCreated={async (_grafoId, _nodeId) => {
+          await refreshGraph();
+          await getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
+        }}
+      />
+      <ExtractSubgrafoModal
+        open={isExtractSubgrafoOpen}
+        onClose={() => setIsExtractSubgrafoOpen(false)}
+        parentGrafoId={graphId}
+        selectedNodes={[...controller.state.selectedNodeIds].map((id) => {
+          const n = controller.state.layout.find((l) => l.id === id);
+          return { id, label: n?.label ?? id, type: n?.group ?? "" };
+        })}
+        onExtracted={async (_grafoId, _nodeId) => {
+          controller.actions.selectNode(null);
+          await refreshGraph();
+          await getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
+        }}
+      />
+
+      <DeleteDeckModal
+        open={!!deleteDeckConfirm}
+        onOpenChange={(open) => !open && setDeleteDeckConfirm(null)}
+        deckLabel={deleteDeckConfirm?.node?.label ?? ""}
+        loading={isDeletingNode}
+        onConfirm={async (deleteConnected) => {
+          const node = deleteDeckConfirm?.node;
+          setDeleteDeckConfirm(null);
+          if (node) await performDeleteNode(node, deleteConnected);
+        }}
+      />
+      <GenerateDeckModal
+        open={!!generateDeckConfirm}
+        onOpenChange={(open) => !open && setGenerateDeckConfirm(null)}
+        defaultTitle={generateDeckConfirm?.node?.label ?? ""}
+        flashcardCount={generateDeckConfirm?.flashcardIds.length ?? 0}
+        loading={isGeneratingDeck}
+        onConfirm={performGenerateDeck}
       />
     </div>
   );

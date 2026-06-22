@@ -114,6 +114,21 @@ export const NODE_TYPE_COLORS = {
     light: { bg: "#fff7ed", border: "#ea580c", text: "#7c2d12" },
     dark:  { bg: "#3a1a08", border: "#fb923c", text: "#fed7aa" },
   },
+  // Violeta escuro — referência a outro grafo (subgrafo)
+  GRAFO_REF: {
+    light: { bg: "#f5f3ff", border: "#7c3aed", text: "#3b0764" },
+    dark:  { bg: "#2e1065", border: "#a78bfa", text: "#ede9fe" },
+  },
+  // Ciano/teal — questão (verdadeiro/falso ou múltipla escolha)
+  QUESTION: {
+    light: { bg: "#f0fdfa", border: "#0d9488", text: "#134e4a" },
+    dark:  { bg: "#0d3330", border: "#2dd4bf", text: "#ccfbf1" },
+  },
+  // Âmbar/laranja escuro — prova (coleção de questões com gabarito)
+  PROVA: {
+    light: { bg: "#fffbeb", border: "#d97706", text: "#78350f" },
+    dark:  { bg: "#3a2500", border: "#fbbf24", text: "#fef3c7" },
+  },
 };
 
 // NODE LABELS
@@ -125,4 +140,7 @@ export const NODE_TYPE_DISPLAY = {
   NOTA: { label: "Nota" },
   TEXTO_BRUTO: { label: "Texto bruto" },
   BARALHO: { label: "Baralho" },
+  GRAFO_REF: { label: "Subgrafo" },
+  QUESTION: { label: "Questão" },
+  PROVA: { label: "Prova" },
 };

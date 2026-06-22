@@ -2,6 +2,12 @@
 // a API NestJS. Components/hooks só trocam o import (@/actions/graph → @/lib/graph-api).
 import { apiFetch } from "./api";
 
+export interface GrafoRefMeta {
+  nome: string;
+  nodeCount: number;
+  tipoRelacao: string | null;
+}
+
 export interface GraphNodeType {
   id: string;
   label: string;
@@ -12,6 +18,9 @@ export interface GraphNodeType {
   pergunta?: string;
   posicaoX?: number;
   posicaoY?: number;
+  grafoRefMeta?: GrafoRefMeta;
+  /** Assunto-raiz do grafo: fixo no centro, ancora o layout, não-deletável. */
+  isRoot?: boolean;
 }
 export interface GraphEdgeType {
   source: string;
@@ -32,8 +41,20 @@ export interface GrafoInfo {
   id: string;
   nome: string;
   descricao?: string | null;
+  parentGrafoId?: string | null;
+  tipoRelacaoPai?: string | null;
+  filhosCount?: number;
   dataCriacao?: string;
   dataAtualizacao?: string;
+}
+
+export interface GrafoInfoDetail {
+  nome: string;
+  descricao?: string;
+  parentGrafoId: string | null;
+  parentNome: string | null;
+  tipoRelacaoPai: string | null;
+  filhosCount: number;
 }
 
 const qs = (params: Record<string, string | undefined>) => {
@@ -50,11 +71,44 @@ export function listUserGraphs(): Promise<GrafoInfo[]> {
 export function createGrafo(nome: string, descricao?: string): Promise<{ id: string }> {
   return apiFetch("/graph/graphs", { method: "POST", body: JSON.stringify({ nome, descricao }) });
 }
-export async function deleteGrafo(grafoId: string): Promise<void> {
-  await apiFetch(`/graph/graphs/${grafoId}`, { method: "DELETE" });
+// Deleta o grafo. Por padrão remove também as entidades estruturais (ASSUNTO/
+// TOPICO/CONCEITO) e as reutilizáveis; `keepTypes` lista os tipos de entidade a
+// PRESERVAR (FLASHCARD/BARALHO/QUESTION/NOTA/PROVA/TEXTO_BRUTO). Entidades
+// compartilhadas com outro grafo nunca são deletadas (só desvinculadas).
+export async function deleteGrafo(grafoId: string, options?: { keepTypes?: string[] }): Promise<void> {
+  const keep = options?.keepTypes?.length ? `?keep=${options.keepTypes.join(",")}` : "";
+  await apiFetch(`/graph/graphs/${grafoId}${keep}`, { method: "DELETE" });
 }
-export function getGrafoInfo(grafoId: string): Promise<{ nome: string; descricao?: string } | null> {
+export function getGrafoInfo(grafoId: string): Promise<GrafoInfoDetail | null> {
   return apiFetch(`/graph/graphs/${grafoId}/info`);
+}
+
+export const GRAFO_REF_RELATIONS = [
+  { value: "PREREQUISITO", label: "Pré-requisito" },
+  { value: "APROFUNDA", label: "Aprofunda" },
+  { value: "DERIVA_DE", label: "Deriva de" },
+  { value: "APLICADO_EM", label: "Aplicado em" },
+  { value: "CONTRASTA_COM", label: "Contrasta com" },
+  { value: "SINTETIZA", label: "Sintetiza" },
+  { value: "RELACIONADO", label: "Relacionado" },
+] as const;
+
+export function createSubgrafo(
+  parentGrafoId: string,
+  input: { nome: string; descricao?: string; tipoRelacao: string; posX?: number; posY?: number },
+): Promise<{ grafoId: string; grafoRefNodeId: string }> {
+  return apiFetch(`/graph/graphs/${parentGrafoId}/subgrafos`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function extractNodesToSubgrafo(
+  parentGrafoId: string,
+  input: { nodeIds: string[]; nome: string; tipoRelacao: string },
+): Promise<{ grafoId: string; grafoRefNodeId: string; movedCount: number; rewiredEdgeCount: number }> {
+  return apiFetch(`/graph/graphs/${parentGrafoId}/extract`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function expandSubgrafo(childGrafoId: string): Promise<{ nodes: GraphNodeType[]; edges: GraphEdgeType[] }> {
+  return apiFetch(`/graph/graphs/${childGrafoId}/expand`);
 }
 export async function updateGrafoNome(grafoId: string, nome: string): Promise<void> {
   await apiFetch(`/graph/graphs/${grafoId}`, { method: "PATCH", body: JSON.stringify({ nome }) });
@@ -100,8 +154,12 @@ export interface AvailableItem {
   hierarquia: string;
   conceitoId?: string | null;
 }
-export function getAvailableItems(grafoId: string): Promise<{ flashcards: AvailableItem[]; notas: AvailableItem[] }> {
+export function getAvailableItems(grafoId: string): Promise<{ flashcards: AvailableItem[]; notas: AvailableItem[]; questoes?: AvailableItem[]; provas?: AvailableItem[] }> {
   return apiFetch(`/graph/available-items${qs({ grafoId })}`);
+}
+
+export function addProvaToGraph(grafoId: string, provaId: string): Promise<{ success: boolean; nodeId: string }> {
+  return apiFetch(`/graph/graphs/${grafoId}/prova`, { method: "POST", body: JSON.stringify({ provaId }) });
 }
 
 export function listUserFlashcards(): Promise<Array<{ id: string; pergunta: string; conceito: string | null }>> {
@@ -116,9 +174,9 @@ export function updateGraphNode(
 ): Promise<{ success: boolean }> {
   return apiFetch(`/graph/nodes/${referenciaId}`, { method: "PATCH", body: JSON.stringify({ tipoNode, ...data }) });
 }
-export function deleteGraphNode(graphNodeId: string, grafoId?: string): Promise<{ success: boolean; deletedType?: string }> {
+export function deleteGraphNode(graphNodeId: string, grafoId?: string, options?: { deleteConnected?: boolean }): Promise<{ success: boolean; deletedType?: string }> {
   const refId = graphNodeId.includes(":") ? graphNodeId.slice(graphNodeId.indexOf(":") + 1) : graphNodeId;
-  return apiFetch(`/graph/nodes/${refId}${qs({ grafoId })}`, { method: "DELETE" });
+  return apiFetch(`/graph/nodes/${refId}${qs({ grafoId, deleteConnected: options?.deleteConnected ? "true" : undefined })}`, { method: "DELETE" });
 }
 export function getNodeDetails(tipoNode: string, referenciaId: string): Promise<Record<string, string | null> | null> {
   return apiFetch(`/graph/nodes/${referenciaId}/details${qs({ tipoNode })}`);

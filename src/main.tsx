@@ -32,6 +32,11 @@ import VRPage from "@/app/vr/[id]/page";
 import SettingsPage from "@/app/settings/page";
 import LoginPage from "@/app/login/page";
 import RegisterPage from "@/app/register/page";
+import QuestoesPage from "@/app/questions/page";
+import NewQuestaoPage from "@/app/questions/new/page";
+import ProvasPage from "@/app/provas/page";
+import NewProvaPage from "@/app/provas/new/page";
+import ProvaDetailPage from "@/app/provas/[id]/page";
 
 const AUTH_PATHS = ["/login", "/register"];
 
@@ -68,6 +73,11 @@ function App() {
           <Route path="/graph" element={<RequireAuth><GraphPage /></RequireAuth>} />
           <Route path="/graph/:id" element={<RequireAuth><GraphDetailPage /></RequireAuth>} />
           <Route path="/vr/:id" element={<RequireAuth><VRPage /></RequireAuth>} />
+          <Route path="/questions" element={<RequireAuth><QuestoesPage /></RequireAuth>} />
+          <Route path="/questions/new" element={<RequireAuth><NewQuestaoPage /></RequireAuth>} />
+          <Route path="/provas" element={<RequireAuth><ProvasPage /></RequireAuth>} />
+          <Route path="/provas/new" element={<RequireAuth><NewProvaPage /></RequireAuth>} />
+          <Route path="/provas/:id" element={<RequireAuth><ProvaDetailPage /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

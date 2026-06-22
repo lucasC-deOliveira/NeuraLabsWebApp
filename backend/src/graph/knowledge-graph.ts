@@ -3,11 +3,16 @@ import type { PrismaClient } from '@prisma/client';
 export type GraphNode = {
   id: string;
   label: string;
-  type: 'ASSUNTO' | 'TOPICO' | 'CONCEITO' | 'FLASHCARD' | 'NOTA' | 'TEXTO_BRUTO' | 'BARALHO';
+  type: 'ASSUNTO' | 'TOPICO' | 'CONCEITO' | 'FLASHCARD' | 'NOTA' | 'TEXTO_BRUTO' | 'BARALHO' | 'GRAFO_REF' | 'QUESTION' | 'PROVA';
   nivelDominio: number;
   prioridadeRevisao: number;
   parentId?: string;
   pergunta?: string;
+  grafoRefMeta?: { nome: string; nodeCount: number; tipoRelacao: string | null };
+  posicaoX?: number | null;
+  posicaoY?: number | null;
+  /** Assunto-raiz do grafo (fixo no centro, ancora o layout, não-deletável). */
+  isRoot?: boolean;
 };
 
 export type GraphEdge = { source: string; target: string; type: string; peso: number };
@@ -24,6 +29,8 @@ function resolveLabel(
   flashcards: any[],
   textosBrutos: any[],
   baralhos: any[],
+  questoes: any[],
+  provas: any[],
 ): string {
   const trunc = (s: string) => (s.length > 60 ? `${s.slice(0, 60)}…` : s);
   switch (tipoNode) {
@@ -49,6 +56,14 @@ function resolveLabel(
     }
     case 'BARALHO':
       return baralhos.find((x) => x.id === refId)?.titulo ?? refId;
+    case 'QUESTION': {
+      const q = questoes.find((x) => x.id === refId);
+      return q?.enunciado ? trunc(q.enunciado) : refId;
+    }
+    case 'PROVA': {
+      const p = provas.find((x) => x.id === refId);
+      return p?.titulo ?? refId;
+    }
     default:
       return refId;
   }
@@ -106,38 +121,79 @@ export function applyDomainFromFlashcards(
 
 // Monta o grafo (nós + arestas) de um grafo específico. SRS (aprendizado) entra
 // no cálculo do domínio.
+// Acima deste limite, nós FLASHCARD são omitidos do grafo para evitar freeze do renderer.
+// Flashcards ainda ficam acessíveis pelo painel de detalhes do baralho.
+const FLASHCARD_NODE_DISPLAY_LIMIT = 500;
+
 export async function buildKnowledgeGraph(
   prisma: PrismaClient,
   userId: string,
   grafoId: string,
 ): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
-  const [graphNodes, graphEdges] = await Promise.all([
+  let [graphNodes, graphEdges, grafoMeta] = await Promise.all([
     prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId } }),
     prisma.conhecimentoAresta.findMany({ where: { grafoId } }),
+    prisma.grafosConhecimento.findUnique({ where: { id: grafoId }, select: { rootAssuntoId: true } }),
   ]);
+  const rootAssuntoId = grafoMeta?.rootAssuntoId ?? null;
+
+  // Filtra nós FLASHCARD quando há muitos — 14k nós freezam o renderer SVG
+  const flashcardNodeCount = graphNodes.filter(n => n.tipoNode === 'FLASHCARD').length;
+  if (flashcardNodeCount > FLASHCARD_NODE_DISPLAY_LIMIT) {
+    const fcNodeIds = new Set(
+      graphNodes.filter(n => n.tipoNode === 'FLASHCARD').map(n => n.id),
+    );
+    graphNodes = graphNodes.filter(n => n.tipoNode !== 'FLASHCARD');
+    graphEdges = graphEdges.filter(
+      e => !fcNodeIds.has(e.nodeOrigemId ?? '') && !fcNodeIds.has(e.nodeDestinoId ?? ''),
+    );
+  }
 
   const byType: Record<string, Set<string>> = {};
   for (const n of graphNodes) (byType[n.tipoNode] ??= new Set()).add(n.referenciaId);
   const ids = (t: string) => (byType[t] ? [...byType[t]!] : ['__none__']);
 
-  const [subjects, topicos, conceitos, notas, flashcards, textosBrutos, baralhos] = await Promise.all([
+  const [subjects, topicos, conceitos, notas, flashcards, textosBrutos, baralhos, grafoRefs, questoes, provas] = await Promise.all([
     prisma.assunto.findMany({ where: { id: { in: ids('ASSUNTO') } } }),
     prisma.topico.findMany({ where: { id: { in: ids('TOPICO') } } }),
     prisma.conceito.findMany({ where: { id: { in: ids('CONCEITO') } } }),
     prisma.nota.findMany({ where: { id: { in: ids('NOTA') } } }),
-    prisma.flashcard.findMany({ where: { id: { in: ids('FLASHCARD') } }, include: { aprendizado: true } }),
+    // Subquery JOIN evita IN clause com 14k+ IDs — PostgreSQL usa índice no grafoId
+    byType['FLASHCARD']
+      ? (prisma as any).$queryRaw`SELECT f.id, LEFT(f.pergunta, 80) AS pergunta FROM flashcards f WHERE f.id IN (SELECT referencia_id FROM "NodeConhecimento" WHERE id_grafo = ${grafoId} AND "tipoNode" = 'FLASHCARD')`
+      : Promise.resolve([]),
     prisma.textoBruto.findMany({ where: { id: { in: ids('TEXTO_BRUTO') } } }),
     prisma.baralho.findMany({ where: { id: { in: ids('BARALHO') } } }),
+    byType['GRAFO_REF']
+      ? prisma.grafosConhecimento.findMany({ where: { id: { in: ids('GRAFO_REF') } }, select: { id: true, nome: true, tipoRelacaoPai: true, _count: { select: { nodes: true } } } })
+      : Promise.resolve([]),
+    byType['QUESTION']
+      ? (prisma as any).questao.findMany({ where: { id: { in: ids('QUESTION') } }, select: { id: true, enunciado: true, tipo: true } })
+      : Promise.resolve([]),
+    byType['PROVA']
+      ? (prisma as any).prova.findMany({ where: { id: { in: ids('PROVA') } }, select: { id: true, titulo: true, _count: { select: { questoes: true } } } })
+      : Promise.resolve([]),
   ]);
 
-  const nodes: GraphNode[] = graphNodes.map((n) => ({
-    id: n.referenciaId,
-    label: resolveLabel(n.tipoNode, n.referenciaId, subjects, topicos, conceitos, notas, flashcards, textosBrutos, baralhos),
-    type: n.tipoNode as GraphNode['type'],
-    nivelDominio: n.nivelDominio,
-    prioridadeRevisao: 5,
-    pergunta: n.tipoNode === 'FLASHCARD' ? flashcards.find((f) => f.id === n.referenciaId)?.pergunta : undefined,
-  }));
+  const nodes: GraphNode[] = graphNodes.map((n) => {
+    const grafoRefMeta = n.tipoNode === 'GRAFO_REF'
+      ? (() => { const g = (grafoRefs as any[]).find((x: any) => x.id === n.referenciaId); return g ? { nome: g.nome, nodeCount: g._count.nodes, tipoRelacao: g.tipoRelacaoPai ?? null } : undefined; })()
+      : undefined;
+    return {
+      id: n.referenciaId,
+      label: n.tipoNode === 'GRAFO_REF'
+        ? ((grafoRefs as any[]).find((x: any) => x.id === n.referenciaId)?.nome ?? 'Subgrafo')
+        : resolveLabel(n.tipoNode, n.referenciaId, subjects, topicos, conceitos, notas, flashcards, textosBrutos, baralhos, questoes, provas),
+      type: n.tipoNode as GraphNode['type'],
+      nivelDominio: n.nivelDominio,
+      prioridadeRevisao: 5,
+      pergunta: n.tipoNode === 'FLASHCARD' ? (flashcards as any[]).find((f: any) => f.id === n.referenciaId)?.pergunta : undefined,
+      grafoRefMeta,
+      posicaoX: n.posicaoX ?? null,
+      posicaoY: n.posicaoY ?? null,
+      isRoot: n.tipoNode === 'ASSUNTO' && n.referenciaId === rootAssuntoId,
+    };
+  });
 
   const nodeIdToRef = new Map(graphNodes.map((n) => [n.id, n.referenciaId]));
   const seen = new Set<string>();
@@ -158,12 +214,13 @@ export async function buildKnowledgeGraph(
   const nowMs = Date.now();
   const MS_PER_DAY = 86_400_000;
   for (const fc of flashcards) {
-    const ap = fc.aprendizado.find((a: any) => a.usuarioId === userId);
+    const apList: any[] = (fc as any).aprendizado;
+    if (!apList) { mastery.set(fc.id, 0); continue; }
+    const ap = apList.find((a: any) => a.usuarioId === userId);
     if (!ap) { mastery.set(fc.id, 0); continue; }
     const base = clamp01(1 - ap.dificuldade / 10);
     const daysOverdue = Math.max(0, (nowMs - new Date(ap.proximaRevisao).getTime()) / MS_PER_DAY);
     const interval = Math.max(1, ap.intervalo);
-    // Decaimento exponencial: perde ~63% após 1 intervalo sem revisão
     const decay = Math.exp(-daysOverdue / interval);
     mastery.set(fc.id, base * decay);
   }

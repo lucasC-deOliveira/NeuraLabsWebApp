@@ -1,5 +1,6 @@
 
 import type { GraphNodeType, GraphEdgeType } from "@/lib/graph-api";
+import { deriveHierarchy } from "@/lib/graph-hierarchy";
 
 const RELATION_LABELS: Record<string, string> = {
   GERA: "gera",
@@ -48,6 +49,14 @@ export interface SimNode {
   vy: number;
   tipoReal: string;
   parentId?: string;
+  /** raiz da árvore hierárquica (ASSUNTO) — força orbital/cluster */
+  clusterId?: string;
+  /** id do subtree por nível [ASSUNTO, TOPICO, CONCEITO] — repulsão aninhada */
+  subtreeIds?: (string | undefined)[];
+  /** Assunto-raiz do grafo: fixo no centro, ancora o grafo, não-deletável */
+  isRoot?: boolean;
+  /** nó imóvel: a simulação nunca atualiza sua posição (usado pelo root) */
+  fixed?: boolean;
   pergunta?: string;
   prioridadeRevisao: number;
   width: number;
@@ -74,17 +83,12 @@ export interface SimEdge {
 // NOTA = retângulo vertical, FLASHCARD = quadrado
 function getNodeDimensions(type: string): { width: number; height: number } {
   switch (type) {
-    case "ASSUNTO":
-      return { width: 84, height: 84 }; // círculo
-    case "TOPICO":
-      return { width: 104, height: 56 }; // elipse
-    case "NOTA":
-      return { width: 68, height: 84 }; // retângulo vertical (menor)
-    case "FLASHCARD":
-      return { width: 84, height: 84 }; // quadrado
+    case "ASSUNTO":    return { width: 84,  height: 84  }; // círculo
+    case "TOPICO":     return { width: 104, height: 56  }; // elipse
+    case "NOTA":       return { width: 68,  height: 84  }; // retângulo vertical
+    case "FLASHCARD":  return { width: 84,  height: 84  }; // quadrado
     case "CONCEITO":
-    default:
-      return { width: 104, height: 46 }; // retângulo horizontal
+    default:           return { width: 104, height: 46  }; // retângulo horizontal
   }
 }
 
@@ -94,28 +98,40 @@ export function runForceLayout(
   width: number,
   height: number,
 ): { nodes: SimNode[]; edges: SimEdge[] } {
+  // Hierarquia derivada das arestas+tipos (o backend não preenche parentId):
+  // ASSUNTO → TOPICO → CONCEITO → comuns. Alimenta a força orbital e as de cluster.
+  const hierarchy = deriveHierarchy(rawNodes, rawEdges);
+
   const nodes: SimNode[] = rawNodes.map((n) => {
     const { width: nodeW, height: nodeH } = getNodeDimensions(n.type);
+    const hier = hierarchy.get(n.id);
     // usa posição salva no backend quando disponível (não zero); nós sem posição
     // (novos do vault, primeiros na carga) recebem posição aleatória e são movidos
     // pela simulação até assentar naturalmente entre os nós fixos.
     const hasSaved = n.posicaoX != null && n.posicaoY != null && (n.posicaoX !== 0 || n.posicaoY !== 0);
+    // O Assunto-raiz fica SEMPRE fixo no centro, ancorando o grafo (não usa
+    // posição salva nem aleatória, e não é movido pela simulação).
+    const isRoot = !!n.isRoot;
     return {
       id: n.id,
       label: n.label,
       group: n.type,
       dominio: n.nivelDominio,
       prioridadeRevisao: n.prioridadeRevisao,
-      parentId: n.parentId,
+      parentId: hier?.parentId ?? n.parentId,
+      clusterId: hier?.clusterId,
+      subtreeIds: hier?.subtreeIds,
       pergunta: n.pergunta,
       tipoReal: n.type,
-      x: hasSaved ? n.posicaoX! : width / 2 + (Math.random() - 0.5) * 600,
-      y: hasSaved ? n.posicaoY! : height / 2 + (Math.random() - 0.5) * 400,
+      x: isRoot ? width / 2 : hasSaved ? n.posicaoX! : width / 2 + (Math.random() - 0.5) * 600,
+      y: isRoot ? height / 2 : hasSaved ? n.posicaoY! : height / 2 + (Math.random() - 0.5) * 400,
       vx: 0,
       vy: 0,
       width: nodeW,
       height: nodeH,
-      pinned: hasSaved,
+      pinned: isRoot || hasSaved,
+      isRoot,
+      fixed: isRoot,
     };
   });
 
@@ -153,12 +169,12 @@ export function runForceLayout(
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i];
         const b = nodes[j];
-        let dx = a.x - b.x;
-        let dy = a.y - b.y;
-        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        let force = repulsion / (dist * dist);
-        let fx = (dx / dist) * force;
-        let fy = (dy / dist) * force;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const force = repulsion / (dist * dist);
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
         a.vx += fx;
         a.vy += fy;
         b.vx -= fx;
@@ -171,12 +187,12 @@ export function runForceLayout(
       const a = nodeMap.get(edge.source);
       const b = nodeMap.get(edge.target);
       if (!a || !b) continue;
-      let dx = b.x - a.x;
-      let dy = b.y - a.y;
-      let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      let force = (dist - idealEdgeLen) * attraction;
-      let fx = (dx / dist) * force;
-      let fy = (dy / dist) * force;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const force = (dist - idealEdgeLen) * attraction;
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
       a.vx += fx;
       a.vy += fy;
       b.vx -= fx;
@@ -185,16 +201,19 @@ export function runForceLayout(
 
     // Força orbital hierárquica (mesmos raios-alvo do physicsStep)
     const ORBITAL_RADII_L: Record<string, number> = {
-      TOPICO: 260, CONCEITO: 190, NOTA: 140, FLASHCARD: 140,
+      ASSUNTO: 560, // orbita o Assunto-raiz (anel mais externo)
+      TOPICO: 300, CONCEITO: 180,
+      NOTA: 115, FLASHCARD: 115, BARALHO: 115,
+      TEXTO_BRUTO: 115, QUESTION: 115, PROVA: 115, GRAFO_REF: 115,
     };
     for (const node of nodes) {
       if (!node.parentId) continue;
       const parent = nodeMap.get(node.parentId);
       if (!parent) continue;
       const target = ORBITAL_RADII_L[node.group] ?? 220;
-      let dx = node.x - parent.x;
-      let dy = node.y - parent.y;
-      let d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      const dx = node.x - parent.x;
+      const dy = node.y - parent.y;
+      const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
       const f = 0.006 * (d - target);
       const ux = dx / d;
       const uy = dy / d;
@@ -222,8 +241,8 @@ export function runForceLayout(
         const aHh = a.height / 2;
         const bHw = b.width / 2;
         const bHh = b.height / 2;
-        let dx = b.x - a.x;
-        let dy = b.y - a.y;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
         const rA = Math.sqrt(aHw * aHw + aHh * aHh);
         const rB = Math.sqrt(bHw * bHw + bHh * bHh);
         const minDist = rA + rB + minGap;

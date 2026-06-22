@@ -118,60 +118,65 @@ export function StudyDeckModal({ open, onOpenChange, baralhoId, grafoId, grafoNo
         return;
       }
 
+      // Desktop vault path: only used when vault is available AND baralho is synced there.
+      // Falls through to API path if vault dir missing or baralho not yet pulled.
       if (isDesktop() && grafoId && grafoNome) {
         const vaultDir = await desktop.vault.getPath().catch(() => null);
-        if (!vaultDir) { if (active) setPhase("error"); return; }
-        const dir = graphVaultDir(vaultDir, grafoId, grafoNome);
+        if (vaultDir) {
+          const dir = graphVaultDir(vaultDir, grafoId, grafoNome);
+          const [vaultNodes, srsLog] = await Promise.all([
+            readAllVaultNodes(grafoId, grafoNome),
+            readSrsLog(dir),
+          ]);
+          const nodeById = new Map(vaultNodes.map((n) => [n.id, n]));
+          const baralho = nodeById.get(baralhoId!);
+          if (baralho && baralho.tipo === "BARALHO") {
+            const dueCards: QueueCard[] = baralho.relacoes
+              .filter((r) => r.rel === "CONTEM")
+              .map((r) => nodeById.get(r.alvo))
+              .filter((n) => n && n.tipo === "FLASHCARD" && isDue(srsLog.schedule[n.id]))
+              .map((n) => ({
+                id: n!.id,
+                pergunta: n!.pergunta ?? "",
+                resposta: n!.resposta ?? "",
+                conceito: null,
+                schedule: srsLog.schedule[n!.id] ?? null,
+              }));
 
-        const [vaultNodes, srsLog] = await Promise.all([
-          readAllVaultNodes(grafoId, grafoNome),
-          readSrsLog(dir),
-        ]);
-        const nodeById = new Map(vaultNodes.map((n) => [n.id, n]));
-        const baralho = nodeById.get(baralhoId!);
-        if (!baralho || baralho.tipo !== "BARALHO") { if (active) setPhase("error"); return; }
+            if (!active) return;
+            setTitulo(baralho.titulo ?? baralho.nome ?? "Baralho");
+            setTotalNoDeck(baralho.relacoes.filter((r) => r.rel === "CONTEM").length);
+            setGraphDir(dir);
 
-        const dueCards: QueueCard[] = baralho.relacoes
-          .filter((r) => r.rel === "CONTEM")
-          .map((r) => nodeById.get(r.alvo))
-          .filter((n) => n && n.tipo === "FLASHCARD" && isDue(srsLog.schedule[n.id]))
-          .map((n) => ({
-            id: n!.id,
-            pergunta: n!.pergunta ?? "",
-            resposta: n!.resposta ?? "",
-            conceito: null,
-            schedule: srsLog.schedule[n!.id] ?? null,
-          }));
+            if (dueCards.length === 0) { setPhase("complete"); return; }
 
-        if (!active) return;
-        setTitulo(baralho.titulo ?? baralho.nome ?? "Baralho");
-        setTotalNoDeck(baralho.relacoes.filter((r) => r.rel === "CONTEM").length);
-        setGraphDir(dir);
+            const sessId = await startLocalSession(dir, baralhoId!);
+            if (!active) { finalizeLocalSession(dir, sessId).catch(() => {}); return; }
+            setSessionId(sessId);
+            setQueue(dueCards);
+            setStartedAt(Date.now());
+            setPhase("question");
+            return;
+          }
+          // Baralho not in vault yet (not pulled) — fall through to API path
+        }
+      }
 
-        if (dueCards.length === 0) { setPhase("complete"); return; }
-
-        const sessId = await startLocalSession(dir, baralhoId!);
-        if (!active) { finalizeLocalSession(dir, sessId).catch(() => {}); return; }
-        setSessionId(sessId);
-        setQueue(dueCards);
+      // API path: used on web, or when vault unavailable, or baralho not yet in vault.
+      const deck = await startDeckStudy(baralhoId!).catch(() => null);
+      if (!active) { if (deck?.sessionId) finalizeStudySession(deck.sessionId).catch(() => {}); return; }
+      if (!deck) { setPhase("error"); return; }
+      setTitulo(deck.titulo);
+      setSessionId(deck.sessionId);
+      setTotalNoDeck(deck.totalNoDeck);
+      if (deck.cards.length === 0) {
+        finalizedRef.current = true;
+        finalizeStudySession(deck.sessionId).catch(() => {});
+        setPhase("complete");
+      } else {
+        setQueue(deck.cards.map((c) => ({ ...c, schedule: null })));
         setStartedAt(Date.now());
         setPhase("question");
-      } else {
-        const deck = await startDeckStudy(baralhoId!).catch(() => null);
-        if (!active) { if (deck?.sessionId) finalizeStudySession(deck.sessionId).catch(() => {}); return; }
-        if (!deck) { setPhase("error"); return; }
-        setTitulo(deck.titulo);
-        setSessionId(deck.sessionId);
-        setTotalNoDeck(deck.totalNoDeck);
-        if (deck.cards.length === 0) {
-          finalizedRef.current = true;
-          finalizeStudySession(deck.sessionId).catch(() => {});
-          setPhase("complete");
-        } else {
-          setQueue(deck.cards.map((c) => ({ ...c, schedule: null })));
-          setStartedAt(Date.now());
-          setPhase("question");
-        }
       }
     }
 

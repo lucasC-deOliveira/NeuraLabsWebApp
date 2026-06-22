@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   DEFAULT_PHYSICS_OPTIONS,
+  DEFAULT_CLUSTER_OPTIONS,
   type PhysicsOptions,
+  type PhysicsMode,
 } from "../services/graph-physics.service";
 
 export const DEFAULT_FOCUS_DEPTH = 1;
@@ -23,6 +25,8 @@ interface GraphSettingsModalProps {
   onOpenChange: (open: boolean) => void;
   options: PhysicsOptions;
   onChange: (options: PhysicsOptions) => void;
+  physicsMode: PhysicsMode;
+  onPhysicsModeChange: (mode: PhysicsMode) => void;
   focusDepth: number;
   onFocusDepthChange: (depth: number) => void;
 }
@@ -76,10 +80,17 @@ export function GraphSettingsModal({
   onOpenChange,
   options,
   onChange,
+  physicsMode,
+  onPhysicsModeChange,
   focusDepth,
   onFocusDepthChange,
 }: GraphSettingsModalProps) {
   const set = (patch: Partial<PhysicsOptions>) => onChange({ ...options, ...patch });
+
+  const switchMode = (mode: PhysicsMode) => {
+    onPhysicsModeChange(mode);
+    onChange(mode === "cluster" ? DEFAULT_CLUSTER_OPTIONS : DEFAULT_PHYSICS_OPTIONS);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -93,6 +104,26 @@ export function GraphSettingsModal({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto py-4">
+          <div className="space-y-2">
+            <Label>Modo de física</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => switchMode("default")}
+                className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors text-left ${physicsMode === "default" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
+              >
+                <div className="font-semibold">Padrão</div>
+                <div className="text-xs opacity-70">Hierárquico · assunto no centro</div>
+              </button>
+              <button
+                onClick={() => switchMode("cluster")}
+                className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors text-left ${physicsMode === "cluster" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
+              >
+                <div className="font-semibold">Clusters</div>
+                <div className="text-xs opacity-70">Agrupa por tipo de nó</div>
+              </button>
+            </div>
+          </div>
+
           <PhysicsSlider
             id="gravitational-constant"
             label="Repulsão entre nós"
@@ -116,19 +147,7 @@ export function GraphSettingsModal({
             onChange={(v) => set({ centralGravity: v })}
           />
 
-          <PhysicsSlider
-            id="spring-length"
-            label="Comprimento das arestas"
-            description="Distância ideal entre dois nós conectados por uma relação."
-            value={options.springLength}
-            min={40}
-            max={400}
-            step={10}
-            format={(v) => `${v}px`}
-            onChange={(v) => set({ springLength: v })}
-          />
-
-          <PhysicsSlider
+<PhysicsSlider
             id="spring-constant"
             label="Rigidez das arestas"
             description="Quão forte as relações puxam os nós para o comprimento ideal."
@@ -164,6 +183,87 @@ export function GraphSettingsModal({
             onChange={(v) => set({ avoidOverlap: v })}
           />
 
+          <PhysicsSlider
+            id="cluster-repulsion"
+            label="Repulsão de clusters"
+            description="Empurra grupos inteiros uns dos outros, agindo nos centróides. 0 = desativado."
+            value={options.clusterRepulsion ?? 0}
+            min={0}
+            max={60000}
+            step={1000}
+            format={(v) => v === 0 ? "off" : `${(v/1000).toFixed(0)}k`}
+            onChange={(v) => set({ clusterRepulsion: v })}
+          />
+
+          <PhysicsSlider
+            id="min-gap"
+            label="Distância mínima entre nós"
+            description="Folga mínima obrigatória entre bordas de nós. A física nunca viola este valor — é uma restrição rígida pós-integração."
+            value={options.minGap ?? 10}
+            min={0}
+            max={80}
+            step={2}
+            format={(v) => `${v}px`}
+            onChange={(v) => set({ minGap: v })}
+          />
+
+          {physicsMode === "default" && (
+            <PhysicsSlider
+              id="orbital-strength"
+              label="Força orbital"
+              description="Mantém nós filhos em órbita ao redor do pai, formando anéis concêntricos."
+              value={options.orbitalStrength ?? 0.08}
+              min={0}
+              max={0.25}
+              step={0.01}
+              format={(v) => v.toFixed(2)}
+              onChange={(v) => set({ orbitalStrength: v })}
+            />
+          )}
+
+          {physicsMode === "cluster" && (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="avoid-cluster-overlap">Evitar sobreposição de clusters</Label>
+                  <p className="text-xs text-muted-foreground">Impede que os bounding circles dos clusters se sobreponham.</p>
+                </div>
+                <button
+                  id="avoid-cluster-overlap"
+                  role="switch"
+                  aria-checked={options.avoidClusterOverlap ?? false}
+                  onClick={() => set({ avoidClusterOverlap: !(options.avoidClusterOverlap ?? false) })}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${options.avoidClusterOverlap ? "bg-primary" : "bg-input"}`}
+                >
+                  <span className={`pointer-events-none inline-block size-4 rounded-full bg-background shadow-lg transition-transform ${options.avoidClusterOverlap ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+              </div>
+
+              <PhysicsSlider
+                id="cluster-strength"
+                label="Atração de cluster"
+                description="Força com que cada nó é atraído para o centro do seu grupo. Maior = clusters mais compactos."
+                value={options.clusterStrength ?? 0.14}
+                min={0}
+                max={0.4}
+                step={0.01}
+                format={(v) => v.toFixed(2)}
+                onChange={(v) => set({ clusterStrength: v })}
+              />
+              <PhysicsSlider
+                id="inter-group-repulsion"
+                label="Repulsão entre grupos"
+                description="Multiplicador da repulsão entre nós de tipos diferentes. Maior = clusters mais separados."
+                value={options.interGroupRepulsion ?? 4}
+                min={1}
+                max={10}
+                step={0.5}
+                format={(v) => v.toFixed(1) + "×"}
+                onChange={(v) => set({ interGroupRepulsion: v })}
+              />
+            </>
+          )}
+
           <div className="space-y-1.5 border-t pt-4">
             <div className="flex items-center justify-between">
               <Label htmlFor="focus-depth">Destaque de conexões — saltos</Label>
@@ -189,7 +289,7 @@ export function GraphSettingsModal({
         <DialogFooter className="shrink-0">
           <Button
             variant="outline"
-            onClick={() => onChange({ ...DEFAULT_PHYSICS_OPTIONS })}
+            onClick={() => onChange(physicsMode === "cluster" ? { ...DEFAULT_CLUSTER_OPTIONS } : { ...DEFAULT_PHYSICS_OPTIONS })}
           >
             Restaurar padrão
           </Button>

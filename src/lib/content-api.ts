@@ -26,8 +26,6 @@ export type TipoFlashcard =
   | "CONTRASTE"
   | "COMPLETAR"
   | "ORDENACAO"
-  | "VERDADEIRO_FALSO"
-  | "MULTIPLA_ESCOLHA"
   | "RELACIONAL"
   | "ERRO_COMUM";
 
