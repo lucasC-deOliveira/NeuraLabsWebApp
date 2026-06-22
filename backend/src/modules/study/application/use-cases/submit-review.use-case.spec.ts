@@ -17,7 +17,7 @@ class FakeClock implements Clock {
   }
 }
 
-// Fake nomeado dos repositórios (sem DB). Atua como repo e como tx repo (UoW).
+// Named fake of the repositories (no DB). Acts as both repo and tx repo (UoW).
 class FakeStudyRepository implements StudyRepository, StudyTxRepository {
   activeSession: SessionRef | null = { id: 'sess-1' };
   ownedCards = new Set<string>(['fc-1']);
@@ -64,7 +64,7 @@ describe('SubmitReviewUseCase', () => {
 
     expect(res).toEqual({ success: true });
     expect(repo.reviews).toHaveLength(1);
-    // respostaUsuario omitido → grava string vazia (não undefined).
+    // respostaUsuario omitted → stores empty string (not undefined).
     expect(repo.reviews[0]).toMatchObject({
       acertou: true,
       nivelConfianca: 4,
@@ -105,7 +105,7 @@ describe('SubmitReviewUseCase', () => {
 
   it('deriva grade de campos legados (acertou + nivelConfianca)', async () => {
     await useCase.execute({ userId: 'u1', flashcardId: 'fc-1', acertou: true, nivelConfianca: 3 });
-    // confiança 3 → good → confiança gravada 4
+    // confidence 3 → good → stored confidence 4
     expect(repo.reviews[0]).toMatchObject({ acertou: true, nivelConfianca: 4 });
   });
 

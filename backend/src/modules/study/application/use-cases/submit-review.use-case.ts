@@ -16,18 +16,18 @@ export interface SubmitReviewCommand {
   flashcardId: string;
   respostaUsuario?: string;
   grade?: ReviewGrade;
-  // Campos legados (compatibilidade com sessões antigas, antes dos 4 botões).
+  // Legacy fields (compat with old sessions, before the 4-button grading).
   acertou?: boolean;
   nivelConfianca?: number;
   tempoResposta?: number;
   sessaoId?: string;
 }
 
-// Nível de confiança gravado por grade (mantém compatibilidade com dados antigos).
+// Confidence level stored per grade (keeps compatibility with old data).
 const CONFIDENCE_BY_GRADE: Record<ReviewGrade, number> = { again: 0, hard: 2, good: 4, easy: 5 };
 
 /**
- * Registra a revisão de um flashcard e reagenda-o (SM-2), de forma atômica.
+ * Records a flashcard review and reschedules it (SM-2), atomically.
  * @example useCase.execute({ userId, flashcardId, grade: 'good', sessaoId })
  */
 export class SubmitReviewUseCase {

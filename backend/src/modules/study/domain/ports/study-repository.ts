@@ -13,8 +13,8 @@ export interface ReviewRecord {
   tempoResposta?: number;
 }
 
-// Operações executadas dentro de uma transação (Unit of Work): leitura do estado
-// de aprendizado e gravação da revisão + agendamento são atômicas.
+// Operations executed within a transaction (Unit of Work): reading the learning
+// state and writing the review + scheduling are atomic.
 export interface StudyTxRepository {
   isCardOwnedBy(flashcardId: string, userId: string): Promise<boolean>;
   getLearningState(flashcardId: string, userId: string): Promise<ScheduleState | null>;
@@ -22,7 +22,7 @@ export interface StudyTxRepository {
   saveLearningState(flashcardId: string, userId: string, state: ScheduleState): Promise<void>;
 }
 
-// Port de persistência do contexto Study. Implementado por um adapter (ex.: Prisma).
+// Persistence port for the Study context. Implemented by an adapter (e.g. Prisma).
 export interface StudyRepository {
   findActiveSession(userId: string, sessaoId?: string): Promise<SessionRef | null>;
   withTransaction<T>(work: (tx: StudyTxRepository) => Promise<T>): Promise<T>;

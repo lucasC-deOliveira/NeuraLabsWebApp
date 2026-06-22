@@ -6,10 +6,10 @@ import { SystemClock } from '../clock/system-clock';
 import { SubmitReviewUseCase } from '../../application/use-cases/submit-review.use-case';
 import { NoActiveSessionError } from '../../domain/errors';
 
-// Integração do adapter Prisma contra o banco real (neuralabs_test), exercitado
-// pelo SubmitReviewUseCase. Substitui as caracterizações que travavam
-// StudyService.submitReview: mesmo comportamento (revisão + agendamento SM-2),
-// agora no seam hexagonal (use-case → port → adapter Prisma).
+// Integration of the Prisma adapter against the real DB (neuralabs_test), driven
+// by SubmitReviewUseCase. Replaces the characterizations that pinned
+// StudyService.submitReview: same behavior (review + SM-2 scheduling), now at the
+// hexagonal seam (use-case → port → Prisma adapter).
 
 const TABLES = [
   '"revisoes_flashcard"',

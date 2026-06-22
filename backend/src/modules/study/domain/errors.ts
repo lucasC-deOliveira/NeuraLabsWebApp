@@ -1,15 +1,15 @@
-// Erros de domínio com contexto — incluem o valor ofensor (regra de engenharia).
+// Domain errors with context — include the offending value (engineering rule).
 
 export class NoActiveSessionError extends Error {
   constructor(userId: string) {
-    super(`Nenhuma sessão de estudo ativa para o usuário "${userId}".`);
+    super(`No active study session for user "${userId}".`);
     this.name = 'NoActiveSessionError';
   }
 }
 
 export class CardNotFoundError extends Error {
   constructor(flashcardId: string) {
-    super(`Flashcard não encontrado: "${flashcardId}".`);
+    super(`Flashcard not found: "${flashcardId}".`);
     this.name = 'CardNotFoundError';
   }
 }

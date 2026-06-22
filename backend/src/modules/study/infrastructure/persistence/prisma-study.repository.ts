@@ -20,8 +20,8 @@ interface AprendizadoData {
   estagioAprendizado: number;
 }
 
-// Mapeia o estado de domínio para colunas do AprendizadoFlashcard (inclui o
-// campo legado estagioAprendizado, derivado da fase).
+// Maps domain state to AprendizadoFlashcard columns (includes the legacy
+// estagioAprendizado field, derived from the phase).
 function toAprendizadoData(state: ScheduleState): AprendizadoData {
   return {
     dificuldade: state.dificuldade,
@@ -35,7 +35,7 @@ function toAprendizadoData(state: ScheduleState): AprendizadoData {
   };
 }
 
-// Adapter transacional: todas as operações usam o mesmo Prisma.TransactionClient.
+// Transactional adapter: all operations use the same Prisma.TransactionClient.
 class PrismaStudyTx implements StudyTxRepository {
   constructor(private readonly tx: Prisma.TransactionClient) {}
 

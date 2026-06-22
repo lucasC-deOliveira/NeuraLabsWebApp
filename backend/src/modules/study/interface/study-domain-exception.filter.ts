@@ -11,8 +11,9 @@ import { CardNotFoundError, NoActiveSessionError } from '../domain/errors';
 
 type StudyDomainError = NoActiveSessionError | CardNotFoundError;
 
-// Traduz erros de domínio do contexto Study em respostas HTTP, mantendo o
-// domínio/application livres de qualquer dependência do framework (hexagonal).
+// Translates Study domain errors into HTTP responses, keeping domain/application
+// free of any framework dependency (hexagonal). The domain message stays internal
+// (English); the user-facing message produced here is in Portuguese.
 @Catch(NoActiveSessionError, CardNotFoundError)
 export class StudyDomainExceptionFilter implements ExceptionFilter {
   catch(error: StudyDomainError, host: ArgumentsHost): void {
@@ -22,7 +23,9 @@ export class StudyDomainExceptionFilter implements ExceptionFilter {
   }
 
   private toHttpException(error: StudyDomainError): HttpException {
-    if (error instanceof NoActiveSessionError) return new BadRequestException(error.message);
-    return new NotFoundException(error.message);
+    if (error instanceof NoActiveSessionError) {
+      return new BadRequestException('Nenhuma sessão de estudo ativa.');
+    }
+    return new NotFoundException('Flashcard não encontrado.');
   }
 }

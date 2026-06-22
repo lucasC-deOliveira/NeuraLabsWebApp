@@ -1,4 +1,4 @@
-// Port para acesso ao "agora" — injetado para tornar use-cases determináveis em teste.
+// Port for accessing "now" — injected to make use-cases deterministic in tests.
 export interface Clock {
   now(): Date;
 }
