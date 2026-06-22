@@ -25,6 +25,11 @@ export function useGraphData(graphId: string) {
 
   // LOAD GRAPH + NAME (tudo junto para ter o nome antes de ler o vault)
   useEffect(() => {
+    // Limpa dados do grafo anterior imediatamente para que o controller não
+    // entre no caminho de "grafo grande" com nós velhos ao trocar de grafo.
+    setRawNodes([]);
+    setRawEdges([]);
+
     async function load() {
       setLoading(true);
       try {
@@ -70,16 +75,17 @@ export function useGraphData(graphId: string) {
 
         setRawNodes(nodes);
         setRawEdges(edges);
-
-        const edgesDetail = await getGraphEdges(graphId);
-        if (edgesDetail) {
-          setGraphEdges(edgesDetail);
-        }
       } catch (e) {
         console.error(e);
       } finally {
         setLoading(false);
       }
+
+      // Carrega detalhes de arestas em background — não bloqueia a renderização.
+      // Grafos grandes (14k+ arestas) têm este endpoint lento; o grafo funciona sem ele.
+      getGraphEdges(graphId)
+        .then((d) => { if (d) setGraphEdges(d); })
+        .catch(() => {});
     }
 
     load();

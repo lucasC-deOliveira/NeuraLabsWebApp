@@ -31,6 +31,8 @@ model Usuario {
   grafos            GrafosConhecimento[]
   topicos           Topico[]
   conceitos         Conceito[]
+  questoes          Questao[]
+  provas            Prova[]
 
   @@map("usuarios")
 }
@@ -74,8 +76,53 @@ model Conceito {
   usuario    Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   topico     Topico?     @relation(fields: [topicoId], references: [id], onDelete: SetNull)
   flashcards Flashcard[]
+  questoes   Questao[]
 
   @@map("conceitos")
+}
+
+model Questao {
+  id           String      @id @default(cuid())
+  usuarioId    String      @map("id_usuario")
+  conceitoId   String?     @map("id_conceito")
+  tipo         TipoQuestao
+  enunciado    String
+  alternativas Json?
+  gabarito     String
+  explicacao   String?
+  dataCriacao  DateTime    @default(now()) @map("data_criacao")
+
+  usuario       Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  conceito      Conceito?      @relation(fields: [conceitoId], references: [id], onDelete: SetNull)
+  provasQuestao ProvaQuestao[]
+
+  @@map("questoes")
+}
+
+model Prova {
+  id          String   @id @default(cuid())
+  usuarioId   String   @map("id_usuario")
+  titulo      String
+  descricao   String?
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+
+  usuario  Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  questoes ProvaQuestao[]
+
+  @@map("provas")
+}
+
+model ProvaQuestao {
+  id        String @id @default(cuid())
+  provaId   String @map("id_prova")
+  questaoId String @map("id_questao")
+  ordem     Int    @default(0)
+
+  prova   Prova   @relation(fields: [provaId], references: [id], onDelete: Cascade)
+  questao Questao @relation(fields: [questaoId], references: [id], onDelete: Cascade)
+
+  @@unique([provaId, questaoId])
+  @@map("provas_questoes")
 }
 
 enum TipoFlashcard {
@@ -86,10 +133,13 @@ enum TipoFlashcard {
   CONTRASTE
   COMPLETAR
   ORDENACAO
-  VERDADEIRO_FALSO
-  MULTIPLA_ESCOLHA
   RELACIONAL
   ERRO_COMUM
+}
+
+enum TipoQuestao {
+  VERDADEIRO_FALSO
+  MULTIPLA_ESCOLHA
 }
 
 model Flashcard {
@@ -173,10 +223,17 @@ model GrafosConhecimento {
   nome            String
   descricao       String?
   estadoVisual    String?  @map("estado_visual")
+  parentGrafoId   String?  @map("parent_grafo_id")
+  tipoRelacaoPai  String?  @map("tipo_relacao_pai")
+  // Assunto-raiz do grafo: ASSUNTO sintético com o nome do grafo, fixo no centro,
+  // ancorando o layout. Não pode ser deletado individualmente (só com o grafo).
+  rootAssuntoId   String?  @map("root_assunto_id")
   dataCriacao     DateTime @default(now()) @map("data_criacao")
   dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao")
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  parent  GrafosConhecimento?  @relation("GrafoHierarquia", fields: [parentGrafoId], references: [id], onDelete: SetNull)
+  filhos  GrafosConhecimento[] @relation("GrafoHierarquia")
 
   nodes   NodeConhecimento[]
   arestas ConhecimentoAresta[]
@@ -193,6 +250,8 @@ enum TipoNode {
   TEXTO_BRUTO
   BARALHO
   QUESTION
+  GRAFO_REF
+  PROVA
 }
 
 model NodeConhecimento {

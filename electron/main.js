@@ -14,7 +14,7 @@ const DEV_URL = process.env.ELECTRON_DEV_URL || "https://localhost:5173";
 
 // Dev: aceita cert auto-assinado do basicSsl do Vite.
 if (isDev) app.commandLine.appendSwitch("ignore-certificate-errors");
-const DEFAULT_API_URL = process.env.NEURALABS_API_URL || "http://localhost:3001/api";
+const DEFAULT_API_URL = process.env.NEURALABS_API_URL || "http://127.0.0.1:3001/api";
 
 // Pastas PARA do vault (espelha src/lib/vault-format.ts).
 const PARA_FOLDERS = ["Projects", "Areas", "Resources", "Archives"];
@@ -122,17 +122,24 @@ function startClaudeProxy() {
           res.writeHead(status, { "Content-Type": "application/json" });
           res.end(JSON.stringify(body));
         };
+        // Timeout de 4 minutos — evita travar indefinidamente
+        const killTimer = setTimeout(() => {
+          proc.kill();
+          send(504, { error: { message: "Claude Code não respondeu em 4 minutos. Tente novamente.", type: "timeout" } });
+        }, 4 * 60 * 1000);
         proc.stdin.write(prompt);
         proc.stdin.end();
         proc.stdout.on("data", (d) => { stdout += d; });
         proc.stderr.on("data", (d) => { stderr += d; });
         proc.on("error", (err) => {
+          clearTimeout(killTimer);
           const msg = err.code === "ENOENT"
             ? "Claude Code não encontrado. Instale com: npm install -g @anthropic-ai/claude-code"
             : err.message;
           send(500, { error: { message: msg, type: "server_error" } });
         });
         proc.on("close", (code) => {
+          clearTimeout(killTimer);
           if (code !== 0) {
             send(500, { error: { message: stderr || `claude saiu com código ${code}`, type: "server_error" } });
             return;
@@ -231,8 +238,10 @@ async function boot() {
 // ---------------------------------------------------------------------------
 // IPC: backend configurável
 // ---------------------------------------------------------------------------
-// Em dev, não injetamos a URL para que o frontend use /api via proxy do Vite (evita mixed content).
-ipcMain.on("neuralabs:get-api-url-sync", (e) => { e.returnValue = isDev ? "" : getApiUrl(); });
+// Em dev+Vite, não injetamos a URL (o proxy do Vite roteia /api → backend).
+// Com USE_LOCAL_DIST=1 ou em produção, injetamos a URL real do backend.
+const useLocalDist = process.env.USE_LOCAL_DIST === "1";
+ipcMain.on("neuralabs:get-api-url-sync", (e) => { e.returnValue = (isDev && !useLocalDist) ? "" : getApiUrl(); });
 ipcMain.handle("neuralabs:get-api-url", () => getApiUrl());
 ipcMain.handle("neuralabs:set-api-url", (_e, url) => {
   if (typeof url === "string" && url.trim()) writeConfig({ apiUrl: url.trim() });

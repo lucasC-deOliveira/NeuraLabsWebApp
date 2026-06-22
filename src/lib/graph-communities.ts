@@ -26,6 +26,15 @@ const TYPE_PT: Record<string, string> = {
   FLASHCARD: "flashcards", NOTA: "notas", TEXTO_BRUTO: "textos", BARALHO: "baralhos",
 };
 
+// PRNG xorshift32 com semente derivada da topologia — determinístico para o mesmo grafo
+function makeRng(nodes: SimNode[], edges: GraphEdgeType[]) {
+  let s = 0x9e3779b9;
+  for (const n of nodes) for (let i = 0; i < n.id.length; i++) s = Math.imul(s ^ n.id.charCodeAt(i), 0x45d9f3b) | 0;
+  for (const e of edges) { s = Math.imul(s ^ e.source.length, 0x45d9f3b) | 0; s = Math.imul(s ^ e.target.length, 0x45d9f3b) | 0; }
+  s = s >>> 0 || 1;
+  return () => { s ^= s << 13; s ^= s >> 17; s ^= s << 5; return (s >>> 0) / 0x100000000; };
+}
+
 // Label Propagation — O(iter × E)
 export function detectCommunities(
   nodes: SimNode[],
@@ -33,6 +42,8 @@ export function detectCommunities(
   maxIterations = 50,
 ): Community[] {
   if (nodes.length === 0) return [];
+
+  const rand = makeRng(nodes, edges);
 
   // Adjacência não-direcionada
   const adj = new Map<string, string[]>(nodes.map(n => [n.id, []]));
@@ -46,9 +57,9 @@ export function detectCommunities(
   const ids = nodes.map(n => n.id);
 
   for (let iter = 0; iter < maxIterations; iter++) {
-    // Embaralhar para evitar viés de ordem
+    // Embaralhar com PRNG determinístico (mesmo grafo = mesma ordem = mesmo resultado)
     for (let i = ids.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(rand() * (i + 1));
       [ids[i], ids[j]] = [ids[j], ids[i]];
     }
 
@@ -69,7 +80,8 @@ export function detectCommunities(
         if (f > maxF) { maxF = f; best.length = 0; best.push(l); }
         else if (f === maxF) best.push(l);
       }
-      const chosen = best[Math.floor(Math.random() * best.length)];
+      // Desempate determinístico: menor índice lexicográfico do array best
+      const chosen = best.sort()[0];
       if (chosen !== label.get(id)) { label.set(id, chosen); changed = true; }
     }
     if (!changed) break;
@@ -96,6 +108,41 @@ export function detectCommunities(
         nodes: clusterNodes,
         color: COMMUNITY_COLORS[i % COMMUNITY_COLORS.length],
         label: `Cluster ${i + 1} · ${clusterNodes.length} nós · ${TYPE_PT[dominant] ?? dominant}`,
+      };
+    });
+}
+
+// Clusters hierárquicos: um cluster principal por ASSUNTO (a raiz da árvore),
+// contendo toda a sua subárvore (tópicos, conceitos e nós comuns). Usa o
+// `clusterId` já derivado e anexado a cada SimNode pelo layout — não recomputa
+// a hierarquia. Nós sem cluster (folhas órfãs sem conceito acima) ficam de fora,
+// pois folhas nunca formam cluster próprio. Mesma forma de `Community`, então
+// alimenta o painel, o destaque, a criação de baralho e o resumo sem mudanças.
+export function clustersFromHierarchy(nodes: SimNode[]): Community[] {
+  if (nodes.length === 0) return [];
+
+  const byCluster = new Map<string, SimNode[]>();
+  for (const n of nodes) {
+    const cid = n.clusterId;
+    if (!cid) continue; // folha órfã / sem cluster
+    const arr = byCluster.get(cid) ?? [];
+    arr.push(n);
+    byCluster.set(cid, arr);
+  }
+
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+
+  return [...byCluster.entries()]
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([cid, clusterNodes], i) => {
+      const root = nodeById.get(cid);
+      const rootLabel = root?.label?.trim() || "Cluster";
+      const fcCount = clusterNodes.filter((n) => n.group === "FLASHCARD").length;
+      return {
+        id: cid,
+        nodes: clusterNodes,
+        color: COMMUNITY_COLORS[i % COMMUNITY_COLORS.length],
+        label: `${rootLabel} · ${clusterNodes.length} nós${fcCount ? ` · ${fcCount} flashcards` : ""}`,
       };
     });
 }

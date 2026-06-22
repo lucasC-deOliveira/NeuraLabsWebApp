@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 import { useGraphData } from "../hooks/useGraphData";
 import { useGraphLayout } from "../hooks/useGraphLayout";
 import { SimNode } from "../../infra/layout/force-layout.engine";
@@ -9,15 +9,23 @@ import { getFilteredEdges, getFilteredNodes } from "../../domain/selectors/graph
 import { saveGraphPositions } from "@/lib/graph-api";
 import { useVaultWatch } from "../hooks/useVaultWatch";
 
+// Grafo grande: layout fica num ref (não no estado React) para evitar
+// reconciliação de 14k fibers em startTransition que leva 2-3s e trava o pan.
+const LARGE_GRAPH_REF_MODE = true;
+
 // "big bang": os nós nascem colapsados num ponto (escala mínima) e se expandem
 // com easing até as posições finais ao longo dessa duração
 const BIG_BANG_MIN_SCALE = 0.03;
 const BIG_BANG_DURATION = 1100; // ms
 const BIG_BANG_PRESETTLE_ITERS = 2000; // pré-assenta o alvo no equilíbrio da física
+
+// Grafos com muitos nós pulam a animação de entrada e desligam a física:
+// physicsStep é O(n²) e o big bang copia n objetos por frame — inviável acima deste limiar.
+const LARGE_GRAPH_THRESHOLD = 400;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 export function useGraphController(graphId: string) {
-  const svgRef = useRef<SVGSVGElement | null>(null);
+  const svgRef = useRef<HTMLElement | null>(null);
 
   const {
     rawNodes,
@@ -38,6 +46,11 @@ export function useGraphController(graphId: string) {
   useVaultWatch({ grafoId: graphId, grafoNome, rawNodes, setRawNodes, setRawEdges });
 
   const [layout, setLayout] = useState<SimNode[]>([]);
+  // Ref-mode para grafos grandes: evita 14k itens no estado React
+  const largeLayoutRef  = useRef<SimNode[]>([]);
+  const [largeLayoutVer, setLargeLayoutVer] = useState(0); // contador de versão
+  const isLargeRef = useRef(false); // estável depois do bigbang
+
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -56,13 +69,17 @@ export function useGraphController(graphId: string) {
   const [physicsRestartKey, setPhysicsRestartKey] = useState(0);
 
   const layoutRefForSelect = useRef<SimNode[]>([]);
-  useEffect(() => { layoutRefForSelect.current = layout; }, [layout]);
+  useEffect(() => {
+    layoutRefForSelect.current = isLargeRef.current ? largeLayoutRef.current : layout;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout, largeLayoutVer]);
 
   // animação de entrada "big bang": enquanto roda, a física ambiente fica pausada
   const [introActive, setIntroActive] = useState(false);
   const introRafRef = useRef(0);
   const bigBangDoneRef = useRef(false);
   useEffect(() => () => cancelAnimationFrame(introRafRef.current), []);
+
 
   const handleMarqueeSelect = useCallback((ids: string[]) => {
     setSelectedNodeIds(new Set(ids));
@@ -122,9 +139,17 @@ export function useGraphController(graphId: string) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Para grafos grandes, passa o ref inteiro às interações (drag de nós funciona)
+  // e fornece um setter que atualiza o ref + dispara re-render barato.
+  const largeSetLayout = useCallback((updater: any) => {
+    const next = typeof updater === "function" ? updater(largeLayoutRef.current) : updater;
+    largeLayoutRef.current = next;
+    setLargeLayoutVer((v) => v + 1);
+  }, []);
+
   const interactions = useGraphInteractions({
-    layout,
-    setLayout,
+    layout:    isLargeRef.current ? largeLayoutRef.current : layout,
+    setLayout: isLargeRef.current ? largeSetLayout : setLayout,
     zoom,
     setZoom,
     pan,
@@ -155,6 +180,28 @@ export function useGraphController(graphId: string) {
 
     if (!bigBangDoneRef.current) {
       bigBangDoneRef.current = true;
+
+      // Grafo grande: armazena no ref em vez do estado React.
+      // startTransition com 14k itens levava 2-3s de reconciliação de fibers,
+      // travando o pan. Com ref, o commit é O(1) (uma só atribuição).
+      if (LARGE_GRAPH_REF_MODE && nodes.length > LARGE_GRAPH_THRESHOLD) {
+        setPhysicsEnabled(false);
+        isLargeRef.current = true;
+        largeLayoutRef.current = nodes.map((n) => ({ ...n, vx: 0, vy: 0 }));
+        setLargeLayoutVer((v) => v + 1); // um único re-render barato
+        // Ao sair deste grafo grande (graphId muda → nodes mudam → effect
+        // re-roda), a limpeza reseta os flags para que o próximo grafo
+        // (possivelmente pequeno) possa rodar o bigbang e a física.
+        return () => {
+          bigBangDoneRef.current = false;
+          isLargeRef.current = false;
+          largeLayoutRef.current = [];
+          setPhysicsEnabled(true);
+        };
+      }
+
+      // Grafo pequeno: garante física ligada caso o usuário venha de um grande.
+      setPhysicsEnabled(true);
 
       if (nodes.length > 1) {
         // Se todos os nós têm posição salva, usa-as diretamente como alvos —
@@ -197,9 +244,11 @@ export function useGraphController(graphId: string) {
         setIntroActive(true);
         setLayout(collapse(BIG_BANG_MIN_SCALE));
 
+        let cancelled = false;
         const start =
           typeof performance !== "undefined" ? performance.now() : Date.now();
         const step = () => {
+          if (cancelled) return;
           const now =
             typeof performance !== "undefined" ? performance.now() : Date.now();
           const t = Math.min(1, (now - start) / BIG_BANG_DURATION);
@@ -220,7 +269,14 @@ export function useGraphController(graphId: string) {
           }
         };
         introRafRef.current = requestAnimationFrame(step);
-        return;
+        // Cleanup: React StrictMode runs effects twice in dev — reset introActive
+        // so physics isn't disabled on the second invocation.
+        return () => {
+          cancelled = true;
+          cancelAnimationFrame(introRafRef.current);
+          bigBangDoneRef.current = false; // allow bigbang to re-run on second mount
+          setIntroActive(false);
+        };
       }
 
       setLayout(nodes);
@@ -240,28 +296,35 @@ export function useGraphController(graphId: string) {
     setPhysicsRestartKey(k => k + 1);
   }, [nodes]);
 
-  const filteredNodes = useMemo(
-    () => getFilteredNodes(layout, hiddenTypes),
-    [layout, hiddenTypes]
-  );
+  // Grafo grande: lê do ref (referência estável — useMemo não recomputa no pan)
+  const filteredNodes = useMemo(() => {
+    if (isLargeRef.current) {
+      const src = largeLayoutRef.current;
+      return hiddenTypes.size === 0 ? src : src.filter((n) => !hiddenTypes.has((n as any).group));
+    }
+    return getFilteredNodes(layout, hiddenTypes);
+  // largeLayoutVer invalida o memo quando o ref é atualizado (drag, carga inicial)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout, hiddenTypes, largeLayoutVer]);
 
-  // só os nós visíveis contam para as arestas (esconde arestas de tipos ocultos)
+  // Grafo grande: visibleNodeIds vazio — o Canvas já faz culling interno
   const visibleNodeIds = useMemo(
-    () => new Set(filteredNodes.map((n) => n.id)),
+    () => isLargeRef.current ? new Set<string>() : new Set(filteredNodes.map((n) => n.id)),
     [filteredNodes]
   );
 
+  // Grafo grande: passa todas as arestas — o Canvas filtra por viewport
   const filteredEdges = useMemo(
-    () => getFilteredEdges(edges, visibleNodeIds),
+    () => isLargeRef.current ? edges : getFilteredEdges(edges, visibleNodeIds),
     [edges, visibleNodeIds]
   );
 
-  // nó selecionado "vivo": reflete o layout atual (ex.: domínio recalculado)
-  // em vez do snapshot guardado no clique
-  const liveSelectedNode = useMemo(
-    () => (selectedNode ? layout.find((n) => n.id === selectedNode.id) ?? null : null),
-    [selectedNode, layout]
-  );
+  const liveSelectedNode = useMemo(() => {
+    if (!selectedNode) return null;
+    const src = isLargeRef.current ? largeLayoutRef.current : layout;
+    return src.find((n) => n.id === selectedNode.id) ?? null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNode, layout, largeLayoutVer]);
 
   return {
     svgRef,
@@ -298,6 +361,15 @@ export function useGraphController(graphId: string) {
       setActiveTool,
       setPhysicsEnabled,
       setPhysicsOptions,
+      removeNodeFromLayout: (nodeId: string) => {
+        const filter = (prev: SimNode[]) => prev.filter((n) => n.id !== nodeId);
+        if (isLargeRef.current) {
+          largeLayoutRef.current = filter(largeLayoutRef.current);
+          setLargeLayoutVer((v) => v + 1);
+        } else {
+          setLayout(filter);
+        }
+      },
     },
     interactions,
   };

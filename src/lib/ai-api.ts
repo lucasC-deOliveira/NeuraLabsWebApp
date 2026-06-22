@@ -72,6 +72,15 @@ export function buildGraphFromPlan(grafoId: string, rawText: string, plan: any, 
   return apiFetch(`/ai/graph/graphs/${grafoId}/generate-graph/build`, { method: "POST", body: JSON.stringify({ rawText, plan, saveBruto }) });
 }
 
+export interface BaralhoItem { id: string; titulo: string; flashcardCount: number; }
+export interface PopulateFromBaralhoResult { assuntos: number; topicos: number; conceitos: number; baralhoNome: string; }
+export function listBaralhosInGrafo(grafoId: string): Promise<BaralhoItem[]> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/baralhos`, { method: "POST" });
+}
+export function populateGraphFromBaralho(grafoId: string, baralhoId: string): Promise<PopulateFromBaralhoResult> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/baralhos/${baralhoId}/populate`, { method: "POST" });
+}
+
 export function addInsightsToGraph(
   grafoId: string,
   sourceNodeId: string,

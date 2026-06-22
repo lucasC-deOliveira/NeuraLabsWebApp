@@ -9,6 +9,9 @@ const NODE_TYPE_SHAPES: Record<string, NodeShape> = {
   CONCEITO: "rect",
   NOTA: "rect-vertical",
   FLASHCARD: "square",
+  GRAFO_REF: "rect",
+  QUESTION: "square",
+  PROVA: "rect",
 };
 
 export function getNodeShape(type: string): NodeShape {

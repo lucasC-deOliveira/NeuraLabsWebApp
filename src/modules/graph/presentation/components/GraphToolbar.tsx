@@ -2,6 +2,7 @@
 
 import {
   BoxIcon,
+  CircleDashedIcon,
   ContrastIcon,
   EyeIcon,
   EyeOffIcon,
@@ -31,6 +32,8 @@ type Props = {
   onToggleHighContrast: () => void;
   focusMode: boolean;
   onToggleFocus: () => void;
+  showClusters: boolean;
+  onToggleShowClusters: () => void;
   onOpenSettings: () => void;
   is3D: boolean;
   onToggle3D: () => void;
@@ -77,6 +80,8 @@ export function GraphToolbar({
   onToggleHighContrast,
   focusMode,
   onToggleFocus,
+  showClusters,
+  onToggleShowClusters,
   onOpenSettings,
   is3D,
   onToggle3D,
@@ -113,6 +118,14 @@ export function GraphToolbar({
           onClick={onToggleFocus}
         >
           <FocusIcon className="size-4" />
+        </ToolbarButton>
+
+        <ToolbarButton
+          label={showClusters ? "Ocultar regiões de cluster" : "Mostrar regiões de cluster"}
+          active={showClusters}
+          onClick={onToggleShowClusters}
+        >
+          <CircleDashedIcon className="size-4" />
         </ToolbarButton>
 
         <div className="w-px h-5 bg-border" />

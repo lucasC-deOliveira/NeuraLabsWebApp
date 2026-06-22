@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { graphVaultDir } from "@/lib/vault-sync";
 import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
+import { DeleteGraphModal } from "@/components/graph/DeleteGraphModal";
 
 interface GrafosList {
   id: string;
@@ -24,6 +25,8 @@ export default function GraphListPage() {
   const [loading, setLoading] = useState(true);
   const [creatingGrafo, setCreatingGrafo] = useState(false);
   const [newGrafoName, setNewGrafoName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
+  const [deletingGrafo, setDeletingGrafo] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -72,14 +75,19 @@ export default function GraphListPage() {
     }
   };
 
-  const handleDeleteGrafo = async (id: string, name: string) => {
-    if (!confirm(`Apagar "${name}"? Essa ação não pode ser desfeita.`)) return;
+  const confirmDeleteGrafo = async (keepTypes: string[]) => {
+    if (!deleteTarget) return;
+    const { id, nome } = deleteTarget;
+    setDeletingGrafo(true);
     try {
-      await deleteGrafo(id);
+      await deleteGrafo(id, { keepTypes });
       setGraphs((prev) => prev.filter((g) => g.id !== id));
-      toast.success(`Grafo "${name}" removido`);
+      toast.success(`Grafo "${nome}" removido`);
+      setDeleteTarget(null);
     } catch (e) {
       toast.error("Erro ao remover grafo");
+    } finally {
+      setDeletingGrafo(false);
     }
   };
 
@@ -167,7 +175,7 @@ export default function GraphListPage() {
                       variant="ghost"
                       size="icon-sm"
                       className="flex-shrink-0 opacity-60 hover:opacity-100"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteGrafo(g.id, g.nome); }}
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: g.id, nome: g.nome }); }}
                     >
                       <Trash2Icon className="size-3.5 text-red-500" />
                     </Button>
@@ -178,6 +186,14 @@ export default function GraphListPage() {
           </div>
         )}
       </div>
+
+      <DeleteGraphModal
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        graphName={deleteTarget?.nome ?? ""}
+        loading={deletingGrafo}
+        onConfirm={confirmDeleteGrafo}
+      />
     </div>
   );
 }

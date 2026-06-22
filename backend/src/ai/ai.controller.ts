@@ -49,8 +49,8 @@ export class AiController {
   }
 
   @Post('graphs/:grafoId/generate-graph/plan')
-  planGraph(@CurrentUser() userId: string, @Body() body: { rawText: string }) {
-    return this.ai.planGraphFromText(userId, body.rawText ?? '');
+  planGraph(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { rawText: string }) {
+    return this.ai.planGraphFromText(userId, grafoId, body.rawText ?? '');
   }
 
   @Post('graphs/:grafoId/generate-graph/build')
@@ -140,6 +140,16 @@ export class AiController {
     @Body() body: { gaps: Array<{ nome: string; tipo: 'missing' | 'shallow'; assuntoId: string; assuntoNome: string }> },
   ) {
     return this.ai.fillKnowledgeGaps(userId, grafoId, body.gaps ?? []);
+  }
+
+  @Post('graphs/:grafoId/baralhos')
+  listBaralhosInGrafo(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
+    return this.ai.listBaralhosInGrafo(userId, grafoId);
+  }
+
+  @Post('graphs/:grafoId/baralhos/:baralhoId/populate')
+  populateFromBaralho(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Param('baralhoId') baralhoId: string) {
+    return this.ai.populateGraphFromBaralho(userId, grafoId, baralhoId);
   }
 
   @Post('graphs/:grafoId/merge-duplicates')

@@ -37,7 +37,7 @@ type Props<T extends LayoutNode> = {
   pan: Pan;
   setPan: React.Dispatch<React.SetStateAction<Pan>>;
 
-  svgRef: React.RefObject<SVGSVGElement | null>;
+  svgRef: React.RefObject<HTMLElement | null>;
 
   // seleção múltipla: nós que se movem juntos ao arrastar um deles
   selectedNodeIds?: Set<string>;
@@ -104,7 +104,7 @@ export function useGraphInteractions<T extends LayoutNode>({
     if (interactionRef.current.type !== "idle") return;
 
     const delta = e.deltaY > 0 ? -0.08 : 0.08;
-    const nextZoom = Math.min(3, Math.max(0.2, zoomRef.current + delta));
+    const nextZoom = Math.min(20, Math.max(0.2, zoomRef.current + delta));
 
     const graph = screenToGraph(e.clientX, e.clientY);
 
@@ -132,6 +132,8 @@ export function useGraphInteractions<T extends LayoutNode>({
   const startDragNode = useCallback((nodeId: string, e: PointerEvent) => {
     const node = layoutRef.current.find(n => n.id === nodeId);
     if (!node) return;
+    // O Assunto-raiz é fixo no centro — não pode ser arrastado.
+    if ((node as any).isRoot) return;
 
     interactionRef.current = { type: "drag", nodeId };
 
@@ -171,12 +173,14 @@ export function useGraphInteractions<T extends LayoutNode>({
       const interaction = interactionRef.current;
 
       if (interaction.type === "pan") {
-        const next = {
+        // Only update the ref — GraphRenderer's bypass reads panRef via its
+        // own S.current.pan and schedules RAF directly. Calling setPan here
+        // would trigger React reconciliation on every pointermove (~60/s),
+        // adding ~1-2ms of overhead per frame even though no draw is needed.
+        panRef.current = {
           x: e.clientX - dragOffset.current.x,
           y: e.clientY - dragOffset.current.y,
         };
-        panRef.current = next;
-        setPan({ x: safe(next.x), y: safe(next.y) });
         return;
       }
 
@@ -204,6 +208,11 @@ export function useGraphInteractions<T extends LayoutNode>({
     };
 
     const onUp = () => {
+      if (interactionRef.current.type === "pan") {
+        // Commit final pan to React state once (on release) so other
+        // consumers (focusNode, screenToGraph after pan) get the correct value.
+        setPan({ x: safe(panRef.current.x), y: safe(panRef.current.y) });
+      }
       if (interactionRef.current.type === "marquee" && marqueeRef.current) {
         const ids = getNodesInRect(layoutRef.current, marqueeRef.current);
         onMarqueeSelectRef.current?.(ids);

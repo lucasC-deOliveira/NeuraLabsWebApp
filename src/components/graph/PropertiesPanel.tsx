@@ -16,6 +16,7 @@ import {
   PlusIcon,
   SparklesIcon,
   WandSparklesIcon,
+  LayersIcon,
 } from "lucide-react";
 import { useRouter } from "@/lib/navigation";
 import { useEffect, useState } from "react";
@@ -55,6 +56,7 @@ interface SimNode {
   parentId?: string;
   pergunta?: string;
   prioridadeRevisao: number;
+  isRoot?: boolean;
 }
 
 interface Edge {
@@ -90,6 +92,7 @@ interface PropertiesPanelProps {
   onStudyNeighborhood?: () => void;
   onGenerateInsights?: () => void;
   onExpandNode?: () => void;
+  onGenerateDeck?: () => void;
   onSelectNode?: (nodeId: string) => void;
   grafoId?: string;
   grafoNome?: string;
@@ -119,6 +122,7 @@ export function PropertiesPanel({
   onStudyNeighborhood,
   onGenerateInsights,
   onExpandNode,
+  onGenerateDeck,
   onSelectNode,
   grafoId,
   grafoNome,
@@ -524,6 +528,23 @@ export function PropertiesPanel({
 
             <Separator />
 
+            {/* Gerar baralho dos flashcards conectados */}
+            {onGenerateDeck &&
+              ["ASSUNTO", "TOPICO", "CONCEITO"].includes(selectedNode.tipoReal) && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={onGenerateDeck}
+                  >
+                    <LayersIcon className="size-4" />
+                    Gerar baralho
+                  </Button>
+                  <Separator />
+                </>
+              )}
+
             {/* Actions */}
             <div className="space-y-2">
               {onEditNode && (
@@ -559,26 +580,35 @@ export function PropertiesPanel({
                   Ver conteúdo
                 </Button>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start gap-2"
-                onClick={onRemoveFromGraph}
-                disabled={isDeleting}
-              >
-                <XIcon className="size-4" />
-                Remover do grafo
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="w-full justify-start gap-2"
-                onClick={onDeleteNode}
-                disabled={isDeleting}
-              >
-                <Trash2Icon className="size-4" />
-                Excluir permanentemente
-              </Button>
+              {selectedNode.isRoot ? (
+                <p className="text-xs text-muted-foreground px-1">
+                  Assunto-raiz do grafo — fixo no centro. Renomeie pelo nome do grafo;
+                  só é removido ao excluir o grafo.
+                </p>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={onRemoveFromGraph}
+                    disabled={isDeleting}
+                  >
+                    <XIcon className="size-4" />
+                    Remover do grafo
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    onClick={onDeleteNode}
+                    disabled={isDeleting}
+                  >
+                    <Trash2Icon className="size-4" />
+                    Excluir permanentemente
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )}
