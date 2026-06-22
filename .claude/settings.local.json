@@ -53,7 +53,13 @@
       "Bash(npx electron-builder *)",
       "Read(//mnt/c/Users/LucasC/Desktop/code/**)",
       "Read(//mnt/c/Users/LucasC/OneDrive/Desktop/**)",
-      "Bash(command -v rsync)"
+      "Bash(command -v rsync)",
+      "Skill(run)",
+      "Bash(docker compose *)",
+      "PowerShell(docker cp \"C:\\\\Users\\\\LucasC\\\\Desktop\\\\code\\\\flashcard-app\\\\migrate-fc-nodes.js\" flashcard-app-backend-1:/app/migrate-fc-nodes.js; docker exec -w /app flashcard-app-backend-1 node migrate-fc-nodes.js 2>&1)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\LucasC\\\\Documents\\\\migracao--cmqjkk1030001p120zy8yoe1t\\\\\" | Select-Object Name, Extension; Write-Host \"---\"; \\(Get-ChildItem \"C:\\\\Users\\\\LucasC\\\\Documents\\\\migracao--cmqjkk1030001p120zy8yoe1t\\\\\" -Recurse -File\\).Count)",
+      "Bash(node -e 'const { PrismaClient } = require\\('\\\\''./backend/node_modules/@prisma/client'\\\\''\\); const p = new PrismaClient\\({ datasources: { db: { url: '\\\\''postgresql://neuralabs:neuralabs@localhost:5432/neuralabs?schema=public'\\\\'' } } }\\); p.grafosConhecimento.findMany\\({ where: { nome: { contains: '\\\\''migra'\\\\'', mode: '\\\\''insensitive'\\\\'' } }, select: { id: true, nome: true, usuarioId: true } }\\).then\\(r => { console.log\\(JSON.stringify\\(r\\)\\); p.$disconnect\\(\\); }\\).catch\\(e => { console.error\\(e.message\\); p.$disconnect\\(\\); }\\);')",
+      "PowerShell(& \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" \"postgresql://neuralabs:neuralabs@localhost:5432/neuralabs\" -c \"SELECT id, nome, `\"usuarioId`\" FROM grafos_conhecimento WHERE LOWER\\(nome\\) LIKE '%migra%' LIMIT 5;\" 2>&1)"
     ]
   }
 }

@@ -53,15 +53,6 @@ describe('StudyService (integração — neuralabs_test)', () => {
   // submitReview migrou para SubmitReviewUseCase e startSession para
   // StartSessionUseCase — ver os *.int.spec.ts em src/modules/study/.
 
-  it('finalizeSession: remove sessão sem revisões', async () => {
-    const user = await seedUser();
-    const sess = await prisma.sessaoEstudo.create({ data: { usuarioId: user.id } });
-
-    const out = await service.finalizeSession(user.id, sess.id);
-    expect(out.success).toBe(true);
-    expect(await prisma.sessaoEstudo.findUnique({ where: { id: sess.id } })).toBeNull();
-  });
-
   it('syncVaultLog: importa revisões offline e agenda o aprendizado', async () => {
     const user = await seedUser();
     const card = await seedCard(user.id);

@@ -5,7 +5,13 @@ import { StudyController } from './study.controller';
 import { StudyService } from './study.service';
 import { SubmitReviewUseCase } from '../modules/study/application/use-cases/submit-review.use-case';
 import { StartSessionUseCase } from '../modules/study/application/use-cases/start-session.use-case';
+import { EndSessionUseCase } from '../modules/study/application/use-cases/end-session.use-case';
+import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/finalize-session.use-case';
 import { CLOCK, type Clock } from '../modules/study/domain/ports/clock';
+import {
+  STUDY_SESSION_LIFECYCLE,
+  type StudySessionLifecycle,
+} from '../modules/study/domain/ports/study-session-lifecycle';
 import {
   STUDY_CARD_QUERY,
   type StudyCardQuery,
@@ -22,6 +28,7 @@ import { SystemClock } from '../modules/study/infrastructure/clock/system-clock'
 import { PrismaStudyUnitOfWork } from '../modules/study/infrastructure/persistence/prisma-study-unit-of-work';
 import { PrismaStudySessionRepository } from '../modules/study/infrastructure/persistence/prisma-study-session.repository';
 import { PrismaStudyCardQuery } from '../modules/study/infrastructure/persistence/prisma-study-card.query';
+import { PrismaStudySessionLifecycle } from '../modules/study/infrastructure/persistence/prisma-study-session-lifecycle';
 
 @Module({
   imports: [AuthModule],
@@ -30,6 +37,7 @@ import { PrismaStudyCardQuery } from '../modules/study/infrastructure/persistenc
     StudyService,
     { provide: STUDY_UNIT_OF_WORK, useClass: PrismaStudyUnitOfWork },
     { provide: STUDY_CARD_QUERY, useClass: PrismaStudyCardQuery },
+    { provide: STUDY_SESSION_LIFECYCLE, useClass: PrismaStudySessionLifecycle },
     { provide: CLOCK, useClass: SystemClock },
     {
       provide: STUDY_SESSION_REPOSITORY,
@@ -46,6 +54,16 @@ import { PrismaStudyCardQuery } from '../modules/study/infrastructure/persistenc
       useFactory: (sessions: StudySessionRepository, cards: StudyCardQuery) =>
         new StartSessionUseCase(sessions, cards),
       inject: [STUDY_SESSION_REPOSITORY, STUDY_CARD_QUERY],
+    },
+    {
+      provide: EndSessionUseCase,
+      useFactory: (sessions: StudySessionLifecycle) => new EndSessionUseCase(sessions),
+      inject: [STUDY_SESSION_LIFECYCLE],
+    },
+    {
+      provide: FinalizeSessionUseCase,
+      useFactory: (sessions: StudySessionLifecycle) => new FinalizeSessionUseCase(sessions),
+      inject: [STUDY_SESSION_LIFECYCLE],
     },
   ],
 })

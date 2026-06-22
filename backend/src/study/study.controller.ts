@@ -7,6 +7,8 @@ import {
   type SubmitReviewCommand,
 } from '../modules/study/application/use-cases/submit-review.use-case';
 import { StartSessionUseCase } from '../modules/study/application/use-cases/start-session.use-case';
+import { EndSessionUseCase } from '../modules/study/application/use-cases/end-session.use-case';
+import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/finalize-session.use-case';
 import { StudyDomainExceptionFilter } from '../modules/study/interface/study-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -17,6 +19,8 @@ export class StudyController {
     private readonly study: StudyService,
     private readonly submitReview: SubmitReviewUseCase,
     private readonly startSession: StartSessionUseCase,
+    private readonly endSession: EndSessionUseCase,
+    private readonly finalizeSession: FinalizeSessionUseCase,
   ) {}
 
   @Post('session')
@@ -26,7 +30,7 @@ export class StudyController {
 
   @Post('session/:id/end')
   end(@CurrentUser() userId: string, @Param('id') id: string) {
-    return this.study.endSession(userId, id);
+    return this.endSession.execute(userId, id);
   }
 
   @Post('review')
@@ -54,7 +58,7 @@ export class StudyController {
 
   @Post('session/:id/finalize')
   finalize(@CurrentUser() userId: string, @Param('id') id: string) {
-    return this.study.finalizeSession(userId, id);
+    return this.finalizeSession.execute(userId, id);
   }
 
   @Post('sync-vault-log')

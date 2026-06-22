@@ -39,14 +39,6 @@ export interface StudyCard {
 export class StudyService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async endSession(userId: string, sessionId: string): Promise<{ success: boolean }> {
-    await this.prisma.sessaoEstudo.updateMany({
-      where: { id: sessionId, usuarioId: userId },
-      data: { dataFim: new Date() },
-    });
-    return { success: true };
-  }
-
   async startDeckStudy(userId: string, baralhoId: string) {
     const baralho = await this.prisma.baralho.findFirst({
       where: { id: baralhoId, usuarioId: userId },
@@ -138,22 +130,6 @@ export class StudyService {
       proximaRevisao: ap ? ap.proximaRevisao.toISOString() : null,
       fase: ap?.fase ?? 'LEARN',
     };
-  }
-
-  async finalizeSession(userId: string, sessionId: string): Promise<{ success: boolean }> {
-    const session = await this.prisma.sessaoEstudo.findFirst({
-      where: { id: sessionId, usuarioId: userId },
-      select: { id: true, dataFim: true, _count: { select: { revisoes: true } } },
-    });
-    if (!session) return { success: false };
-    if (session._count.revisoes === 0)
-      await this.prisma.sessaoEstudo.delete({ where: { id: sessionId } });
-    else if (!session.dataFim)
-      await this.prisma.sessaoEstudo.update({
-        where: { id: sessionId },
-        data: { dataFim: new Date() },
-      });
-    return { success: true };
   }
 
   async syncVaultLog(userId: string, sessions: VaultSession[]): Promise<{ synced: number }> {
