@@ -11,8 +11,11 @@ import {
   DuplicateEdgeError,
   EdgeNotFoundError,
   GraphNodesNotFoundError,
+  GraphNotFoundError,
   InvalidEdgeWeightError,
+  NodeNotInGraphError,
   RelationNotAllowedError,
+  RootNodeError,
 } from '../domain/errors';
 
 type GraphDomainError =
@@ -20,7 +23,10 @@ type GraphDomainError =
   | EdgeNotFoundError
   | DuplicateEdgeError
   | RelationNotAllowedError
-  | InvalidEdgeWeightError;
+  | InvalidEdgeWeightError
+  | GraphNotFoundError
+  | NodeNotInGraphError
+  | RootNodeError;
 
 // Translates Graph domain errors into HTTP responses. Domain messages stay
 // internal (English); user-facing messages produced here are in Portuguese.
@@ -30,6 +36,9 @@ type GraphDomainError =
   DuplicateEdgeError,
   RelationNotAllowedError,
   InvalidEdgeWeightError,
+  GraphNotFoundError,
+  NodeNotInGraphError,
+  RootNodeError,
 )
 export class GraphDomainExceptionFilter implements ExceptionFilter {
   catch(error: GraphDomainError, host: ArgumentsHost): void {
@@ -50,6 +59,17 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
     }
     if (error instanceof InvalidEdgeWeightError) {
       return new BadRequestException('Peso inválido (0 a 2)');
+    }
+    if (error instanceof GraphNotFoundError) {
+      return new NotFoundException('Grafo não encontrado');
+    }
+    if (error instanceof NodeNotInGraphError) {
+      return new NotFoundException('Nó não encontrado no grafo');
+    }
+    if (error instanceof RootNodeError) {
+      return new BadRequestException(
+        'O assunto-raiz do grafo não pode ser removido — ele é deletado junto com o grafo.',
+      );
     }
     return this.relationNotAllowed(error);
   }

@@ -25,6 +25,8 @@ export default {
     "src/modules/graph/application/use-cases/create-edge.use-case.ts",
     "src/modules/graph/application/use-cases/update-edge.use-case.ts",
     "src/modules/graph/application/use-cases/delete-edge.use-case.ts",
+    "src/modules/graph/application/use-cases/add-existing-node.use-case.ts",
+    "src/modules/graph/application/use-cases/remove-node.use-case.ts",
   ],
   reporters: ["clear-text", "progress", "html"],
   thresholds: { high: 85, low: 70, break: 70 },

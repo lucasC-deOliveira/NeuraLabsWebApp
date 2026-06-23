@@ -40,3 +40,24 @@ export class InvalidEdgeWeightError extends Error {
     this.name = 'InvalidEdgeWeightError';
   }
 }
+
+export class GraphNotFoundError extends Error {
+  constructor() {
+    super('Graph not found.');
+    this.name = 'GraphNotFoundError';
+  }
+}
+
+export class NodeNotInGraphError extends Error {
+  constructor() {
+    super('Node not found in the graph.');
+    this.name = 'NodeNotInGraphError';
+  }
+}
+
+export class RootNodeError extends Error {
+  constructor() {
+    super('The graph root subject cannot be removed; it is deleted with the graph.');
+    this.name = 'RootNodeError';
+  }
+}

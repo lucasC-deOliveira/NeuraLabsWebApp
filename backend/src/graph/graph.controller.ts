@@ -17,6 +17,8 @@ import { GraphService, type CreateNodeInput } from './graph.service';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
 import { UpdateEdgeUseCase } from '../modules/graph/application/use-cases/update-edge.use-case';
 import { DeleteEdgeUseCase } from '../modules/graph/application/use-cases/delete-edge.use-case';
+import { AddExistingNodeUseCase } from '../modules/graph/application/use-cases/add-existing-node.use-case';
+import { RemoveNodeUseCase } from '../modules/graph/application/use-cases/remove-node.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -30,6 +32,8 @@ export class GraphController {
     private readonly createEdgeUseCase: CreateEdgeUseCase,
     private readonly updateEdgeUseCase: UpdateEdgeUseCase,
     private readonly deleteEdgeUseCase: DeleteEdgeUseCase,
+    private readonly addExistingNodeUseCase: AddExistingNodeUseCase,
+    private readonly removeNodeUseCase: RemoveNodeUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -129,7 +133,7 @@ export class GraphController {
     @Param('grafoId') grafoId: string,
     @Body() body: { tipoNode: TipoNode; entityId: string },
   ) {
-    return this.graph.addExistingNode(userId, grafoId, body.tipoNode, body.entityId);
+    return this.addExistingNodeUseCase.execute(userId, grafoId, body.tipoNode, body.entityId);
   }
 
   @Post('graphs/:grafoId/baralho')
@@ -199,7 +203,7 @@ export class GraphController {
     @Param('grafoId') grafoId: string,
     @Param('refId') refId: string,
   ) {
-    return this.graph.removeNode(userId, grafoId, refId);
+    return this.removeNodeUseCase.execute(userId, grafoId, refId);
   }
 
   @Get('nodes/:refId/details')

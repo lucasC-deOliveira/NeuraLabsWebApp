@@ -557,23 +557,6 @@ export class GraphService {
       );
   }
 
-  // Remove o nó do grafo (vínculo + arestas + desempenho), mantendo a entidade.
-  async removeNode(userId: string, grafoId: string, refId: string) {
-    await this.assertNotRoot(userId, refId);
-    const node = await this.prisma.nodeConhecimento.findFirst({
-      where: { referenciaId: refId, usuarioId: userId, grafoId },
-    });
-    if (!node) throw new NotFoundException('Nó não encontrado no grafo');
-    await this.prisma.$transaction(async (tx) => {
-      await tx.conhecimentoAresta.deleteMany({
-        where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] },
-      });
-      await tx.desempenhoNo.deleteMany({ where: { nodeId: node.id } });
-      await tx.nodeConhecimento.delete({ where: { id: node.id } });
-    });
-    return { success: true };
-  }
-
   async getNodeDetails(
     userId: string,
     tipoNode: TipoNode,
@@ -709,24 +692,6 @@ export class GraphService {
     input: { sourceNodeId: string; targetNodeId: string; tipoRelacao: string; peso?: number },
   ): Promise<{ edgeId: string }> {
     return this.createEdgeUseCase.execute({ userId, grafoId, ...input });
-  }
-
-  // ---- Adicionar entidade existente ao grafo (só cria o vínculo) ----
-  async addExistingNode(userId: string, grafoId: string, tipoNode: TipoNode, entityId: string) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: grafoId, usuarioId: userId },
-    });
-    if (!grafo) throw new NotFoundException('Grafo não encontrado');
-    await this.prisma.nodeConhecimento.create({
-      data: {
-        grafoId,
-        tipoNode: tipoNode as any,
-        referenciaId: entityId,
-        usuarioId: userId,
-        nivelDominio: 0,
-      },
-    });
-    return { success: true, nodeId: entityId };
   }
 
   // ---- Itens existentes (não estão no grafo) para "Adicionar existentes" ----
