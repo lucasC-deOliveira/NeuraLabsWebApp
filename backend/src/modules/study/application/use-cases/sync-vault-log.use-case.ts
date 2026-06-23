@@ -77,7 +77,11 @@ export class SyncVaultLogUseCase {
     }
   }
 
-  private toContext(userId: string, sessionId: string, review: VaultReviewInput): ApplyReviewContext {
+  private toContext(
+    userId: string,
+    sessionId: string,
+    review: VaultReviewInput,
+  ): ApplyReviewContext {
     const grade = review.grade
       ? Grade.create(review.grade)
       : Grade.fromLegacy(review.acertou ?? false, review.nivelConfianca ?? 0);

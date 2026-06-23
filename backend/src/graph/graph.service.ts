@@ -1,14 +1,44 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildKnowledgeGraph } from './knowledge-graph';
-import { getAllowedRelations, isRelationAllowed } from './relation-rules';
+import {
+  getAllowedRelations,
+  isRelationAllowed,
+} from '../modules/graph/domain/services/relation-rules';
 import { runImportGraph, type ImportGraphPayload } from './graph-import';
 
-type TipoNode = 'ASSUNTO' | 'TOPICO' | 'CONCEITO' | 'FLASHCARD' | 'NOTA' | 'TEXTO_BRUTO' | 'BARALHO' | 'GRAFO_REF' | 'QUESTION' | 'PROVA';
+type TipoNode =
+  | 'ASSUNTO'
+  | 'TOPICO'
+  | 'CONCEITO'
+  | 'FLASHCARD'
+  | 'NOTA'
+  | 'TEXTO_BRUTO'
+  | 'BARALHO'
+  | 'GRAFO_REF'
+  | 'QUESTION'
+  | 'PROVA';
 
-const GRAFO_REF_RELATIONS = ['PREREQUISITO', 'APROFUNDA', 'DERIVA_DE', 'APLICADO_EM', 'CONTRASTA_COM', 'SINTETIZA', 'RELACIONADO'] as const;
+const GRAFO_REF_RELATIONS = [
+  'PREREQUISITO',
+  'APROFUNDA',
+  'DERIVA_DE',
+  'APLICADO_EM',
+  'CONTRASTA_COM',
+  'SINTETIZA',
+  'RELACIONADO',
+] as const;
 
-const NOTA_SUBTIPOS = ['DEFINICAO', 'EXPLICACAO', 'EXEMPLO', 'COMPARACAO', 'SINTESE', 'PREREQUISITO', 'ERRO_COMUM', 'APLICACAO'];
+const NOTA_SUBTIPOS = [
+  'DEFINICAO',
+  'EXPLICACAO',
+  'EXEMPLO',
+  'COMPARACAO',
+  'SINTESE',
+  'PREREQUISITO',
+  'ERRO_COMUM',
+  'APLICACAO',
+];
 
 export interface CreateNodeInput {
   tipoNode: TipoNode;
@@ -30,7 +60,13 @@ export interface CreateNodeInput {
 function notaSlug(titulo: string, when: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   const stamp = `${when.getFullYear()}${p(when.getMonth() + 1)}${p(when.getDate())}${p(when.getHours())}${p(when.getMinutes())}${p(when.getSeconds())}`;
-  const slug = titulo.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+  const slug = titulo
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
   return slug ? `${stamp}-${slug}` : stamp;
 }
 
@@ -51,11 +87,20 @@ export class GraphService {
   async createGraph(userId: string, nome: string, descricao?: string) {
     const finalNome = nome.trim() || 'Novo grafo';
     return this.prisma.$transaction(async (tx) => {
-      const g = await tx.grafosConhecimento.create({ data: { usuarioId: userId, nome: finalNome, descricao: descricao ?? null } });
+      const g = await tx.grafosConhecimento.create({
+        data: { usuarioId: userId, nome: finalNome, descricao: descricao ?? null },
+      });
       // Assunto-raiz: ASSUNTO com o nome do grafo, fixo no centro (0,0), ancora o layout.
       const root = await tx.assunto.create({ data: { nome: finalNome, usuarioId: userId } });
       await tx.nodeConhecimento.create({
-        data: { usuarioId: userId, grafoId: g.id, tipoNode: 'ASSUNTO', referenciaId: root.id, posicaoX: 0, posicaoY: 0 },
+        data: {
+          usuarioId: userId,
+          grafoId: g.id,
+          tipoNode: 'ASSUNTO',
+          referenciaId: root.id,
+          posicaoX: 0,
+          posicaoY: 0,
+        },
       });
       await tx.grafosConhecimento.update({ where: { id: g.id }, data: { rootAssuntoId: root.id } });
       return { id: g.id };
@@ -63,13 +108,24 @@ export class GraphService {
   }
 
   // Tipos de entidade "reutilizáveis" que o usuário pode optar por manter ao deletar o grafo.
-  private static readonly KEEPABLE_TYPES = new Set(['FLASHCARD', 'BARALHO', 'QUESTION', 'NOTA', 'PROVA', 'TEXTO_BRUTO']);
+  private static readonly KEEPABLE_TYPES = new Set([
+    'FLASHCARD',
+    'BARALHO',
+    'QUESTION',
+    'NOTA',
+    'PROVA',
+    'TEXTO_BRUTO',
+  ]);
 
   async deleteGraph(userId: string, grafoId: string, options?: { keepTypes?: string[] }) {
-    const g = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    const g = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: grafoId, usuarioId: userId },
+    });
     if (!g) throw new NotFoundException('Grafo não encontrado');
 
-    const keep = new Set((options?.keepTypes ?? []).filter((t) => GraphService.KEEPABLE_TYPES.has(t)));
+    const keep = new Set(
+      (options?.keepTypes ?? []).filter((t) => GraphService.KEEPABLE_TYPES.has(t)),
+    );
 
     const nodes = await this.prisma.nodeConhecimento.findMany({
       where: { grafoId, usuarioId: userId },
@@ -79,7 +135,9 @@ export class GraphService {
     // Entidades a deletar: estruturais (ASSUNTO/TOPICO/CONCEITO) sempre; reutilizáveis
     // só se não marcadas para manter. GRAFO_REF nunca deleta a entidade (é outro grafo).
     const candidates = nodes.filter(
-      (n) => n.tipoNode !== 'GRAFO_REF' && !(GraphService.KEEPABLE_TYPES.has(n.tipoNode) && keep.has(n.tipoNode)),
+      (n) =>
+        n.tipoNode !== 'GRAFO_REF' &&
+        !(GraphService.KEEPABLE_TYPES.has(n.tipoNode) && keep.has(n.tipoNode)),
     );
 
     // Não deleta entidades compartilhadas com OUTRO grafo — só desvincula (o cascade
@@ -87,15 +145,23 @@ export class GraphService {
     const toDelete: { tipo: string; id: string }[] = [];
     for (const n of candidates) {
       const elsewhere = await this.prisma.nodeConhecimento.count({
-        where: { referenciaId: n.referenciaId, tipoNode: n.tipoNode, usuarioId: userId, grafoId: { not: grafoId } },
+        where: {
+          referenciaId: n.referenciaId,
+          tipoNode: n.tipoNode,
+          usuarioId: userId,
+          grafoId: { not: grafoId },
+        },
       });
       if (elsewhere === 0) toDelete.push({ tipo: n.tipoNode, id: n.referenciaId });
     }
 
-    const conceptIdsDeleting = new Set(toDelete.filter((r) => r.tipo === 'CONCEITO').map((r) => r.id));
+    const conceptIdsDeleting = new Set(
+      toDelete.filter((r) => r.tipo === 'CONCEITO').map((r) => r.id),
+    );
     // Ordem: flashcards antes dos conceitos (Flashcard.conceito é onDelete: Cascade);
     // depois conceitos, tópicos, assuntos; o resto no meio.
-    const order = (t: string) => (t === 'FLASHCARD' ? 0 : t === 'CONCEITO' ? 2 : t === 'TOPICO' ? 3 : t === 'ASSUNTO' ? 4 : 1);
+    const order = (t: string) =>
+      t === 'FLASHCARD' ? 0 : t === 'CONCEITO' ? 2 : t === 'TOPICO' ? 3 : t === 'ASSUNTO' ? 4 : 1;
 
     await this.prisma.$transaction(async (tx) => {
       // Mantendo flashcards: detacha-os dos conceitos que vão morrer para o cascade
@@ -118,7 +184,10 @@ export class GraphService {
   async getGraphInfo(userId: string, grafoId: string) {
     const g = await this.prisma.grafosConhecimento.findFirst({
       where: { id: grafoId, usuarioId: userId },
-      include: { parent: { select: { id: true, nome: true } }, _count: { select: { filhos: true } } },
+      include: {
+        parent: { select: { id: true, nome: true } },
+        _count: { select: { filhos: true } },
+      },
     });
     if (!g) return null;
     return {
@@ -133,24 +202,43 @@ export class GraphService {
 
   async updateGraphName(userId: string, grafoId: string, nome: string) {
     const trimmed = nome.trim();
-    const g = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId }, select: { rootAssuntoId: true } });
-    await this.prisma.grafosConhecimento.updateMany({ where: { id: grafoId, usuarioId: userId }, data: { nome: trimmed } });
+    const g = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: grafoId, usuarioId: userId },
+      select: { rootAssuntoId: true },
+    });
+    await this.prisma.grafosConhecimento.updateMany({
+      where: { id: grafoId, usuarioId: userId },
+      data: { nome: trimmed },
+    });
     // o nome do Assunto-raiz espelha o nome do grafo
     if (g?.rootAssuntoId) {
-      await this.prisma.assunto.updateMany({ where: { id: g.rootAssuntoId, usuarioId: userId }, data: { nome: trimmed } });
+      await this.prisma.assunto.updateMany({
+        where: { id: g.rootAssuntoId, usuarioId: userId },
+        data: { nome: trimmed },
+      });
     }
     return { success: true };
   }
 
   async saveVisualState(userId: string, grafoId: string, state: unknown) {
-    await this.prisma.grafosConhecimento.updateMany({ where: { id: grafoId, usuarioId: userId }, data: { estadoVisual: JSON.stringify(state) } });
+    await this.prisma.grafosConhecimento.updateMany({
+      where: { id: grafoId, usuarioId: userId },
+      data: { estadoVisual: JSON.stringify(state) },
+    });
     return { success: true };
   }
 
   async loadVisualState(userId: string, grafoId: string) {
-    const g = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId }, select: { estadoVisual: true } });
+    const g = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: grafoId, usuarioId: userId },
+      select: { estadoVisual: true },
+    });
     if (!g?.estadoVisual) return null;
-    try { return JSON.parse(g.estadoVisual); } catch { return null; }
+    try {
+      return JSON.parse(g.estadoVisual);
+    } catch {
+      return null;
+    }
   }
 
   // Garante que o grafo tem um Assunto-raiz (cria sob demanda para grafos antigos
@@ -164,9 +252,19 @@ export class GraphService {
     await this.prisma.$transaction(async (tx) => {
       const root = await tx.assunto.create({ data: { nome: g.nome, usuarioId: userId } });
       await tx.nodeConhecimento.create({
-        data: { usuarioId: userId, grafoId, tipoNode: 'ASSUNTO', referenciaId: root.id, posicaoX: 0, posicaoY: 0 },
+        data: {
+          usuarioId: userId,
+          grafoId,
+          tipoNode: 'ASSUNTO',
+          referenciaId: root.id,
+          posicaoX: 0,
+          posicaoY: 0,
+        },
       });
-      await tx.grafosConhecimento.update({ where: { id: grafoId }, data: { rootAssuntoId: root.id } });
+      await tx.grafosConhecimento.update({
+        where: { id: grafoId },
+        data: { rootAssuntoId: root.id },
+      });
     });
   }
 
@@ -180,61 +278,177 @@ export class GraphService {
 
   // ---- Nós ----
   async createNode(userId: string, grafoId: string, input: CreateNodeInput) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    const grafo = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: grafoId, usuarioId: userId },
+    });
     if (!grafo) throw new NotFoundException('Grafo não encontrado');
     const now = new Date();
     let entityId: string;
     switch (input.tipoNode) {
       case 'FLASHCARD':
-        entityId = (await this.prisma.flashcard.create({ data: { pergunta: input.pergunta ?? '', resposta: input.resposta ?? '', usuarioId: userId, dataCriacao: now } })).id;
+        entityId = (
+          await this.prisma.flashcard.create({
+            data: {
+              pergunta: input.pergunta ?? '',
+              resposta: input.resposta ?? '',
+              usuarioId: userId,
+              dataCriacao: now,
+            },
+          })
+        ).id;
         break;
       case 'NOTA': {
         const titulo = (input.titulo ?? '').trim();
         if (!titulo) throw new BadRequestException('O título da nota é obrigatório');
-        if (!input.subtipo || !NOTA_SUBTIPOS.includes(input.subtipo)) throw new BadRequestException('Selecione o subtipo da nota');
-        if ((input.tipoNota ?? 'PERMANENTE') === 'LITERATURA' && !input.fonte?.trim()) throw new BadRequestException('Notas de literatura exigem a fonte');
-        entityId = (await this.prisma.nota.create({ data: { titulo, tipoNota: input.tipoNota ?? 'PERMANENTE', subtipo: input.subtipo as any, fonte: input.fonte?.trim() || null, slug: notaSlug(titulo, now), conteudo: input.conteudo ?? '', usuarioId: userId, dataCriacao: now } })).id;
+        if (!input.subtipo || !NOTA_SUBTIPOS.includes(input.subtipo))
+          throw new BadRequestException('Selecione o subtipo da nota');
+        if ((input.tipoNota ?? 'PERMANENTE') === 'LITERATURA' && !input.fonte?.trim())
+          throw new BadRequestException('Notas de literatura exigem a fonte');
+        entityId = (
+          await this.prisma.nota.create({
+            data: {
+              titulo,
+              tipoNota: input.tipoNota ?? 'PERMANENTE',
+              subtipo: input.subtipo as any,
+              fonte: input.fonte?.trim() || null,
+              slug: notaSlug(titulo, now),
+              conteudo: input.conteudo ?? '',
+              usuarioId: userId,
+              dataCriacao: now,
+            },
+          })
+        ).id;
         break;
       }
       case 'TEXTO_BRUTO':
         if (!input.texto?.trim()) throw new BadRequestException('O texto original é obrigatório');
-        entityId = (await this.prisma.textoBruto.create({ data: { titulo: input.titulo?.trim() || 'Texto sem título', texto: input.texto.trim(), usuarioId: userId, dataCriacao: now } })).id;
+        entityId = (
+          await this.prisma.textoBruto.create({
+            data: {
+              titulo: input.titulo?.trim() || 'Texto sem título',
+              texto: input.texto.trim(),
+              usuarioId: userId,
+              dataCriacao: now,
+            },
+          })
+        ).id;
         break;
       case 'ASSUNTO':
-        entityId = (await this.prisma.assunto.create({ data: { nome: input.nome ?? '', descricao: input.descricao ?? null, usuarioId: userId } })).id;
+        entityId = (
+          await this.prisma.assunto.create({
+            data: { nome: input.nome ?? '', descricao: input.descricao ?? null, usuarioId: userId },
+          })
+        ).id;
         break;
       case 'TOPICO':
-        entityId = (await this.prisma.topico.create({ data: { nome: input.nome ?? '', descricao: input.descricao ?? null, usuarioId: userId } })).id;
+        entityId = (
+          await this.prisma.topico.create({
+            data: { nome: input.nome ?? '', descricao: input.descricao ?? null, usuarioId: userId },
+          })
+        ).id;
         break;
       case 'CONCEITO':
-        entityId = (await this.prisma.conceito.create({ data: { nome: input.nome ?? '', descricao: input.descricao ?? null, usuarioId: userId } })).id;
+        entityId = (
+          await this.prisma.conceito.create({
+            data: { nome: input.nome ?? '', descricao: input.descricao ?? null, usuarioId: userId },
+          })
+        ).id;
         break;
       case 'BARALHO':
-        entityId = (await this.prisma.baralho.create({ data: { titulo: (input.titulo ?? input.nome ?? '').trim(), usuarioId: userId, dataCriacao: now } })).id;
+        entityId = (
+          await this.prisma.baralho.create({
+            data: {
+              titulo: (input.titulo ?? input.nome ?? '').trim(),
+              usuarioId: userId,
+              dataCriacao: now,
+            },
+          })
+        ).id;
         break;
       default:
         throw new BadRequestException(`Tipo de nó desconhecido: ${input.tipoNode}`);
     }
     await this.prisma.nodeConhecimento.create({
-      data: { grafoId, tipoNode: input.tipoNode as any, referenciaId: entityId, usuarioId: userId, posicaoX: input.posicaoX ?? null, posicaoY: input.posicaoY ?? null, nivelDominio: input.nivelDominio ?? 0 },
+      data: {
+        grafoId,
+        tipoNode: input.tipoNode as any,
+        referenciaId: entityId,
+        usuarioId: userId,
+        posicaoX: input.posicaoX ?? null,
+        posicaoY: input.posicaoY ?? null,
+        nivelDominio: input.nivelDominio ?? 0,
+      },
     });
     return { nodeId: entityId };
   }
 
-  async updateNode(userId: string, tipoNode: TipoNode, refId: string, data: Partial<CreateNodeInput>) {
+  async updateNode(
+    userId: string,
+    tipoNode: TipoNode,
+    refId: string,
+    data: Partial<CreateNodeInput>,
+  ) {
     const where = { id: refId, usuarioId: userId };
     let count = 0;
     switch (tipoNode) {
-      case 'ASSUNTO': count = (await this.prisma.assunto.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count; break;
-      case 'TOPICO': count = (await this.prisma.topico.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count; break;
-      case 'CONCEITO': count = (await this.prisma.conceito.updateMany({ where, data: { nome: data.nome, descricao: data.descricao } })).count; break;
-      case 'FLASHCARD': count = (await this.prisma.flashcard.updateMany({ where, data: { pergunta: data.pergunta, resposta: data.resposta } })).count; break;
-      case 'NOTA':
-        if (data.subtipo && !NOTA_SUBTIPOS.includes(data.subtipo)) throw new BadRequestException('Subtipo inválido');
-        count = (await this.prisma.nota.updateMany({ where, data: { titulo: data.titulo?.trim(), conteudo: data.conteudo, tipoNota: data.tipoNota, subtipo: data.subtipo as any, fonte: data.fonte === undefined ? undefined : data.fonte?.trim() || null } })).count;
+      case 'ASSUNTO':
+        count = (
+          await this.prisma.assunto.updateMany({
+            where,
+            data: { nome: data.nome, descricao: data.descricao },
+          })
+        ).count;
         break;
-      case 'TEXTO_BRUTO': count = (await this.prisma.textoBruto.updateMany({ where, data: { titulo: data.titulo?.trim(), texto: data.texto?.trim() } })).count; break;
-      default: throw new BadRequestException(`Tipo de nó desconhecido: ${tipoNode}`);
+      case 'TOPICO':
+        count = (
+          await this.prisma.topico.updateMany({
+            where,
+            data: { nome: data.nome, descricao: data.descricao },
+          })
+        ).count;
+        break;
+      case 'CONCEITO':
+        count = (
+          await this.prisma.conceito.updateMany({
+            where,
+            data: { nome: data.nome, descricao: data.descricao },
+          })
+        ).count;
+        break;
+      case 'FLASHCARD':
+        count = (
+          await this.prisma.flashcard.updateMany({
+            where,
+            data: { pergunta: data.pergunta, resposta: data.resposta },
+          })
+        ).count;
+        break;
+      case 'NOTA':
+        if (data.subtipo && !NOTA_SUBTIPOS.includes(data.subtipo))
+          throw new BadRequestException('Subtipo inválido');
+        count = (
+          await this.prisma.nota.updateMany({
+            where,
+            data: {
+              titulo: data.titulo?.trim(),
+              conteudo: data.conteudo,
+              tipoNota: data.tipoNota,
+              subtipo: data.subtipo as any,
+              fonte: data.fonte === undefined ? undefined : data.fonte?.trim() || null,
+            },
+          })
+        ).count;
+        break;
+      case 'TEXTO_BRUTO':
+        count = (
+          await this.prisma.textoBruto.updateMany({
+            where,
+            data: { titulo: data.titulo?.trim(), texto: data.texto?.trim() },
+          })
+        ).count;
+        break;
+      default:
+        throw new BadRequestException(`Tipo de nó desconhecido: ${tipoNode}`);
     }
     if (count === 0) throw new NotFoundException('Nó não encontrado');
     return { success: true };
@@ -242,12 +456,14 @@ export class GraphService {
 
   async deleteNode(userId: string, refId: string, grafoId?: string, deleteConnected = false) {
     await this.assertNotRoot(userId, refId);
-    const node = await this.prisma.nodeConhecimento.findFirst({ where: { referenciaId: refId, usuarioId: userId, ...(grafoId ? { grafoId } : {}) } });
+    const node = await this.prisma.nodeConhecimento.findFirst({
+      where: { referenciaId: refId, usuarioId: userId, ...(grafoId ? { grafoId } : {}) },
+    });
     if (!node) throw new NotFoundException('Nó não encontrado');
     const tipo = node.tipoNode;
 
     // Collect connected nodes before deleting edges (only when requested)
-    let connectedNodes: typeof node[] = [];
+    let connectedNodes: (typeof node)[] = [];
     if (deleteConnected) {
       const edges = await this.prisma.conhecimentoAresta.findMany({
         where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] },
@@ -268,13 +484,17 @@ export class GraphService {
     await this.prisma.$transaction(async (tx) => {
       // Delete connected nodes first (if requested)
       for (const cn of connectedNodes) {
-        await tx.conhecimentoAresta.deleteMany({ where: { OR: [{ nodeOrigemId: cn.id }, { nodeDestinoId: cn.id }] } });
+        await tx.conhecimentoAresta.deleteMany({
+          where: { OR: [{ nodeOrigemId: cn.id }, { nodeDestinoId: cn.id }] },
+        });
         await tx.desempenhoNo.deleteMany({ where: { nodeId: cn.id } });
         await this.deleteEntity(tx, cn.tipoNode, cn.referenciaId);
         await tx.nodeConhecimento.delete({ where: { id: cn.id } });
       }
 
-      await tx.conhecimentoAresta.deleteMany({ where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] } });
+      await tx.conhecimentoAresta.deleteMany({
+        where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] },
+      });
       await tx.desempenhoNo.deleteMany({ where: { nodeId: node.id } });
       await this.deleteEntity(tx, tipo, refId);
       await tx.nodeConhecimento.delete({ where: { id: node.id } });
@@ -289,127 +509,303 @@ export class GraphService {
         await tx.aprendizadoFlashcard.deleteMany({ where: { flashcardId: refId } });
         await tx.flashcard.delete({ where: { id: refId } });
         break;
-      case 'NOTA': await tx.nota.delete({ where: { id: refId } }); break;
-      case 'ASSUNTO': await tx.topico.updateMany({ where: { assuntoId: refId }, data: { assuntoId: null } }); await tx.assunto.delete({ where: { id: refId } }); break;
-      case 'TOPICO': await tx.conceito.updateMany({ where: { topicoId: refId }, data: { topicoId: null } }); await tx.topico.delete({ where: { id: refId } }); break;
-      case 'CONCEITO': await tx.conceito.delete({ where: { id: refId } }); break;
-      case 'TEXTO_BRUTO': await tx.textoBruto.delete({ where: { id: refId } }); break;
-      case 'BARALHO': await tx.baralho.delete({ where: { id: refId } }); break;
-      case 'GRAFO_REF':
-        await tx.grafosConhecimento.updateMany({ where: { id: refId }, data: { parentGrafoId: null, tipoRelacaoPai: null } });
+      case 'NOTA':
+        await tx.nota.delete({ where: { id: refId } });
         break;
-      case 'QUESTION': await tx.questao.delete({ where: { id: refId } }); break;
-      case 'PROVA': await tx.prova.delete({ where: { id: refId } }); break;
+      case 'ASSUNTO':
+        await tx.topico.updateMany({ where: { assuntoId: refId }, data: { assuntoId: null } });
+        await tx.assunto.delete({ where: { id: refId } });
+        break;
+      case 'TOPICO':
+        await tx.conceito.updateMany({ where: { topicoId: refId }, data: { topicoId: null } });
+        await tx.topico.delete({ where: { id: refId } });
+        break;
+      case 'CONCEITO':
+        await tx.conceito.delete({ where: { id: refId } });
+        break;
+      case 'TEXTO_BRUTO':
+        await tx.textoBruto.delete({ where: { id: refId } });
+        break;
+      case 'BARALHO':
+        await tx.baralho.delete({ where: { id: refId } });
+        break;
+      case 'GRAFO_REF':
+        await tx.grafosConhecimento.updateMany({
+          where: { id: refId },
+          data: { parentGrafoId: null, tipoRelacaoPai: null },
+        });
+        break;
+      case 'QUESTION':
+        await tx.questao.delete({ where: { id: refId } });
+        break;
+      case 'PROVA':
+        await tx.prova.delete({ where: { id: refId } });
+        break;
     }
   }
 
   // Bloqueia operar sobre o Assunto-raiz de qualquer grafo do usuário.
   private async assertNotRoot(userId: string, refId: string) {
-    const root = await this.prisma.grafosConhecimento.findFirst({ where: { rootAssuntoId: refId, usuarioId: userId }, select: { id: true } });
-    if (root) throw new BadRequestException('O assunto-raiz do grafo não pode ser removido — ele é deletado junto com o grafo.');
+    const root = await this.prisma.grafosConhecimento.findFirst({
+      where: { rootAssuntoId: refId, usuarioId: userId },
+      select: { id: true },
+    });
+    if (root)
+      throw new BadRequestException(
+        'O assunto-raiz do grafo não pode ser removido — ele é deletado junto com o grafo.',
+      );
   }
 
   // Remove o nó do grafo (vínculo + arestas + desempenho), mantendo a entidade.
   async removeNode(userId: string, grafoId: string, refId: string) {
     await this.assertNotRoot(userId, refId);
-    const node = await this.prisma.nodeConhecimento.findFirst({ where: { referenciaId: refId, usuarioId: userId, grafoId } });
+    const node = await this.prisma.nodeConhecimento.findFirst({
+      where: { referenciaId: refId, usuarioId: userId, grafoId },
+    });
     if (!node) throw new NotFoundException('Nó não encontrado no grafo');
     await this.prisma.$transaction(async (tx) => {
-      await tx.conhecimentoAresta.deleteMany({ where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] } });
+      await tx.conhecimentoAresta.deleteMany({
+        where: { OR: [{ nodeOrigemId: node.id }, { nodeDestinoId: node.id }] },
+      });
       await tx.desempenhoNo.deleteMany({ where: { nodeId: node.id } });
       await tx.nodeConhecimento.delete({ where: { id: node.id } });
     });
     return { success: true };
   }
 
-  async getNodeDetails(userId: string, tipoNode: TipoNode, refId: string): Promise<Record<string, string | null> | null> {
+  async getNodeDetails(
+    userId: string,
+    tipoNode: TipoNode,
+    refId: string,
+  ): Promise<Record<string, string | null> | null> {
     switch (tipoNode) {
-      case 'ASSUNTO': { const a = await this.prisma.assunto.findFirst({ where: { id: refId, usuarioId: userId } }); return a ? { nome: a.nome, descricao: a.descricao } : null; }
-      case 'TOPICO': { const t = await this.prisma.topico.findFirst({ where: { id: refId, usuarioId: userId } }); return t ? { nome: t.nome, descricao: t.descricao } : null; }
-      case 'CONCEITO': { const c = await this.prisma.conceito.findFirst({ where: { id: refId, usuarioId: userId } }); return c ? { nome: c.nome, descricao: c.descricao } : null; }
-      case 'FLASHCARD': { const f = await this.prisma.flashcard.findFirst({ where: { id: refId, usuarioId: userId } }); return f ? { pergunta: f.pergunta, resposta: f.resposta } : null; }
-      case 'NOTA': { const n = await this.prisma.nota.findFirst({ where: { id: refId, usuarioId: userId } }); return n ? { titulo: n.titulo, conteudo: n.conteudo, tipoNota: n.tipoNota, subtipo: n.subtipo, fonte: n.fonte } : null; }
-      case 'TEXTO_BRUTO': { const t = await this.prisma.textoBruto.findFirst({ where: { id: refId, usuarioId: userId } }); return t ? { titulo: t.titulo, texto: t.texto } : null; }
-      case 'BARALHO': { const b = await this.prisma.baralho.findFirst({ where: { id: refId, usuarioId: userId } }); return b ? { titulo: b.titulo } : null; }
-      case 'QUESTION': { const q = await (this.prisma as any).questao.findFirst({ where: { id: refId, usuarioId: userId } }); return q ? { enunciado: q.enunciado, tipo: q.tipo, gabarito: q.gabarito, explicacao: q.explicacao } : null; }
-      case 'PROVA': { const p = await (this.prisma as any).prova.findFirst({ where: { id: refId, usuarioId: userId }, include: { _count: { select: { questoes: true } } } }); return p ? { titulo: p.titulo, descricao: p.descricao, totalQuestoes: p._count.questoes } : null; }
-      default: return null;
+      case 'ASSUNTO': {
+        const a = await this.prisma.assunto.findFirst({ where: { id: refId, usuarioId: userId } });
+        return a ? { nome: a.nome, descricao: a.descricao } : null;
+      }
+      case 'TOPICO': {
+        const t = await this.prisma.topico.findFirst({ where: { id: refId, usuarioId: userId } });
+        return t ? { nome: t.nome, descricao: t.descricao } : null;
+      }
+      case 'CONCEITO': {
+        const c = await this.prisma.conceito.findFirst({ where: { id: refId, usuarioId: userId } });
+        return c ? { nome: c.nome, descricao: c.descricao } : null;
+      }
+      case 'FLASHCARD': {
+        const f = await this.prisma.flashcard.findFirst({
+          where: { id: refId, usuarioId: userId },
+        });
+        return f ? { pergunta: f.pergunta, resposta: f.resposta } : null;
+      }
+      case 'NOTA': {
+        const n = await this.prisma.nota.findFirst({ where: { id: refId, usuarioId: userId } });
+        return n
+          ? {
+              titulo: n.titulo,
+              conteudo: n.conteudo,
+              tipoNota: n.tipoNota,
+              subtipo: n.subtipo,
+              fonte: n.fonte,
+            }
+          : null;
+      }
+      case 'TEXTO_BRUTO': {
+        const t = await this.prisma.textoBruto.findFirst({
+          where: { id: refId, usuarioId: userId },
+        });
+        return t ? { titulo: t.titulo, texto: t.texto } : null;
+      }
+      case 'BARALHO': {
+        const b = await this.prisma.baralho.findFirst({ where: { id: refId, usuarioId: userId } });
+        return b ? { titulo: b.titulo } : null;
+      }
+      case 'QUESTION': {
+        const q = await (this.prisma as any).questao.findFirst({
+          where: { id: refId, usuarioId: userId },
+        });
+        return q
+          ? { enunciado: q.enunciado, tipo: q.tipo, gabarito: q.gabarito, explicacao: q.explicacao }
+          : null;
+      }
+      case 'PROVA': {
+        const p = await (this.prisma as any).prova.findFirst({
+          where: { id: refId, usuarioId: userId },
+          include: { _count: { select: { questoes: true } } },
+        });
+        return p
+          ? { titulo: p.titulo, descricao: p.descricao, totalQuestoes: p._count.questoes }
+          : null;
+      }
+      default:
+        return null;
     }
   }
 
   // ---- Arestas ----
   async getEdges(userId: string, grafoId: string) {
-    const edges = await this.prisma.conhecimentoAresta.findMany({ where: { grafoId }, include: { nodeOrigem: true, nodeDestino: true } });
-    const userEdges = edges.filter((e) => e.nodeOrigem?.usuarioId === userId && e.nodeDestino?.usuarioId === userId);
-    return Promise.all(userEdges.map(async (e) => ({
-      id: e.id,
-      source: e.nodeOrigem!.referenciaId,
-      target: e.nodeDestino!.referenciaId,
-      tipoRelacao: e.tipoRelacao,
-      peso: e.peso,
-      sourceLabel: await this.label(e.nodeOrigem!.tipoNode, e.nodeOrigem!.referenciaId),
-      targetLabel: await this.label(e.nodeDestino!.tipoNode, e.nodeDestino!.referenciaId),
-    })));
+    const edges = await this.prisma.conhecimentoAresta.findMany({
+      where: { grafoId },
+      include: { nodeOrigem: true, nodeDestino: true },
+    });
+    const userEdges = edges.filter(
+      (e) => e.nodeOrigem?.usuarioId === userId && e.nodeDestino?.usuarioId === userId,
+    );
+    return Promise.all(
+      userEdges.map(async (e) => ({
+        id: e.id,
+        source: e.nodeOrigem!.referenciaId,
+        target: e.nodeDestino!.referenciaId,
+        tipoRelacao: e.tipoRelacao,
+        peso: e.peso,
+        sourceLabel: await this.label(e.nodeOrigem!.tipoNode, e.nodeOrigem!.referenciaId),
+        targetLabel: await this.label(e.nodeDestino!.tipoNode, e.nodeDestino!.referenciaId),
+      })),
+    );
   }
 
   private async label(tipoNode: string, refId: string): Promise<string> {
     switch (tipoNode) {
-      case 'ASSUNTO': return (await this.prisma.assunto.findUnique({ where: { id: refId } }))?.nome ?? refId;
-      case 'TOPICO': return (await this.prisma.topico.findUnique({ where: { id: refId } }))?.nome ?? refId;
-      case 'CONCEITO': return (await this.prisma.conceito.findUnique({ where: { id: refId } }))?.nome ?? refId;
-      case 'FLASHCARD': return (await this.prisma.flashcard.findUnique({ where: { id: refId } }))?.pergunta?.slice(0, 50) ?? refId;
-      case 'NOTA': { const n = await this.prisma.nota.findUnique({ where: { id: refId } }); return (n?.titulo && n.titulo !== 'Sem título') ? n.titulo : (n?.conteudo?.slice(0, 50) ?? refId); }
-      case 'TEXTO_BRUTO': { const t = await this.prisma.textoBruto.findUnique({ where: { id: refId } }); return (t?.titulo && t.titulo !== 'Texto sem título') ? t.titulo : (t?.texto?.slice(0, 50) ?? refId); }
-      case 'BARALHO': return (await this.prisma.baralho.findUnique({ where: { id: refId } }))?.titulo ?? refId;
-      case 'PROVA': return ((await (this.prisma as any).prova.findUnique({ where: { id: refId } }))?.titulo ?? refId);
-      default: return refId;
+      case 'ASSUNTO':
+        return (await this.prisma.assunto.findUnique({ where: { id: refId } }))?.nome ?? refId;
+      case 'TOPICO':
+        return (await this.prisma.topico.findUnique({ where: { id: refId } }))?.nome ?? refId;
+      case 'CONCEITO':
+        return (await this.prisma.conceito.findUnique({ where: { id: refId } }))?.nome ?? refId;
+      case 'FLASHCARD':
+        return (
+          (await this.prisma.flashcard.findUnique({ where: { id: refId } }))?.pergunta?.slice(
+            0,
+            50,
+          ) ?? refId
+        );
+      case 'NOTA': {
+        const n = await this.prisma.nota.findUnique({ where: { id: refId } });
+        return n?.titulo && n.titulo !== 'Sem título'
+          ? n.titulo
+          : (n?.conteudo?.slice(0, 50) ?? refId);
+      }
+      case 'TEXTO_BRUTO': {
+        const t = await this.prisma.textoBruto.findUnique({ where: { id: refId } });
+        return t?.titulo && t.titulo !== 'Texto sem título'
+          ? t.titulo
+          : (t?.texto?.slice(0, 50) ?? refId);
+      }
+      case 'BARALHO':
+        return (await this.prisma.baralho.findUnique({ where: { id: refId } }))?.titulo ?? refId;
+      case 'PROVA':
+        return (
+          (await (this.prisma as any).prova.findUnique({ where: { id: refId } }))?.titulo ?? refId
+        );
+      default:
+        return refId;
     }
   }
 
-  async createEdge(userId: string, grafoId: string, input: { sourceNodeId: string; targetNodeId: string; tipoRelacao: string; peso?: number }) {
-    if (input.peso !== undefined && (!Number.isFinite(input.peso) || input.peso <= 0 || input.peso > 2)) throw new BadRequestException('Peso inválido (0 a 2)');
+  async createEdge(
+    userId: string,
+    grafoId: string,
+    input: { sourceNodeId: string; targetNodeId: string; tipoRelacao: string; peso?: number },
+  ) {
+    if (
+      input.peso !== undefined &&
+      (!Number.isFinite(input.peso) || input.peso <= 0 || input.peso > 2)
+    )
+      throw new BadRequestException('Peso inválido (0 a 2)');
     const [s, t] = await Promise.all([
-      this.prisma.nodeConhecimento.findFirst({ where: { referenciaId: input.sourceNodeId, usuarioId: userId, grafoId } }),
-      this.prisma.nodeConhecimento.findFirst({ where: { referenciaId: input.targetNodeId, usuarioId: userId, grafoId } }),
+      this.prisma.nodeConhecimento.findFirst({
+        where: { referenciaId: input.sourceNodeId, usuarioId: userId, grafoId },
+      }),
+      this.prisma.nodeConhecimento.findFirst({
+        where: { referenciaId: input.targetNodeId, usuarioId: userId, grafoId },
+      }),
     ]);
     if (!s || !t) throw new NotFoundException('Nó(s) não encontrado(s) no grafo');
     if (!isRelationAllowed(s.tipoNode, t.tipoNode, input.tipoRelacao)) {
       const allowed = getAllowedRelations(s.tipoNode, t.tipoNode);
-      throw new BadRequestException(allowed.length ? `Relação ${input.tipoRelacao} não permitida entre ${s.tipoNode} e ${t.tipoNode}` : `${s.tipoNode} e ${t.tipoNode} não podem ser relacionados`);
+      throw new BadRequestException(
+        allowed.length
+          ? `Relação ${input.tipoRelacao} não permitida entre ${s.tipoNode} e ${t.tipoNode}`
+          : `${s.tipoNode} e ${t.tipoNode} não podem ser relacionados`,
+      );
     }
-    const dup = await this.prisma.conhecimentoAresta.findFirst({ where: { grafoId, nodeOrigemId: s.id, nodeDestinoId: t.id, tipoRelacao: input.tipoRelacao as any } });
+    const dup = await this.prisma.conhecimentoAresta.findFirst({
+      where: {
+        grafoId,
+        nodeOrigemId: s.id,
+        nodeDestinoId: t.id,
+        tipoRelacao: input.tipoRelacao as any,
+      },
+    });
     if (dup) throw new BadRequestException('Relação já existe entre esses nós com este tipo');
-    const edge = await this.prisma.conhecimentoAresta.create({ data: { grafoId, nodeOrigemId: s.id, nodeDestinoId: t.id, tipoRelacao: input.tipoRelacao as any, peso: input.peso ?? 1 } });
+    const edge = await this.prisma.conhecimentoAresta.create({
+      data: {
+        grafoId,
+        nodeOrigemId: s.id,
+        nodeDestinoId: t.id,
+        tipoRelacao: input.tipoRelacao as any,
+        peso: input.peso ?? 1,
+      },
+    });
     return { edgeId: edge.id };
   }
 
-  async updateEdge(userId: string, grafoId: string, edgeId: string, data: { tipoRelacao?: string; peso?: number }) {
-    const edge = await this.prisma.conhecimentoAresta.findFirst({ where: { id: edgeId, grafoId }, include: { nodeOrigem: true } });
-    if (!edge || edge.nodeOrigem?.usuarioId !== userId) throw new NotFoundException('Relação não encontrada');
-    await this.prisma.conhecimentoAresta.update({ where: { id: edgeId }, data: { tipoRelacao: data.tipoRelacao ? (data.tipoRelacao as any) : undefined, peso: data.peso } });
+  async updateEdge(
+    userId: string,
+    grafoId: string,
+    edgeId: string,
+    data: { tipoRelacao?: string; peso?: number },
+  ) {
+    const edge = await this.prisma.conhecimentoAresta.findFirst({
+      where: { id: edgeId, grafoId },
+      include: { nodeOrigem: true },
+    });
+    if (!edge || edge.nodeOrigem?.usuarioId !== userId)
+      throw new NotFoundException('Relação não encontrada');
+    await this.prisma.conhecimentoAresta.update({
+      where: { id: edgeId },
+      data: {
+        tipoRelacao: data.tipoRelacao ? (data.tipoRelacao as any) : undefined,
+        peso: data.peso,
+      },
+    });
     return { success: true };
   }
 
   async deleteEdge(userId: string, grafoId: string, edgeId: string) {
-    const edge = await this.prisma.conhecimentoAresta.findFirst({ where: { id: edgeId, grafoId }, include: { nodeOrigem: true } });
-    if (!edge || edge.nodeOrigem?.usuarioId !== userId) throw new NotFoundException('Relação não encontrada');
+    const edge = await this.prisma.conhecimentoAresta.findFirst({
+      where: { id: edgeId, grafoId },
+      include: { nodeOrigem: true },
+    });
+    if (!edge || edge.nodeOrigem?.usuarioId !== userId)
+      throw new NotFoundException('Relação não encontrada');
     await this.prisma.conhecimentoAresta.delete({ where: { id: edgeId } });
     return { success: true };
   }
 
   // ---- Adicionar entidade existente ao grafo (só cria o vínculo) ----
   async addExistingNode(userId: string, grafoId: string, tipoNode: TipoNode, entityId: string) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    const grafo = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: grafoId, usuarioId: userId },
+    });
     if (!grafo) throw new NotFoundException('Grafo não encontrado');
     await this.prisma.nodeConhecimento.create({
-      data: { grafoId, tipoNode: tipoNode as any, referenciaId: entityId, usuarioId: userId, nivelDominio: 0 },
+      data: {
+        grafoId,
+        tipoNode: tipoNode as any,
+        referenciaId: entityId,
+        usuarioId: userId,
+        nivelDominio: 0,
+      },
     });
     return { success: true, nodeId: entityId };
   }
 
   // ---- Itens existentes (não estão no grafo) para "Adicionar existentes" ----
   async availableItems(userId: string, grafoId: string) {
-    const existing = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { referenciaId: true, tipoNode: true } });
+    const existing = await this.prisma.nodeConhecimento.findMany({
+      where: { grafoId, usuarioId: userId },
+      select: { referenciaId: true, tipoNode: true },
+    });
     const inGraph: Record<string, string[]> = {};
     for (const n of existing) (inGraph[n.tipoNode] ??= []).push(n.referenciaId);
 
@@ -420,7 +816,11 @@ export class GraphService {
         orderBy: { dataCriacao: 'desc' },
         take: 50,
       }),
-      this.prisma.nota.findMany({ where: { usuarioId: userId, id: { notIn: inGraph.NOTA ?? [] } }, orderBy: { dataCriacao: 'desc' }, take: 50 }),
+      this.prisma.nota.findMany({
+        where: { usuarioId: userId, id: { notIn: inGraph.NOTA ?? [] } },
+        orderBy: { dataCriacao: 'desc' },
+        take: 50,
+      }),
       (this.prisma as any).questao.findMany({
         where: { usuarioId: userId, id: { notIn: inGraph.QUESTION ?? [] } },
         include: { conceito: { select: { id: true, nome: true } } },
@@ -445,10 +845,20 @@ export class GraphService {
           fullText: fc.pergunta,
           tipo: 'FLASHCARD',
           conceitoId: fc.conceitoId,
-          hierarquia: assunto ? `${assunto.nome} → ${topico!.nome} → ${fc.conceito!.nome}` : fc.conceito ? `${fc.conceito.nome} (sem tópico)` : 'Sem conceito',
+          hierarquia: assunto
+            ? `${assunto.nome} → ${topico!.nome} → ${fc.conceito!.nome}`
+            : fc.conceito
+              ? `${fc.conceito.nome} (sem tópico)`
+              : 'Sem conceito',
         };
       }),
-      notas: notas.map((n) => ({ id: n.id, label: n.conteudo.slice(0, 50) + (n.conteudo.length > 50 ? '...' : ''), fullText: n.conteudo, tipo: 'NOTA', hierarquia: 'Nota direta' })),
+      notas: notas.map((n) => ({
+        id: n.id,
+        label: n.conteudo.slice(0, 50) + (n.conteudo.length > 50 ? '...' : ''),
+        fullText: n.conteudo,
+        tipo: 'NOTA',
+        hierarquia: 'Nota direta',
+      })),
       questoes: (questoes as any[]).map((q) => ({
         id: q.id,
         label: q.enunciado.slice(0, 50) + (q.enunciado.length > 50 ? '...' : ''),
@@ -469,16 +879,24 @@ export class GraphService {
 
   // flashcards do usuário (picker do baralho)
   async listFlashcardsForDeck(userId: string) {
-    const fcs = await this.prisma.flashcard.findMany({ where: { usuarioId: userId }, include: { conceito: true }, orderBy: { dataCriacao: 'desc' } });
+    const fcs = await this.prisma.flashcard.findMany({
+      where: { usuarioId: userId },
+      include: { conceito: true },
+      orderBy: { dataCriacao: 'desc' },
+    });
     return fcs.map((f) => ({ id: f.id, pergunta: f.pergunta, conceito: f.conceito?.nome ?? null }));
   }
 
   // Exporta o grafo no MESMO formato do importGraph (ref = referenciaId),
   // com conteúdo completo + posição/nível. Usado pelo vault (Pull no desktop).
   async exportGraph(userId: string, grafoId: string) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    const grafo = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: grafoId, usuarioId: userId },
+    });
     if (!grafo) throw new NotFoundException('Grafo não encontrado');
-    const nodeRows = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId } });
+    const nodeRows = await this.prisma.nodeConhecimento.findMany({
+      where: { grafoId, usuarioId: userId },
+    });
     const nodes: Array<Record<string, unknown>> = [];
     for (const nr of nodeRows) {
       const d = await this.getNodeDetails(userId, nr.tipoNode as TipoNode, nr.referenciaId);
@@ -493,7 +911,12 @@ export class GraphService {
       });
     }
     const edgeRows = await this.getEdges(userId, grafoId);
-    const edges = edgeRows.map((e) => ({ origem: e.source, destino: e.target, relacao: e.tipoRelacao, peso: e.peso }));
+    const edges = edgeRows.map((e) => ({
+      origem: e.source,
+      destino: e.target,
+      relacao: e.tipoRelacao,
+      peso: e.peso,
+    }));
     return { grafo: { id: grafo.id, nome: grafo.nome }, nodes, edges };
   }
 
@@ -506,11 +929,29 @@ export class GraphService {
     userId: string,
     grafoId: string,
     payload: {
-      nodes: Array<{ ref: string; tipo: TipoNode; nome?: string; descricao?: string | null; pergunta?: string; resposta?: string; titulo?: string; conteudo?: string; tipoNota?: string; subtipo?: string; fonte?: string | null; texto?: string; posicaoX?: number | null; posicaoY?: number | null; nivelDominio?: number }>;
+      nodes: Array<{
+        ref: string;
+        tipo: TipoNode;
+        nome?: string;
+        descricao?: string | null;
+        pergunta?: string;
+        resposta?: string;
+        titulo?: string;
+        conteudo?: string;
+        tipoNota?: string;
+        subtipo?: string;
+        fonte?: string | null;
+        texto?: string;
+        posicaoX?: number | null;
+        posicaoY?: number | null;
+        nivelDominio?: number;
+      }>;
       edges: Array<{ origem: string; destino: string; relacao: string; peso?: number }>;
     },
   ) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    const grafo = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: grafoId, usuarioId: userId },
+    });
     if (!grafo) throw new NotFoundException('Grafo não encontrado');
     const nodes = payload?.nodes ?? [];
     const edges = payload?.edges ?? [];
@@ -522,11 +963,16 @@ export class GraphService {
       // remove do grafo os nós cujo .md sumiu (só se o vault tiver nós)
       if (nodes.length > 0) {
         const vaultRefs = new Set(nodes.map((n) => n.ref));
-        const current = await tx.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { id: true, referenciaId: true } });
+        const current = await tx.nodeConhecimento.findMany({
+          where: { grafoId, usuarioId: userId },
+          select: { id: true, referenciaId: true },
+        });
         const toRemove = current.filter((c) => !vaultRefs.has(c.referenciaId));
         if (toRemove.length) {
           const ids = toRemove.map((c) => c.id);
-          await tx.conhecimentoAresta.deleteMany({ where: { OR: [{ nodeOrigemId: { in: ids } }, { nodeDestinoId: { in: ids } }] } });
+          await tx.conhecimentoAresta.deleteMany({
+            where: { OR: [{ nodeOrigemId: { in: ids } }, { nodeDestinoId: { in: ids } }] },
+          });
           await tx.desempenhoNo.deleteMany({ where: { nodeId: { in: ids } } });
           await tx.nodeConhecimento.deleteMany({ where: { id: { in: ids } } });
           result.removed = toRemove.length;
@@ -535,19 +981,36 @@ export class GraphService {
 
       for (const n of nodes) {
         await this.upsertEntityFromVault(tx, userId, n, now);
-        const existing = await tx.nodeConhecimento.findFirst({ where: { grafoId, referenciaId: n.ref, usuarioId: userId } });
-        const nodeData = { posicaoX: n.posicaoX ?? 0, posicaoY: n.posicaoY ?? 0, nivelDominio: n.nivelDominio ?? 0 };
+        const existing = await tx.nodeConhecimento.findFirst({
+          where: { grafoId, referenciaId: n.ref, usuarioId: userId },
+        });
+        const nodeData = {
+          posicaoX: n.posicaoX ?? 0,
+          posicaoY: n.posicaoY ?? 0,
+          nivelDominio: n.nivelDominio ?? 0,
+        };
         if (existing) {
           await tx.nodeConhecimento.update({ where: { id: existing.id }, data: nodeData });
           result.updated++;
         } else {
-          await tx.nodeConhecimento.create({ data: { grafoId, tipoNode: n.tipo as any, referenciaId: n.ref, usuarioId: userId, ...nodeData } });
+          await tx.nodeConhecimento.create({
+            data: {
+              grafoId,
+              tipoNode: n.tipo as any,
+              referenciaId: n.ref,
+              usuarioId: userId,
+              ...nodeData,
+            },
+          });
           result.created++;
         }
       }
 
       // substitui as arestas do grafo pelas do vault (trata remoções de relação)
-      const nodeRows = await tx.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { id: true, referenciaId: true, tipoNode: true } });
+      const nodeRows = await tx.nodeConhecimento.findMany({
+        where: { grafoId, usuarioId: userId },
+        select: { id: true, referenciaId: true, tipoNode: true },
+      });
       const byRef = new Map(nodeRows.map((r) => [r.referenciaId, r]));
       await tx.conhecimentoAresta.deleteMany({ where: { grafoId } });
       const seen = new Set<string>();
@@ -559,8 +1022,17 @@ export class GraphService {
         const key = `${s.id}->${t.id}->${e.relacao}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        const peso = e.peso !== undefined && Number.isFinite(e.peso) && e.peso > 0 && e.peso <= 2 ? e.peso : 1;
-        await tx.conhecimentoAresta.create({ data: { grafoId, nodeOrigemId: s.id, nodeDestinoId: t.id, tipoRelacao: e.relacao as any, peso } });
+        const peso =
+          e.peso !== undefined && Number.isFinite(e.peso) && e.peso > 0 && e.peso <= 2 ? e.peso : 1;
+        await tx.conhecimentoAresta.create({
+          data: {
+            grafoId,
+            nodeOrigemId: s.id,
+            nodeDestinoId: t.id,
+            tipoRelacao: e.relacao as any,
+            peso,
+          },
+        });
         result.edges++;
       }
 
@@ -590,21 +1062,48 @@ export class GraphService {
   }
 
   // upsert da entidade subjacente por id (= ref do vault), por tipo.
-  private async upsertEntityFromVault(tx: any, userId: string, n: { ref: string; tipo: TipoNode; nome?: string; descricao?: string | null; pergunta?: string; resposta?: string; titulo?: string; conteudo?: string; tipoNota?: string; subtipo?: string; fonte?: string | null; texto?: string }, now: Date) {
+  private async upsertEntityFromVault(
+    tx: any,
+    userId: string,
+    n: {
+      ref: string;
+      tipo: TipoNode;
+      nome?: string;
+      descricao?: string | null;
+      pergunta?: string;
+      resposta?: string;
+      titulo?: string;
+      conteudo?: string;
+      tipoNota?: string;
+      subtipo?: string;
+      fonte?: string | null;
+      texto?: string;
+    },
+    now: Date,
+  ) {
     const id = n.ref;
     switch (n.tipo) {
       case 'ASSUNTO':
       case 'TOPICO':
       case 'CONCEITO': {
-        const model: any = n.tipo === 'ASSUNTO' ? tx.assunto : n.tipo === 'TOPICO' ? tx.topico : tx.conceito;
+        const model: any =
+          n.tipo === 'ASSUNTO' ? tx.assunto : n.tipo === 'TOPICO' ? tx.topico : tx.conceito;
         const nome = (n.nome ?? '').trim() || 'Sem título';
-        await model.upsert({ where: { id }, create: { id, nome, descricao: n.descricao ?? null, usuarioId: userId }, update: { nome, descricao: n.descricao ?? null } });
+        await model.upsert({
+          where: { id },
+          create: { id, nome, descricao: n.descricao ?? null, usuarioId: userId },
+          update: { nome, descricao: n.descricao ?? null },
+        });
         break;
       }
       case 'FLASHCARD': {
         const pergunta = (n.pergunta ?? '').trim();
         const resposta = (n.resposta ?? '').trim();
-        await tx.flashcard.upsert({ where: { id }, create: { id, pergunta, resposta, usuarioId: userId, dataCriacao: now }, update: { pergunta, resposta } });
+        await tx.flashcard.upsert({
+          where: { id },
+          create: { id, pergunta, resposta, usuarioId: userId, dataCriacao: now },
+          update: { pergunta, resposta },
+        });
         break;
       }
       case 'NOTA': {
@@ -612,20 +1111,44 @@ export class GraphService {
         const conteudo = n.conteudo ?? '';
         await tx.nota.upsert({
           where: { id },
-          create: { id, titulo, conteudo, tipoNota: n.tipoNota || 'PERMANENTE', subtipo: n.subtipo ?? '', fonte: n.fonte ?? null, slug: `${id}`, usuarioId: userId, dataCriacao: now },
-          update: { titulo, conteudo, tipoNota: n.tipoNota || 'PERMANENTE', subtipo: n.subtipo ?? '', fonte: n.fonte ?? null },
+          create: {
+            id,
+            titulo,
+            conteudo,
+            tipoNota: n.tipoNota || 'PERMANENTE',
+            subtipo: n.subtipo ?? '',
+            fonte: n.fonte ?? null,
+            slug: `${id}`,
+            usuarioId: userId,
+            dataCriacao: now,
+          },
+          update: {
+            titulo,
+            conteudo,
+            tipoNota: n.tipoNota || 'PERMANENTE',
+            subtipo: n.subtipo ?? '',
+            fonte: n.fonte ?? null,
+          },
         });
         break;
       }
       case 'TEXTO_BRUTO': {
         const titulo = (n.titulo ?? '').trim() || 'Texto sem título';
         const texto = n.texto ?? '';
-        await tx.textoBruto.upsert({ where: { id }, create: { id, titulo, texto, usuarioId: userId, dataCriacao: now }, update: { titulo, texto } });
+        await tx.textoBruto.upsert({
+          where: { id },
+          create: { id, titulo, texto, usuarioId: userId, dataCriacao: now },
+          update: { titulo, texto },
+        });
         break;
       }
       case 'BARALHO': {
         const titulo = (n.titulo ?? n.nome ?? '').trim() || 'Baralho';
-        await tx.baralho.upsert({ where: { id }, create: { id, titulo, usuarioId: userId, dataCriacao: now }, update: { titulo } });
+        await tx.baralho.upsert({
+          where: { id },
+          create: { id, titulo, usuarioId: userId, dataCriacao: now },
+          update: { titulo },
+        });
         break;
       }
     }
@@ -635,35 +1158,74 @@ export class GraphService {
   async getDeckForStudy(userId: string, baralhoId: string) {
     const baralho = await this.prisma.baralho.findFirst({
       where: { id: baralhoId, usuarioId: userId },
-      include: { flashcards: { include: { conceito: { select: { nome: true } } }, orderBy: { dataCriacao: 'asc' } } },
+      include: {
+        flashcards: {
+          include: { conceito: { select: { nome: true } } },
+          orderBy: { dataCriacao: 'asc' },
+        },
+      },
     });
     if (!baralho) return null;
     return {
       titulo: baralho.titulo,
-      cards: baralho.flashcards.map((fc) => ({ id: fc.id, pergunta: fc.pergunta, resposta: fc.resposta, conceito: fc.conceito?.nome ?? null })),
+      cards: baralho.flashcards.map((fc) => ({
+        id: fc.id,
+        pergunta: fc.pergunta,
+        resposta: fc.resposta,
+        conceito: fc.conceito?.nome ?? null,
+      })),
     };
   }
 
   // ---- Baralho ----
   async createBaralho(userId: string, grafoId: string, titulo: string, flashcardIds: string[]) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    const grafo = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: grafoId, usuarioId: userId },
+    });
     if (!grafo) throw new NotFoundException('Grafo não encontrado');
     const tituloTrim = titulo?.trim();
     if (!tituloTrim) throw new BadRequestException('O título do baralho é obrigatório');
     const ids = Array.from(new Set(flashcardIds ?? []));
     if (ids.length > 1000) throw new BadRequestException('Máximo de 1000 flashcards por baralho');
     if (ids.length > 0) {
-      const count = await this.prisma.flashcard.count({ where: { id: { in: ids }, usuarioId: userId } });
-      if (count !== ids.length) throw new BadRequestException('Um ou mais flashcards não pertencem ao usuário');
+      const count = await this.prisma.flashcard.count({
+        where: { id: { in: ids }, usuarioId: userId },
+      });
+      if (count !== ids.length)
+        throw new BadRequestException('Um ou mais flashcards não pertencem ao usuário');
     }
     const now = new Date();
     const baralhoId = await this.prisma.$transaction(async (tx) => {
-      const baralho = await tx.baralho.create({ data: { titulo: tituloTrim, usuarioId: userId, dataCriacao: now, flashcards: ids.length ? { connect: ids.map((id) => ({ id })) } : undefined } });
-      const baralhoNode = await tx.nodeConhecimento.create({ data: { grafoId, tipoNode: 'BARALHO', referenciaId: baralho.id, usuarioId: userId } });
+      const baralho = await tx.baralho.create({
+        data: {
+          titulo: tituloTrim,
+          usuarioId: userId,
+          dataCriacao: now,
+          flashcards: ids.length ? { connect: ids.map((id) => ({ id })) } : undefined,
+        },
+      });
+      const baralhoNode = await tx.nodeConhecimento.create({
+        data: { grafoId, tipoNode: 'BARALHO', referenciaId: baralho.id, usuarioId: userId },
+      });
       for (const fcId of ids) {
-        let fcNode = await tx.nodeConhecimento.findFirst({ where: { grafoId, usuarioId: userId, tipoNode: 'FLASHCARD', referenciaId: fcId }, select: { id: true } });
-        if (!fcNode) fcNode = await tx.nodeConhecimento.create({ data: { grafoId, tipoNode: 'FLASHCARD', referenciaId: fcId, usuarioId: userId }, select: { id: true } });
-        await tx.conhecimentoAresta.create({ data: { grafoId, nodeOrigemId: baralhoNode.id, nodeDestinoId: fcNode.id, tipoRelacao: 'CONTEM', peso: 1 } });
+        let fcNode = await tx.nodeConhecimento.findFirst({
+          where: { grafoId, usuarioId: userId, tipoNode: 'FLASHCARD', referenciaId: fcId },
+          select: { id: true },
+        });
+        if (!fcNode)
+          fcNode = await tx.nodeConhecimento.create({
+            data: { grafoId, tipoNode: 'FLASHCARD', referenciaId: fcId, usuarioId: userId },
+            select: { id: true },
+          });
+        await tx.conhecimentoAresta.create({
+          data: {
+            grafoId,
+            nodeOrigemId: baralhoNode.id,
+            nodeDestinoId: fcNode.id,
+            tipoRelacao: 'CONTEM',
+            peso: 1,
+          },
+        });
       }
       return baralho.id;
     });
@@ -672,13 +1234,21 @@ export class GraphService {
 
   // ---- Prova: vincula (ou cria e vincula) uma prova ao grafo ----
   async addProvaToGraph(userId: string, grafoId: string, provaId: string) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({ where: { id: grafoId, usuarioId: userId } });
+    const grafo = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: grafoId, usuarioId: userId },
+    });
     if (!grafo) throw new NotFoundException('Grafo não encontrado');
-    const prova = await (this.prisma as any).prova.findFirst({ where: { id: provaId, usuarioId: userId } });
+    const prova = await (this.prisma as any).prova.findFirst({
+      where: { id: provaId, usuarioId: userId },
+    });
     if (!prova) throw new NotFoundException('Prova não encontrada');
-    const existing = await this.prisma.nodeConhecimento.findFirst({ where: { grafoId, tipoNode: 'PROVA' as any, referenciaId: provaId } });
+    const existing = await this.prisma.nodeConhecimento.findFirst({
+      where: { grafoId, tipoNode: 'PROVA' as any, referenciaId: provaId },
+    });
     if (existing) return { success: true, nodeId: existing.id };
-    const node = await this.prisma.nodeConhecimento.create({ data: { grafoId, tipoNode: 'PROVA' as any, referenciaId: provaId, usuarioId: userId } });
+    const node = await this.prisma.nodeConhecimento.create({
+      data: { grafoId, tipoNode: 'PROVA' as any, referenciaId: provaId, usuarioId: userId },
+    });
     return { success: true, nodeId: node.id };
   }
 
@@ -691,26 +1261,60 @@ export class GraphService {
   async searchNodeContent(userId: string, grafoId: string, query: string): Promise<string[]> {
     const term = (query ?? '').trim().slice(0, 200);
     if (!term || !grafoId) return [];
-    const graphNodes = await this.prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId }, select: { referenciaId: true, tipoNode: true } });
+    const graphNodes = await this.prisma.nodeConhecimento.findMany({
+      where: { grafoId, usuarioId: userId },
+      select: { referenciaId: true, tipoNode: true },
+    });
     const byType: Record<string, string[]> = {};
     for (const n of graphNodes) (byType[n.tipoNode] ??= []).push(n.referenciaId);
     const matched = new Set<string>();
     const add = (rows: { id: string }[]) => rows.forEach((r) => matched.add(r.id));
     const c = { contains: term, mode: 'insensitive' as const };
     await Promise.all([
-      byType.NOTA?.length && this.prisma.nota.findMany({ where: { id: { in: byType.NOTA }, conteudo: c }, select: { id: true } }).then(add),
-      byType.FLASHCARD?.length && this.prisma.flashcard.findMany({ where: { id: { in: byType.FLASHCARD }, OR: [{ pergunta: c }, { resposta: c }] }, select: { id: true } }).then(add),
-      byType.TEXTO_BRUTO?.length && this.prisma.textoBruto.findMany({ where: { id: { in: byType.TEXTO_BRUTO }, texto: c }, select: { id: true } }).then(add),
-      byType.CONCEITO?.length && this.prisma.conceito.findMany({ where: { id: { in: byType.CONCEITO }, descricao: c }, select: { id: true } }).then(add),
-      byType.ASSUNTO?.length && this.prisma.assunto.findMany({ where: { id: { in: byType.ASSUNTO }, descricao: c }, select: { id: true } }).then(add),
-      byType.TOPICO?.length && this.prisma.topico.findMany({ where: { id: { in: byType.TOPICO }, descricao: c }, select: { id: true } }).then(add),
+      byType.NOTA?.length &&
+        this.prisma.nota
+          .findMany({ where: { id: { in: byType.NOTA }, conteudo: c }, select: { id: true } })
+          .then(add),
+      byType.FLASHCARD?.length &&
+        this.prisma.flashcard
+          .findMany({
+            where: { id: { in: byType.FLASHCARD }, OR: [{ pergunta: c }, { resposta: c }] },
+            select: { id: true },
+          })
+          .then(add),
+      byType.TEXTO_BRUTO?.length &&
+        this.prisma.textoBruto
+          .findMany({ where: { id: { in: byType.TEXTO_BRUTO }, texto: c }, select: { id: true } })
+          .then(add),
+      byType.CONCEITO?.length &&
+        this.prisma.conceito
+          .findMany({ where: { id: { in: byType.CONCEITO }, descricao: c }, select: { id: true } })
+          .then(add),
+      byType.ASSUNTO?.length &&
+        this.prisma.assunto
+          .findMany({ where: { id: { in: byType.ASSUNTO }, descricao: c }, select: { id: true } })
+          .then(add),
+      byType.TOPICO?.length &&
+        this.prisma.topico
+          .findMany({ where: { id: { in: byType.TOPICO }, descricao: c }, select: { id: true } })
+          .then(add),
     ]);
     return [...matched];
   }
 
   // ---- Posições ----
-  async savePositions(userId: string, grafoId: string, positions: Record<string, { x: number; y: number }>) {
-    const typeMap: Record<string, string> = { flashcard: 'FLASHCARD', nota: 'NOTA', assunto: 'ASSUNTO', topico: 'TOPICO', conceito: 'CONCEITO' };
+  async savePositions(
+    userId: string,
+    grafoId: string,
+    positions: Record<string, { x: number; y: number }>,
+  ) {
+    const typeMap: Record<string, string> = {
+      flashcard: 'FLASHCARD',
+      nota: 'NOTA',
+      assunto: 'ASSUNTO',
+      topico: 'TOPICO',
+      conceito: 'CONCEITO',
+    };
     await this.prisma.$transaction(async (tx) => {
       for (const [refId, p] of Object.entries(positions)) {
         const id = refId.includes(':') ? refId.split(':').slice(1).join(':') : refId;
@@ -718,7 +1322,10 @@ export class GraphService {
         if (!prefix) continue;
         const tipoNode = typeMap[prefix];
         if (!tipoNode) continue;
-        await tx.nodeConhecimento.updateMany({ where: { grafoId, usuarioId: userId, tipoNode: tipoNode as any, referenciaId: id }, data: { posicaoX: p.x, posicaoY: p.y } });
+        await tx.nodeConhecimento.updateMany({
+          where: { grafoId, usuarioId: userId, tipoNode: tipoNode as any, referenciaId: id },
+          data: { posicaoX: p.x, posicaoY: p.y },
+        });
       }
     });
     return { success: true };
@@ -726,27 +1333,55 @@ export class GraphService {
 
   // ---- Subgrafos ----
 
-  async createSubgrafo(userId: string, parentGrafoId: string, input: { nome: string; descricao?: string; tipoRelacao: string; posX?: number; posY?: number }) {
-    const parent = await this.prisma.grafosConhecimento.findFirst({ where: { id: parentGrafoId, usuarioId: userId } });
+  async createSubgrafo(
+    userId: string,
+    parentGrafoId: string,
+    input: { nome: string; descricao?: string; tipoRelacao: string; posX?: number; posY?: number },
+  ) {
+    const parent = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: parentGrafoId, usuarioId: userId },
+    });
     if (!parent) throw new NotFoundException('Grafo pai não encontrado');
-    if (!GRAFO_REF_RELATIONS.includes(input.tipoRelacao as any)) throw new BadRequestException('Tipo de relação inválido para subgrafo');
+    if (!GRAFO_REF_RELATIONS.includes(input.tipoRelacao as any))
+      throw new BadRequestException('Tipo de relação inválido para subgrafo');
 
     return this.prisma.$transaction(async (tx) => {
       const filho = await tx.grafosConhecimento.create({
-        data: { usuarioId: userId, nome: input.nome.trim() || 'Novo subgrafo', descricao: input.descricao ?? null, parentGrafoId, tipoRelacaoPai: input.tipoRelacao },
+        data: {
+          usuarioId: userId,
+          nome: input.nome.trim() || 'Novo subgrafo',
+          descricao: input.descricao ?? null,
+          parentGrafoId,
+          tipoRelacaoPai: input.tipoRelacao,
+        },
       });
       const refNode = await tx.nodeConhecimento.create({
-        data: { grafoId: parentGrafoId, tipoNode: 'GRAFO_REF', referenciaId: filho.id, usuarioId: userId, posicaoX: input.posX ?? 0, posicaoY: input.posY ?? 0 },
+        data: {
+          grafoId: parentGrafoId,
+          tipoNode: 'GRAFO_REF',
+          referenciaId: filho.id,
+          usuarioId: userId,
+          posicaoX: input.posX ?? 0,
+          posicaoY: input.posY ?? 0,
+        },
       });
       return { grafoId: filho.id, grafoRefNodeId: refNode.referenciaId };
     });
   }
 
-  async extractNodesToSubgrafo(userId: string, parentGrafoId: string, input: { nodeIds: string[]; nome: string; tipoRelacao: string }) {
-    if (!input.nodeIds.length) throw new BadRequestException('Selecione ao menos um nó para extrair');
-    if (!GRAFO_REF_RELATIONS.includes(input.tipoRelacao as any)) throw new BadRequestException('Tipo de relação inválido');
+  async extractNodesToSubgrafo(
+    userId: string,
+    parentGrafoId: string,
+    input: { nodeIds: string[]; nome: string; tipoRelacao: string },
+  ) {
+    if (!input.nodeIds.length)
+      throw new BadRequestException('Selecione ao menos um nó para extrair');
+    if (!GRAFO_REF_RELATIONS.includes(input.tipoRelacao as any))
+      throw new BadRequestException('Tipo de relação inválido');
 
-    const parent = await this.prisma.grafosConhecimento.findFirst({ where: { id: parentGrafoId, usuarioId: userId } });
+    const parent = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: parentGrafoId, usuarioId: userId },
+    });
     if (!parent) throw new NotFoundException('Grafo pai não encontrado');
 
     const nodeRows = await this.prisma.nodeConhecimento.findMany({
@@ -763,22 +1398,46 @@ export class GraphService {
 
     // Arestas externas: uma ponta dentro, outra fora
     const allEdges = await this.prisma.conhecimentoAresta.findMany({
-      where: { grafoId: parentGrafoId, OR: [{ nodeOrigemId: { in: nodeRowIds } }, { nodeDestinoId: { in: nodeRowIds } }] },
+      where: {
+        grafoId: parentGrafoId,
+        OR: [{ nodeOrigemId: { in: nodeRowIds } }, { nodeDestinoId: { in: nodeRowIds } }],
+      },
     });
-    const internalEdgeIds = allEdges.filter((e) => nodeRowIds.includes(e.nodeOrigemId ?? '') && nodeRowIds.includes(e.nodeDestinoId ?? '')).map((e) => e.id);
+    const internalEdgeIds = allEdges
+      .filter(
+        (e) =>
+          nodeRowIds.includes(e.nodeOrigemId ?? '') && nodeRowIds.includes(e.nodeDestinoId ?? ''),
+      )
+      .map((e) => e.id);
     const externalEdges = allEdges.filter((e) => !internalEdgeIds.includes(e.id));
 
     return this.prisma.$transaction(async (tx) => {
       const filho = await tx.grafosConhecimento.create({
-        data: { usuarioId: userId, nome: input.nome.trim(), descricao: null, parentGrafoId, tipoRelacaoPai: input.tipoRelacao },
+        data: {
+          usuarioId: userId,
+          nome: input.nome.trim(),
+          descricao: null,
+          parentGrafoId,
+          tipoRelacaoPai: input.tipoRelacao,
+        },
       });
 
       // Move nós para o filho
-      await tx.nodeConhecimento.updateMany({ where: { id: { in: nodeRowIds } }, data: { grafoId: filho.id } });
+      await tx.nodeConhecimento.updateMany({
+        where: { id: { in: nodeRowIds } },
+        data: { grafoId: filho.id },
+      });
 
       // Cria GRAFO_REF no pai
       const refNode = await tx.nodeConhecimento.create({
-        data: { grafoId: parentGrafoId, tipoNode: 'GRAFO_REF', referenciaId: filho.id, usuarioId: userId, posicaoX: centX, posicaoY: centY },
+        data: {
+          grafoId: parentGrafoId,
+          tipoNode: 'GRAFO_REF',
+          referenciaId: filho.id,
+          usuarioId: userId,
+          posicaoX: centX,
+          posicaoY: centY,
+        },
       });
 
       // Redireciona arestas externas para o GRAFO_REF
@@ -796,12 +1455,19 @@ export class GraphService {
         rewiredEdgeCount++;
       }
 
-      return { grafoId: filho.id, grafoRefNodeId: filho.id, movedCount: nodeRows.length, rewiredEdgeCount };
+      return {
+        grafoId: filho.id,
+        grafoRefNodeId: filho.id,
+        movedCount: nodeRows.length,
+        rewiredEdgeCount,
+      };
     });
   }
 
   async expandSubgrafo(userId: string, childGrafoId: string) {
-    const child = await this.prisma.grafosConhecimento.findFirst({ where: { id: childGrafoId, usuarioId: userId } });
+    const child = await this.prisma.grafosConhecimento.findFirst({
+      where: { id: childGrafoId, usuarioId: userId },
+    });
     if (!child) throw new NotFoundException('Subgrafo não encontrado');
     return this.loadGraph(userId, childGrafoId);
   }
