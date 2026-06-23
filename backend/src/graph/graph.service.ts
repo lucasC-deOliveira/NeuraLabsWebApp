@@ -1,11 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildKnowledgeGraph } from './knowledge-graph';
-import {
-  getAllowedRelations,
-  isRelationAllowed,
-} from '../modules/graph/domain/services/relation-rules';
+import { isRelationAllowed } from '../modules/graph/domain/services/relation-rules';
 import { runImportGraph, type ImportGraphPayload } from './graph-import';
+import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
 
 type TipoNode =
   | 'ASSUNTO'
@@ -72,7 +70,10 @@ function notaSlug(titulo: string, when: Date): string {
 
 @Injectable()
 export class GraphService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly createEdgeUseCase: CreateEdgeUseCase,
+  ) {}
 
   // ---- Grafos ----
   async listGraphs(userId: string) {
@@ -701,85 +702,13 @@ export class GraphService {
     }
   }
 
+  // Delegado ao CreateEdgeUseCase (usado pelo ai.service na geração por IA).
   async createEdge(
     userId: string,
     grafoId: string,
     input: { sourceNodeId: string; targetNodeId: string; tipoRelacao: string; peso?: number },
-  ) {
-    if (
-      input.peso !== undefined &&
-      (!Number.isFinite(input.peso) || input.peso <= 0 || input.peso > 2)
-    )
-      throw new BadRequestException('Peso inválido (0 a 2)');
-    const [s, t] = await Promise.all([
-      this.prisma.nodeConhecimento.findFirst({
-        where: { referenciaId: input.sourceNodeId, usuarioId: userId, grafoId },
-      }),
-      this.prisma.nodeConhecimento.findFirst({
-        where: { referenciaId: input.targetNodeId, usuarioId: userId, grafoId },
-      }),
-    ]);
-    if (!s || !t) throw new NotFoundException('Nó(s) não encontrado(s) no grafo');
-    if (!isRelationAllowed(s.tipoNode, t.tipoNode, input.tipoRelacao)) {
-      const allowed = getAllowedRelations(s.tipoNode, t.tipoNode);
-      throw new BadRequestException(
-        allowed.length
-          ? `Relação ${input.tipoRelacao} não permitida entre ${s.tipoNode} e ${t.tipoNode}`
-          : `${s.tipoNode} e ${t.tipoNode} não podem ser relacionados`,
-      );
-    }
-    const dup = await this.prisma.conhecimentoAresta.findFirst({
-      where: {
-        grafoId,
-        nodeOrigemId: s.id,
-        nodeDestinoId: t.id,
-        tipoRelacao: input.tipoRelacao as any,
-      },
-    });
-    if (dup) throw new BadRequestException('Relação já existe entre esses nós com este tipo');
-    const edge = await this.prisma.conhecimentoAresta.create({
-      data: {
-        grafoId,
-        nodeOrigemId: s.id,
-        nodeDestinoId: t.id,
-        tipoRelacao: input.tipoRelacao as any,
-        peso: input.peso ?? 1,
-      },
-    });
-    return { edgeId: edge.id };
-  }
-
-  async updateEdge(
-    userId: string,
-    grafoId: string,
-    edgeId: string,
-    data: { tipoRelacao?: string; peso?: number },
-  ) {
-    const edge = await this.prisma.conhecimentoAresta.findFirst({
-      where: { id: edgeId, grafoId },
-      include: { nodeOrigem: true },
-    });
-    if (!edge || edge.nodeOrigem?.usuarioId !== userId)
-      throw new NotFoundException('Relação não encontrada');
-    await this.prisma.conhecimentoAresta.update({
-      where: { id: edgeId },
-      data: {
-        tipoRelacao: data.tipoRelacao ? (data.tipoRelacao as any) : undefined,
-        peso: data.peso,
-      },
-    });
-    return { success: true };
-  }
-
-  async deleteEdge(userId: string, grafoId: string, edgeId: string) {
-    const edge = await this.prisma.conhecimentoAresta.findFirst({
-      where: { id: edgeId, grafoId },
-      include: { nodeOrigem: true },
-    });
-    if (!edge || edge.nodeOrigem?.usuarioId !== userId)
-      throw new NotFoundException('Relação não encontrada');
-    await this.prisma.conhecimentoAresta.delete({ where: { id: edgeId } });
-    return { success: true };
+  ): Promise<{ edgeId: string }> {
+    return this.createEdgeUseCase.execute({ userId, grafoId, ...input });
   }
 
   // ---- Adicionar entidade existente ao grafo (só cria o vínculo) ----
