@@ -136,12 +136,13 @@ flashcard-app/
     src/
       auth/                    ← JWT (registro, login, guard)
       content/                 ← Flashcards, decks, geração por IA
-      study/                   ← Controller/serviço de sessões (sessão, deck, vault sync)
-      modules/study/           ← Domínio de estudo em camadas hexagonais (DDD):
+      study/                   ← Controller HTTP do estudo (rotas → use-cases)
+      modules/study/           ← Contexto de estudo em camadas hexagonais (DDD):
         domain/                ←   VOs (Grade/Phase/EaseFactor), agregados (Flashcard/
                                ←   StudySession), SM-2, interleaving, ports, erros
-        application/           ←   use-cases: submit-review, start-session
-        infrastructure/        ←   adapters Prisma (repos por agregado + UoW) + mappers
+        application/           ←   use-cases: submit-review, start-session, start-deck,
+                               ←   start-single-card, get-flashcard, end/finalize, sync-vault-log
+        infrastructure/        ←   adapters Prisma (repos por agregado + UoW, queries) + mappers
         interface/             ←   filtro de erros de domínio → HTTP
       graph/                   ← Nós, arestas, regras de relação, insights IA
       notes/                   ← Notas Zettelkasten

@@ -70,21 +70,25 @@ export class SyncVaultLogUseCase {
     review: VaultReviewInput,
   ): Promise<void> {
     try {
-      const grade = review.grade
-        ? Grade.create(review.grade)
-        : Grade.fromLegacy(review.acertou ?? false, review.nivelConfianca ?? 0);
-      const ctx: ApplyReviewContext = {
-        userId,
-        sessionId,
-        flashcardId: review.flashcardId,
-        responseTimeMs: review.tempoResposta,
-        grade,
-        reviewedAt: new Date(review.revisadoEm),
-      };
+      const ctx = this.toContext(userId, sessionId, review);
       await this.uow.execute((repos) => this.applyReview(repos, ctx));
     } catch {
       // tolerant: a single failed review must not abort the import
     }
+  }
+
+  private toContext(userId: string, sessionId: string, review: VaultReviewInput): ApplyReviewContext {
+    const grade = review.grade
+      ? Grade.create(review.grade)
+      : Grade.fromLegacy(review.acertou ?? false, review.nivelConfianca ?? 0);
+    return {
+      userId,
+      sessionId,
+      flashcardId: review.flashcardId,
+      responseTimeMs: review.tempoResposta,
+      grade,
+      reviewedAt: new Date(review.revisadoEm),
+    };
   }
 
   private async applyReview(repos: StudyRepositories, ctx: ApplyReviewContext): Promise<void> {

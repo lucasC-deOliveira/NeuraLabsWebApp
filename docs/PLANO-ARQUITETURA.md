@@ -112,7 +112,8 @@ Criar pastas das camadas; `dependency-cruiser` + regras de fronteira; Stryker no
 **Fase 1 — Piloto: contexto `study` (referência), via TDD** ✅ **CONCLUÍDA**
 Linguagem ubíqua → VOs (Grade, Fase, ScheduleState) e entidades (Flashcard, SessãoEstudo) com testes primeiro; SM-2 vira `domain/services`; ports `FlashcardRepository`/`StudySessionRepository`; adapters Prisma + mappers; use-cases `SubmitReview`/`StartSession`.
 *Done when:* boundary verde; unidade+integração+e2e passam; mutation ≥ limiar; **sem regressão de comportamento**.
-*Entregue:* VOs com validação; agregados Flashcard/StudySession+Review; repos por agregado + `StudyUnitOfWork`; read model `StudyCardQuery`; filtro de erros na interface; e2e via supertest; mutação 100% em VOs/entidades, 94–100% nos use-cases. (Domain Events ficaram deferidos — não exigidos pelo Done-when.)
+*Entregue:* VOs com validação; agregados Flashcard/StudySession+Review; repos por agregado + `StudyUnitOfWork`; read models (card/flashcard/deck queries); filtro de erros na interface; e2e via supertest; mutação 100% em VOs/entidades, 74–100% nos use-cases. (Domain Events ficaram deferidos — não exigidos pelo Done-when.)
+*Contexto `study` 100% migrado:* todos os métodos do antigo `StudyService` viraram use-cases (submit-review, start-session, start-deck, start-single-card, get-flashcard, end/finalize-session, sync-vault-log) e o `StudyService` foi removido.
 
 **Fases 2…N — Replicar por contexto:** `graph` → `ai` (LlmPort/ACL OpenAI) → `content` → `notes` → `provas`/`questions` → `auth`/`settings`. Cada um com TDD e a pirâmide.
 
