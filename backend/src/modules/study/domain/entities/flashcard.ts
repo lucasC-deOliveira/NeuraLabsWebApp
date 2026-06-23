@@ -49,4 +49,15 @@ export class Flashcard {
   review(grade: Grade, now: Date): void {
     this.state = scheduleCard(grade.value, this.state, now);
   }
+
+  /**
+   * Reviews the card as of a past timestamp (offline import). Skips rescheduling
+   * when the review predates the last recorded one. Returns whether it rescheduled.
+   * @example flashcard.reviewAt(Grade.create('good'), reviewedAt)
+   */
+  reviewAt(grade: Grade, reviewedAt: Date): boolean {
+    if (this.state && reviewedAt < this.state.ultimaRevisao) return false;
+    this.state = scheduleCard(grade.value, this.state, reviewedAt);
+    return true;
+  }
 }

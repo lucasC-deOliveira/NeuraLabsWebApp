@@ -1,7 +1,6 @@
 import { Body, Controller, Get, Param, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { StudyService } from './study.service';
 import {
   SubmitReviewUseCase,
   type SubmitReviewCommand,
@@ -12,6 +11,10 @@ import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/f
 import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-cases/get-flashcard-for-study.use-case';
 import { StartSingleCardStudyUseCase } from '../modules/study/application/use-cases/start-single-card-study.use-case';
 import { StartDeckStudyUseCase } from '../modules/study/application/use-cases/start-deck-study.use-case';
+import {
+  SyncVaultLogUseCase,
+  type VaultSessionInput,
+} from '../modules/study/application/use-cases/sync-vault-log.use-case';
 import { StudyDomainExceptionFilter } from '../modules/study/interface/study-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -19,7 +22,6 @@ import { StudyDomainExceptionFilter } from '../modules/study/interface/study-dom
 @Controller('study')
 export class StudyController {
   constructor(
-    private readonly study: StudyService,
     private readonly submitReview: SubmitReviewUseCase,
     private readonly startSession: StartSessionUseCase,
     private readonly endSession: EndSessionUseCase,
@@ -27,6 +29,7 @@ export class StudyController {
     private readonly getFlashcardForStudy: GetFlashcardForStudyUseCase,
     private readonly startSingleCardStudy: StartSingleCardStudyUseCase,
     private readonly startDeckStudy: StartDeckStudyUseCase,
+    private readonly syncVaultLog: SyncVaultLogUseCase,
   ) {}
 
   @Post('session')
@@ -68,7 +71,7 @@ export class StudyController {
   }
 
   @Post('sync-vault-log')
-  syncVaultLog(@CurrentUser() userId: string, @Body() body: { sessions: any[] }) {
-    return this.study.syncVaultLog(userId, body.sessions ?? []);
+  sync(@CurrentUser() userId: string, @Body() body: { sessions?: VaultSessionInput[] }) {
+    return this.syncVaultLog.execute(userId, body.sessions ?? []);
   }
 }

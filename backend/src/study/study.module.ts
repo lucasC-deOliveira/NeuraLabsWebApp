@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { StudyController } from './study.controller';
-import { StudyService } from './study.service';
 import { SubmitReviewUseCase } from '../modules/study/application/use-cases/submit-review.use-case';
 import { StartSessionUseCase } from '../modules/study/application/use-cases/start-session.use-case';
 import { EndSessionUseCase } from '../modules/study/application/use-cases/end-session.use-case';
@@ -10,7 +9,12 @@ import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/f
 import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-cases/get-flashcard-for-study.use-case';
 import { StartSingleCardStudyUseCase } from '../modules/study/application/use-cases/start-single-card-study.use-case';
 import { StartDeckStudyUseCase } from '../modules/study/application/use-cases/start-deck-study.use-case';
+import { SyncVaultLogUseCase } from '../modules/study/application/use-cases/sync-vault-log.use-case';
 import { CLOCK, type Clock } from '../modules/study/domain/ports/clock';
+import {
+  VAULT_IMPORT_SESSION_REPOSITORY,
+  type VaultImportSessionRepository,
+} from '../modules/study/domain/ports/vault-import-session-repository';
 import {
   STUDY_DECK_QUERY,
   type StudyDeckQuery,
@@ -42,13 +46,14 @@ import { PrismaStudyCardQuery } from '../modules/study/infrastructure/persistenc
 import { PrismaStudySessionLifecycle } from '../modules/study/infrastructure/persistence/prisma-study-session-lifecycle';
 import { PrismaStudyFlashcardQuery } from '../modules/study/infrastructure/persistence/prisma-study-flashcard.query';
 import { PrismaStudyDeckQuery } from '../modules/study/infrastructure/persistence/prisma-study-deck.query';
+import { PrismaVaultImportSessionRepository } from '../modules/study/infrastructure/persistence/prisma-vault-import-session.repository';
 
 @Module({
   imports: [AuthModule],
   controllers: [StudyController],
   providers: [
-    StudyService,
     { provide: STUDY_UNIT_OF_WORK, useClass: PrismaStudyUnitOfWork },
+    { provide: VAULT_IMPORT_SESSION_REPOSITORY, useClass: PrismaVaultImportSessionRepository },
     { provide: STUDY_CARD_QUERY, useClass: PrismaStudyCardQuery },
     { provide: STUDY_SESSION_LIFECYCLE, useClass: PrismaStudySessionLifecycle },
     { provide: STUDY_FLASHCARD_QUERY, useClass: PrismaStudyFlashcardQuery },
@@ -96,6 +101,12 @@ import { PrismaStudyDeckQuery } from '../modules/study/infrastructure/persistenc
       useFactory: (decks: StudyDeckQuery, sessions: StudySessionRepository) =>
         new StartDeckStudyUseCase(decks, sessions),
       inject: [STUDY_DECK_QUERY, STUDY_SESSION_REPOSITORY],
+    },
+    {
+      provide: SyncVaultLogUseCase,
+      useFactory: (imports: VaultImportSessionRepository, uow: StudyUnitOfWork) =>
+        new SyncVaultLogUseCase(imports, uow),
+      inject: [VAULT_IMPORT_SESSION_REPOSITORY, STUDY_UNIT_OF_WORK],
     },
   ],
 })
