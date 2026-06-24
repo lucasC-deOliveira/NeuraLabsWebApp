@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { OpenAI } from 'openai';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { GraphService } from '../graph/graph.service';
 import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
+import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/ports/llm-port';
 import {
   getAllowedRelations,
   isRelationAllowed,
@@ -49,14 +49,8 @@ export class AiService {
     private readonly settings: SettingsService,
     private readonly graph: GraphService,
     private readonly deleteNodeUseCase: DeleteNodeUseCase,
+    @Inject(LLM_PORT) private readonly llm: LlmPort,
   ) {}
-
-  private async openai(userId: string) {
-    const cfg = await this.settings.resolveAIConfig(userId);
-    if (!cfg.apiKey)
-      throw new BadRequestException('API key não configurada. Configure em Configurações.');
-    return { client: new OpenAI({ apiKey: cfg.apiKey, baseURL: cfg.baseUrl }), model: cfg.model };
-  }
 
   private extractJSON(text: string): any {
     // 1. Tenta direto
@@ -87,20 +81,8 @@ export class AiService {
     throw new BadRequestException('A IA retornou JSON inválido.');
   }
 
-  private async callAI(
-    userId: string,
-    messages: Array<{ role: 'system' | 'user'; content: string }>,
-    maxTokens = 4000,
-  ): Promise<string> {
-    const { client, model } = await this.openai(userId);
-    const response = await client.chat.completions.create({
-      model,
-      temperature: 0.3,
-      response_format: { type: 'json_object' },
-      messages,
-      max_tokens: maxTokens,
-    });
-    return response.choices[0]?.message?.content ?? '';
+  private callAI(userId: string, messages: LlmMessage[], maxTokens = 4000): Promise<string> {
+    return this.llm.complete({ userId, messages, maxTokens });
   }
 
   private async loadGraphNameIndex(
@@ -413,12 +395,10 @@ export class AiService {
       ? { tipoNo: targets[0].tipo, relacao: targets[0].relacoes[0] }
       : null;
 
-    const { client, model } = await this.openai(userId);
     const tipoAlvo = TIPO_LABEL[alvo.tipo] ?? alvo.tipo;
-    const response = await client.chat.completions.create({
-      model,
+    const content = await this.llm.complete({
+      userId,
       temperature: 0.5,
-      response_format: { type: 'json_object' },
       messages: [
         {
           role: 'system',
@@ -432,7 +412,7 @@ export class AiService {
     });
     let parsed: any;
     try {
-      parsed = JSON.parse(response.choices[0]?.message?.content ?? '{}');
+      parsed = JSON.parse(content || '{}');
     } catch {
       throw new BadRequestException('A IA retornou resposta inválida.');
     }
@@ -544,11 +524,9 @@ export class AiService {
     });
     const conceptContext = allConcepts.map((c) => `- ${c.nome}`).join('\n');
 
-    const { client, model } = await this.openai(userId);
-    const response = await client.chat.completions.create({
-      model,
+    const content = await this.llm.complete({
+      userId,
       temperature: 0.5,
-      response_format: { type: 'json_object' },
       messages: [
         {
           role: 'system',
@@ -573,7 +551,6 @@ ${conceptContext}`,
       ],
     });
 
-    const content = response.choices[0]?.message?.content;
     if (!content) return [];
     const { resolveFallback } = makeConceptResolver(allConcepts);
     let parsed: any;
@@ -660,11 +637,9 @@ ${conceptContext}`,
       .map((t) => `- NOTA → ${t}: ${getAllowedRelations('NOTA', t).join(', ')}`)
       .join('\n');
 
-    const { client, model } = await this.openai(userId);
-    const response = await client.chat.completions.create({
-      model,
+    const content = await this.llm.complete({
+      userId,
       temperature: 0.2,
-      response_format: { type: 'json_object' },
       messages: [
         {
           role: 'system',
@@ -678,7 +653,7 @@ ${conceptContext}`,
     });
     let parsed: any;
     try {
-      parsed = JSON.parse(response.choices[0]?.message?.content ?? '{}');
+      parsed = JSON.parse(content || '{}');
     } catch {
       throw new BadRequestException('A IA retornou resposta inválida.');
     }
