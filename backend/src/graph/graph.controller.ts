@@ -25,6 +25,8 @@ import { ListGraphsUseCase } from '../modules/graph/application/use-cases/list-g
 import { GetGraphInfoUseCase } from '../modules/graph/application/use-cases/get-graph-info.use-case';
 import { DeleteGraphUseCase } from '../modules/graph/application/use-cases/delete-graph.use-case';
 import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
+import { SaveVisualStateUseCase } from '../modules/graph/application/use-cases/save-visual-state.use-case';
+import { LoadVisualStateUseCase } from '../modules/graph/application/use-cases/load-visual-state.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -46,6 +48,8 @@ export class GraphController {
     private readonly getGraphInfoUseCase: GetGraphInfoUseCase,
     private readonly deleteGraphUseCase: DeleteGraphUseCase,
     private readonly deleteNodeUseCase: DeleteNodeUseCase,
+    private readonly saveVisualStateUseCase: SaveVisualStateUseCase,
+    private readonly loadVisualStateUseCase: LoadVisualStateUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -85,7 +89,7 @@ export class GraphController {
 
   @Get('graphs/:id/visual')
   loadVisual(@CurrentUser() userId: string, @Param('id') id: string) {
-    return this.graph.loadVisualState(userId, id);
+    return this.loadVisualStateUseCase.execute(userId, id);
   }
 
   @Put('graphs/:id/visual')
@@ -94,7 +98,7 @@ export class GraphController {
     @Param('id') id: string,
     @Body() body: { state: unknown },
   ) {
-    return this.graph.saveVisualState(userId, id, body.state);
+    return this.saveVisualStateUseCase.execute(userId, id, body.state);
   }
 
   // ---- Grafo (nós + arestas) ----

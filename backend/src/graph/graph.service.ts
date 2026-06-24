@@ -77,27 +77,6 @@ export class GraphService {
 
   // ---- Grafos ----
 
-  async saveVisualState(userId: string, grafoId: string, state: unknown) {
-    await this.prisma.grafosConhecimento.updateMany({
-      where: { id: grafoId, usuarioId: userId },
-      data: { estadoVisual: JSON.stringify(state) },
-    });
-    return { success: true };
-  }
-
-  async loadVisualState(userId: string, grafoId: string) {
-    const g = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: grafoId, usuarioId: userId },
-      select: { estadoVisual: true },
-    });
-    if (!g?.estadoVisual) return null;
-    try {
-      return JSON.parse(g.estadoVisual);
-    } catch {
-      return null;
-    }
-  }
-
   // Garante que o grafo tem um Assunto-raiz (cria sob demanda para grafos antigos
   // criados antes desta feature). Idempotente: só age quando rootAssuntoId é null.
   private async ensureRoot(userId: string, grafoId: string) {
