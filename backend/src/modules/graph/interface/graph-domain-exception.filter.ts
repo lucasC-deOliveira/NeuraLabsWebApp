@@ -23,6 +23,7 @@ import {
   ParentGraphNotFoundError,
   ProvaNotFoundError,
   RelationNotAllowedError,
+  SubgraphNotFoundError,
   RootNodeError,
   TooManyFlashcardsError,
   UnknownNodeTypeError,
@@ -47,7 +48,8 @@ type GraphDomainError =
   | ParentGraphNotFoundError
   | InvalidSubgraphRelationError
   | NoNodesToExtractError
-  | NoValidNodesError;
+  | NoValidNodesError
+  | SubgraphNotFoundError;
 
 // Translates Graph domain errors into HTTP responses. Domain messages stay
 // internal (English); user-facing messages produced here are in Portuguese.
@@ -70,6 +72,7 @@ type GraphDomainError =
   InvalidSubgraphRelationError,
   NoNodesToExtractError,
   NoValidNodesError,
+  SubgraphNotFoundError,
 )
 export class GraphDomainExceptionFilter implements ExceptionFilter {
   catch(error: GraphDomainError, host: ArgumentsHost): void {
@@ -92,6 +95,7 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
     if (error instanceof NodeNotInGraphError) return 'Nó não encontrado no grafo';
     if (error instanceof ProvaNotFoundError) return 'Prova não encontrada';
     if (error instanceof ParentGraphNotFoundError) return 'Grafo pai não encontrado';
+    if (error instanceof SubgraphNotFoundError) return 'Subgrafo não encontrado';
     return null;
   }
 

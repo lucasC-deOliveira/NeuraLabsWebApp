@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { buildKnowledgeGraph } from './knowledge-graph';
 import { isRelationAllowed } from '../modules/graph/domain/services/relation-rules';
 import { runImportGraph, type ImportGraphPayload } from './graph-import';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
@@ -48,43 +47,6 @@ export class GraphService {
     private readonly createNodeUseCase: CreateNodeUseCase,
     private readonly createDeckUseCase: CreateDeckUseCase,
   ) {}
-
-  // ---- Grafos ----
-
-  // Garante que o grafo tem um Assunto-raiz (cria sob demanda para grafos antigos
-  // criados antes desta feature). Idempotente: só age quando rootAssuntoId é null.
-  private async ensureRoot(userId: string, grafoId: string) {
-    const g = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: grafoId, usuarioId: userId },
-      select: { id: true, nome: true, rootAssuntoId: true },
-    });
-    if (!g || g.rootAssuntoId) return;
-    await this.prisma.$transaction(async (tx) => {
-      const root = await tx.assunto.create({ data: { nome: g.nome, usuarioId: userId } });
-      await tx.nodeConhecimento.create({
-        data: {
-          usuarioId: userId,
-          grafoId,
-          tipoNode: 'ASSUNTO',
-          referenciaId: root.id,
-          posicaoX: 0,
-          posicaoY: 0,
-        },
-      });
-      await tx.grafosConhecimento.update({
-        where: { id: grafoId },
-        data: { rootAssuntoId: root.id },
-      });
-    });
-  }
-
-  // ---- Leitura do grafo (nós + arestas + posições) ----
-  async loadGraph(userId: string, grafoId: string) {
-    await this.ensureRoot(userId, grafoId);
-    // posicaoX/posicaoY agora vêm direto do buildKnowledgeGraph — sem segunda query
-    const { nodes, edges } = await buildKnowledgeGraph(this.prisma, userId, grafoId);
-    return { nodes, edges };
-  }
 
   // ---- Nós ----
   // Delegado ao CreateNodeUseCase (usado pelo ai.service na geração por IA).
@@ -381,17 +343,5 @@ export class GraphService {
   // ---- Import JSON (nós + arestas, com reuso por nome) ----
   importGraph(userId: string, grafoId: string, payload: ImportGraphPayload) {
     return runImportGraph(this.prisma, userId, grafoId, payload);
-  }
-
-  // ---- Busca por conteúdo (devolve refIds que casam) ----
-  // ---- Posições ----
-  // ---- Subgrafos ----
-
-  async expandSubgrafo(userId: string, childGrafoId: string) {
-    const child = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: childGrafoId, usuarioId: userId },
-    });
-    if (!child) throw new NotFoundException('Subgrafo não encontrado');
-    return this.loadGraph(userId, childGrafoId);
   }
 }

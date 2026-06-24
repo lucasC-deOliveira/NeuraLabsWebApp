@@ -138,3 +138,10 @@ export class NoValidNodesError extends Error {
     this.name = 'NoValidNodesError';
   }
 }
+
+export class SubgraphNotFoundError extends Error {
+  constructor() {
+    super('Subgraph not found.');
+    this.name = 'SubgraphNotFoundError';
+  }
+}
