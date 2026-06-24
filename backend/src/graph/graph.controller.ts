@@ -27,6 +27,8 @@ import { DeleteGraphUseCase } from '../modules/graph/application/use-cases/delet
 import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
 import { SaveVisualStateUseCase } from '../modules/graph/application/use-cases/save-visual-state.use-case';
 import { LoadVisualStateUseCase } from '../modules/graph/application/use-cases/load-visual-state.use-case';
+import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
+import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -50,6 +52,8 @@ export class GraphController {
     private readonly deleteNodeUseCase: DeleteNodeUseCase,
     private readonly saveVisualStateUseCase: SaveVisualStateUseCase,
     private readonly loadVisualStateUseCase: LoadVisualStateUseCase,
+    private readonly getNodeDetailsUseCase: GetNodeDetailsUseCase,
+    private readonly getEdgesUseCase: GetEdgesUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -109,7 +113,7 @@ export class GraphController {
 
   @Get('edges')
   edges(@CurrentUser() userId: string, @Query('grafoId') grafoId: string) {
-    return this.graph.getEdges(userId, grafoId);
+    return this.getEdgesUseCase.execute(userId, grafoId);
   }
 
   @Get('search')
@@ -228,7 +232,7 @@ export class GraphController {
     @Param('refId') refId: string,
     @Query('tipoNode') tipoNode: TipoNode,
   ) {
-    return this.graph.getNodeDetails(userId, tipoNode, refId);
+    return this.getNodeDetailsUseCase.execute(userId, tipoNode, refId);
   }
 
   // ---- Arestas ----

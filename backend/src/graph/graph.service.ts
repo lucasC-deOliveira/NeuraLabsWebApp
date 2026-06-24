@@ -4,6 +4,8 @@ import { buildKnowledgeGraph } from './knowledge-graph';
 import { isRelationAllowed } from '../modules/graph/domain/services/relation-rules';
 import { runImportGraph, type ImportGraphPayload } from './graph-import';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
+import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
+import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
 
 type TipoNode =
   | 'ASSUNTO'
@@ -73,6 +75,8 @@ export class GraphService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly createEdgeUseCase: CreateEdgeUseCase,
+    private readonly getNodeDetailsUseCase: GetNodeDetailsUseCase,
+    private readonly getEdgesUseCase: GetEdgesUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -290,134 +294,7 @@ export class GraphService {
     return { success: true };
   }
 
-  async getNodeDetails(
-    userId: string,
-    tipoNode: TipoNode,
-    refId: string,
-  ): Promise<Record<string, string | null> | null> {
-    switch (tipoNode) {
-      case 'ASSUNTO': {
-        const a = await this.prisma.assunto.findFirst({ where: { id: refId, usuarioId: userId } });
-        return a ? { nome: a.nome, descricao: a.descricao } : null;
-      }
-      case 'TOPICO': {
-        const t = await this.prisma.topico.findFirst({ where: { id: refId, usuarioId: userId } });
-        return t ? { nome: t.nome, descricao: t.descricao } : null;
-      }
-      case 'CONCEITO': {
-        const c = await this.prisma.conceito.findFirst({ where: { id: refId, usuarioId: userId } });
-        return c ? { nome: c.nome, descricao: c.descricao } : null;
-      }
-      case 'FLASHCARD': {
-        const f = await this.prisma.flashcard.findFirst({
-          where: { id: refId, usuarioId: userId },
-        });
-        return f ? { pergunta: f.pergunta, resposta: f.resposta } : null;
-      }
-      case 'NOTA': {
-        const n = await this.prisma.nota.findFirst({ where: { id: refId, usuarioId: userId } });
-        return n
-          ? {
-              titulo: n.titulo,
-              conteudo: n.conteudo,
-              tipoNota: n.tipoNota,
-              subtipo: n.subtipo,
-              fonte: n.fonte,
-            }
-          : null;
-      }
-      case 'TEXTO_BRUTO': {
-        const t = await this.prisma.textoBruto.findFirst({
-          where: { id: refId, usuarioId: userId },
-        });
-        return t ? { titulo: t.titulo, texto: t.texto } : null;
-      }
-      case 'BARALHO': {
-        const b = await this.prisma.baralho.findFirst({ where: { id: refId, usuarioId: userId } });
-        return b ? { titulo: b.titulo } : null;
-      }
-      case 'QUESTION': {
-        const q = await (this.prisma as any).questao.findFirst({
-          where: { id: refId, usuarioId: userId },
-        });
-        return q
-          ? { enunciado: q.enunciado, tipo: q.tipo, gabarito: q.gabarito, explicacao: q.explicacao }
-          : null;
-      }
-      case 'PROVA': {
-        const p = await (this.prisma as any).prova.findFirst({
-          where: { id: refId, usuarioId: userId },
-          include: { _count: { select: { questoes: true } } },
-        });
-        return p
-          ? { titulo: p.titulo, descricao: p.descricao, totalQuestoes: p._count.questoes }
-          : null;
-      }
-      default:
-        return null;
-    }
-  }
-
   // ---- Arestas ----
-  async getEdges(userId: string, grafoId: string) {
-    const edges = await this.prisma.conhecimentoAresta.findMany({
-      where: { grafoId },
-      include: { nodeOrigem: true, nodeDestino: true },
-    });
-    const userEdges = edges.filter(
-      (e) => e.nodeOrigem?.usuarioId === userId && e.nodeDestino?.usuarioId === userId,
-    );
-    return Promise.all(
-      userEdges.map(async (e) => ({
-        id: e.id,
-        source: e.nodeOrigem!.referenciaId,
-        target: e.nodeDestino!.referenciaId,
-        tipoRelacao: e.tipoRelacao,
-        peso: e.peso,
-        sourceLabel: await this.label(e.nodeOrigem!.tipoNode, e.nodeOrigem!.referenciaId),
-        targetLabel: await this.label(e.nodeDestino!.tipoNode, e.nodeDestino!.referenciaId),
-      })),
-    );
-  }
-
-  private async label(tipoNode: string, refId: string): Promise<string> {
-    switch (tipoNode) {
-      case 'ASSUNTO':
-        return (await this.prisma.assunto.findUnique({ where: { id: refId } }))?.nome ?? refId;
-      case 'TOPICO':
-        return (await this.prisma.topico.findUnique({ where: { id: refId } }))?.nome ?? refId;
-      case 'CONCEITO':
-        return (await this.prisma.conceito.findUnique({ where: { id: refId } }))?.nome ?? refId;
-      case 'FLASHCARD':
-        return (
-          (await this.prisma.flashcard.findUnique({ where: { id: refId } }))?.pergunta?.slice(
-            0,
-            50,
-          ) ?? refId
-        );
-      case 'NOTA': {
-        const n = await this.prisma.nota.findUnique({ where: { id: refId } });
-        return n?.titulo && n.titulo !== 'Sem título'
-          ? n.titulo
-          : (n?.conteudo?.slice(0, 50) ?? refId);
-      }
-      case 'TEXTO_BRUTO': {
-        const t = await this.prisma.textoBruto.findUnique({ where: { id: refId } });
-        return t?.titulo && t.titulo !== 'Texto sem título'
-          ? t.titulo
-          : (t?.texto?.slice(0, 50) ?? refId);
-      }
-      case 'BARALHO':
-        return (await this.prisma.baralho.findUnique({ where: { id: refId } }))?.titulo ?? refId;
-      case 'PROVA':
-        return (
-          (await (this.prisma as any).prova.findUnique({ where: { id: refId } }))?.titulo ?? refId
-        );
-      default:
-        return refId;
-    }
-  }
-
   // Delegado ao CreateEdgeUseCase (usado pelo ai.service na geração por IA).
   async createEdge(
     userId: string,
@@ -526,7 +403,7 @@ export class GraphService {
     });
     const nodes: Array<Record<string, unknown>> = [];
     for (const nr of nodeRows) {
-      const d = await this.getNodeDetails(userId, nr.tipoNode as TipoNode, nr.referenciaId);
+      const d = await this.getNodeDetailsUseCase.execute(userId, nr.tipoNode, nr.referenciaId);
       if (!d) continue;
       nodes.push({
         ref: nr.referenciaId,
@@ -537,7 +414,7 @@ export class GraphService {
         ...d,
       });
     }
-    const edgeRows = await this.getEdges(userId, grafoId);
+    const edgeRows = await this.getEdgesUseCase.execute(userId, grafoId);
     const edges = edgeRows.map((e) => ({
       origem: e.source,
       destino: e.target,

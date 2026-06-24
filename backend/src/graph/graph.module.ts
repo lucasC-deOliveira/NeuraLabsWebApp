@@ -15,6 +15,8 @@ import { DeleteGraphUseCase } from '../modules/graph/application/use-cases/delet
 import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
 import { SaveVisualStateUseCase } from '../modules/graph/application/use-cases/save-visual-state.use-case';
 import { LoadVisualStateUseCase } from '../modules/graph/application/use-cases/load-visual-state.use-case';
+import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
+import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
 import {
   GRAPH_EDGE_REPOSITORY,
   type GraphEdgeRepository,
@@ -40,12 +42,22 @@ import {
   GRAPH_VISUAL_STATE_REPOSITORY,
   type GraphVisualStateRepository,
 } from '../modules/graph/domain/ports/graph-visual-state-repository';
+import {
+  NODE_DETAILS_QUERY,
+  type NodeDetailsQuery,
+} from '../modules/graph/domain/ports/node-details-query';
+import {
+  GRAPH_EDGES_QUERY,
+  type GraphEdgesQuery,
+} from '../modules/graph/domain/ports/graph-edges-query';
 import { PrismaGraphEdgeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-edge.repository';
 import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-node.repository';
 import { PrismaGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-graph.repository';
 import { PrismaGraphQuery } from '../modules/graph/infrastructure/persistence/prisma-graph.query';
 import { PrismaGraphDeletionRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-deletion.repository';
 import { PrismaGraphVisualStateRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-visual-state.repository';
+import { PrismaNodeDetailsQuery } from '../modules/graph/infrastructure/persistence/prisma-node-details.query';
+import { PrismaGraphEdgesQuery } from '../modules/graph/infrastructure/persistence/prisma-graph-edges.query';
 
 @Module({
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
@@ -61,6 +73,8 @@ import { PrismaGraphVisualStateRepository } from '../modules/graph/infrastructur
     { provide: GRAPH_DELETION_REPOSITORY, useExisting: PrismaGraphDeletionRepository },
     { provide: NODE_DELETION_REPOSITORY, useExisting: PrismaGraphDeletionRepository },
     { provide: GRAPH_VISUAL_STATE_REPOSITORY, useClass: PrismaGraphVisualStateRepository },
+    { provide: NODE_DETAILS_QUERY, useClass: PrismaNodeDetailsQuery },
+    { provide: GRAPH_EDGES_QUERY, useClass: PrismaGraphEdgesQuery },
     {
       provide: CreateEdgeUseCase,
       useFactory: (edges: GraphEdgeRepository) => new CreateEdgeUseCase(edges),
@@ -125,6 +139,16 @@ import { PrismaGraphVisualStateRepository } from '../modules/graph/infrastructur
       provide: LoadVisualStateUseCase,
       useFactory: (visual: GraphVisualStateRepository) => new LoadVisualStateUseCase(visual),
       inject: [GRAPH_VISUAL_STATE_REPOSITORY],
+    },
+    {
+      provide: GetNodeDetailsUseCase,
+      useFactory: (nodes: NodeDetailsQuery) => new GetNodeDetailsUseCase(nodes),
+      inject: [NODE_DETAILS_QUERY],
+    },
+    {
+      provide: GetEdgesUseCase,
+      useFactory: (edges: GraphEdgesQuery) => new GetEdgesUseCase(edges),
+      inject: [GRAPH_EDGES_QUERY],
     },
   ],
   exports: [GraphService, DeleteNodeUseCase],
