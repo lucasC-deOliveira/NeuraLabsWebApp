@@ -18,6 +18,8 @@ import { LoadVisualStateUseCase } from '../modules/graph/application/use-cases/l
 import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
 import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
 import { SearchNodeContentUseCase } from '../modules/graph/application/use-cases/search-node-content.use-case';
+import { ListUserFlashcardsUseCase } from '../modules/graph/application/use-cases/list-user-flashcards.use-case';
+import { GetDeckForStudyUseCase } from '../modules/graph/application/use-cases/get-deck-for-study.use-case';
 import {
   GRAPH_EDGE_REPOSITORY,
   type GraphEdgeRepository,
@@ -55,6 +57,7 @@ import {
   NODE_CONTENT_SEARCH_QUERY,
   type NodeContentSearchQuery,
 } from '../modules/graph/domain/ports/node-content-search-query';
+import { DECK_QUERY, type DeckQuery } from '../modules/graph/domain/ports/deck-query';
 import { PrismaGraphEdgeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-edge.repository';
 import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-node.repository';
 import { PrismaGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-graph.repository';
@@ -64,6 +67,7 @@ import { PrismaGraphVisualStateRepository } from '../modules/graph/infrastructur
 import { PrismaNodeDetailsQuery } from '../modules/graph/infrastructure/persistence/prisma-node-details.query';
 import { PrismaGraphEdgesQuery } from '../modules/graph/infrastructure/persistence/prisma-graph-edges.query';
 import { PrismaNodeContentSearchQuery } from '../modules/graph/infrastructure/persistence/prisma-node-content-search.query';
+import { PrismaDeckQuery } from '../modules/graph/infrastructure/persistence/prisma-deck.query';
 
 @Module({
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
@@ -82,6 +86,7 @@ import { PrismaNodeContentSearchQuery } from '../modules/graph/infrastructure/pe
     { provide: NODE_DETAILS_QUERY, useClass: PrismaNodeDetailsQuery },
     { provide: GRAPH_EDGES_QUERY, useClass: PrismaGraphEdgesQuery },
     { provide: NODE_CONTENT_SEARCH_QUERY, useClass: PrismaNodeContentSearchQuery },
+    { provide: DECK_QUERY, useClass: PrismaDeckQuery },
     {
       provide: CreateEdgeUseCase,
       useFactory: (edges: GraphEdgeRepository) => new CreateEdgeUseCase(edges),
@@ -161,6 +166,16 @@ import { PrismaNodeContentSearchQuery } from '../modules/graph/infrastructure/pe
       provide: SearchNodeContentUseCase,
       useFactory: (search: NodeContentSearchQuery) => new SearchNodeContentUseCase(search),
       inject: [NODE_CONTENT_SEARCH_QUERY],
+    },
+    {
+      provide: ListUserFlashcardsUseCase,
+      useFactory: (decks: DeckQuery) => new ListUserFlashcardsUseCase(decks),
+      inject: [DECK_QUERY],
+    },
+    {
+      provide: GetDeckForStudyUseCase,
+      useFactory: (decks: DeckQuery) => new GetDeckForStudyUseCase(decks),
+      inject: [DECK_QUERY],
     },
   ],
   exports: [GraphService, DeleteNodeUseCase],

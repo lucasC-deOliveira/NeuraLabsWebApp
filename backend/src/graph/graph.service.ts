@@ -382,15 +382,6 @@ export class GraphService {
   }
 
   // flashcards do usuário (picker do baralho)
-  async listFlashcardsForDeck(userId: string) {
-    const fcs = await this.prisma.flashcard.findMany({
-      where: { usuarioId: userId },
-      include: { conceito: true },
-      orderBy: { dataCriacao: 'desc' },
-    });
-    return fcs.map((f) => ({ id: f.id, pergunta: f.pergunta, conceito: f.conceito?.nome ?? null }));
-  }
-
   // Exporta o grafo no MESMO formato do importGraph (ref = referenciaId),
   // com conteúdo completo + posição/nível. Usado pelo vault (Pull no desktop).
   async exportGraph(userId: string, grafoId: string) {
@@ -659,28 +650,6 @@ export class GraphService {
   }
 
   // baralho para visualização (ViewDeckModal): todos os cards do deck
-  async getDeckForStudy(userId: string, baralhoId: string) {
-    const baralho = await this.prisma.baralho.findFirst({
-      where: { id: baralhoId, usuarioId: userId },
-      include: {
-        flashcards: {
-          include: { conceito: { select: { nome: true } } },
-          orderBy: { dataCriacao: 'asc' },
-        },
-      },
-    });
-    if (!baralho) return null;
-    return {
-      titulo: baralho.titulo,
-      cards: baralho.flashcards.map((fc) => ({
-        id: fc.id,
-        pergunta: fc.pergunta,
-        resposta: fc.resposta,
-        conceito: fc.conceito?.nome ?? null,
-      })),
-    };
-  }
-
   // ---- Baralho ----
   async createBaralho(userId: string, grafoId: string, titulo: string, flashcardIds: string[]) {
     const grafo = await this.prisma.grafosConhecimento.findFirst({

@@ -30,6 +30,8 @@ import { LoadVisualStateUseCase } from '../modules/graph/application/use-cases/l
 import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
 import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
 import { SearchNodeContentUseCase } from '../modules/graph/application/use-cases/search-node-content.use-case';
+import { ListUserFlashcardsUseCase } from '../modules/graph/application/use-cases/list-user-flashcards.use-case';
+import { GetDeckForStudyUseCase } from '../modules/graph/application/use-cases/get-deck-for-study.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -56,6 +58,8 @@ export class GraphController {
     private readonly getNodeDetailsUseCase: GetNodeDetailsUseCase,
     private readonly getEdgesUseCase: GetEdgesUseCase,
     private readonly searchNodeContentUseCase: SearchNodeContentUseCase,
+    private readonly listUserFlashcardsUseCase: ListUserFlashcardsUseCase,
+    private readonly getDeckForStudyUseCase: GetDeckForStudyUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -130,12 +134,12 @@ export class GraphController {
 
   @Get('flashcards')
   flashcards(@CurrentUser() userId: string) {
-    return this.graph.listFlashcardsForDeck(userId);
+    return this.listUserFlashcardsUseCase.execute(userId);
   }
 
   @Get('baralho/:baralhoId/study')
   deckForStudy(@CurrentUser() userId: string, @Param('baralhoId') baralhoId: string) {
-    return this.graph.getDeckForStudy(userId, baralhoId);
+    return this.getDeckForStudyUseCase.execute(userId, baralhoId);
   }
 
   // ---- Nós ----
