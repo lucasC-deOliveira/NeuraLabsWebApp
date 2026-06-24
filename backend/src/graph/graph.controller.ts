@@ -35,6 +35,7 @@ import { GetDeckForStudyUseCase } from '../modules/graph/application/use-cases/g
 import { SavePositionsUseCase } from '../modules/graph/application/use-cases/save-positions.use-case';
 import { GetAvailableItemsUseCase } from '../modules/graph/application/use-cases/get-available-items.use-case';
 import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
+import { UpdateNodeUseCase } from '../modules/graph/application/use-cases/update-node.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -66,6 +67,7 @@ export class GraphController {
     private readonly savePositionsUseCase: SavePositionsUseCase,
     private readonly getAvailableItemsUseCase: GetAvailableItemsUseCase,
     private readonly createNodeUseCase: CreateNodeUseCase,
+    private readonly updateNodeUseCase: UpdateNodeUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -215,7 +217,7 @@ export class GraphController {
     @Param('refId') refId: string,
     @Body() body: Partial<CreateNodeInput> & { tipoNode: TipoNode },
   ) {
-    return this.graph.updateNode(userId, body.tipoNode, refId, body);
+    return this.updateNodeUseCase.execute(userId, body.tipoNode, refId, body);
   }
 
   @Delete('nodes/:refId')

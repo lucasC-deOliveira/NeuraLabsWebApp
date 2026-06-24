@@ -94,6 +94,7 @@ function nodeValidationMessage(code: NodeValidationCode): string {
     NOTE_SUBTYPE_REQUIRED: 'Selecione o subtipo da nota',
     LITERATURE_NOTE_SOURCE_REQUIRED: 'Notas de literatura exigem a fonte',
     RAW_TEXT_REQUIRED: 'O texto original é obrigatório',
+    INVALID_NOTE_SUBTYPE: 'Subtipo inválido',
   };
   return messages[code];
 }

@@ -30,17 +30,6 @@ const GRAFO_REF_RELATIONS = [
   'RELACIONADO',
 ] as const;
 
-const NOTA_SUBTIPOS = [
-  'DEFINICAO',
-  'EXPLICACAO',
-  'EXEMPLO',
-  'COMPARACAO',
-  'SINTESE',
-  'PREREQUISITO',
-  'ERRO_COMUM',
-  'APLICACAO',
-];
-
 export interface CreateNodeInput {
   tipoNode: TipoNode;
   nome?: string;
@@ -109,78 +98,6 @@ export class GraphService {
   // Delegado ao CreateNodeUseCase (usado pelo ai.service na geração por IA).
   async createNode(userId: string, grafoId: string, input: CreateNodeInput) {
     return this.createNodeUseCase.execute(userId, grafoId, input);
-  }
-
-  async updateNode(
-    userId: string,
-    tipoNode: TipoNode,
-    refId: string,
-    data: Partial<CreateNodeInput>,
-  ) {
-    const where = { id: refId, usuarioId: userId };
-    let count = 0;
-    switch (tipoNode) {
-      case 'ASSUNTO':
-        count = (
-          await this.prisma.assunto.updateMany({
-            where,
-            data: { nome: data.nome, descricao: data.descricao },
-          })
-        ).count;
-        break;
-      case 'TOPICO':
-        count = (
-          await this.prisma.topico.updateMany({
-            where,
-            data: { nome: data.nome, descricao: data.descricao },
-          })
-        ).count;
-        break;
-      case 'CONCEITO':
-        count = (
-          await this.prisma.conceito.updateMany({
-            where,
-            data: { nome: data.nome, descricao: data.descricao },
-          })
-        ).count;
-        break;
-      case 'FLASHCARD':
-        count = (
-          await this.prisma.flashcard.updateMany({
-            where,
-            data: { pergunta: data.pergunta, resposta: data.resposta },
-          })
-        ).count;
-        break;
-      case 'NOTA':
-        if (data.subtipo && !NOTA_SUBTIPOS.includes(data.subtipo))
-          throw new BadRequestException('Subtipo inválido');
-        count = (
-          await this.prisma.nota.updateMany({
-            where,
-            data: {
-              titulo: data.titulo?.trim(),
-              conteudo: data.conteudo,
-              tipoNota: data.tipoNota,
-              subtipo: data.subtipo as any,
-              fonte: data.fonte === undefined ? undefined : data.fonte?.trim() || null,
-            },
-          })
-        ).count;
-        break;
-      case 'TEXTO_BRUTO':
-        count = (
-          await this.prisma.textoBruto.updateMany({
-            where,
-            data: { titulo: data.titulo?.trim(), texto: data.texto?.trim() },
-          })
-        ).count;
-        break;
-      default:
-        throw new BadRequestException(`Tipo de nó desconhecido: ${tipoNode}`);
-    }
-    if (count === 0) throw new NotFoundException('Nó não encontrado');
-    return { success: true };
   }
 
   // ---- Arestas ----

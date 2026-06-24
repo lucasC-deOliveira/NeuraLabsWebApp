@@ -66,7 +66,8 @@ export type NodeValidationCode =
   | 'NOTE_TITLE_REQUIRED'
   | 'NOTE_SUBTYPE_REQUIRED'
   | 'LITERATURE_NOTE_SOURCE_REQUIRED'
-  | 'RAW_TEXT_REQUIRED';
+  | 'RAW_TEXT_REQUIRED'
+  | 'INVALID_NOTE_SUBTYPE';
 
 export class NodeValidationError extends Error {
   constructor(readonly code: NodeValidationCode) {

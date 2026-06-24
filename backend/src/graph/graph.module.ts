@@ -23,6 +23,7 @@ import { GetDeckForStudyUseCase } from '../modules/graph/application/use-cases/g
 import { SavePositionsUseCase } from '../modules/graph/application/use-cases/save-positions.use-case';
 import { GetAvailableItemsUseCase } from '../modules/graph/application/use-cases/get-available-items.use-case';
 import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
+import { UpdateNodeUseCase } from '../modules/graph/application/use-cases/update-node.use-case';
 import {
   GRAPH_EDGE_REPOSITORY,
   type GraphEdgeRepository,
@@ -73,6 +74,10 @@ import {
   NODE_CREATION_REPOSITORY,
   type NodeCreationRepository,
 } from '../modules/graph/domain/ports/node-creation-repository';
+import {
+  NODE_UPDATE_REPOSITORY,
+  type NodeUpdateRepository,
+} from '../modules/graph/domain/ports/node-update-repository';
 import { PrismaGraphEdgeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-edge.repository';
 import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-node.repository';
 import { PrismaGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-graph.repository';
@@ -86,6 +91,7 @@ import { PrismaDeckQuery } from '../modules/graph/infrastructure/persistence/pri
 import { PrismaGraphPositionRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-position.repository';
 import { PrismaAvailableItemsQuery } from '../modules/graph/infrastructure/persistence/prisma-available-items.query';
 import { PrismaNodeCreationRepository } from '../modules/graph/infrastructure/persistence/prisma-node-creation.repository';
+import { PrismaNodeUpdateRepository } from '../modules/graph/infrastructure/persistence/prisma-node-update.repository';
 
 @Module({
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
@@ -108,6 +114,7 @@ import { PrismaNodeCreationRepository } from '../modules/graph/infrastructure/pe
     { provide: GRAPH_POSITION_REPOSITORY, useClass: PrismaGraphPositionRepository },
     { provide: AVAILABLE_ITEMS_QUERY, useClass: PrismaAvailableItemsQuery },
     { provide: NODE_CREATION_REPOSITORY, useClass: PrismaNodeCreationRepository },
+    { provide: NODE_UPDATE_REPOSITORY, useClass: PrismaNodeUpdateRepository },
     {
       provide: CreateEdgeUseCase,
       useFactory: (edges: GraphEdgeRepository) => new CreateEdgeUseCase(edges),
@@ -212,6 +219,11 @@ import { PrismaNodeCreationRepository } from '../modules/graph/infrastructure/pe
       provide: CreateNodeUseCase,
       useFactory: (nodes: NodeCreationRepository) => new CreateNodeUseCase(nodes),
       inject: [NODE_CREATION_REPOSITORY],
+    },
+    {
+      provide: UpdateNodeUseCase,
+      useFactory: (nodes: NodeUpdateRepository) => new UpdateNodeUseCase(nodes),
+      inject: [NODE_UPDATE_REPOSITORY],
     },
   ],
   exports: [GraphService, DeleteNodeUseCase],
