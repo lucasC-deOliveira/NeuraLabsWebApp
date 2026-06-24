@@ -36,6 +36,8 @@ import { SavePositionsUseCase } from '../modules/graph/application/use-cases/sav
 import { GetAvailableItemsUseCase } from '../modules/graph/application/use-cases/get-available-items.use-case';
 import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
 import { UpdateNodeUseCase } from '../modules/graph/application/use-cases/update-node.use-case';
+import { CreateDeckUseCase } from '../modules/graph/application/use-cases/create-deck.use-case';
+import { AddProvaToGraphUseCase } from '../modules/graph/application/use-cases/add-prova-to-graph.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -68,6 +70,8 @@ export class GraphController {
     private readonly getAvailableItemsUseCase: GetAvailableItemsUseCase,
     private readonly createNodeUseCase: CreateNodeUseCase,
     private readonly updateNodeUseCase: UpdateNodeUseCase,
+    private readonly createDeckUseCase: CreateDeckUseCase,
+    private readonly addProvaToGraphUseCase: AddProvaToGraphUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -176,7 +180,7 @@ export class GraphController {
     @Param('grafoId') grafoId: string,
     @Body() body: { titulo: string; flashcardIds: string[] },
   ) {
-    return this.graph.createBaralho(userId, grafoId, body.titulo, body.flashcardIds ?? []);
+    return this.createDeckUseCase.execute(userId, grafoId, body.titulo, body.flashcardIds ?? []);
   }
 
   @Post('graphs/:grafoId/prova')
@@ -185,7 +189,7 @@ export class GraphController {
     @Param('grafoId') grafoId: string,
     @Body() body: { provaId: string },
   ) {
-    return this.graph.addProvaToGraph(userId, grafoId, body.provaId);
+    return this.addProvaToGraphUseCase.execute(userId, grafoId, body.provaId);
   }
 
   @Post('graphs/:grafoId/import')

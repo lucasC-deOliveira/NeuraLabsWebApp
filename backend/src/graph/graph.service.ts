@@ -7,6 +7,7 @@ import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create
 import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
 import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
 import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
+import { CreateDeckUseCase } from '../modules/graph/application/use-cases/create-deck.use-case';
 
 type TipoNode =
   | 'ASSUNTO'
@@ -55,6 +56,7 @@ export class GraphService {
     private readonly getNodeDetailsUseCase: GetNodeDetailsUseCase,
     private readonly getEdgesUseCase: GetEdgesUseCase,
     private readonly createNodeUseCase: CreateNodeUseCase,
+    private readonly createDeckUseCase: CreateDeckUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -381,78 +383,9 @@ export class GraphService {
 
   // baralho para visualização (ViewDeckModal): todos os cards do deck
   // ---- Baralho ----
+  // Delegado ao CreateDeckUseCase (usado pelo ai.service na geração por IA).
   async createBaralho(userId: string, grafoId: string, titulo: string, flashcardIds: string[]) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: grafoId, usuarioId: userId },
-    });
-    if (!grafo) throw new NotFoundException('Grafo não encontrado');
-    const tituloTrim = titulo?.trim();
-    if (!tituloTrim) throw new BadRequestException('O título do baralho é obrigatório');
-    const ids = Array.from(new Set(flashcardIds ?? []));
-    if (ids.length > 1000) throw new BadRequestException('Máximo de 1000 flashcards por baralho');
-    if (ids.length > 0) {
-      const count = await this.prisma.flashcard.count({
-        where: { id: { in: ids }, usuarioId: userId },
-      });
-      if (count !== ids.length)
-        throw new BadRequestException('Um ou mais flashcards não pertencem ao usuário');
-    }
-    const now = new Date();
-    const baralhoId = await this.prisma.$transaction(async (tx) => {
-      const baralho = await tx.baralho.create({
-        data: {
-          titulo: tituloTrim,
-          usuarioId: userId,
-          dataCriacao: now,
-          flashcards: ids.length ? { connect: ids.map((id) => ({ id })) } : undefined,
-        },
-      });
-      const baralhoNode = await tx.nodeConhecimento.create({
-        data: { grafoId, tipoNode: 'BARALHO', referenciaId: baralho.id, usuarioId: userId },
-      });
-      for (const fcId of ids) {
-        let fcNode = await tx.nodeConhecimento.findFirst({
-          where: { grafoId, usuarioId: userId, tipoNode: 'FLASHCARD', referenciaId: fcId },
-          select: { id: true },
-        });
-        if (!fcNode)
-          fcNode = await tx.nodeConhecimento.create({
-            data: { grafoId, tipoNode: 'FLASHCARD', referenciaId: fcId, usuarioId: userId },
-            select: { id: true },
-          });
-        await tx.conhecimentoAresta.create({
-          data: {
-            grafoId,
-            nodeOrigemId: baralhoNode.id,
-            nodeDestinoId: fcNode.id,
-            tipoRelacao: 'CONTEM',
-            peso: 1,
-          },
-        });
-      }
-      return baralho.id;
-    });
-    return { success: true, nodeId: baralhoId };
-  }
-
-  // ---- Prova: vincula (ou cria e vincula) uma prova ao grafo ----
-  async addProvaToGraph(userId: string, grafoId: string, provaId: string) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: grafoId, usuarioId: userId },
-    });
-    if (!grafo) throw new NotFoundException('Grafo não encontrado');
-    const prova = await (this.prisma as any).prova.findFirst({
-      where: { id: provaId, usuarioId: userId },
-    });
-    if (!prova) throw new NotFoundException('Prova não encontrada');
-    const existing = await this.prisma.nodeConhecimento.findFirst({
-      where: { grafoId, tipoNode: 'PROVA' as any, referenciaId: provaId },
-    });
-    if (existing) return { success: true, nodeId: existing.id };
-    const node = await this.prisma.nodeConhecimento.create({
-      data: { grafoId, tipoNode: 'PROVA' as any, referenciaId: provaId, usuarioId: userId },
-    });
-    return { success: true, nodeId: node.id };
+    return this.createDeckUseCase.execute(userId, grafoId, titulo, flashcardIds);
   }
 
   // ---- Import JSON (nós + arestas, com reuso por nome) ----

@@ -8,15 +8,19 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import {
+  DeckTitleRequiredError,
   DuplicateEdgeError,
   EdgeNotFoundError,
+  FlashcardsNotOwnedError,
   GraphNodesNotFoundError,
   GraphNotFoundError,
   InvalidEdgeWeightError,
   NodeNotInGraphError,
   NodeValidationError,
+  ProvaNotFoundError,
   RelationNotAllowedError,
   RootNodeError,
+  TooManyFlashcardsError,
   UnknownNodeTypeError,
   type NodeValidationCode,
 } from '../domain/errors';
@@ -31,7 +35,11 @@ type GraphDomainError =
   | NodeNotInGraphError
   | RootNodeError
   | NodeValidationError
-  | UnknownNodeTypeError;
+  | UnknownNodeTypeError
+  | DeckTitleRequiredError
+  | TooManyFlashcardsError
+  | FlashcardsNotOwnedError
+  | ProvaNotFoundError;
 
 // Translates Graph domain errors into HTTP responses. Domain messages stay
 // internal (English); user-facing messages produced here are in Portuguese.
@@ -46,6 +54,10 @@ type GraphDomainError =
   RootNodeError,
   NodeValidationError,
   UnknownNodeTypeError,
+  DeckTitleRequiredError,
+  TooManyFlashcardsError,
+  FlashcardsNotOwnedError,
+  ProvaNotFoundError,
 )
 export class GraphDomainExceptionFilter implements ExceptionFilter {
   catch(error: GraphDomainError, host: ArgumentsHost): void {
@@ -66,6 +78,7 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
     if (error instanceof EdgeNotFoundError) return 'Relação não encontrada';
     if (error instanceof GraphNotFoundError) return 'Grafo não encontrado';
     if (error instanceof NodeNotInGraphError) return 'Nó não encontrado no grafo';
+    if (error instanceof ProvaNotFoundError) return 'Prova não encontrada';
     return null;
   }
 
@@ -77,6 +90,11 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
       return 'O assunto-raiz do grafo não pode ser removido — ele é deletado junto com o grafo.';
     if (error instanceof UnknownNodeTypeError) return `Tipo de nó desconhecido: ${error.tipoNode}`;
     if (error instanceof NodeValidationError) return nodeValidationMessage(error.code);
+    if (error instanceof DeckTitleRequiredError) return 'O título do baralho é obrigatório';
+    if (error instanceof TooManyFlashcardsError)
+      return `Máximo de ${error.max} flashcards por baralho`;
+    if (error instanceof FlashcardsNotOwnedError)
+      return 'Um ou mais flashcards não pertencem ao usuário';
     return 'Operação inválida no grafo';
   }
 

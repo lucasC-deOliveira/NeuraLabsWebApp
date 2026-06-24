@@ -82,3 +82,31 @@ export class UnknownNodeTypeError extends Error {
     this.name = 'UnknownNodeTypeError';
   }
 }
+
+export class DeckTitleRequiredError extends Error {
+  constructor() {
+    super('A deck title is required.');
+    this.name = 'DeckTitleRequiredError';
+  }
+}
+
+export class TooManyFlashcardsError extends Error {
+  constructor(readonly max: number) {
+    super(`A deck can hold at most ${max} flashcards.`);
+    this.name = 'TooManyFlashcardsError';
+  }
+}
+
+export class FlashcardsNotOwnedError extends Error {
+  constructor() {
+    super('One or more flashcards do not belong to the user.');
+    this.name = 'FlashcardsNotOwnedError';
+  }
+}
+
+export class ProvaNotFoundError extends Error {
+  constructor() {
+    super('Exam not found.');
+    this.name = 'ProvaNotFoundError';
+  }
+}
