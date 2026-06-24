@@ -3,6 +3,7 @@ import { OpenAI } from 'openai';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { GraphService } from '../graph/graph.service';
+import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
 import {
   getAllowedRelations,
   isRelationAllowed,
@@ -47,6 +48,7 @@ export class AiService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly graph: GraphService,
+    private readonly deleteNodeUseCase: DeleteNodeUseCase,
   ) {}
 
   private async openai(userId: string) {
@@ -2149,7 +2151,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t√
         where: { OR: [{ nodeOrigemId: ncDel.id }, { nodeDestinoId: ncDel.id }] },
       });
 
-      await this.graph.deleteNode(userId, deleteId, grafoId);
+      await this.deleteNodeUseCase.execute(userId, deleteId, grafoId);
     }
     return { merged: deleteIds.length, edgesMoved: totalEdgesMoved };
   }

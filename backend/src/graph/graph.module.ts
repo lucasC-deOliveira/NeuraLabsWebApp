@@ -11,6 +11,8 @@ import { CreateGraphUseCase } from '../modules/graph/application/use-cases/creat
 import { RenameGraphUseCase } from '../modules/graph/application/use-cases/rename-graph.use-case';
 import { ListGraphsUseCase } from '../modules/graph/application/use-cases/list-graphs.use-case';
 import { GetGraphInfoUseCase } from '../modules/graph/application/use-cases/get-graph-info.use-case';
+import { DeleteGraphUseCase } from '../modules/graph/application/use-cases/delete-graph.use-case';
+import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
 import {
   GRAPH_EDGE_REPOSITORY,
   type GraphEdgeRepository,
@@ -24,10 +26,19 @@ import {
   type GraphRepository,
 } from '../modules/graph/domain/ports/graph-repository';
 import { GRAPH_QUERY, type GraphQuery } from '../modules/graph/domain/ports/graph-query';
+import {
+  GRAPH_DELETION_REPOSITORY,
+  type GraphDeletionRepository,
+} from '../modules/graph/domain/ports/graph-deletion-repository';
+import {
+  NODE_DELETION_REPOSITORY,
+  type NodeDeletionRepository,
+} from '../modules/graph/domain/ports/node-deletion-repository';
 import { PrismaGraphEdgeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-edge.repository';
 import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-node.repository';
 import { PrismaGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-graph.repository';
 import { PrismaGraphQuery } from '../modules/graph/infrastructure/persistence/prisma-graph.query';
+import { PrismaGraphDeletionRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-deletion.repository';
 
 @Module({
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
@@ -38,6 +49,10 @@ import { PrismaGraphQuery } from '../modules/graph/infrastructure/persistence/pr
     { provide: GRAPH_NODE_REPOSITORY, useClass: PrismaGraphNodeRepository },
     { provide: GRAPH_REPOSITORY, useClass: PrismaGraphRepository },
     { provide: GRAPH_QUERY, useClass: PrismaGraphQuery },
+    // One adapter backs both deletion ports (shared per-type entity removal).
+    PrismaGraphDeletionRepository,
+    { provide: GRAPH_DELETION_REPOSITORY, useExisting: PrismaGraphDeletionRepository },
+    { provide: NODE_DELETION_REPOSITORY, useExisting: PrismaGraphDeletionRepository },
     {
       provide: CreateEdgeUseCase,
       useFactory: (edges: GraphEdgeRepository) => new CreateEdgeUseCase(edges),
@@ -83,7 +98,17 @@ import { PrismaGraphQuery } from '../modules/graph/infrastructure/persistence/pr
       useFactory: (graphs: GraphQuery) => new GetGraphInfoUseCase(graphs),
       inject: [GRAPH_QUERY],
     },
+    {
+      provide: DeleteGraphUseCase,
+      useFactory: (graphs: GraphDeletionRepository) => new DeleteGraphUseCase(graphs),
+      inject: [GRAPH_DELETION_REPOSITORY],
+    },
+    {
+      provide: DeleteNodeUseCase,
+      useFactory: (nodes: NodeDeletionRepository) => new DeleteNodeUseCase(nodes),
+      inject: [NODE_DELETION_REPOSITORY],
+    },
   ],
-  exports: [GraphService],
+  exports: [GraphService, DeleteNodeUseCase],
 })
 export class GraphModule {}

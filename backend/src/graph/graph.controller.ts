@@ -23,6 +23,8 @@ import { CreateGraphUseCase } from '../modules/graph/application/use-cases/creat
 import { RenameGraphUseCase } from '../modules/graph/application/use-cases/rename-graph.use-case';
 import { ListGraphsUseCase } from '../modules/graph/application/use-cases/list-graphs.use-case';
 import { GetGraphInfoUseCase } from '../modules/graph/application/use-cases/get-graph-info.use-case';
+import { DeleteGraphUseCase } from '../modules/graph/application/use-cases/delete-graph.use-case';
+import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -42,6 +44,8 @@ export class GraphController {
     private readonly renameGraphUseCase: RenameGraphUseCase,
     private readonly listGraphsUseCase: ListGraphsUseCase,
     private readonly getGraphInfoUseCase: GetGraphInfoUseCase,
+    private readonly deleteGraphUseCase: DeleteGraphUseCase,
+    private readonly deleteNodeUseCase: DeleteNodeUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -62,7 +66,7 @@ export class GraphController {
     @Query('keep') keep?: string,
   ) {
     const keepTypes = keep ? keep.split(',').filter(Boolean) : [];
-    return this.graph.deleteGraph(userId, id, { keepTypes });
+    return this.deleteGraphUseCase.execute(userId, id, keepTypes);
   }
 
   @Get('graphs/:id/info')
@@ -201,7 +205,7 @@ export class GraphController {
     @Query('grafoId') grafoId?: string,
     @Query('deleteConnected') deleteConnected?: string,
   ) {
-    return this.graph.deleteNode(userId, refId, grafoId, deleteConnected === 'true');
+    return this.deleteNodeUseCase.execute(userId, refId, grafoId, deleteConnected === 'true');
   }
 
   // remove só o vínculo do nó com o grafo (mantém a entidade)
