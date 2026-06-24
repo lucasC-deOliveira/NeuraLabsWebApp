@@ -732,34 +732,6 @@ export class GraphService {
 
   // ---- Busca por conteúdo (devolve refIds que casam) ----
   // ---- Posições ----
-  async savePositions(
-    userId: string,
-    grafoId: string,
-    positions: Record<string, { x: number; y: number }>,
-  ) {
-    const typeMap: Record<string, string> = {
-      flashcard: 'FLASHCARD',
-      nota: 'NOTA',
-      assunto: 'ASSUNTO',
-      topico: 'TOPICO',
-      conceito: 'CONCEITO',
-    };
-    await this.prisma.$transaction(async (tx) => {
-      for (const [refId, p] of Object.entries(positions)) {
-        const id = refId.includes(':') ? refId.split(':').slice(1).join(':') : refId;
-        const prefix = refId.includes(':') ? refId.split(':')[0].toLowerCase() : null;
-        if (!prefix) continue;
-        const tipoNode = typeMap[prefix];
-        if (!tipoNode) continue;
-        await tx.nodeConhecimento.updateMany({
-          where: { grafoId, usuarioId: userId, tipoNode: tipoNode as any, referenciaId: id },
-          data: { posicaoX: p.x, posicaoY: p.y },
-        });
-      }
-    });
-    return { success: true };
-  }
-
   // ---- Subgrafos ----
 
   async createSubgrafo(

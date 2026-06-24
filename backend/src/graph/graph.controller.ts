@@ -32,6 +32,7 @@ import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edge
 import { SearchNodeContentUseCase } from '../modules/graph/application/use-cases/search-node-content.use-case';
 import { ListUserFlashcardsUseCase } from '../modules/graph/application/use-cases/list-user-flashcards.use-case';
 import { GetDeckForStudyUseCase } from '../modules/graph/application/use-cases/get-deck-for-study.use-case';
+import { SavePositionsUseCase } from '../modules/graph/application/use-cases/save-positions.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -60,6 +61,7 @@ export class GraphController {
     private readonly searchNodeContentUseCase: SearchNodeContentUseCase,
     private readonly listUserFlashcardsUseCase: ListUserFlashcardsUseCase,
     private readonly getDeckForStudyUseCase: GetDeckForStudyUseCase,
+    private readonly savePositionsUseCase: SavePositionsUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -278,7 +280,7 @@ export class GraphController {
     @Param('grafoId') grafoId: string,
     @Body() body: { positions: Record<string, { x: number; y: number }> },
   ) {
-    return this.graph.savePositions(userId, grafoId, body.positions);
+    return this.savePositionsUseCase.execute(userId, grafoId, body.positions);
   }
 
   // ---- Subgrafos ----
