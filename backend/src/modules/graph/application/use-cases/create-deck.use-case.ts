@@ -17,18 +17,14 @@ export class CreateDeckUseCase {
     flashcardIds: string[],
   ): Promise<{ success: boolean; nodeId: string }> {
     if (!(await this.decks.graphExists(grafoId, userId))) throw new GraphNotFoundError();
-    const normalized = normalizeDeckCreation(titulo, flashcardIds);
-    if (
-      normalized.flashcardIds.length &&
-      !(await this.decks.allFlashcardsOwned(userId, normalized.flashcardIds))
-    )
-      throw new FlashcardsNotOwnedError();
-    const nodeId = await this.decks.createDeck(
-      userId,
-      grafoId,
-      normalized.titulo,
-      normalized.flashcardIds,
-    );
+    const { titulo: name, flashcardIds: ids } = normalizeDeckCreation(titulo, flashcardIds);
+    await this.assertFlashcardsOwned(userId, ids);
+    const nodeId = await this.decks.createDeck(userId, grafoId, name, ids);
     return { success: true, nodeId };
+  }
+
+  private async assertFlashcardsOwned(userId: string, flashcardIds: string[]): Promise<void> {
+    if (flashcardIds.length && !(await this.decks.allFlashcardsOwned(userId, flashcardIds)))
+      throw new FlashcardsNotOwnedError();
   }
 }

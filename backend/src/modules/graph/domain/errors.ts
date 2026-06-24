@@ -110,3 +110,17 @@ export class ProvaNotFoundError extends Error {
     this.name = 'ProvaNotFoundError';
   }
 }
+
+export class ParentGraphNotFoundError extends Error {
+  constructor() {
+    super('Parent graph not found.');
+    this.name = 'ParentGraphNotFoundError';
+  }
+}
+
+export class InvalidSubgraphRelationError extends Error {
+  constructor(readonly relacao: string) {
+    super(`Invalid subgraph relation: "${relacao}".`);
+    this.name = 'InvalidSubgraphRelationError';
+  }
+}

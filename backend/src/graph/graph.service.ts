@@ -8,6 +8,7 @@ import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/ge
 import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
 import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
 import { CreateDeckUseCase } from '../modules/graph/application/use-cases/create-deck.use-case';
+import { GRAFO_REF_RELATIONS } from '../modules/graph/domain/services/subgraph';
 
 type TipoNode =
   | 'ASSUNTO'
@@ -20,16 +21,6 @@ type TipoNode =
   | 'GRAFO_REF'
   | 'QUESTION'
   | 'PROVA';
-
-const GRAFO_REF_RELATIONS = [
-  'PREREQUISITO',
-  'APROFUNDA',
-  'DERIVA_DE',
-  'APLICADO_EM',
-  'CONTRASTA_COM',
-  'SINTETIZA',
-  'RELACIONADO',
-] as const;
 
 export interface CreateNodeInput {
   tipoNode: TipoNode;
@@ -396,42 +387,6 @@ export class GraphService {
   // ---- Busca por conteúdo (devolve refIds que casam) ----
   // ---- Posições ----
   // ---- Subgrafos ----
-
-  async createSubgrafo(
-    userId: string,
-    parentGrafoId: string,
-    input: { nome: string; descricao?: string; tipoRelacao: string; posX?: number; posY?: number },
-  ) {
-    const parent = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: parentGrafoId, usuarioId: userId },
-    });
-    if (!parent) throw new NotFoundException('Grafo pai não encontrado');
-    if (!GRAFO_REF_RELATIONS.includes(input.tipoRelacao as any))
-      throw new BadRequestException('Tipo de relação inválido para subgrafo');
-
-    return this.prisma.$transaction(async (tx) => {
-      const filho = await tx.grafosConhecimento.create({
-        data: {
-          usuarioId: userId,
-          nome: input.nome.trim() || 'Novo subgrafo',
-          descricao: input.descricao ?? null,
-          parentGrafoId,
-          tipoRelacaoPai: input.tipoRelacao,
-        },
-      });
-      const refNode = await tx.nodeConhecimento.create({
-        data: {
-          grafoId: parentGrafoId,
-          tipoNode: 'GRAFO_REF',
-          referenciaId: filho.id,
-          usuarioId: userId,
-          posicaoX: input.posX ?? 0,
-          posicaoY: input.posY ?? 0,
-        },
-      });
-      return { grafoId: filho.id, grafoRefNodeId: refNode.referenciaId };
-    });
-  }
 
   async extractNodesToSubgrafo(
     userId: string,

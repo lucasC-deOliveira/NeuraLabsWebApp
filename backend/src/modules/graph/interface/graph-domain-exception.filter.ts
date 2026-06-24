@@ -15,8 +15,10 @@ import {
   GraphNodesNotFoundError,
   GraphNotFoundError,
   InvalidEdgeWeightError,
+  InvalidSubgraphRelationError,
   NodeNotInGraphError,
   NodeValidationError,
+  ParentGraphNotFoundError,
   ProvaNotFoundError,
   RelationNotAllowedError,
   RootNodeError,
@@ -39,7 +41,9 @@ type GraphDomainError =
   | DeckTitleRequiredError
   | TooManyFlashcardsError
   | FlashcardsNotOwnedError
-  | ProvaNotFoundError;
+  | ProvaNotFoundError
+  | ParentGraphNotFoundError
+  | InvalidSubgraphRelationError;
 
 // Translates Graph domain errors into HTTP responses. Domain messages stay
 // internal (English); user-facing messages produced here are in Portuguese.
@@ -58,6 +62,8 @@ type GraphDomainError =
   TooManyFlashcardsError,
   FlashcardsNotOwnedError,
   ProvaNotFoundError,
+  ParentGraphNotFoundError,
+  InvalidSubgraphRelationError,
 )
 export class GraphDomainExceptionFilter implements ExceptionFilter {
   catch(error: GraphDomainError, host: ArgumentsHost): void {
@@ -79,6 +85,7 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
     if (error instanceof GraphNotFoundError) return 'Grafo não encontrado';
     if (error instanceof NodeNotInGraphError) return 'Nó não encontrado no grafo';
     if (error instanceof ProvaNotFoundError) return 'Prova não encontrada';
+    if (error instanceof ParentGraphNotFoundError) return 'Grafo pai não encontrado';
     return null;
   }
 
@@ -95,6 +102,8 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
       return `Máximo de ${error.max} flashcards por baralho`;
     if (error instanceof FlashcardsNotOwnedError)
       return 'Um ou mais flashcards não pertencem ao usuário';
+    if (error instanceof InvalidSubgraphRelationError)
+      return 'Tipo de relação inválido para subgrafo';
     return 'Operação inválida no grafo';
   }
 

@@ -33,16 +33,23 @@ export class PrismaCreateDeckRepository implements CreateDeckRepository {
       const baralhoNode = await tx.nodeConhecimento.create({
         data: { grafoId, tipoNode: 'BARALHO', referenciaId: baralho.id, usuarioId: userId },
       });
-      for (const flashcardId of flashcardIds) {
-        await this.linkFlashcard(tx, {
-          userId,
-          grafoId,
-          baralhoNodeId: baralhoNode.id,
-          flashcardId,
-        });
-      }
+      await this.linkFlashcards(
+        tx,
+        { userId, grafoId, baralhoNodeId: baralhoNode.id },
+        flashcardIds,
+      );
       return baralho.id;
     });
+  }
+
+  private async linkFlashcards(
+    tx: Prisma.TransactionClient,
+    ctx: { userId: string; grafoId: string; baralhoNodeId: string },
+    flashcardIds: string[],
+  ): Promise<void> {
+    for (const flashcardId of flashcardIds) {
+      await this.linkFlashcard(tx, { ...ctx, flashcardId });
+    }
   }
 
   private createDeckRow(
