@@ -762,50 +762,6 @@ export class GraphService {
   }
 
   // ---- Busca por conteúdo (devolve refIds que casam) ----
-  async searchNodeContent(userId: string, grafoId: string, query: string): Promise<string[]> {
-    const term = (query ?? '').trim().slice(0, 200);
-    if (!term || !grafoId) return [];
-    const graphNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
-      select: { referenciaId: true, tipoNode: true },
-    });
-    const byType: Record<string, string[]> = {};
-    for (const n of graphNodes) (byType[n.tipoNode] ??= []).push(n.referenciaId);
-    const matched = new Set<string>();
-    const add = (rows: { id: string }[]) => rows.forEach((r) => matched.add(r.id));
-    const c = { contains: term, mode: 'insensitive' as const };
-    await Promise.all([
-      byType.NOTA?.length &&
-        this.prisma.nota
-          .findMany({ where: { id: { in: byType.NOTA }, conteudo: c }, select: { id: true } })
-          .then(add),
-      byType.FLASHCARD?.length &&
-        this.prisma.flashcard
-          .findMany({
-            where: { id: { in: byType.FLASHCARD }, OR: [{ pergunta: c }, { resposta: c }] },
-            select: { id: true },
-          })
-          .then(add),
-      byType.TEXTO_BRUTO?.length &&
-        this.prisma.textoBruto
-          .findMany({ where: { id: { in: byType.TEXTO_BRUTO }, texto: c }, select: { id: true } })
-          .then(add),
-      byType.CONCEITO?.length &&
-        this.prisma.conceito
-          .findMany({ where: { id: { in: byType.CONCEITO }, descricao: c }, select: { id: true } })
-          .then(add),
-      byType.ASSUNTO?.length &&
-        this.prisma.assunto
-          .findMany({ where: { id: { in: byType.ASSUNTO }, descricao: c }, select: { id: true } })
-          .then(add),
-      byType.TOPICO?.length &&
-        this.prisma.topico
-          .findMany({ where: { id: { in: byType.TOPICO }, descricao: c }, select: { id: true } })
-          .then(add),
-    ]);
-    return [...matched];
-  }
-
   // ---- Posições ----
   async savePositions(
     userId: string,

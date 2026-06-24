@@ -29,6 +29,7 @@ import { SaveVisualStateUseCase } from '../modules/graph/application/use-cases/s
 import { LoadVisualStateUseCase } from '../modules/graph/application/use-cases/load-visual-state.use-case';
 import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
 import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
+import { SearchNodeContentUseCase } from '../modules/graph/application/use-cases/search-node-content.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -54,6 +55,7 @@ export class GraphController {
     private readonly loadVisualStateUseCase: LoadVisualStateUseCase,
     private readonly getNodeDetailsUseCase: GetNodeDetailsUseCase,
     private readonly getEdgesUseCase: GetEdgesUseCase,
+    private readonly searchNodeContentUseCase: SearchNodeContentUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -118,7 +120,7 @@ export class GraphController {
 
   @Get('search')
   search(@CurrentUser() userId: string, @Query('grafoId') grafoId: string, @Query('q') q: string) {
-    return this.graph.searchNodeContent(userId, grafoId, q ?? '');
+    return this.searchNodeContentUseCase.execute(userId, grafoId, q ?? '');
   }
 
   @Get('available-items')

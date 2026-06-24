@@ -17,6 +17,7 @@ import { SaveVisualStateUseCase } from '../modules/graph/application/use-cases/s
 import { LoadVisualStateUseCase } from '../modules/graph/application/use-cases/load-visual-state.use-case';
 import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
 import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
+import { SearchNodeContentUseCase } from '../modules/graph/application/use-cases/search-node-content.use-case';
 import {
   GRAPH_EDGE_REPOSITORY,
   type GraphEdgeRepository,
@@ -50,6 +51,10 @@ import {
   GRAPH_EDGES_QUERY,
   type GraphEdgesQuery,
 } from '../modules/graph/domain/ports/graph-edges-query';
+import {
+  NODE_CONTENT_SEARCH_QUERY,
+  type NodeContentSearchQuery,
+} from '../modules/graph/domain/ports/node-content-search-query';
 import { PrismaGraphEdgeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-edge.repository';
 import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-node.repository';
 import { PrismaGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-graph.repository';
@@ -58,6 +63,7 @@ import { PrismaGraphDeletionRepository } from '../modules/graph/infrastructure/p
 import { PrismaGraphVisualStateRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-visual-state.repository';
 import { PrismaNodeDetailsQuery } from '../modules/graph/infrastructure/persistence/prisma-node-details.query';
 import { PrismaGraphEdgesQuery } from '../modules/graph/infrastructure/persistence/prisma-graph-edges.query';
+import { PrismaNodeContentSearchQuery } from '../modules/graph/infrastructure/persistence/prisma-node-content-search.query';
 
 @Module({
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
@@ -75,6 +81,7 @@ import { PrismaGraphEdgesQuery } from '../modules/graph/infrastructure/persisten
     { provide: GRAPH_VISUAL_STATE_REPOSITORY, useClass: PrismaGraphVisualStateRepository },
     { provide: NODE_DETAILS_QUERY, useClass: PrismaNodeDetailsQuery },
     { provide: GRAPH_EDGES_QUERY, useClass: PrismaGraphEdgesQuery },
+    { provide: NODE_CONTENT_SEARCH_QUERY, useClass: PrismaNodeContentSearchQuery },
     {
       provide: CreateEdgeUseCase,
       useFactory: (edges: GraphEdgeRepository) => new CreateEdgeUseCase(edges),
@@ -149,6 +156,11 @@ import { PrismaGraphEdgesQuery } from '../modules/graph/infrastructure/persisten
       provide: GetEdgesUseCase,
       useFactory: (edges: GraphEdgesQuery) => new GetEdgesUseCase(edges),
       inject: [GRAPH_EDGES_QUERY],
+    },
+    {
+      provide: SearchNodeContentUseCase,
+      useFactory: (search: NodeContentSearchQuery) => new SearchNodeContentUseCase(search),
+      inject: [NODE_CONTENT_SEARCH_QUERY],
     },
   ],
   exports: [GraphService, DeleteNodeUseCase],
