@@ -30,6 +30,8 @@ import { CreateSubgraphUseCase } from '../modules/graph/application/use-cases/cr
 import { ExtractSubgraphUseCase } from '../modules/graph/application/use-cases/extract-subgraph.use-case';
 import { LoadGraphUseCase } from '../modules/graph/application/use-cases/load-graph.use-case';
 import { ExpandSubgraphUseCase } from '../modules/graph/application/use-cases/expand-subgraph.use-case';
+import { ExportGraphUseCase } from '../modules/graph/application/use-cases/export-graph.use-case';
+import { ImportGraphUseCase } from '../modules/graph/application/use-cases/import-graph.use-case';
 import {
   GRAPH_EDGE_REPOSITORY,
   type GraphEdgeRepository,
@@ -104,6 +106,14 @@ import {
   GRAPH_VIEW_REPOSITORY,
   type GraphViewRepository,
 } from '../modules/graph/domain/ports/graph-view-repository';
+import {
+  GRAPH_EXPORT_REPOSITORY,
+  type GraphExportRepository,
+} from '../modules/graph/domain/ports/graph-export-repository';
+import {
+  GRAPH_IMPORT_REPOSITORY,
+  type GraphImportRepository,
+} from '../modules/graph/domain/ports/graph-import-repository';
 import { PrismaGraphEdgeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-edge.repository';
 import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-node.repository';
 import { PrismaGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-graph.repository';
@@ -123,6 +133,8 @@ import { PrismaAddProvaRepository } from '../modules/graph/infrastructure/persis
 import { PrismaCreateSubgraphRepository } from '../modules/graph/infrastructure/persistence/prisma-create-subgraph.repository';
 import { PrismaExtractSubgraphRepository } from '../modules/graph/infrastructure/persistence/prisma-extract-subgraph.repository';
 import { PrismaGraphViewRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-view.repository';
+import { PrismaGraphExportRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-export.repository';
+import { PrismaGraphImportRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-import.repository';
 
 @Module({
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
@@ -151,6 +163,8 @@ import { PrismaGraphViewRepository } from '../modules/graph/infrastructure/persi
     { provide: CREATE_SUBGRAPH_REPOSITORY, useClass: PrismaCreateSubgraphRepository },
     { provide: EXTRACT_SUBGRAPH_REPOSITORY, useClass: PrismaExtractSubgraphRepository },
     { provide: GRAPH_VIEW_REPOSITORY, useClass: PrismaGraphViewRepository },
+    { provide: GRAPH_EXPORT_REPOSITORY, useClass: PrismaGraphExportRepository },
+    { provide: GRAPH_IMPORT_REPOSITORY, useClass: PrismaGraphImportRepository },
     {
       provide: CreateEdgeUseCase,
       useFactory: (edges: GraphEdgeRepository) => new CreateEdgeUseCase(edges),
@@ -291,6 +305,20 @@ import { PrismaGraphViewRepository } from '../modules/graph/infrastructure/persi
       useFactory: (view: GraphViewRepository, load: LoadGraphUseCase) =>
         new ExpandSubgraphUseCase(view, load),
       inject: [GRAPH_VIEW_REPOSITORY, LoadGraphUseCase],
+    },
+    {
+      provide: ExportGraphUseCase,
+      useFactory: (
+        graphs: GraphExportRepository,
+        details: NodeDetailsQuery,
+        edges: GraphEdgesQuery,
+      ) => new ExportGraphUseCase(graphs, details, edges),
+      inject: [GRAPH_EXPORT_REPOSITORY, NODE_DETAILS_QUERY, GRAPH_EDGES_QUERY],
+    },
+    {
+      provide: ImportGraphUseCase,
+      useFactory: (imports: GraphImportRepository) => new ImportGraphUseCase(imports),
+      inject: [GRAPH_IMPORT_REPOSITORY],
     },
   ],
   exports: [GraphService, DeleteNodeUseCase],

@@ -42,6 +42,8 @@ import { CreateSubgraphUseCase } from '../modules/graph/application/use-cases/cr
 import { ExtractSubgraphUseCase } from '../modules/graph/application/use-cases/extract-subgraph.use-case';
 import { LoadGraphUseCase } from '../modules/graph/application/use-cases/load-graph.use-case';
 import { ExpandSubgraphUseCase } from '../modules/graph/application/use-cases/expand-subgraph.use-case';
+import { ExportGraphUseCase } from '../modules/graph/application/use-cases/export-graph.use-case';
+import { ImportGraphUseCase } from '../modules/graph/application/use-cases/import-graph.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -80,6 +82,8 @@ export class GraphController {
     private readonly extractSubgraphUseCase: ExtractSubgraphUseCase,
     private readonly loadGraphUseCase: LoadGraphUseCase,
     private readonly expandSubgraphUseCase: ExpandSubgraphUseCase,
+    private readonly exportGraphUseCase: ExportGraphUseCase,
+    private readonly importGraphUseCase: ImportGraphUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -206,12 +210,12 @@ export class GraphController {
     @Param('grafoId') grafoId: string,
     @Body() body: { nodes: unknown[]; edges: unknown[] },
   ) {
-    return this.graph.importGraph(userId, grafoId, body as never);
+    return this.importGraphUseCase.execute(userId, grafoId, body);
   }
 
   @Get('graphs/:grafoId/export')
   exportGraph(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
-    return this.graph.exportGraph(userId, grafoId);
+    return this.exportGraphUseCase.execute(userId, grafoId);
   }
 
   @Post('graphs/:grafoId/sync')

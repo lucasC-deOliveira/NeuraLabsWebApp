@@ -1,10 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { isRelationAllowed } from '../modules/graph/domain/services/relation-rules';
-import { runImportGraph, type ImportGraphPayload } from './graph-import';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
-import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
-import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
 import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
 import { CreateDeckUseCase } from '../modules/graph/application/use-cases/create-deck.use-case';
 
@@ -42,8 +39,6 @@ export class GraphService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly createEdgeUseCase: CreateEdgeUseCase,
-    private readonly getNodeDetailsUseCase: GetNodeDetailsUseCase,
-    private readonly getEdgesUseCase: GetEdgesUseCase,
     private readonly createNodeUseCase: CreateNodeUseCase,
     private readonly createDeckUseCase: CreateDeckUseCase,
   ) {}
@@ -62,41 +57,6 @@ export class GraphService {
     input: { sourceNodeId: string; targetNodeId: string; tipoRelacao: string; peso?: number },
   ): Promise<{ edgeId: string }> {
     return this.createEdgeUseCase.execute({ userId, grafoId, ...input });
-  }
-
-  // ---- Itens existentes (não estão no grafo) para "Adicionar existentes" ----
-  // flashcards do usuário (picker do baralho)
-  // Exporta o grafo no MESMO formato do importGraph (ref = referenciaId),
-  // com conteúdo completo + posição/nível. Usado pelo vault (Pull no desktop).
-  async exportGraph(userId: string, grafoId: string) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: grafoId, usuarioId: userId },
-    });
-    if (!grafo) throw new NotFoundException('Grafo não encontrado');
-    const nodeRows = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
-    });
-    const nodes: Array<Record<string, unknown>> = [];
-    for (const nr of nodeRows) {
-      const d = await this.getNodeDetailsUseCase.execute(userId, nr.tipoNode, nr.referenciaId);
-      if (!d) continue;
-      nodes.push({
-        ref: nr.referenciaId,
-        tipo: nr.tipoNode,
-        posicaoX: nr.posicaoX,
-        posicaoY: nr.posicaoY,
-        nivelDominio: nr.nivelDominio,
-        ...d,
-      });
-    }
-    const edgeRows = await this.getEdgesUseCase.execute(userId, grafoId);
-    const edges = edgeRows.map((e) => ({
-      origem: e.source,
-      destino: e.target,
-      relacao: e.tipoRelacao,
-      peso: e.peso,
-    }));
-    return { grafo: { id: grafo.id, nome: grafo.nome }, nodes, edges };
   }
 
   // Sincroniza o grafo a partir do vault (Push do desktop): faz UPSERT por id
@@ -338,10 +298,5 @@ export class GraphService {
   // Delegado ao CreateDeckUseCase (usado pelo ai.service na geração por IA).
   async createBaralho(userId: string, grafoId: string, titulo: string, flashcardIds: string[]) {
     return this.createDeckUseCase.execute(userId, grafoId, titulo, flashcardIds);
-  }
-
-  // ---- Import JSON (nós + arestas, com reuso por nome) ----
-  importGraph(userId: string, grafoId: string, payload: ImportGraphPayload) {
-    return runImportGraph(this.prisma, userId, grafoId, payload);
   }
 }
