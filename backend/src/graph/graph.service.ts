@@ -6,6 +6,7 @@ import { runImportGraph, type ImportGraphPayload } from './graph-import';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
 import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
 import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
+import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
 
 type TipoNode =
   | 'ASSUNTO'
@@ -57,19 +58,6 @@ export interface CreateNodeInput {
   nivelDominio?: number;
 }
 
-function notaSlug(titulo: string, when: Date): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  const stamp = `${when.getFullYear()}${p(when.getMonth() + 1)}${p(when.getDate())}${p(when.getHours())}${p(when.getMinutes())}${p(when.getSeconds())}`;
-  const slug = titulo
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-  return slug ? `${stamp}-${slug}` : stamp;
-}
-
 @Injectable()
 export class GraphService {
   constructor(
@@ -77,6 +65,7 @@ export class GraphService {
     private readonly createEdgeUseCase: CreateEdgeUseCase,
     private readonly getNodeDetailsUseCase: GetNodeDetailsUseCase,
     private readonly getEdgesUseCase: GetEdgesUseCase,
+    private readonly createNodeUseCase: CreateNodeUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -117,109 +106,9 @@ export class GraphService {
   }
 
   // ---- Nós ----
+  // Delegado ao CreateNodeUseCase (usado pelo ai.service na geração por IA).
   async createNode(userId: string, grafoId: string, input: CreateNodeInput) {
-    const grafo = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: grafoId, usuarioId: userId },
-    });
-    if (!grafo) throw new NotFoundException('Grafo não encontrado');
-    const now = new Date();
-    let entityId: string;
-    switch (input.tipoNode) {
-      case 'FLASHCARD':
-        entityId = (
-          await this.prisma.flashcard.create({
-            data: {
-              pergunta: input.pergunta ?? '',
-              resposta: input.resposta ?? '',
-              usuarioId: userId,
-              dataCriacao: now,
-            },
-          })
-        ).id;
-        break;
-      case 'NOTA': {
-        const titulo = (input.titulo ?? '').trim();
-        if (!titulo) throw new BadRequestException('O título da nota é obrigatório');
-        if (!input.subtipo || !NOTA_SUBTIPOS.includes(input.subtipo))
-          throw new BadRequestException('Selecione o subtipo da nota');
-        if ((input.tipoNota ?? 'PERMANENTE') === 'LITERATURA' && !input.fonte?.trim())
-          throw new BadRequestException('Notas de literatura exigem a fonte');
-        entityId = (
-          await this.prisma.nota.create({
-            data: {
-              titulo,
-              tipoNota: input.tipoNota ?? 'PERMANENTE',
-              subtipo: input.subtipo as any,
-              fonte: input.fonte?.trim() || null,
-              slug: notaSlug(titulo, now),
-              conteudo: input.conteudo ?? '',
-              usuarioId: userId,
-              dataCriacao: now,
-            },
-          })
-        ).id;
-        break;
-      }
-      case 'TEXTO_BRUTO':
-        if (!input.texto?.trim()) throw new BadRequestException('O texto original é obrigatório');
-        entityId = (
-          await this.prisma.textoBruto.create({
-            data: {
-              titulo: input.titulo?.trim() || 'Texto sem título',
-              texto: input.texto.trim(),
-              usuarioId: userId,
-              dataCriacao: now,
-            },
-          })
-        ).id;
-        break;
-      case 'ASSUNTO':
-        entityId = (
-          await this.prisma.assunto.create({
-            data: { nome: input.nome ?? '', descricao: input.descricao ?? null, usuarioId: userId },
-          })
-        ).id;
-        break;
-      case 'TOPICO':
-        entityId = (
-          await this.prisma.topico.create({
-            data: { nome: input.nome ?? '', descricao: input.descricao ?? null, usuarioId: userId },
-          })
-        ).id;
-        break;
-      case 'CONCEITO':
-        entityId = (
-          await this.prisma.conceito.create({
-            data: { nome: input.nome ?? '', descricao: input.descricao ?? null, usuarioId: userId },
-          })
-        ).id;
-        break;
-      case 'BARALHO':
-        entityId = (
-          await this.prisma.baralho.create({
-            data: {
-              titulo: (input.titulo ?? input.nome ?? '').trim(),
-              usuarioId: userId,
-              dataCriacao: now,
-            },
-          })
-        ).id;
-        break;
-      default:
-        throw new BadRequestException(`Tipo de nó desconhecido: ${input.tipoNode}`);
-    }
-    await this.prisma.nodeConhecimento.create({
-      data: {
-        grafoId,
-        tipoNode: input.tipoNode as any,
-        referenciaId: entityId,
-        usuarioId: userId,
-        posicaoX: input.posicaoX ?? null,
-        posicaoY: input.posicaoY ?? null,
-        nivelDominio: input.nivelDominio ?? 0,
-      },
-    });
-    return { nodeId: entityId };
+    return this.createNodeUseCase.execute(userId, grafoId, input);
   }
 
   async updateNode(

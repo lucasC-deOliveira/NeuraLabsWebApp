@@ -61,3 +61,23 @@ export class RootNodeError extends Error {
     this.name = 'RootNodeError';
   }
 }
+
+export type NodeValidationCode =
+  | 'NOTE_TITLE_REQUIRED'
+  | 'NOTE_SUBTYPE_REQUIRED'
+  | 'LITERATURE_NOTE_SOURCE_REQUIRED'
+  | 'RAW_TEXT_REQUIRED';
+
+export class NodeValidationError extends Error {
+  constructor(readonly code: NodeValidationCode) {
+    super(`Invalid node input: ${code}.`);
+    this.name = 'NodeValidationError';
+  }
+}
+
+export class UnknownNodeTypeError extends Error {
+  constructor(readonly tipoNode: string) {
+    super(`Unknown node type: "${tipoNode}".`);
+    this.name = 'UnknownNodeTypeError';
+  }
+}

@@ -34,6 +34,7 @@ import { ListUserFlashcardsUseCase } from '../modules/graph/application/use-case
 import { GetDeckForStudyUseCase } from '../modules/graph/application/use-cases/get-deck-for-study.use-case';
 import { SavePositionsUseCase } from '../modules/graph/application/use-cases/save-positions.use-case';
 import { GetAvailableItemsUseCase } from '../modules/graph/application/use-cases/get-available-items.use-case';
+import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -64,6 +65,7 @@ export class GraphController {
     private readonly getDeckForStudyUseCase: GetDeckForStudyUseCase,
     private readonly savePositionsUseCase: SavePositionsUseCase,
     private readonly getAvailableItemsUseCase: GetAvailableItemsUseCase,
+    private readonly createNodeUseCase: CreateNodeUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -153,7 +155,7 @@ export class GraphController {
     @Param('grafoId') grafoId: string,
     @Body() body: CreateNodeInput,
   ) {
-    return this.graph.createNode(userId, grafoId, body);
+    return this.createNodeUseCase.execute(userId, grafoId, body);
   }
 
   // vincula uma entidade já existente ao grafo
