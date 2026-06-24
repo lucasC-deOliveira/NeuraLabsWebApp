@@ -76,15 +76,6 @@ export class GraphService {
   ) {}
 
   // ---- Grafos ----
-  async listGraphs(userId: string) {
-    const grafos = await this.prisma.grafosConhecimento.findMany({
-      where: { usuarioId: userId },
-      orderBy: { dataCriacao: 'desc' },
-      include: { _count: { select: { filhos: true } } },
-    });
-    return grafos.map((g) => ({ ...g, filhosCount: g._count.filhos }));
-  }
-
   // Tipos de entidade "reutilizáveis" que o usuário pode optar por manter ao deletar o grafo.
   private static readonly KEEPABLE_TYPES = new Set([
     'FLASHCARD',
@@ -157,25 +148,6 @@ export class GraphService {
       await tx.grafosConhecimento.delete({ where: { id: grafoId } });
     });
     return { success: true };
-  }
-
-  async getGraphInfo(userId: string, grafoId: string) {
-    const g = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: grafoId, usuarioId: userId },
-      include: {
-        parent: { select: { id: true, nome: true } },
-        _count: { select: { filhos: true } },
-      },
-    });
-    if (!g) return null;
-    return {
-      nome: g.nome,
-      descricao: g.descricao ?? undefined,
-      parentGrafoId: g.parentGrafoId ?? null,
-      parentNome: g.parent?.nome ?? null,
-      tipoRelacaoPai: g.tipoRelacaoPai ?? null,
-      filhosCount: g._count.filhos,
-    };
   }
 
   async saveVisualState(userId: string, grafoId: string, state: unknown) {

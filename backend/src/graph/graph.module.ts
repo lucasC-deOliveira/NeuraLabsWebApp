@@ -9,6 +9,8 @@ import { AddExistingNodeUseCase } from '../modules/graph/application/use-cases/a
 import { RemoveNodeUseCase } from '../modules/graph/application/use-cases/remove-node.use-case';
 import { CreateGraphUseCase } from '../modules/graph/application/use-cases/create-graph.use-case';
 import { RenameGraphUseCase } from '../modules/graph/application/use-cases/rename-graph.use-case';
+import { ListGraphsUseCase } from '../modules/graph/application/use-cases/list-graphs.use-case';
+import { GetGraphInfoUseCase } from '../modules/graph/application/use-cases/get-graph-info.use-case';
 import {
   GRAPH_EDGE_REPOSITORY,
   type GraphEdgeRepository,
@@ -21,9 +23,11 @@ import {
   GRAPH_REPOSITORY,
   type GraphRepository,
 } from '../modules/graph/domain/ports/graph-repository';
+import { GRAPH_QUERY, type GraphQuery } from '../modules/graph/domain/ports/graph-query';
 import { PrismaGraphEdgeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-edge.repository';
 import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-node.repository';
 import { PrismaGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-graph.repository';
+import { PrismaGraphQuery } from '../modules/graph/infrastructure/persistence/prisma-graph.query';
 
 @Module({
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
@@ -33,6 +37,7 @@ import { PrismaGraphRepository } from '../modules/graph/infrastructure/persisten
     { provide: GRAPH_EDGE_REPOSITORY, useClass: PrismaGraphEdgeRepository },
     { provide: GRAPH_NODE_REPOSITORY, useClass: PrismaGraphNodeRepository },
     { provide: GRAPH_REPOSITORY, useClass: PrismaGraphRepository },
+    { provide: GRAPH_QUERY, useClass: PrismaGraphQuery },
     {
       provide: CreateEdgeUseCase,
       useFactory: (edges: GraphEdgeRepository) => new CreateEdgeUseCase(edges),
@@ -67,6 +72,16 @@ import { PrismaGraphRepository } from '../modules/graph/infrastructure/persisten
       provide: RenameGraphUseCase,
       useFactory: (graphs: GraphRepository) => new RenameGraphUseCase(graphs),
       inject: [GRAPH_REPOSITORY],
+    },
+    {
+      provide: ListGraphsUseCase,
+      useFactory: (graphs: GraphQuery) => new ListGraphsUseCase(graphs),
+      inject: [GRAPH_QUERY],
+    },
+    {
+      provide: GetGraphInfoUseCase,
+      useFactory: (graphs: GraphQuery) => new GetGraphInfoUseCase(graphs),
+      inject: [GRAPH_QUERY],
     },
   ],
   exports: [GraphService],

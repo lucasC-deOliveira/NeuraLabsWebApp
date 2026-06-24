@@ -21,6 +21,8 @@ import { AddExistingNodeUseCase } from '../modules/graph/application/use-cases/a
 import { RemoveNodeUseCase } from '../modules/graph/application/use-cases/remove-node.use-case';
 import { CreateGraphUseCase } from '../modules/graph/application/use-cases/create-graph.use-case';
 import { RenameGraphUseCase } from '../modules/graph/application/use-cases/rename-graph.use-case';
+import { ListGraphsUseCase } from '../modules/graph/application/use-cases/list-graphs.use-case';
+import { GetGraphInfoUseCase } from '../modules/graph/application/use-cases/get-graph-info.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -38,12 +40,14 @@ export class GraphController {
     private readonly removeNodeUseCase: RemoveNodeUseCase,
     private readonly createGraphUseCase: CreateGraphUseCase,
     private readonly renameGraphUseCase: RenameGraphUseCase,
+    private readonly listGraphsUseCase: ListGraphsUseCase,
+    private readonly getGraphInfoUseCase: GetGraphInfoUseCase,
   ) {}
 
   // ---- Grafos ----
   @Get('graphs')
   listGraphs(@CurrentUser() userId: string) {
-    return this.graph.listGraphs(userId);
+    return this.listGraphsUseCase.execute(userId);
   }
 
   @Post('graphs')
@@ -63,7 +67,7 @@ export class GraphController {
 
   @Get('graphs/:id/info')
   graphInfo(@CurrentUser() userId: string, @Param('id') id: string) {
-    return this.graph.getGraphInfo(userId, id);
+    return this.getGraphInfoUseCase.execute(userId, id);
   }
 
   @Patch('graphs/:id')
