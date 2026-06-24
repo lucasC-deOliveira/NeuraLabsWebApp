@@ -48,30 +48,29 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
   }
 
   private toHttpException(error: GraphDomainError): HttpException {
-    if (error instanceof GraphNodesNotFoundError) {
-      return new NotFoundException('Nó(s) não encontrado(s) no grafo');
-    }
-    if (error instanceof EdgeNotFoundError) {
-      return new NotFoundException('Relação não encontrada');
-    }
+    const notFoundMessage = this.notFoundMessage(error);
+    if (notFoundMessage) return new NotFoundException(notFoundMessage);
     if (error instanceof DuplicateEdgeError) {
       return new BadRequestException('Relação já existe entre esses nós com este tipo');
     }
     if (error instanceof InvalidEdgeWeightError) {
       return new BadRequestException('Peso inválido (0 a 2)');
     }
-    if (error instanceof GraphNotFoundError) {
-      return new NotFoundException('Grafo não encontrado');
-    }
-    if (error instanceof NodeNotInGraphError) {
-      return new NotFoundException('Nó não encontrado no grafo');
-    }
     if (error instanceof RootNodeError) {
       return new BadRequestException(
         'O assunto-raiz do grafo não pode ser removido — ele é deletado junto com o grafo.',
       );
     }
-    return this.relationNotAllowed(error);
+    if (error instanceof RelationNotAllowedError) return this.relationNotAllowed(error);
+    return new BadRequestException('Operação inválida no grafo');
+  }
+
+  private notFoundMessage(error: GraphDomainError): string | null {
+    if (error instanceof GraphNodesNotFoundError) return 'Nó(s) não encontrado(s) no grafo';
+    if (error instanceof EdgeNotFoundError) return 'Relação não encontrada';
+    if (error instanceof GraphNotFoundError) return 'Grafo não encontrado';
+    if (error instanceof NodeNotInGraphError) return 'Nó não encontrado no grafo';
+    return null;
   }
 
   private relationNotAllowed(error: RelationNotAllowedError): HttpException {

@@ -7,6 +7,8 @@ import { UpdateEdgeUseCase } from '../modules/graph/application/use-cases/update
 import { DeleteEdgeUseCase } from '../modules/graph/application/use-cases/delete-edge.use-case';
 import { AddExistingNodeUseCase } from '../modules/graph/application/use-cases/add-existing-node.use-case';
 import { RemoveNodeUseCase } from '../modules/graph/application/use-cases/remove-node.use-case';
+import { CreateGraphUseCase } from '../modules/graph/application/use-cases/create-graph.use-case';
+import { RenameGraphUseCase } from '../modules/graph/application/use-cases/rename-graph.use-case';
 import {
   GRAPH_EDGE_REPOSITORY,
   type GraphEdgeRepository,
@@ -15,8 +17,13 @@ import {
   GRAPH_NODE_REPOSITORY,
   type GraphNodeRepository,
 } from '../modules/graph/domain/ports/graph-node-repository';
+import {
+  GRAPH_REPOSITORY,
+  type GraphRepository,
+} from '../modules/graph/domain/ports/graph-repository';
 import { PrismaGraphEdgeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-edge.repository';
 import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-node.repository';
+import { PrismaGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-graph.repository';
 
 @Module({
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
@@ -25,6 +32,7 @@ import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persi
     GraphService,
     { provide: GRAPH_EDGE_REPOSITORY, useClass: PrismaGraphEdgeRepository },
     { provide: GRAPH_NODE_REPOSITORY, useClass: PrismaGraphNodeRepository },
+    { provide: GRAPH_REPOSITORY, useClass: PrismaGraphRepository },
     {
       provide: CreateEdgeUseCase,
       useFactory: (edges: GraphEdgeRepository) => new CreateEdgeUseCase(edges),
@@ -49,6 +57,16 @@ import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persi
       provide: RemoveNodeUseCase,
       useFactory: (nodes: GraphNodeRepository) => new RemoveNodeUseCase(nodes),
       inject: [GRAPH_NODE_REPOSITORY],
+    },
+    {
+      provide: CreateGraphUseCase,
+      useFactory: (graphs: GraphRepository) => new CreateGraphUseCase(graphs),
+      inject: [GRAPH_REPOSITORY],
+    },
+    {
+      provide: RenameGraphUseCase,
+      useFactory: (graphs: GraphRepository) => new RenameGraphUseCase(graphs),
+      inject: [GRAPH_REPOSITORY],
     },
   ],
   exports: [GraphService],

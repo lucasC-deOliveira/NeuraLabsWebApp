@@ -19,6 +19,8 @@ import { UpdateEdgeUseCase } from '../modules/graph/application/use-cases/update
 import { DeleteEdgeUseCase } from '../modules/graph/application/use-cases/delete-edge.use-case';
 import { AddExistingNodeUseCase } from '../modules/graph/application/use-cases/add-existing-node.use-case';
 import { RemoveNodeUseCase } from '../modules/graph/application/use-cases/remove-node.use-case';
+import { CreateGraphUseCase } from '../modules/graph/application/use-cases/create-graph.use-case';
+import { RenameGraphUseCase } from '../modules/graph/application/use-cases/rename-graph.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -34,6 +36,8 @@ export class GraphController {
     private readonly deleteEdgeUseCase: DeleteEdgeUseCase,
     private readonly addExistingNodeUseCase: AddExistingNodeUseCase,
     private readonly removeNodeUseCase: RemoveNodeUseCase,
+    private readonly createGraphUseCase: CreateGraphUseCase,
+    private readonly renameGraphUseCase: RenameGraphUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -44,7 +48,7 @@ export class GraphController {
 
   @Post('graphs')
   createGraph(@CurrentUser() userId: string, @Body() body: { nome: string; descricao?: string }) {
-    return this.graph.createGraph(userId, body.nome, body.descricao);
+    return this.createGraphUseCase.execute(userId, body.nome, body.descricao);
   }
 
   @Delete('graphs/:id')
@@ -68,7 +72,7 @@ export class GraphController {
     @Param('id') id: string,
     @Body() body: { nome: string },
   ) {
-    return this.graph.updateGraphName(userId, id, body.nome);
+    return this.renameGraphUseCase.execute(userId, id, body.nome);
   }
 
   @Get('graphs/:id/visual')

@@ -85,29 +85,6 @@ export class GraphService {
     return grafos.map((g) => ({ ...g, filhosCount: g._count.filhos }));
   }
 
-  async createGraph(userId: string, nome: string, descricao?: string) {
-    const finalNome = nome.trim() || 'Novo grafo';
-    return this.prisma.$transaction(async (tx) => {
-      const g = await tx.grafosConhecimento.create({
-        data: { usuarioId: userId, nome: finalNome, descricao: descricao ?? null },
-      });
-      // Assunto-raiz: ASSUNTO com o nome do grafo, fixo no centro (0,0), ancora o layout.
-      const root = await tx.assunto.create({ data: { nome: finalNome, usuarioId: userId } });
-      await tx.nodeConhecimento.create({
-        data: {
-          usuarioId: userId,
-          grafoId: g.id,
-          tipoNode: 'ASSUNTO',
-          referenciaId: root.id,
-          posicaoX: 0,
-          posicaoY: 0,
-        },
-      });
-      await tx.grafosConhecimento.update({ where: { id: g.id }, data: { rootAssuntoId: root.id } });
-      return { id: g.id };
-    });
-  }
-
   // Tipos de entidade "reutilizáveis" que o usuário pode optar por manter ao deletar o grafo.
   private static readonly KEEPABLE_TYPES = new Set([
     'FLASHCARD',
@@ -199,26 +176,6 @@ export class GraphService {
       tipoRelacaoPai: g.tipoRelacaoPai ?? null,
       filhosCount: g._count.filhos,
     };
-  }
-
-  async updateGraphName(userId: string, grafoId: string, nome: string) {
-    const trimmed = nome.trim();
-    const g = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: grafoId, usuarioId: userId },
-      select: { rootAssuntoId: true },
-    });
-    await this.prisma.grafosConhecimento.updateMany({
-      where: { id: grafoId, usuarioId: userId },
-      data: { nome: trimmed },
-    });
-    // o nome do Assunto-raiz espelha o nome do grafo
-    if (g?.rootAssuntoId) {
-      await this.prisma.assunto.updateMany({
-        where: { id: g.rootAssuntoId, usuarioId: userId },
-        data: { nome: trimmed },
-      });
-    }
-    return { success: true };
   }
 
   async saveVisualState(userId: string, grafoId: string, state: unknown) {
