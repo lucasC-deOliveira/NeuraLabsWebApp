@@ -39,6 +39,7 @@ import { UpdateNodeUseCase } from '../modules/graph/application/use-cases/update
 import { CreateDeckUseCase } from '../modules/graph/application/use-cases/create-deck.use-case';
 import { AddProvaToGraphUseCase } from '../modules/graph/application/use-cases/add-prova-to-graph.use-case';
 import { CreateSubgraphUseCase } from '../modules/graph/application/use-cases/create-subgraph.use-case';
+import { ExtractSubgraphUseCase } from '../modules/graph/application/use-cases/extract-subgraph.use-case';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -74,6 +75,7 @@ export class GraphController {
     private readonly createDeckUseCase: CreateDeckUseCase,
     private readonly addProvaToGraphUseCase: AddProvaToGraphUseCase,
     private readonly createSubgraphUseCase: CreateSubgraphUseCase,
+    private readonly extractSubgraphUseCase: ExtractSubgraphUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -312,7 +314,7 @@ export class GraphController {
     @Param('grafoId') grafoId: string,
     @Body() body: { nodeIds: string[]; nome: string; tipoRelacao: string },
   ) {
-    return this.graph.extractNodesToSubgrafo(userId, grafoId, body);
+    return this.extractSubgraphUseCase.execute(userId, grafoId, body);
   }
 
   @Get('graphs/:grafoId/expand')

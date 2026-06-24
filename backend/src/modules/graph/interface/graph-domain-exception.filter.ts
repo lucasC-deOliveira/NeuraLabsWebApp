@@ -18,6 +18,8 @@ import {
   InvalidSubgraphRelationError,
   NodeNotInGraphError,
   NodeValidationError,
+  NoNodesToExtractError,
+  NoValidNodesError,
   ParentGraphNotFoundError,
   ProvaNotFoundError,
   RelationNotAllowedError,
@@ -43,7 +45,9 @@ type GraphDomainError =
   | FlashcardsNotOwnedError
   | ProvaNotFoundError
   | ParentGraphNotFoundError
-  | InvalidSubgraphRelationError;
+  | InvalidSubgraphRelationError
+  | NoNodesToExtractError
+  | NoValidNodesError;
 
 // Translates Graph domain errors into HTTP responses. Domain messages stay
 // internal (English); user-facing messages produced here are in Portuguese.
@@ -64,6 +68,8 @@ type GraphDomainError =
   ProvaNotFoundError,
   ParentGraphNotFoundError,
   InvalidSubgraphRelationError,
+  NoNodesToExtractError,
+  NoValidNodesError,
 )
 export class GraphDomainExceptionFilter implements ExceptionFilter {
   catch(error: GraphDomainError, host: ArgumentsHost): void {
@@ -90,6 +96,14 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
   }
 
   private badRequestMessage(error: GraphDomainError): string {
+    return (
+      this.edgeNodeBadRequest(error) ??
+      this.deckSubgraphBadRequest(error) ??
+      'Operação inválida no grafo'
+    );
+  }
+
+  private edgeNodeBadRequest(error: GraphDomainError): string | null {
     if (error instanceof DuplicateEdgeError)
       return 'Relação já existe entre esses nós com este tipo';
     if (error instanceof InvalidEdgeWeightError) return 'Peso inválido (0 a 2)';
@@ -97,6 +111,10 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
       return 'O assunto-raiz do grafo não pode ser removido — ele é deletado junto com o grafo.';
     if (error instanceof UnknownNodeTypeError) return `Tipo de nó desconhecido: ${error.tipoNode}`;
     if (error instanceof NodeValidationError) return nodeValidationMessage(error.code);
+    return null;
+  }
+
+  private deckSubgraphBadRequest(error: GraphDomainError): string | null {
     if (error instanceof DeckTitleRequiredError) return 'O título do baralho é obrigatório';
     if (error instanceof TooManyFlashcardsError)
       return `Máximo de ${error.max} flashcards por baralho`;
@@ -104,7 +122,9 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
       return 'Um ou mais flashcards não pertencem ao usuário';
     if (error instanceof InvalidSubgraphRelationError)
       return 'Tipo de relação inválido para subgrafo';
-    return 'Operação inválida no grafo';
+    if (error instanceof NoNodesToExtractError) return 'Selecione ao menos um nó para extrair';
+    if (error instanceof NoValidNodesError) return 'Nenhum nó válido encontrado';
+    return null;
   }
 
   private relationNotAllowed(error: RelationNotAllowedError): HttpException {

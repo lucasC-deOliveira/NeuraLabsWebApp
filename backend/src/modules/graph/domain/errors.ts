@@ -124,3 +124,17 @@ export class InvalidSubgraphRelationError extends Error {
     this.name = 'InvalidSubgraphRelationError';
   }
 }
+
+export class NoNodesToExtractError extends Error {
+  constructor() {
+    super('Select at least one node to extract.');
+    this.name = 'NoNodesToExtractError';
+  }
+}
+
+export class NoValidNodesError extends Error {
+  constructor() {
+    super('No valid nodes were found to extract.');
+    this.name = 'NoValidNodesError';
+  }
+}

@@ -8,7 +8,6 @@ import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/ge
 import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
 import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
 import { CreateDeckUseCase } from '../modules/graph/application/use-cases/create-deck.use-case';
-import { GRAFO_REF_RELATIONS } from '../modules/graph/domain/services/subgraph';
 
 type TipoNode =
   | 'ASSUNTO'
@@ -387,101 +386,6 @@ export class GraphService {
   // ---- Busca por conteúdo (devolve refIds que casam) ----
   // ---- Posições ----
   // ---- Subgrafos ----
-
-  async extractNodesToSubgrafo(
-    userId: string,
-    parentGrafoId: string,
-    input: { nodeIds: string[]; nome: string; tipoRelacao: string },
-  ) {
-    if (!input.nodeIds.length)
-      throw new BadRequestException('Selecione ao menos um nó para extrair');
-    if (!GRAFO_REF_RELATIONS.includes(input.tipoRelacao as any))
-      throw new BadRequestException('Tipo de relação inválido');
-
-    const parent = await this.prisma.grafosConhecimento.findFirst({
-      where: { id: parentGrafoId, usuarioId: userId },
-    });
-    if (!parent) throw new NotFoundException('Grafo pai não encontrado');
-
-    const nodeRows = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId: parentGrafoId, usuarioId: userId, referenciaId: { in: input.nodeIds } },
-    });
-    if (nodeRows.length === 0) throw new BadRequestException('Nenhum nó válido encontrado');
-
-    const nodeRowIds = nodeRows.map((n) => n.id);
-    const nodeRefIds = new Set(nodeRows.map((n) => n.referenciaId));
-
-    // Calcular centróide para posição do GRAFO_REF
-    const centX = nodeRows.reduce((s, n) => s + (n.posicaoX ?? 0), 0) / nodeRows.length;
-    const centY = nodeRows.reduce((s, n) => s + (n.posicaoY ?? 0), 0) / nodeRows.length;
-
-    // Arestas externas: uma ponta dentro, outra fora
-    const allEdges = await this.prisma.conhecimentoAresta.findMany({
-      where: {
-        grafoId: parentGrafoId,
-        OR: [{ nodeOrigemId: { in: nodeRowIds } }, { nodeDestinoId: { in: nodeRowIds } }],
-      },
-    });
-    const internalEdgeIds = allEdges
-      .filter(
-        (e) =>
-          nodeRowIds.includes(e.nodeOrigemId ?? '') && nodeRowIds.includes(e.nodeDestinoId ?? ''),
-      )
-      .map((e) => e.id);
-    const externalEdges = allEdges.filter((e) => !internalEdgeIds.includes(e.id));
-
-    return this.prisma.$transaction(async (tx) => {
-      const filho = await tx.grafosConhecimento.create({
-        data: {
-          usuarioId: userId,
-          nome: input.nome.trim(),
-          descricao: null,
-          parentGrafoId,
-          tipoRelacaoPai: input.tipoRelacao,
-        },
-      });
-
-      // Move nós para o filho
-      await tx.nodeConhecimento.updateMany({
-        where: { id: { in: nodeRowIds } },
-        data: { grafoId: filho.id },
-      });
-
-      // Cria GRAFO_REF no pai
-      const refNode = await tx.nodeConhecimento.create({
-        data: {
-          grafoId: parentGrafoId,
-          tipoNode: 'GRAFO_REF',
-          referenciaId: filho.id,
-          usuarioId: userId,
-          posicaoX: centX,
-          posicaoY: centY,
-        },
-      });
-
-      // Redireciona arestas externas para o GRAFO_REF
-      let rewiredEdgeCount = 0;
-      for (const edge of externalEdges) {
-        const srcIn = nodeRowIds.includes(edge.nodeOrigemId ?? '');
-        const tgtIn = nodeRowIds.includes(edge.nodeDestinoId ?? '');
-        await tx.conhecimentoAresta.update({
-          where: { id: edge.id },
-          data: {
-            nodeOrigemId: srcIn ? refNode.id : edge.nodeOrigemId,
-            nodeDestinoId: tgtIn ? refNode.id : edge.nodeDestinoId,
-          },
-        });
-        rewiredEdgeCount++;
-      }
-
-      return {
-        grafoId: filho.id,
-        grafoRefNodeId: filho.id,
-        movedCount: nodeRows.length,
-        rewiredEdgeCount,
-      };
-    });
-  }
 
   async expandSubgrafo(userId: string, childGrafoId: string) {
     const child = await this.prisma.grafosConhecimento.findFirst({

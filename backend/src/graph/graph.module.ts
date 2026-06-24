@@ -27,6 +27,7 @@ import { UpdateNodeUseCase } from '../modules/graph/application/use-cases/update
 import { CreateDeckUseCase } from '../modules/graph/application/use-cases/create-deck.use-case';
 import { AddProvaToGraphUseCase } from '../modules/graph/application/use-cases/add-prova-to-graph.use-case';
 import { CreateSubgraphUseCase } from '../modules/graph/application/use-cases/create-subgraph.use-case';
+import { ExtractSubgraphUseCase } from '../modules/graph/application/use-cases/extract-subgraph.use-case';
 import {
   GRAPH_EDGE_REPOSITORY,
   type GraphEdgeRepository,
@@ -93,6 +94,10 @@ import {
   CREATE_SUBGRAPH_REPOSITORY,
   type CreateSubgraphRepository,
 } from '../modules/graph/domain/ports/create-subgraph-repository';
+import {
+  EXTRACT_SUBGRAPH_REPOSITORY,
+  type ExtractSubgraphRepository,
+} from '../modules/graph/domain/ports/extract-subgraph-repository';
 import { PrismaGraphEdgeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-edge.repository';
 import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-node.repository';
 import { PrismaGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-graph.repository';
@@ -110,6 +115,7 @@ import { PrismaNodeUpdateRepository } from '../modules/graph/infrastructure/pers
 import { PrismaCreateDeckRepository } from '../modules/graph/infrastructure/persistence/prisma-create-deck.repository';
 import { PrismaAddProvaRepository } from '../modules/graph/infrastructure/persistence/prisma-add-prova.repository';
 import { PrismaCreateSubgraphRepository } from '../modules/graph/infrastructure/persistence/prisma-create-subgraph.repository';
+import { PrismaExtractSubgraphRepository } from '../modules/graph/infrastructure/persistence/prisma-extract-subgraph.repository';
 
 @Module({
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
@@ -136,6 +142,7 @@ import { PrismaCreateSubgraphRepository } from '../modules/graph/infrastructure/
     { provide: CREATE_DECK_REPOSITORY, useClass: PrismaCreateDeckRepository },
     { provide: ADD_PROVA_REPOSITORY, useClass: PrismaAddProvaRepository },
     { provide: CREATE_SUBGRAPH_REPOSITORY, useClass: PrismaCreateSubgraphRepository },
+    { provide: EXTRACT_SUBGRAPH_REPOSITORY, useClass: PrismaExtractSubgraphRepository },
     {
       provide: CreateEdgeUseCase,
       useFactory: (edges: GraphEdgeRepository) => new CreateEdgeUseCase(edges),
@@ -260,6 +267,11 @@ import { PrismaCreateSubgraphRepository } from '../modules/graph/infrastructure/
       provide: CreateSubgraphUseCase,
       useFactory: (subgraphs: CreateSubgraphRepository) => new CreateSubgraphUseCase(subgraphs),
       inject: [CREATE_SUBGRAPH_REPOSITORY],
+    },
+    {
+      provide: ExtractSubgraphUseCase,
+      useFactory: (subgraphs: ExtractSubgraphRepository) => new ExtractSubgraphUseCase(subgraphs),
+      inject: [EXTRACT_SUBGRAPH_REPOSITORY],
     },
   ],
   exports: [GraphService, DeleteNodeUseCase],
