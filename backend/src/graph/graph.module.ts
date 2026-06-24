@@ -32,6 +32,7 @@ import { LoadGraphUseCase } from '../modules/graph/application/use-cases/load-gr
 import { ExpandSubgraphUseCase } from '../modules/graph/application/use-cases/expand-subgraph.use-case';
 import { ExportGraphUseCase } from '../modules/graph/application/use-cases/export-graph.use-case';
 import { ImportGraphUseCase } from '../modules/graph/application/use-cases/import-graph.use-case';
+import { SyncVaultUseCase } from '../modules/graph/application/use-cases/sync-vault.use-case';
 import {
   GRAPH_EDGE_REPOSITORY,
   type GraphEdgeRepository,
@@ -114,6 +115,10 @@ import {
   GRAPH_IMPORT_REPOSITORY,
   type GraphImportRepository,
 } from '../modules/graph/domain/ports/graph-import-repository';
+import {
+  VAULT_SYNC_REPOSITORY,
+  type VaultSyncRepository,
+} from '../modules/graph/domain/ports/vault-sync-repository';
 import { PrismaGraphEdgeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-edge.repository';
 import { PrismaGraphNodeRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-node.repository';
 import { PrismaGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-graph.repository';
@@ -135,6 +140,7 @@ import { PrismaExtractSubgraphRepository } from '../modules/graph/infrastructure
 import { PrismaGraphViewRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-view.repository';
 import { PrismaGraphExportRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-export.repository';
 import { PrismaGraphImportRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-import.repository';
+import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persistence/prisma-vault-sync.repository';
 
 @Module({
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
@@ -165,6 +171,7 @@ import { PrismaGraphImportRepository } from '../modules/graph/infrastructure/per
     { provide: GRAPH_VIEW_REPOSITORY, useClass: PrismaGraphViewRepository },
     { provide: GRAPH_EXPORT_REPOSITORY, useClass: PrismaGraphExportRepository },
     { provide: GRAPH_IMPORT_REPOSITORY, useClass: PrismaGraphImportRepository },
+    { provide: VAULT_SYNC_REPOSITORY, useClass: PrismaVaultSyncRepository },
     {
       provide: CreateEdgeUseCase,
       useFactory: (edges: GraphEdgeRepository) => new CreateEdgeUseCase(edges),
@@ -319,6 +326,11 @@ import { PrismaGraphImportRepository } from '../modules/graph/infrastructure/per
       provide: ImportGraphUseCase,
       useFactory: (imports: GraphImportRepository) => new ImportGraphUseCase(imports),
       inject: [GRAPH_IMPORT_REPOSITORY],
+    },
+    {
+      provide: SyncVaultUseCase,
+      useFactory: (vault: VaultSyncRepository) => new SyncVaultUseCase(vault),
+      inject: [VAULT_SYNC_REPOSITORY],
     },
   ],
   exports: [GraphService, DeleteNodeUseCase],

@@ -44,6 +44,8 @@ import { LoadGraphUseCase } from '../modules/graph/application/use-cases/load-gr
 import { ExpandSubgraphUseCase } from '../modules/graph/application/use-cases/expand-subgraph.use-case';
 import { ExportGraphUseCase } from '../modules/graph/application/use-cases/export-graph.use-case';
 import { ImportGraphUseCase } from '../modules/graph/application/use-cases/import-graph.use-case';
+import { SyncVaultUseCase } from '../modules/graph/application/use-cases/sync-vault.use-case';
+import type { VaultPayload } from '../modules/graph/domain/ports/vault-sync-repository';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -84,6 +86,7 @@ export class GraphController {
     private readonly expandSubgraphUseCase: ExpandSubgraphUseCase,
     private readonly exportGraphUseCase: ExportGraphUseCase,
     private readonly importGraphUseCase: ImportGraphUseCase,
+    private readonly syncVaultUseCase: SyncVaultUseCase,
   ) {}
 
   // ---- Grafos ----
@@ -222,9 +225,9 @@ export class GraphController {
   syncFromVault(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { nodes: any[]; edges: any[] },
+    @Body() body: VaultPayload,
   ) {
-    return this.graph.syncGraphFromVault(userId, grafoId, body as never);
+    return this.syncVaultUseCase.execute(userId, grafoId, body);
   }
 
   @Patch('nodes/:refId')
