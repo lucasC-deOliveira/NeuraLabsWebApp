@@ -131,6 +131,12 @@ import {
 } from '../modules/ai/domain/ports/flashcard-source-repository';
 import { PrismaFlashcardSourceRepository } from '../modules/ai/infrastructure/persistence/prisma-flashcard-source.repository';
 import { GenerateFlashcardsViaIaUseCase } from '../modules/ai/application/use-cases/generate-flashcards-via-ia.use-case';
+import {
+  CURRICULUM_REPOSITORY,
+  type CurriculumRepository,
+} from '../modules/ai/domain/ports/curriculum-repository';
+import { PrismaCurriculumRepository } from '../modules/ai/infrastructure/persistence/prisma-curriculum.repository';
+import { SaveSelectedNotasUseCase } from '../modules/ai/application/use-cases/save-selected-notas.use-case';
 
 // Binds the structural-gap targets to the graph's relation rules.
 const gapRules: GapRulesPort = {
@@ -194,6 +200,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: GRAPH_NODE_DELETER, useFactory: graphNodeDeleter, inject: [DeleteNodeUseCase] },
     { provide: GAP_RULES_PORT, useValue: gapRules },
     { provide: FLASHCARD_SOURCE_REPOSITORY, useClass: PrismaFlashcardSourceRepository },
+    { provide: CURRICULUM_REPOSITORY, useClass: PrismaCurriculumRepository },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -349,6 +356,12 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (repo: FlashcardSourceRepository, llm: LlmPort) =>
         new GenerateFlashcardsViaIaUseCase(repo, llm),
       inject: [FLASHCARD_SOURCE_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: SaveSelectedNotasUseCase,
+      useFactory: (repo: CurriculumRepository, llm: LlmPort) =>
+        new SaveSelectedNotasUseCase(repo, llm),
+      inject: [CURRICULUM_REPOSITORY, LLM_PORT],
     },
   ],
 })

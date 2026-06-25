@@ -21,6 +21,7 @@ import { MergeDuplicateNodesUseCase } from '../modules/ai/application/use-cases/
 import { SuggestGapFillUseCase } from '../modules/ai/application/use-cases/suggest-gap-fill.use-case';
 import { AnalyzeRawTextUseCase } from '../modules/ai/application/use-cases/analyze-raw-text.use-case';
 import { GenerateFlashcardsViaIaUseCase } from '../modules/ai/application/use-cases/generate-flashcards-via-ia.use-case';
+import { SaveSelectedNotasUseCase } from '../modules/ai/application/use-cases/save-selected-notas.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -48,6 +49,7 @@ export class AiController {
     private readonly suggestGapFillUseCase: SuggestGapFillUseCase,
     private readonly analyzeRawTextUseCase: AnalyzeRawTextUseCase,
     private readonly generateFlashcardsViaIaUseCase: GenerateFlashcardsViaIaUseCase,
+    private readonly saveSelectedNotasUseCase: SaveSelectedNotasUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -101,7 +103,7 @@ export class AiController {
     @CurrentUser() userId: string,
     @Body() body: { candidatas: Array<{ titulo: string; conteudo: string }> },
   ) {
-    return this.ai.saveSelectedNotas(userId, body.candidatas ?? []);
+    return this.saveSelectedNotasUseCase.execute(userId, body.candidatas ?? []);
   }
 
   @Post('graphs/:grafoId/generate-graph')
