@@ -12,17 +12,25 @@ import {
   EmptyClusterContentError,
   EmptyNodeListError,
   InvalidAiJsonError,
+  UnsupportedExpandTypeError,
 } from '../domain/errors';
 
 type AiDomainError =
   | InvalidAiJsonError
   | AiNodeNotFoundError
   | EmptyNodeListError
-  | EmptyClusterContentError;
+  | EmptyClusterContentError
+  | UnsupportedExpandTypeError;
 
 // Translates AI domain errors into HTTP responses. Domain messages stay internal
 // (English); user-facing messages produced here are in Portuguese.
-@Catch(InvalidAiJsonError, AiNodeNotFoundError, EmptyNodeListError, EmptyClusterContentError)
+@Catch(
+  InvalidAiJsonError,
+  AiNodeNotFoundError,
+  EmptyNodeListError,
+  EmptyClusterContentError,
+  UnsupportedExpandTypeError,
+)
 export class AiDomainExceptionFilter implements ExceptionFilter {
   catch(error: AiDomainError, host: ArgumentsHost): void {
     const httpError = this.toHttpException(error);
@@ -36,6 +44,10 @@ export class AiDomainExceptionFilter implements ExceptionFilter {
     if (error instanceof EmptyNodeListError) return new BadRequestException('Lista de nós vazia');
     if (error instanceof EmptyClusterContentError)
       return new BadRequestException('Nós sem conteúdo para resumir');
+    if (error instanceof UnsupportedExpandTypeError)
+      return new BadRequestException(
+        'Tipo não suportado para expansão. Use ASSUNTO, TOPICO, CONCEITO ou NOTA.',
+      );
     return new BadRequestException('A IA retornou JSON inválido.');
   }
 }

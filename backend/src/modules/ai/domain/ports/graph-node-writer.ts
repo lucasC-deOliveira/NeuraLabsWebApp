@@ -3,8 +3,14 @@
 // in the AI module.
 export interface GraphNodeInput {
   tipoNode: string;
-  nome: string;
-  descricao: string;
+  nome?: string;
+  descricao?: string;
+  titulo?: string;
+  conteudo?: string;
+  subtipo?: string;
+  tipoNota?: string;
+  pergunta?: string;
+  resposta?: string;
 }
 
 export interface GraphNodeWriter {

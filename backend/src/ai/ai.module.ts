@@ -65,6 +65,17 @@ import {
 import { PrismaGraphDecksQuery } from '../modules/ai/infrastructure/persistence/prisma-graph-decks.query';
 import { ListBaralhosInGrafoUseCase } from '../modules/ai/application/use-cases/list-baralhos-in-grafo.use-case';
 import {
+  EXPAND_TARGET_REPOSITORY,
+  type ExpandTargetRepository,
+} from '../modules/ai/domain/ports/expand-target-repository';
+import {
+  GRAPH_NAME_INDEX_REPOSITORY,
+  type GraphNameIndexRepository,
+} from '../modules/ai/domain/ports/graph-name-index-repository';
+import { PrismaExpandTargetRepository } from '../modules/ai/infrastructure/persistence/prisma-expand-target.repository';
+import { PrismaGraphNameIndexRepository } from '../modules/ai/infrastructure/persistence/prisma-graph-name-index.repository';
+import { ExpandNodeUseCase } from '../modules/ai/application/use-cases/expand-node.use-case';
+import {
   INSIGHT_CONTEXT_REPOSITORY,
   type InsightContextRepository,
 } from '../modules/ai/domain/ports/insight-context-repository';
@@ -141,6 +152,8 @@ const graphRelationRules: RelationRulesPort = {
     { provide: CLUSTER_NODES_REPOSITORY, useClass: PrismaClusterNodesRepository },
     { provide: CHAT_NODES_REPOSITORY, useClass: PrismaChatNodesRepository },
     { provide: GRAPH_DECKS_QUERY, useClass: PrismaGraphDecksQuery },
+    { provide: EXPAND_TARGET_REPOSITORY, useClass: PrismaExpandTargetRepository },
+    { provide: GRAPH_NAME_INDEX_REPOSITORY, useClass: PrismaGraphNameIndexRepository },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -240,6 +253,23 @@ const graphRelationRules: RelationRulesPort = {
       provide: ListBaralhosInGrafoUseCase,
       useFactory: (decks: GraphDecksQuery) => new ListBaralhosInGrafoUseCase(decks),
       inject: [GRAPH_DECKS_QUERY],
+    },
+    {
+      provide: ExpandNodeUseCase,
+      useFactory: (
+        targets: ExpandTargetRepository,
+        names: GraphNameIndexRepository,
+        nodeWriter: GraphNodeWriter,
+        edgeWriter: GraphEdgeWriter,
+        llm: LlmPort,
+      ) => new ExpandNodeUseCase(targets, names, nodeWriter, edgeWriter, llm),
+      inject: [
+        EXPAND_TARGET_REPOSITORY,
+        GRAPH_NAME_INDEX_REPOSITORY,
+        GRAPH_NODE_WRITER,
+        GRAPH_EDGE_WRITER,
+        LLM_PORT,
+      ],
     },
   ],
 })

@@ -15,6 +15,7 @@ import { DetectMissingPrerequisitesUseCase } from '../modules/ai/application/use
 import { GenerateCommunitySummaryUseCase } from '../modules/ai/application/use-cases/generate-community-summary.use-case';
 import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
 import { ListBaralhosInGrafoUseCase } from '../modules/ai/application/use-cases/list-baralhos-in-grafo.use-case';
+import { ExpandNodeUseCase } from '../modules/ai/application/use-cases/expand-node.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -36,6 +37,7 @@ export class AiController {
     private readonly generateCommunitySummaryUseCase: GenerateCommunitySummaryUseCase,
     private readonly chatWithGraphUseCase: ChatWithGraphUseCase,
     private readonly listBaralhosInGrafoUseCase: ListBaralhosInGrafoUseCase,
+    private readonly expandNodeUseCase: ExpandNodeUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -159,7 +161,7 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Param('nodeId') nodeId: string,
   ) {
-    return this.ai.expandNode(userId, grafoId, nodeId);
+    return this.expandNodeUseCase.execute(userId, grafoId, nodeId);
   }
 
   @Post('graphs/:grafoId/community-summary')

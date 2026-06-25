@@ -28,3 +28,10 @@ export class EmptyClusterContentError extends Error {
     this.name = 'EmptyClusterContentError';
   }
 }
+
+export class UnsupportedExpandTypeError extends Error {
+  constructor(readonly tipo: string) {
+    super(`Node type "${tipo}" cannot be expanded. Expected: ASSUNTO|TOPICO|CONCEITO|NOTA`);
+    this.name = 'UnsupportedExpandTypeError';
+  }
+}
