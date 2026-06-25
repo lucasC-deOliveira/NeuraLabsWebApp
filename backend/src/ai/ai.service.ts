@@ -22,6 +22,7 @@ import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite
 import { selectLearningPath } from '../modules/ai/domain/services/learning-path';
 import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
 import { selectCompletenessAssessments } from '../modules/ai/domain/services/completeness-assessment';
+import { parseClusterSummary } from '../modules/ai/domain/services/cluster-summary';
 import {
   getAllowedRelations,
   isRelationAllowed,
@@ -1340,10 +1341,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     } catch {
       throw new BadRequestException('A IA retornou resposta inválida.');
     }
-    return {
-      titulo: typeof parsed?.titulo === 'string' ? parsed.titulo : 'Resumo do cluster',
-      resumo: typeof parsed?.resumo === 'string' ? parsed.resumo : '',
-    };
+    return parseClusterSummary(parsed);
   }
 
   // ── Feature: Pré-requisitos faltantes ─────────────────────────────────
