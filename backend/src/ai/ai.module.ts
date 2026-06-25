@@ -59,6 +59,12 @@ import {
 import { PrismaChatNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-chat-nodes.repository';
 import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
 import {
+  GRAPH_DECKS_QUERY,
+  type GraphDecksQuery,
+} from '../modules/ai/domain/ports/graph-decks-query';
+import { PrismaGraphDecksQuery } from '../modules/ai/infrastructure/persistence/prisma-graph-decks.query';
+import { ListBaralhosInGrafoUseCase } from '../modules/ai/application/use-cases/list-baralhos-in-grafo.use-case';
+import {
   INSIGHT_CONTEXT_REPOSITORY,
   type InsightContextRepository,
 } from '../modules/ai/domain/ports/insight-context-repository';
@@ -134,6 +140,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: PREREQUISITE_NODES_REPOSITORY, useClass: PrismaPrerequisiteNodesRepository },
     { provide: CLUSTER_NODES_REPOSITORY, useClass: PrismaClusterNodesRepository },
     { provide: CHAT_NODES_REPOSITORY, useClass: PrismaChatNodesRepository },
+    { provide: GRAPH_DECKS_QUERY, useClass: PrismaGraphDecksQuery },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -228,6 +235,11 @@ const graphRelationRules: RelationRulesPort = {
       provide: ChatWithGraphUseCase,
       useFactory: (repo: ChatNodesRepository, llm: LlmPort) => new ChatWithGraphUseCase(repo, llm),
       inject: [CHAT_NODES_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: ListBaralhosInGrafoUseCase,
+      useFactory: (decks: GraphDecksQuery) => new ListBaralhosInGrafoUseCase(decks),
+      inject: [GRAPH_DECKS_QUERY],
     },
   ],
 })

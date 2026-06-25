@@ -1107,45 +1107,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t√
     return { insights: selectGapInsights(parsed?.insights ?? []) };
   }
 
-  async listBaralhosInGrafo(
-    userId: string,
-    grafoId: string,
-  ): Promise<Array<{ id: string; titulo: string; flashcardCount: number }>> {
-    // Baralhos diretos no grafo
-    const directNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, tipoNode: 'BARALHO' },
-      select: { referenciaId: true },
-    });
-
-    // Baralhos em subgrafos referenciados (GRAFO_REF)
-    const refNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, tipoNode: 'GRAFO_REF' },
-      select: { referenciaId: true },
-    });
-    const subgrafoIds = refNodes.map((n) => n.referenciaId).filter(Boolean) as string[];
-    const subgrafoBaralhoNodes =
-      subgrafoIds.length > 0
-        ? await this.prisma.nodeConhecimento.findMany({
-            where: { grafoId: { in: subgrafoIds }, tipoNode: 'BARALHO' },
-            select: { referenciaId: true },
-          })
-        : [];
-
-    const allIds = [
-      ...directNodes.map((n) => n.referenciaId),
-      ...subgrafoBaralhoNodes.map((n) => n.referenciaId),
-    ].filter(Boolean) as string[];
-
-    if (allIds.length === 0) return [];
-
-    const rows = await this.prisma.baralho.findMany({
-      where: { id: { in: allIds }, usuarioId: userId },
-      select: { id: true, titulo: true, _count: { select: { flashcards: true } } },
-      orderBy: { titulo: 'asc' },
-    });
-    return rows.map((b) => ({ id: b.id, titulo: b.titulo, flashcardCount: b._count.flashcards }));
-  }
-
   async populateGraphFromBaralho(
     userId: string,
     grafoId: string,

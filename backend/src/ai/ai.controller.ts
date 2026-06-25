@@ -14,6 +14,7 @@ import { AddInsightsToGraphUseCase } from '../modules/ai/application/use-cases/a
 import { DetectMissingPrerequisitesUseCase } from '../modules/ai/application/use-cases/detect-missing-prerequisites.use-case';
 import { GenerateCommunitySummaryUseCase } from '../modules/ai/application/use-cases/generate-community-summary.use-case';
 import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
+import { ListBaralhosInGrafoUseCase } from '../modules/ai/application/use-cases/list-baralhos-in-grafo.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -34,6 +35,7 @@ export class AiController {
     private readonly detectMissingPrerequisitesUseCase: DetectMissingPrerequisitesUseCase,
     private readonly generateCommunitySummaryUseCase: GenerateCommunitySummaryUseCase,
     private readonly chatWithGraphUseCase: ChatWithGraphUseCase,
+    private readonly listBaralhosInGrafoUseCase: ListBaralhosInGrafoUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -233,7 +235,7 @@ export class AiController {
 
   @Post('graphs/:grafoId/baralhos')
   listBaralhosInGrafo(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
-    return this.ai.listBaralhosInGrafo(userId, grafoId);
+    return this.listBaralhosInGrafoUseCase.execute(userId, grafoId);
   }
 
   @Post('graphs/:grafoId/baralhos/:baralhoId/populate')
