@@ -47,6 +47,12 @@ import {
 import { PrismaPrerequisiteNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-prerequisite-nodes.repository';
 import { DetectMissingPrerequisitesUseCase } from '../modules/ai/application/use-cases/detect-missing-prerequisites.use-case';
 import {
+  CLUSTER_NODES_REPOSITORY,
+  type ClusterNodesRepository,
+} from '../modules/ai/domain/ports/cluster-nodes-repository';
+import { PrismaClusterNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-cluster-nodes.repository';
+import { GenerateCommunitySummaryUseCase } from '../modules/ai/application/use-cases/generate-community-summary.use-case';
+import {
   INSIGHT_CONTEXT_REPOSITORY,
   type InsightContextRepository,
 } from '../modules/ai/domain/ports/insight-context-repository';
@@ -120,6 +126,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: NODE_TYPES_REPOSITORY, useClass: PrismaNodeTypesRepository },
     { provide: INSIGHT_TARGET_INDEX_REPOSITORY, useClass: PrismaInsightTargetIndexRepository },
     { provide: PREREQUISITE_NODES_REPOSITORY, useClass: PrismaPrerequisiteNodesRepository },
+    { provide: CLUSTER_NODES_REPOSITORY, useClass: PrismaClusterNodesRepository },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -203,6 +210,12 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (repo: PrerequisiteNodesRepository, llm: LlmPort) =>
         new DetectMissingPrerequisitesUseCase(repo, llm),
       inject: [PREREQUISITE_NODES_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: GenerateCommunitySummaryUseCase,
+      useFactory: (repo: ClusterNodesRepository, llm: LlmPort) =>
+        new GenerateCommunitySummaryUseCase(repo, llm),
+      inject: [CLUSTER_NODES_REPOSITORY, LLM_PORT],
     },
   ],
 })

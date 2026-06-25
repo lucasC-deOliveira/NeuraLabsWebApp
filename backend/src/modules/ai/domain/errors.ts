@@ -14,3 +14,17 @@ export class AiNodeNotFoundError extends Error {
     this.name = 'AiNodeNotFoundError';
   }
 }
+
+export class EmptyNodeListError extends Error {
+  constructor() {
+    super('The node list is empty.');
+    this.name = 'EmptyNodeListError';
+  }
+}
+
+export class EmptyClusterContentError extends Error {
+  constructor() {
+    super('The cluster nodes have no content to summarize.');
+    this.name = 'EmptyClusterContentError';
+  }
+}

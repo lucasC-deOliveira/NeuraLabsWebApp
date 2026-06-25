@@ -12,6 +12,7 @@ import { ApplyAutoLinkUseCase } from '../modules/ai/application/use-cases/apply-
 import { AddMissingPrerequisiteUseCase } from '../modules/ai/application/use-cases/add-missing-prerequisite.use-case';
 import { AddInsightsToGraphUseCase } from '../modules/ai/application/use-cases/add-insights-to-graph.use-case';
 import { DetectMissingPrerequisitesUseCase } from '../modules/ai/application/use-cases/detect-missing-prerequisites.use-case';
+import { GenerateCommunitySummaryUseCase } from '../modules/ai/application/use-cases/generate-community-summary.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -30,6 +31,7 @@ export class AiController {
     private readonly addMissingPrerequisiteUseCase: AddMissingPrerequisiteUseCase,
     private readonly addInsightsToGraphUseCase: AddInsightsToGraphUseCase,
     private readonly detectMissingPrerequisitesUseCase: DetectMissingPrerequisitesUseCase,
+    private readonly generateCommunitySummaryUseCase: GenerateCommunitySummaryUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -162,7 +164,7 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Body() body: { nodeIds: string[] },
   ) {
-    return this.ai.generateCommunitySummary(userId, grafoId, body.nodeIds ?? []);
+    return this.generateCommunitySummaryUseCase.execute(userId, grafoId, body.nodeIds ?? []);
   }
 
   @Post('graphs/:grafoId/missing-prerequisites')

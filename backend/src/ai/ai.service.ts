@@ -8,7 +8,6 @@ import { parseAiJson } from '../modules/ai/domain/services/ai-json';
 import { InvalidAiJsonError } from '../modules/ai/domain/errors';
 import { selectGapInsights, type NodeInsight } from '../modules/ai/domain/services/node-insights';
 import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
-import { parseClusterSummary } from '../modules/ai/domain/services/cluster-summary';
 import { getAllowedRelations } from '../modules/graph/domain/services/relation-rules';
 import {
   makeConceptResolver,
@@ -820,65 +819,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
   }
 
   // ── Feature: Resumo de comunidade ──────────────────────────────────────
-  async generateCommunitySummary(
-    userId: string,
-    grafoId: string,
-    nodeIds: string[],
-  ): Promise<{ titulo: string; resumo: string }> {
-    if (!nodeIds.length) throw new BadRequestException('Lista de nós vazia');
-    const graphNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId, referenciaId: { in: nodeIds } },
-      select: { tipoNode: true, referenciaId: true },
-    });
-    const ids: Record<string, string[]> = {};
-    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
-    const [assuntos, topicos, conceitos, notas] = await Promise.all([
-      this.prisma.assunto.findMany({
-        where: { id: { in: ids.ASSUNTO ?? [] } },
-        select: { nome: true, descricao: true },
-      }),
-      this.prisma.topico.findMany({
-        where: { id: { in: ids.TOPICO ?? [] } },
-        select: { nome: true, descricao: true },
-      }),
-      this.prisma.conceito.findMany({
-        where: { id: { in: ids.CONCEITO ?? [] } },
-        select: { nome: true, descricao: true },
-      }),
-      this.prisma.nota.findMany({
-        where: { id: { in: ids.NOTA ?? [] } },
-        select: { titulo: true, conteudo: true },
-      }),
-    ]);
-    const ctx = [
-      ...assuntos.map(
-        (a) => `[ASSUNTO] ${a.nome}${a.descricao ? ': ' + a.descricao.slice(0, 150) : ''}`,
-      ),
-      ...topicos.map(
-        (t) => `[TÓPICO] ${t.nome}${t.descricao ? ': ' + t.descricao.slice(0, 150) : ''}`,
-      ),
-      ...conceitos.map(
-        (c) => `[CONCEITO] ${c.nome}${c.descricao ? ': ' + c.descricao.slice(0, 200) : ''}`,
-      ),
-      ...notas.map((n) => `[NOTA] ${n.titulo || 'Nota'}: ${n.conteudo?.slice(0, 400) || ''}`),
-    ].join('\n\n');
-    if (!ctx.trim()) throw new BadRequestException('Nós sem conteúdo para resumir');
-    const content = await this.callAI(userId, [
-      {
-        role: 'system',
-        content:
-          'Gere um RESUMO DE ESTUDO coerente em Markdown (200-500 palavras) dos nós de um cluster. Explique os conceitos de forma conectada, não apenas liste. JSON: {"titulo":"...","resumo":"(Markdown)"}',
-      },
-      { role: 'user', content: `NÓDES DO CLUSTER:\n${ctx.slice(0, 8000)}` },
-    ]);
-    let parsed: any;
-    try {
-      parsed = JSON.parse(content ?? '{}');
-    } catch {
-      throw new BadRequestException('A IA retornou resposta inválida.');
-    }
-    return parseClusterSummary(parsed);
-  }
 
   // ── Feature: Chat com o grafo ──────────────────────────────────────────────
   async chatWithGraph(
