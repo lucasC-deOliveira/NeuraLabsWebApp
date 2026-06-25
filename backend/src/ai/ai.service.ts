@@ -16,6 +16,7 @@ import {
   type NodeInsight,
 } from '../modules/ai/domain/services/node-insights';
 import { selectDuplicateGroups } from '../modules/ai/domain/services/duplicate-groups';
+import { selectAutoLinkSuggestions } from '../modules/ai/domain/services/auto-link-suggestions';
 import {
   getAllowedRelations,
   isRelationAllowed,
@@ -956,42 +957,13 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
       { role: 'user', content: `NÓS:\n${nodeList.slice(0, 7000)}` },
     ]);
     const parsed = this.extractJSON(content ?? '{}');
-    const nodeById = new Map(allNodes.map((n) => [n.id, n]));
-    const out: Array<{
-      sourceId: string;
-      targetId: string;
-      sourceNome: string;
-      targetNome: string;
-      relacao: string;
-      motivo: string;
-    }> = [];
-    const seen = new Set<string>();
-    for (const s of parsed?.suggestions ?? []) {
-      const src = nodeById.get(s?.sourceId);
-      const tgt = nodeById.get(s?.targetId);
-      if (!src || !tgt) continue;
-      if (s.sourceId === s.targetId) continue; // sem auto-referência
-      if (!isRelationAllowed(src.tipo, tgt.tipo, s?.relacao)) continue;
-      if (
-        existingPairs.has(`${s.sourceId}:${s.targetId}`) ||
-        existingPairs.has(`${s.targetId}:${s.sourceId}`)
-      )
-        continue;
-      // deduplicação: mesmo par em qualquer direção com mesma relação
-      const pairKey = [s.sourceId, s.targetId].sort().join(':') + ':' + s.relacao;
-      if (seen.has(pairKey)) continue;
-      seen.add(pairKey);
-      out.push({
-        sourceId: s.sourceId,
-        targetId: s.targetId,
-        sourceNome: src.nome,
-        targetNome: tgt.nome,
-        relacao: String(s.relacao),
-        motivo: typeof s?.motivo === 'string' ? s.motivo : '',
-      });
-      if (out.length >= 15) break;
-    }
-    return { suggestions: out };
+    const suggestions = selectAutoLinkSuggestions(
+      parsed?.suggestions ?? [],
+      allNodes,
+      existingPairs,
+      isRelationAllowed,
+    );
+    return { suggestions };
   }
 
   async applyAutoLink(
