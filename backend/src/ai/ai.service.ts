@@ -5,11 +5,6 @@ import { GraphService } from '../graph/graph.service';
 import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/ports/llm-port';
 import { parseAiJson } from '../modules/ai/domain/services/ai-json';
 import { InvalidAiJsonError } from '../modules/ai/domain/errors';
-import {
-  makeConceptResolver,
-  FlashcardPreview,
-  FlashcardSourceType,
-} from '../content/flashcard-gen';
 
 const TIPO_LABEL: Record<string, string> = {
   ASSUNTO: 'assunto',
@@ -240,70 +235,6 @@ export class AiService {
       notaIds.push(nota.id);
     }
     return { notaIds };
-  }
-
-  // Geração de flashcards via IA a partir de uma nota (9 tipos de card).
-  async generateFlashcardsViaIA(userId: string, notaId: string): Promise<FlashcardPreview[]> {
-    const nota = await this.prisma.nota.findFirst({ where: { id: notaId, usuarioId: userId } });
-    if (!nota) throw new NotFoundException('Nota não encontrada');
-    const allConcepts = await this.prisma.conceito.findMany({
-      where: { usuarioId: userId },
-      select: { id: true, nome: true },
-    });
-    const conceptContext = allConcepts.map((c) => `- ${c.nome}`).join('\n');
-
-    const content = await this.llm.complete({
-      userId,
-      temperature: 0.5,
-      messages: [
-        {
-          role: 'system',
-          content: `Você é um especialista em criação de flashcards educacionais. A partir do texto, gere flashcards variados usando os tipos:
-- pergunta_resposta: Pergunta direta → Resposta.
-- cloze: Preenchimento de lacuna. Ex: "A mitocôndria produz {{...}}." → "ATP"
-- bidirecional: Dupla direção (ida e volta).
-- explicacao_profunda: Conceito → Explicação detalhada em etapas.
-- comparacao: Diferença entre conceitos similares.
-- lista_fragmentada: Cite N pontos/funções (máximo 3-4 por card).
-- aplicacao_problema: Cenário/situação que testa o conhecimento.
-- erro_comum: Erro frequente sobre o tema → Explicação do erro correto.
-- identificacao: Identificar/conceituar a partir de descrição.
-
-Regras: use o conteúdo como base para TODAS as respostas; tipos variados; respostas concisas; vincule cada flashcard a um conceito da lista quando possível; gere entre 5-15 flashcards; português brasileiro.
-Responda APENAS JSON: {"flashcards":[{"pergunta":"...","resposta":"...","tipo":"pergunta_resposta","conceito":"nome ou desconhecido"}]}
-
-Conceitos disponíveis:
-${conceptContext}`,
-        },
-        { role: 'user', content: nota.conteudo.slice(0, 15000) },
-      ],
-    });
-
-    if (!content) return [];
-    const { resolveFallback } = makeConceptResolver(allConcepts);
-    let parsed: any;
-    try {
-      parsed = this.extractJSON(content);
-    } catch {
-      throw new BadRequestException('A IA retornou resposta inválida.');
-    }
-
-    const out: FlashcardPreview[] = [];
-    for (const fc of parsed?.flashcards ?? []) {
-      if (!fc?.pergunta || !fc?.resposta) continue;
-      const tipo = (fc.tipo as FlashcardSourceType) || 'pergunta_resposta';
-      const target = resolveFallback(fc.conceito || '');
-      if (!target) continue;
-      out.push({
-        id: globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2),
-        pergunta: fc.pergunta,
-        resposta: fc.resposta,
-        conceitoId: target.id,
-        conceptNome: fc.conceito !== 'desconhecido' ? target.nome : undefined,
-        source: tipo,
-      });
-    }
-    return out;
   }
 
   private readonly GRAPH_SYSTEM_PROMPT = `Você é especialista em organização curricular. A partir de um texto bruto, gere um grafo de conhecimento completo e hierárquico.

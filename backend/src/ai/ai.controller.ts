@@ -20,6 +20,7 @@ import { FillKnowledgeGapsUseCase } from '../modules/ai/application/use-cases/fi
 import { MergeDuplicateNodesUseCase } from '../modules/ai/application/use-cases/merge-duplicate-nodes.use-case';
 import { SuggestGapFillUseCase } from '../modules/ai/application/use-cases/suggest-gap-fill.use-case';
 import { AnalyzeRawTextUseCase } from '../modules/ai/application/use-cases/analyze-raw-text.use-case';
+import { GenerateFlashcardsViaIaUseCase } from '../modules/ai/application/use-cases/generate-flashcards-via-ia.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -46,6 +47,7 @@ export class AiController {
     private readonly mergeDuplicateNodesUseCase: MergeDuplicateNodesUseCase,
     private readonly suggestGapFillUseCase: SuggestGapFillUseCase,
     private readonly analyzeRawTextUseCase: AnalyzeRawTextUseCase,
+    private readonly generateFlashcardsViaIaUseCase: GenerateFlashcardsViaIaUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -86,7 +88,7 @@ export class AiController {
 
   @Post('notas/:notaId/flashcards')
   generateFlashcards(@CurrentUser() userId: string, @Param('notaId') notaId: string) {
-    return this.ai.generateFlashcardsViaIA(userId, notaId);
+    return this.generateFlashcardsViaIaUseCase.execute(userId, notaId);
   }
 
   @Post('notas/analyze')

@@ -49,3 +49,10 @@ export class MergeKeepNotFoundError extends Error {
     this.name = 'MergeKeepNotFoundError';
   }
 }
+
+export class NoteNotFoundError extends Error {
+  constructor() {
+    super('The note was not found.');
+    this.name = 'NoteNotFoundError';
+  }
+}

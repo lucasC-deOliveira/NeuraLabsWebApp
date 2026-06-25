@@ -125,6 +125,12 @@ import { MergeDuplicateNodesUseCase } from '../modules/ai/application/use-cases/
 import { GAP_RULES_PORT, type GapRulesPort } from '../modules/ai/domain/ports/gap-rules-port';
 import { SuggestGapFillUseCase } from '../modules/ai/application/use-cases/suggest-gap-fill.use-case';
 import { AnalyzeRawTextUseCase } from '../modules/ai/application/use-cases/analyze-raw-text.use-case';
+import {
+  FLASHCARD_SOURCE_REPOSITORY,
+  type FlashcardSourceRepository,
+} from '../modules/ai/domain/ports/flashcard-source-repository';
+import { PrismaFlashcardSourceRepository } from '../modules/ai/infrastructure/persistence/prisma-flashcard-source.repository';
+import { GenerateFlashcardsViaIaUseCase } from '../modules/ai/application/use-cases/generate-flashcards-via-ia.use-case';
 
 // Binds the structural-gap targets to the graph's relation rules.
 const gapRules: GapRulesPort = {
@@ -187,6 +193,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: DUPLICATE_MERGE_REPOSITORY, useClass: PrismaDuplicateMergeRepository },
     { provide: GRAPH_NODE_DELETER, useFactory: graphNodeDeleter, inject: [DeleteNodeUseCase] },
     { provide: GAP_RULES_PORT, useValue: gapRules },
+    { provide: FLASHCARD_SOURCE_REPOSITORY, useClass: PrismaFlashcardSourceRepository },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -336,6 +343,12 @@ const graphRelationRules: RelationRulesPort = {
       provide: AnalyzeRawTextUseCase,
       useFactory: (llm: LlmPort) => new AnalyzeRawTextUseCase(llm),
       inject: [LLM_PORT],
+    },
+    {
+      provide: GenerateFlashcardsViaIaUseCase,
+      useFactory: (repo: FlashcardSourceRepository, llm: LlmPort) =>
+        new GenerateFlashcardsViaIaUseCase(repo, llm),
+      inject: [FLASHCARD_SOURCE_REPOSITORY, LLM_PORT],
     },
   ],
 })
