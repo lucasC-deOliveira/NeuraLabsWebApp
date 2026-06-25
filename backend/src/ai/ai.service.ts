@@ -12,6 +12,7 @@ import {
 } from '../modules/ai/domain/services/nota-relation-suggestions';
 import {
   selectNodeInsights,
+  selectGapInsights,
   INSIGHT_CATEGORIES,
   type NodeInsight,
 } from '../modules/ai/domain/services/node-insights';
@@ -2064,21 +2065,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por tÃ
     } catch {
       return { insights: [] };
     }
-
-    const insights: NodeInsight[] = [];
-    for (const i of parsed?.insights ?? []) {
-      const titulo = typeof i?.titulo === 'string' ? i.titulo.trim() : '';
-      if (!titulo) continue;
-      insights.push({
-        categoria: 'Lacuna',
-        titulo,
-        descricao: typeof i?.descricao === 'string' ? i.descricao.trim() : '',
-        tipoNo: typeof i?.tipoNo === 'string' ? i.tipoNo : 'CONCEITO',
-        relacao: typeof i?.relacao === 'string' ? i.relacao : 'RELACIONADO',
-      });
-      if (insights.length >= 6) break;
-    }
-    return { insights };
+    return { insights: selectGapInsights(parsed?.insights ?? []) };
   }
 
   async listBaralhosInGrafo(

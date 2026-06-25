@@ -70,3 +70,29 @@ function normalizeCategory(categoria: unknown): string {
     ? categoria
     : FALLBACK_CATEGORY;
 }
+
+export const MAX_GAP_INSIGHTS = 6;
+
+// Gap-fill insights are always category "Lacuna" and accept any tipoNo/relacao
+// (validated when applied), defaulting to a concept relation.
+export function selectGapInsights(raw: RawInsight[]): NodeInsight[] {
+  const out: NodeInsight[] = [];
+  for (const i of raw) {
+    const insight = toGapInsight(i);
+    if (insight) out.push(insight);
+    if (out.length >= MAX_GAP_INSIGHTS) break;
+  }
+  return out;
+}
+
+function toGapInsight(i: RawInsight): NodeInsight | null {
+  const titulo = typeof i?.titulo === 'string' ? i.titulo.trim() : '';
+  if (!titulo) return null;
+  return {
+    categoria: 'Lacuna',
+    titulo,
+    descricao: typeof i?.descricao === 'string' ? i.descricao.trim() : '',
+    tipoNo: typeof i?.tipoNo === 'string' ? i.tipoNo : 'CONCEITO',
+    relacao: typeof i?.relacao === 'string' ? i.relacao : 'RELACIONADO',
+  };
+}
