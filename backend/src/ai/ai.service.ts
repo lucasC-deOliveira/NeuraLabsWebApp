@@ -2,7 +2,6 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { GraphService } from '../graph/graph.service';
-import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
 import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/ports/llm-port';
 import { parseAiJson } from '../modules/ai/domain/services/ai-json';
 import { InvalidAiJsonError } from '../modules/ai/domain/errors';
@@ -30,7 +29,6 @@ export class AiService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly graph: GraphService,
-    private readonly deleteNodeUseCase: DeleteNodeUseCase,
     @Inject(LLM_PORT) private readonly llm: LlmPort,
   ) {}
 
@@ -601,95 +599,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
       flashcards: flashcardCount,
       baralho: baralhoNome,
     };
-  }
-
-  // ── Feature: Mesclar duplicatas ────────────────────────────────────────────
-  async mergeDuplicateNodes(
-    userId: string,
-    grafoId: string,
-    keepId: string,
-    deleteIds: string[],
-  ): Promise<{ merged: number; edgesMoved: number }> {
-    const ncKeep = await this.prisma.nodeConhecimento.findFirst({
-      where: { grafoId, usuarioId: userId, referenciaId: keepId },
-      select: { id: true },
-    });
-    if (!ncKeep) throw new BadRequestException('Nó principal não encontrado');
-    let totalEdgesMoved = 0;
-    for (const deleteId of deleteIds) {
-      const ncDel = await this.prisma.nodeConhecimento.findFirst({
-        where: { grafoId, usuarioId: userId, referenciaId: deleteId },
-        select: { id: true },
-      });
-      if (!ncDel || ncDel.id === ncKeep.id) continue;
-
-      // Carrega todas as arestas do nó a remover e as arestas já existentes do keep
-      const [delEdges, keepEdgesExisting] = await Promise.all([
-        this.prisma.conhecimentoAresta.findMany({
-          where: { OR: [{ nodeOrigemId: ncDel.id }, { nodeDestinoId: ncDel.id }] },
-          select: { id: true, nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true },
-        }),
-        this.prisma.conhecimentoAresta.findMany({
-          where: { OR: [{ nodeOrigemId: ncKeep.id }, { nodeDestinoId: ncKeep.id }] },
-          select: { nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true },
-        }),
-      ]);
-
-      // Chave de unicidade das arestas existentes do keep
-      const keepKeys = new Set(
-        keepEdgesExisting.map((e) => `${e.nodeOrigemId}:${e.nodeDestinoId}:${e.tipoRelacao}`),
-      );
-
-      const moveSrc: string[] = [];
-      const moveTgt: string[] = [];
-      const deleteConflict: string[] = [];
-
-      for (const e of delEdges) {
-        // aresta entre ncDel ↔ ncKeep: descartar
-        if (
-          (e.nodeOrigemId === ncDel.id && e.nodeDestinoId === ncKeep.id) ||
-          (e.nodeOrigemId === ncKeep.id && e.nodeDestinoId === ncDel.id)
-        ) {
-          deleteConflict.push(e.id);
-          continue;
-        }
-        const newOrig = e.nodeOrigemId === ncDel.id ? ncKeep.id : e.nodeOrigemId;
-        const newDest = e.nodeDestinoId === ncDel.id ? ncKeep.id : e.nodeDestinoId;
-        const key = `${newOrig}:${newDest}:${e.tipoRelacao}`;
-        if (keepKeys.has(key)) {
-          deleteConflict.push(e.id); // já existe no keep, descartar
-        } else {
-          keepKeys.add(key); // registra para evitar conflito dentro do mesmo lote
-          if (e.nodeOrigemId === ncDel.id) moveSrc.push(e.id);
-          else moveTgt.push(e.id);
-        }
-      }
-
-      // Mover arestas sem conflito
-      const [srcRes, tgtRes] = await Promise.all([
-        moveSrc.length > 0
-          ? this.prisma.conhecimentoAresta.updateMany({
-              where: { id: { in: moveSrc } },
-              data: { nodeOrigemId: ncKeep.id },
-            })
-          : Promise.resolve({ count: 0 }),
-        moveTgt.length > 0
-          ? this.prisma.conhecimentoAresta.updateMany({
-              where: { id: { in: moveTgt } },
-              data: { nodeDestinoId: ncKeep.id },
-            })
-          : Promise.resolve({ count: 0 }),
-      ]);
-      totalEdgesMoved += srcRes.count + tgtRes.count;
-
-      // Deletar arestas conflitantes e quaisquer remanescentes do nó a remover
-      await this.prisma.conhecimentoAresta.deleteMany({
-        where: { OR: [{ nodeOrigemId: ncDel.id }, { nodeDestinoId: ncDel.id }] },
-      });
-
-      await this.deleteNodeUseCase.execute(userId, deleteId, grafoId);
-    }
-    return { merged: deleteIds.length, edgesMoved: totalEdgesMoved };
   }
 
   // Gap Detection: sugere nós que poderiam conectar dois clusters sem arestas entre si.

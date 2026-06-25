@@ -13,6 +13,7 @@ import {
   EmptyClusterContentError,
   EmptyNodeListError,
   InvalidAiJsonError,
+  MergeKeepNotFoundError,
   UnsupportedExpandTypeError,
 } from '../domain/errors';
 
@@ -22,7 +23,8 @@ type AiDomainError =
   | EmptyNodeListError
   | EmptyClusterContentError
   | UnsupportedExpandTypeError
-  | EmptyAiContentError;
+  | EmptyAiContentError
+  | MergeKeepNotFoundError;
 
 // Translates AI domain errors into HTTP responses. Domain messages stay internal
 // (English); user-facing messages produced here are in Portuguese.
@@ -33,6 +35,7 @@ type AiDomainError =
   EmptyClusterContentError,
   UnsupportedExpandTypeError,
   EmptyAiContentError,
+  MergeKeepNotFoundError,
 )
 export class AiDomainExceptionFilter implements ExceptionFilter {
   catch(error: AiDomainError, host: ArgumentsHost): void {
@@ -53,6 +56,8 @@ export class AiDomainExceptionFilter implements ExceptionFilter {
       );
     if (error instanceof EmptyAiContentError)
       return new BadRequestException('A IA não retornou conteúdo.');
+    if (error instanceof MergeKeepNotFoundError)
+      return new BadRequestException('Nó principal não encontrado');
     return new BadRequestException('A IA retornou JSON inválido.');
   }
 }

@@ -17,6 +17,7 @@ import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-w
 import { ListBaralhosInGrafoUseCase } from '../modules/ai/application/use-cases/list-baralhos-in-grafo.use-case';
 import { ExpandNodeUseCase } from '../modules/ai/application/use-cases/expand-node.use-case';
 import { FillKnowledgeGapsUseCase } from '../modules/ai/application/use-cases/fill-knowledge-gaps.use-case';
+import { MergeDuplicateNodesUseCase } from '../modules/ai/application/use-cases/merge-duplicate-nodes.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -40,6 +41,7 @@ export class AiController {
     private readonly listBaralhosInGrafoUseCase: ListBaralhosInGrafoUseCase,
     private readonly expandNodeUseCase: ExpandNodeUseCase,
     private readonly fillKnowledgeGapsUseCase: FillKnowledgeGapsUseCase,
+    private readonly mergeDuplicateNodesUseCase: MergeDuplicateNodesUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -257,6 +259,11 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Body() body: { keepId: string; deleteIds: string[] },
   ) {
-    return this.ai.mergeDuplicateNodes(userId, grafoId, body.keepId, body.deleteIds ?? []);
+    return this.mergeDuplicateNodesUseCase.execute(
+      userId,
+      grafoId,
+      body.keepId,
+      body.deleteIds ?? [],
+    );
   }
 }

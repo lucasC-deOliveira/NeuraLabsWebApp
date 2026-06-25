@@ -42,3 +42,10 @@ export class EmptyAiContentError extends Error {
     this.name = 'EmptyAiContentError';
   }
 }
+
+export class MergeKeepNotFoundError extends Error {
+  constructor() {
+    super('The node to keep was not found in the graph.');
+    this.name = 'MergeKeepNotFoundError';
+  }
+}

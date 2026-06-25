@@ -111,6 +111,24 @@ import { ApplyAutoLinkUseCase } from '../modules/ai/application/use-cases/apply-
 import { AddMissingPrerequisiteUseCase } from '../modules/ai/application/use-cases/add-missing-prerequisite.use-case';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
 import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
+import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
+import {
+  DUPLICATE_MERGE_REPOSITORY,
+  type DuplicateMergeRepository,
+} from '../modules/ai/domain/ports/duplicate-merge-repository';
+import {
+  GRAPH_NODE_DELETER,
+  type GraphNodeDeleter,
+} from '../modules/ai/domain/ports/graph-node-deleter';
+import { PrismaDuplicateMergeRepository } from '../modules/ai/infrastructure/persistence/prisma-duplicate-merge.repository';
+import { MergeDuplicateNodesUseCase } from '../modules/ai/application/use-cases/merge-duplicate-nodes.use-case';
+
+// Binds the AI context's GraphNodeDeleter to the graph context's DeleteNode use-case.
+const graphNodeDeleter = (deleteNode: DeleteNodeUseCase): GraphNodeDeleter => ({
+  deleteNode: async (userId, nodeId, grafoId) => {
+    await deleteNode.execute(userId, nodeId, grafoId);
+  },
+});
 
 // Binds the AI context's GraphEdgeWriter to the graph context's CreateEdge use-case.
 const graphEdgeWriter = (createEdge: CreateEdgeUseCase): GraphEdgeWriter => ({
@@ -155,6 +173,8 @@ const graphRelationRules: RelationRulesPort = {
     { provide: GRAPH_DECKS_QUERY, useClass: PrismaGraphDecksQuery },
     { provide: EXPAND_TARGET_REPOSITORY, useClass: PrismaExpandTargetRepository },
     { provide: GRAPH_NAME_INDEX_REPOSITORY, useClass: PrismaGraphNameIndexRepository },
+    { provide: DUPLICATE_MERGE_REPOSITORY, useClass: PrismaDuplicateMergeRepository },
+    { provide: GRAPH_NODE_DELETER, useFactory: graphNodeDeleter, inject: [DeleteNodeUseCase] },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -288,6 +308,12 @@ const graphRelationRules: RelationRulesPort = {
         NODE_TYPES_REPOSITORY,
         LLM_PORT,
       ],
+    },
+    {
+      provide: MergeDuplicateNodesUseCase,
+      useFactory: (repo: DuplicateMergeRepository, deleter: GraphNodeDeleter) =>
+        new MergeDuplicateNodesUseCase(repo, deleter),
+      inject: [DUPLICATE_MERGE_REPOSITORY, GRAPH_NODE_DELETER],
     },
   ],
 })
