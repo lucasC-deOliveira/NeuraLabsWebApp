@@ -11,6 +11,11 @@ import {
   type NotaRelationSuggestion,
 } from '../modules/ai/domain/services/nota-relation-suggestions';
 import {
+  selectNodeInsights,
+  INSIGHT_CATEGORIES,
+  type NodeInsight,
+} from '../modules/ai/domain/services/node-insights';
+import {
   getAllowedRelations,
   isRelationAllowed,
   getInsightTargets,
@@ -22,15 +27,6 @@ import {
   FlashcardSourceType,
 } from '../content/flashcard-gen';
 
-export interface NodeInsight {
-  categoria: string;
-  titulo: string;
-  descricao: string;
-  tipoNo: string;
-  relacao: string;
-}
-
-const INSIGHT_CATEGORIES = ['Relacionado', 'Aprofundar', 'Conexão', 'Lacuna', 'Aplicação'];
 const TIPO_LABEL: Record<string, string> = {
   ASSUNTO: 'assunto',
   TOPICO: 'tópico',
@@ -398,30 +394,9 @@ export class AiService {
     } catch {
       throw new BadRequestException('A IA retornou resposta inválida.');
     }
-    const insights: NodeInsight[] = [];
-    for (const i of parsed?.insights ?? []) {
-      const titulo = typeof i?.titulo === 'string' ? i.titulo.trim() : '';
-      if (!titulo) continue;
-      const categoria =
-        typeof i?.categoria === 'string' && INSIGHT_CATEGORIES.includes(i.categoria)
-          ? i.categoria
-          : 'Relacionado';
-      let tipoNo = typeof i?.tipoNo === 'string' ? i.tipoNo : '';
-      let relacao = typeof i?.relacao === 'string' ? i.relacao : '';
-      if (!isRelationAllowed(target.tipoNode, tipoNo, relacao)) {
-        if (!defaultCombo) continue;
-        tipoNo = defaultCombo.tipoNo;
-        relacao = defaultCombo.relacao;
-      }
-      insights.push({
-        categoria,
-        titulo,
-        descricao: typeof i?.descricao === 'string' ? i.descricao.trim() : '',
-        tipoNo,
-        relacao,
-      });
-      if (insights.length >= 8) break;
-    }
+    const insights = selectNodeInsights(parsed?.insights ?? [], defaultCombo, (tipoNo, relacao) =>
+      isRelationAllowed(target.tipoNode, tipoNo, relacao),
+    );
     return { nodeNome: alvo.nome, nodeTipo: alvo.tipo, insights };
   }
 
