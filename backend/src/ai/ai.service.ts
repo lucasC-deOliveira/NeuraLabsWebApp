@@ -15,6 +15,7 @@ import {
   INSIGHT_CATEGORIES,
   type NodeInsight,
 } from '../modules/ai/domain/services/node-insights';
+import { selectDuplicateGroups } from '../modules/ai/domain/services/duplicate-groups';
 import {
   getAllowedRelations,
   isRelationAllowed,
@@ -1087,23 +1088,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     );
 
     const parsed = this.extractJSON(content ?? '{}');
-    const groups: Array<{
-      nodes: Array<{ id: string; nome: string; tipo: string }>;
-      sugestao: string;
-    }> = [];
-    for (const g of parsed?.groups ?? []) {
-      const nodes = (g?.indices ?? [])
-        .map((i: number) => allNodes[i])
-        .filter(Boolean)
-        .map((n: (typeof allNodes)[0]) => ({ id: n.id, nome: n.nome, tipo: n.tipo }));
-      if (nodes.length < 2) continue;
-      // garante que todos os nós do grupo são do mesmo tipo
-      const tipo = nodes[0].tipo;
-      if (nodes.some((n: { tipo: string }) => n.tipo !== tipo)) continue;
-      groups.push({ nodes, sugestao: typeof g?.sugestao === 'string' ? g.sugestao : '' });
-      if (groups.length >= 15) break;
-    }
-    return { groups };
+    return { groups: selectDuplicateGroups(parsed?.groups ?? [], allNodes) };
   }
 
   // ── Feature: Expandir nó ──────────────────────────────────────────────
