@@ -18,6 +18,7 @@ import {
 } from '../modules/ai/domain/services/node-insights';
 import { selectDuplicateGroups } from '../modules/ai/domain/services/duplicate-groups';
 import { selectAutoLinkSuggestions } from '../modules/ai/domain/services/auto-link-suggestions';
+import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite-relation';
 import {
   getAllowedRelations,
   isRelationAllowed,
@@ -1450,12 +1451,8 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t√
     for (const targetId of connectToIds) {
       const targetType = typeByRefId.get(targetId);
       if (!targetType) continue;
-      let relacao: string;
-      if (tipo === 'CONCEITO' && targetType === 'CONCEITO') relacao = 'PREREQUISITO';
-      else if (tipo === 'CONCEITO' && targetType === 'TOPICO') relacao = 'PERTENCE_A';
-      else if (tipo === 'TOPICO' && targetType === 'TOPICO') relacao = 'DEPENDE_DE';
-      else if (tipo === 'TOPICO' && targetType === 'ASSUNTO') relacao = 'PERTENCE_A';
-      else continue;
+      const relacao = prerequisiteRelation(tipo, targetType);
+      if (!relacao) continue;
       try {
         await this.graph.createEdge(userId, grafoId, {
           sourceNodeId: res.nodeId,
