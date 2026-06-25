@@ -14,6 +14,7 @@ import {
   EmptyBaralhoError,
   EmptyClusterContentError,
   EmptyNodeListError,
+  EmptyTextError,
   GraphNotFoundError,
   InvalidAiJsonError,
   MergeKeepNotFoundError,
@@ -36,6 +37,7 @@ const HTTP_BY_ERROR: Record<string, () => HttpException> = {
   GraphNotFoundError: () => new NotFoundException('Grafo não encontrado.'),
   BaralhoNotFoundError: () => new NotFoundException('Baralho não encontrado.'),
   EmptyBaralhoError: () => new BadRequestException('O baralho não tem flashcards.'),
+  EmptyTextError: () => new BadRequestException('Texto não pode estar vazio'),
 };
 
 // Translates AI domain errors into HTTP responses. Domain messages stay internal
@@ -52,6 +54,7 @@ const HTTP_BY_ERROR: Record<string, () => HttpException> = {
   GraphNotFoundError,
   BaralhoNotFoundError,
   EmptyBaralhoError,
+  EmptyTextError,
 )
 export class AiDomainExceptionFilter implements ExceptionFilter {
   catch(error: Error, host: ArgumentsHost): void {

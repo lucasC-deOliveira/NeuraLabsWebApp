@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { GraphService, type CreateNodeInput } from './graph.service';
+import type { CreateNodeInput } from './node-input.types';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
 import { UpdateEdgeUseCase } from '../modules/graph/application/use-cases/update-edge.use-case';
 import { DeleteEdgeUseCase } from '../modules/graph/application/use-cases/delete-edge.use-case';
@@ -55,7 +55,6 @@ type TipoNode = CreateNodeInput['tipoNode'];
 @Controller('graph')
 export class GraphController {
   constructor(
-    private readonly graph: GraphService,
     private readonly createEdgeUseCase: CreateEdgeUseCase,
     private readonly updateEdgeUseCase: UpdateEdgeUseCase,
     private readonly deleteEdgeUseCase: DeleteEdgeUseCase,

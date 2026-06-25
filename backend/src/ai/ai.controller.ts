@@ -1,7 +1,6 @@
 import { Body, Controller, Param, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { AiService } from './ai.service';
 import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
 import { SuggestNotaRelationsUseCase } from '../modules/ai/application/use-cases/suggest-nota-relations.use-case';
 import { GenerateLearningPathUseCase } from '../modules/ai/application/use-cases/generate-learning-path.use-case';
@@ -23,6 +22,9 @@ import { AnalyzeRawTextUseCase } from '../modules/ai/application/use-cases/analy
 import { GenerateFlashcardsViaIaUseCase } from '../modules/ai/application/use-cases/generate-flashcards-via-ia.use-case';
 import { SaveSelectedNotasUseCase } from '../modules/ai/application/use-cases/save-selected-notas.use-case';
 import { PopulateGraphFromBaralhoUseCase } from '../modules/ai/application/use-cases/populate-graph-from-baralho.use-case';
+import { PlanGraphFromTextUseCase } from '../modules/ai/application/use-cases/plan-graph-from-text.use-case';
+import { BuildGraphFromPlanUseCase } from '../modules/ai/application/use-cases/build-graph-from-plan.use-case';
+import { GenerateGraphFromTextUseCase } from '../modules/ai/application/use-cases/generate-graph-from-text.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -30,7 +32,6 @@ import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-excep
 @Controller('ai/graph')
 export class AiController {
   constructor(
-    private readonly ai: AiService,
     private readonly detectDuplicatesUseCase: DetectDuplicatesUseCase,
     private readonly suggestNotaRelationsUseCase: SuggestNotaRelationsUseCase,
     private readonly generateLearningPathUseCase: GenerateLearningPathUseCase,
@@ -52,6 +53,9 @@ export class AiController {
     private readonly generateFlashcardsViaIaUseCase: GenerateFlashcardsViaIaUseCase,
     private readonly saveSelectedNotasUseCase: SaveSelectedNotasUseCase,
     private readonly populateGraphFromBaralhoUseCase: PopulateGraphFromBaralhoUseCase,
+    private readonly planGraphFromTextUseCase: PlanGraphFromTextUseCase,
+    private readonly buildGraphFromPlanUseCase: BuildGraphFromPlanUseCase,
+    private readonly generateGraphFromTextUseCase: GenerateGraphFromTextUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -114,7 +118,7 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Body() body: { rawText: string },
   ) {
-    return this.ai.generateGraphFromText(userId, grafoId, body.rawText ?? '');
+    return this.generateGraphFromTextUseCase.execute(userId, grafoId, body.rawText ?? '');
   }
 
   @Post('graphs/:grafoId/generate-graph/plan')
@@ -123,16 +127,16 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Body() body: { rawText: string },
   ) {
-    return this.ai.planGraphFromText(userId, grafoId, body.rawText ?? '');
+    return this.planGraphFromTextUseCase.execute(userId, grafoId, body.rawText ?? '');
   }
 
   @Post('graphs/:grafoId/generate-graph/build')
   buildGraph(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { rawText: string; plan: any; saveBruto?: boolean },
+    @Body() body: { rawText: string; plan: unknown; saveBruto?: boolean },
   ) {
-    return this.ai.buildGraphFromPlan(
+    return this.buildGraphFromPlanUseCase.execute(
       userId,
       grafoId,
       body.rawText ?? '',

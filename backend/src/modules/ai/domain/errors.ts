@@ -77,3 +77,10 @@ export class EmptyBaralhoError extends Error {
     this.name = 'EmptyBaralhoError';
   }
 }
+
+export class EmptyTextError extends Error {
+  constructor() {
+    super('The text cannot be empty.');
+    this.name = 'EmptyTextError';
+  }
+}

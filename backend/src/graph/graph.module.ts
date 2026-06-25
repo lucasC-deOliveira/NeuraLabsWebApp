@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { GraphController } from './graph.controller';
-import { GraphService } from './graph.service';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
 import { UpdateEdgeUseCase } from '../modules/graph/application/use-cases/update-edge.use-case';
 import { DeleteEdgeUseCase } from '../modules/graph/application/use-cases/delete-edge.use-case';
@@ -146,7 +145,6 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
   imports: [AuthModule], // JwtAuthGuard depende do JwtModule exportado pelo AuthModule
   controllers: [GraphController],
   providers: [
-    GraphService,
     { provide: GRAPH_EDGE_REPOSITORY, useClass: PrismaGraphEdgeRepository },
     { provide: GRAPH_NODE_REPOSITORY, useClass: PrismaGraphNodeRepository },
     { provide: GRAPH_REPOSITORY, useClass: PrismaGraphRepository },
@@ -333,6 +331,6 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
       inject: [VAULT_SYNC_REPOSITORY],
     },
   ],
-  exports: [GraphService, DeleteNodeUseCase, CreateEdgeUseCase, CreateNodeUseCase],
+  exports: [DeleteNodeUseCase, CreateEdgeUseCase, CreateNodeUseCase, CreateDeckUseCase],
 })
 export class GraphModule {}

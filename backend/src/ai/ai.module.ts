@@ -3,7 +3,6 @@ import { AuthModule } from '../auth/auth.module';
 import { SettingsModule } from '../settings/settings.module';
 import { GraphModule } from '../graph/graph.module';
 import { AiController } from './ai.controller';
-import { AiService } from './ai.service';
 import { LLM_PORT, type LlmPort } from '../modules/ai/domain/ports/llm-port';
 import { OpenAiLlmAdapter } from '../modules/ai/infrastructure/llm/openai-llm.adapter';
 import {
@@ -112,6 +111,21 @@ import { AddMissingPrerequisiteUseCase } from '../modules/ai/application/use-cas
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
 import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
 import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
+import { CreateDeckUseCase } from '../modules/graph/application/use-cases/create-deck.use-case';
+import {
+  GRAPH_DECK_WRITER,
+  type GraphDeckWriter,
+} from '../modules/ai/domain/ports/graph-deck-writer';
+import { PlanGraphFromTextUseCase } from '../modules/ai/application/use-cases/plan-graph-from-text.use-case';
+import { BuildGraphFromPlanUseCase } from '../modules/ai/application/use-cases/build-graph-from-plan.use-case';
+import { GenerateGraphFromTextUseCase } from '../modules/ai/application/use-cases/generate-graph-from-text.use-case';
+
+// Binds the AI context's GraphDeckWriter to the graph context's CreateDeck use-case.
+const graphDeckWriter = (createDeck: CreateDeckUseCase): GraphDeckWriter => ({
+  createBaralho: async (userId, grafoId, nome, flashcardIds) => {
+    await createDeck.execute(userId, grafoId, nome, flashcardIds);
+  },
+});
 import {
   DUPLICATE_MERGE_REPOSITORY,
   type DuplicateMergeRepository,
@@ -185,7 +199,6 @@ const graphRelationRules: RelationRulesPort = {
   imports: [AuthModule, SettingsModule, GraphModule],
   controllers: [AiController],
   providers: [
-    AiService,
     { provide: LLM_PORT, useClass: OpenAiLlmAdapter },
     { provide: DUPLICATE_NODES_REPOSITORY, useClass: PrismaDuplicateNodesRepository },
     { provide: RELATION_CANDIDATES_REPOSITORY, useClass: PrismaRelationCandidatesRepository },
@@ -208,6 +221,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: FLASHCARD_SOURCE_REPOSITORY, useClass: PrismaFlashcardSourceRepository },
     { provide: CURRICULUM_REPOSITORY, useClass: PrismaCurriculumRepository },
     { provide: BARALHO_POPULATION_REPOSITORY, useClass: PrismaBaralhoPopulationRepository },
+    { provide: GRAPH_DECK_WRITER, useFactory: graphDeckWriter, inject: [CreateDeckUseCase] },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -386,6 +400,36 @@ const graphRelationRules: RelationRulesPort = {
         GRAPH_EDGE_WRITER,
         LLM_PORT,
       ],
+    },
+    {
+      provide: PlanGraphFromTextUseCase,
+      useFactory: (names: GraphNameIndexRepository, llm: LlmPort) =>
+        new PlanGraphFromTextUseCase(names, llm),
+      inject: [GRAPH_NAME_INDEX_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: BuildGraphFromPlanUseCase,
+      useFactory: (
+        names: GraphNameIndexRepository,
+        nodeWriter: GraphNodeWriter,
+        edgeWriter: GraphEdgeWriter,
+        deckWriter: GraphDeckWriter,
+      ) => new BuildGraphFromPlanUseCase(names, nodeWriter, edgeWriter, deckWriter),
+      inject: [
+        GRAPH_NAME_INDEX_REPOSITORY,
+        GRAPH_NODE_WRITER,
+        GRAPH_EDGE_WRITER,
+        GRAPH_DECK_WRITER,
+      ],
+    },
+    {
+      provide: GenerateGraphFromTextUseCase,
+      useFactory: (
+        names: GraphNameIndexRepository,
+        llm: LlmPort,
+        builder: BuildGraphFromPlanUseCase,
+      ) => new GenerateGraphFromTextUseCase(names, llm, builder),
+      inject: [GRAPH_NAME_INDEX_REPOSITORY, LLM_PORT, BuildGraphFromPlanUseCase],
     },
   ],
 })

@@ -11,6 +11,7 @@ export interface GraphNodeInput {
   tipoNota?: string;
   pergunta?: string;
   resposta?: string;
+  texto?: string;
 }
 
 export interface GraphNodeWriter {
