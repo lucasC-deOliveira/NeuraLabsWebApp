@@ -6,6 +6,7 @@ import {
   type PlanNota,
   type PlanTopico,
 } from '../../domain/services/graph-plan';
+import { createNodeSafe, tryCreateEdge } from '../graph-write-helpers';
 import type { GraphNameIndexRepository } from '../../domain/ports/graph-name-index-repository';
 import type { GraphNodeWriter, GraphNodeInput } from '../../domain/ports/graph-node-writer';
 import type { GraphEdgeWriter } from '../../domain/ports/graph-edge-writer';
@@ -167,30 +168,21 @@ export class BuildGraphFromPlanUseCase {
     return { nodeId, created: true };
   }
 
-  private async tryCreateNode(ctx: Ctx, input: GraphNodeInput): Promise<string | null> {
-    try {
-      const { nodeId } = await this.nodeWriter.createNode(ctx.userId, ctx.grafoId, input);
-      return nodeId;
-    } catch {
-      return null;
-    }
+  private tryCreateNode(ctx: Ctx, input: GraphNodeInput): Promise<string | null> {
+    return createNodeSafe(this.nodeWriter, ctx.userId, ctx.grafoId, input);
   }
 
-  private async tryEdge(
+  private tryEdge(
     ctx: Ctx,
     sourceNodeId: string,
     targetNodeId: string,
     tipoRelacao: string,
   ): Promise<void> {
-    try {
-      await this.edgeWriter.createEdge(ctx.userId, ctx.grafoId, {
-        sourceNodeId,
-        targetNodeId,
-        tipoRelacao,
-      });
-    } catch {
-      // duplicate/invalid edge: skip it
-    }
+    return tryCreateEdge(this.edgeWriter, ctx.userId, ctx.grafoId, {
+      sourceNodeId,
+      targetNodeId,
+      tipoRelacao,
+    });
   }
 }
 

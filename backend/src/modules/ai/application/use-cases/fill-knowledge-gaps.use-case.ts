@@ -1,7 +1,8 @@
 import { EmptyAiContentError } from '../../domain/errors';
 import { parseAiJson } from '../../domain/services/ai-json';
+import { createNodeSafe, tryCreateEdge } from '../graph-write-helpers';
 import type { GraphNameIndexRepository } from '../../domain/ports/graph-name-index-repository';
-import type { GraphNodeWriter } from '../../domain/ports/graph-node-writer';
+import type { GraphNodeInput, GraphNodeWriter } from '../../domain/ports/graph-node-writer';
 import type { GraphEdgeWriter } from '../../domain/ports/graph-edge-writer';
 import type { NodeTypesRepository } from '../../domain/ports/node-types-repository';
 import type { LlmMessage, LlmPort } from '../../domain/ports/llm-port';
@@ -169,33 +170,21 @@ export class FillKnowledgeGapsUseCase {
     return { nodeId: id, created: true };
   }
 
-  private async createNode(
-    ctx: Ctx,
-    input: Parameters<GraphNodeWriter['createNode']>[2],
-  ): Promise<string | null> {
-    try {
-      const { nodeId } = await this.nodeWriter.createNode(ctx.userId, ctx.grafoId, input);
-      return nodeId;
-    } catch {
-      return null;
-    }
+  private createNode(ctx: Ctx, input: GraphNodeInput): Promise<string | null> {
+    return createNodeSafe(this.nodeWriter, ctx.userId, ctx.grafoId, input);
   }
 
-  private async tryEdge(
+  private tryEdge(
     ctx: Ctx,
     sourceNodeId: string,
     targetNodeId: string,
     tipoRelacao: string,
   ): Promise<void> {
-    try {
-      await this.edgeWriter.createEdge(ctx.userId, ctx.grafoId, {
-        sourceNodeId,
-        targetNodeId,
-        tipoRelacao,
-      });
-    } catch {
-      // duplicate/invalid edge: skip it
-    }
+    return tryCreateEdge(this.edgeWriter, ctx.userId, ctx.grafoId, {
+      sourceNodeId,
+      targetNodeId,
+      tipoRelacao,
+    });
   }
 }
 

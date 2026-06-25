@@ -1,4 +1,5 @@
 import { prerequisiteRelation } from '../../domain/services/prerequisite-relation';
+import { tryCreateEdge } from '../graph-write-helpers';
 import type { GraphNodeWriter } from '../../domain/ports/graph-node-writer';
 import type { GraphEdgeWriter } from '../../domain/ports/graph-edge-writer';
 import type { NodeTypesRepository } from '../../domain/ports/node-types-repository';
@@ -46,22 +47,10 @@ export class AddMissingPrerequisiteUseCase {
     if (!targetType) return;
     const tipoRelacao = prerequisiteRelation(sourceTipo, targetType);
     if (!tipoRelacao) return;
-    await this.tryCreateEdge(userId, grafoId, {
+    await tryCreateEdge(this.edgeWriter, userId, grafoId, {
       sourceNodeId,
       targetNodeId: targetId,
       tipoRelacao,
     });
-  }
-
-  private async tryCreateEdge(
-    userId: string,
-    grafoId: string,
-    edge: { sourceNodeId: string; targetNodeId: string; tipoRelacao: string },
-  ): Promise<void> {
-    try {
-      await this.edgeWriter.createEdge(userId, grafoId, edge);
-    } catch {
-      // duplicate/invalid edge: skip it
-    }
   }
 }
