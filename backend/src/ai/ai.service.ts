@@ -7,6 +7,10 @@ import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/po
 import { parseAiJson } from '../modules/ai/domain/services/ai-json';
 import { InvalidAiJsonError } from '../modules/ai/domain/errors';
 import {
+  selectNotaRelations,
+  type NotaRelationSuggestion,
+} from '../modules/ai/domain/services/nota-relation-suggestions';
+import {
   getAllowedRelations,
   isRelationAllowed,
   getInsightTargets,
@@ -18,13 +22,6 @@ import {
   FlashcardSourceType,
 } from '../content/flashcard-gen';
 
-export interface NotaRelationSuggestion {
-  nodeId: string;
-  nodeTipo: 'ASSUNTO' | 'TOPICO' | 'CONCEITO';
-  nodeNome: string;
-  relacao: string;
-  motivo: string;
-}
 export interface NodeInsight {
   categoria: string;
   titulo: string;
@@ -642,24 +639,9 @@ ${conceptContext}`,
     } catch {
       throw new BadRequestException('A IA retornou resposta inválida.');
     }
-    const byId = new Map(candidates.map((c) => [c.id, c]));
-    const seen = new Set<string>();
-    const out: NotaRelationSuggestion[] = [];
-    for (const s of parsed?.sugestoes ?? []) {
-      const cand = byId.get(s?.nodeId);
-      if (!cand || seen.has(cand.id)) continue;
-      if (!isRelationAllowed('NOTA', cand.tipo, s?.relacao)) continue;
-      seen.add(cand.id);
-      out.push({
-        nodeId: cand.id,
-        nodeTipo: cand.tipo,
-        nodeNome: cand.nome,
-        relacao: s.relacao,
-        motivo: typeof s?.motivo === 'string' ? s.motivo : '',
-      });
-      if (out.length >= 8) break;
-    }
-    return out;
+    return selectNotaRelations(parsed?.sugestoes ?? [], candidates, (tipo, relacao) =>
+      isRelationAllowed('NOTA', tipo, relacao),
+    );
   }
 
   private readonly GRAPH_SYSTEM_PROMPT = `Você é especialista em organização curricular. A partir de um texto bruto, gere um grafo de conhecimento completo e hierárquico.
