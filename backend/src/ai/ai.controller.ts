@@ -4,6 +4,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { AiService } from './ai.service';
 import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
 import { SuggestNotaRelationsUseCase } from '../modules/ai/application/use-cases/suggest-nota-relations.use-case';
+import { GenerateLearningPathUseCase } from '../modules/ai/application/use-cases/generate-learning-path.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -14,6 +15,7 @@ export class AiController {
     private readonly ai: AiService,
     private readonly detectDuplicatesUseCase: DetectDuplicatesUseCase,
     private readonly suggestNotaRelationsUseCase: SuggestNotaRelationsUseCase,
+    private readonly generateLearningPathUseCase: GenerateLearningPathUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -171,7 +173,7 @@ export class AiController {
 
   @Post('graphs/:grafoId/learning-path')
   learningPath(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
-    return this.ai.generateLearningPath(userId, grafoId);
+    return this.generateLearningPathUseCase.execute(userId, grafoId);
   }
 
   @Post('graphs/:grafoId/chat')

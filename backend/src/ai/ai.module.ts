@@ -23,6 +23,12 @@ import {
 import { PrismaRelationCandidatesRepository } from '../modules/ai/infrastructure/persistence/prisma-relation-candidates.repository';
 import { SuggestNotaRelationsUseCase } from '../modules/ai/application/use-cases/suggest-nota-relations.use-case';
 import {
+  LEARNING_GRAPH_REPOSITORY,
+  type LearningGraphRepository,
+} from '../modules/ai/domain/ports/learning-graph-repository';
+import { PrismaLearningGraphRepository } from '../modules/ai/infrastructure/persistence/prisma-learning-graph.repository';
+import { GenerateLearningPathUseCase } from '../modules/ai/application/use-cases/generate-learning-path.use-case';
+import {
   getAllowedRelations,
   isRelationAllowed,
 } from '../modules/graph/domain/services/relation-rules';
@@ -42,6 +48,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: DUPLICATE_NODES_REPOSITORY, useClass: PrismaDuplicateNodesRepository },
     { provide: RELATION_CANDIDATES_REPOSITORY, useClass: PrismaRelationCandidatesRepository },
     { provide: RELATION_RULES_PORT, useValue: graphRelationRules },
+    { provide: LEARNING_GRAPH_REPOSITORY, useClass: PrismaLearningGraphRepository },
     {
       provide: DetectDuplicatesUseCase,
       useFactory: (nodes: DuplicateNodesRepository, llm: LlmPort) =>
@@ -56,6 +63,12 @@ const graphRelationRules: RelationRulesPort = {
         rules: RelationRulesPort,
       ) => new SuggestNotaRelationsUseCase(candidates, llm, rules),
       inject: [RELATION_CANDIDATES_REPOSITORY, LLM_PORT, RELATION_RULES_PORT],
+    },
+    {
+      provide: GenerateLearningPathUseCase,
+      useFactory: (graph: LearningGraphRepository, llm: LlmPort) =>
+        new GenerateLearningPathUseCase(graph, llm),
+      inject: [LEARNING_GRAPH_REPOSITORY, LLM_PORT],
     },
   ],
 })

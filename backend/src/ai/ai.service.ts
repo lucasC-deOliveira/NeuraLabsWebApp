@@ -14,7 +14,6 @@ import {
 } from '../modules/ai/domain/services/node-insights';
 import { selectAutoLinkSuggestions } from '../modules/ai/domain/services/auto-link-suggestions';
 import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite-relation';
-import { selectLearningPath } from '../modules/ai/domain/services/learning-path';
 import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
 import { selectCompletenessAssessments } from '../modules/ai/domain/services/completeness-assessment';
 import { parseClusterSummary } from '../modules/ai/domain/services/cluster-summary';
@@ -1303,75 +1302,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
   }
 
   // ── Feature: Trilha de aprendizado ────────────────────────────────────────
-  async generateLearningPath(
-    userId: string,
-    grafoId: string,
-  ): Promise<{ steps: Array<{ nodeId: string; nome: string; tipo: string; motivo: string }> }> {
-    const graphNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId, tipoNode: { in: ['ASSUNTO', 'TOPICO', 'CONCEITO'] } },
-      select: { tipoNode: true, referenciaId: true },
-    });
-    const ids: Record<string, string[]> = {};
-    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
-    const [assuntos, topicos, conceitos] = await Promise.all([
-      this.prisma.assunto.findMany({
-        where: { id: { in: ids.ASSUNTO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-      this.prisma.topico.findMany({
-        where: { id: { in: ids.TOPICO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-      this.prisma.conceito.findMany({
-        where: { id: { in: ids.CONCEITO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-    ]);
-    const allNodes = [
-      ...assuntos.map((a) => ({ id: a.id, tipo: 'ASSUNTO', nome: a.nome })),
-      ...topicos.map((t) => ({ id: t.id, tipo: 'TOPICO', nome: t.nome })),
-      ...conceitos.map((c) => ({ id: c.id, tipo: 'CONCEITO', nome: c.nome })),
-    ];
-    if (allNodes.length === 0) return { steps: [] };
-    const [existingEdges, ncNodes] = await Promise.all([
-      this.prisma.conhecimentoAresta.findMany({
-        where: { grafoId },
-        select: { nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true },
-      }),
-      this.prisma.nodeConhecimento.findMany({
-        where: { grafoId, usuarioId: userId },
-        select: { id: true, referenciaId: true },
-      }),
-    ]);
-    const refByNcId = new Map(ncNodes.map((n) => [n.id, n.referenciaId]));
-    const edgeList = existingEdges
-      .filter((e) => e.nodeOrigemId && e.nodeDestinoId)
-      .map(
-        (e) =>
-          `${refByNcId.get(e.nodeOrigemId!)}→${refByNcId.get(e.nodeDestinoId!)} (${e.tipoRelacao})`,
-      )
-      .join('\n');
-    const nodeList = allNodes.map((n) => `tipo:${n.tipo} nome:"${n.nome}"`).join('\n');
-    const content = await this.callAI(userId, [
-      {
-        role: 'system',
-        content:
-          'Crie uma TRILHA DE APRENDIZADO ordenada do mais básico ao mais avançado. Considere as relações existentes para ordenar. JSON: {"steps":[{"nome":"nome exato do nó","motivo":"frase curta (max 15 palavras) explicando por que estudar agora"}]} — use o nome exato de cada nó.',
-      },
-      {
-        role: 'user',
-        content: `NÓS:\n${nodeList.slice(0, 6000)}\n\nRELAÇÕES EXISTENTES:\n${edgeList.slice(0, 2000)}`,
-      },
-    ]);
-    let parsed: any;
-    try {
-      parsed = this.extractJSON(content ?? '{}');
-    } catch {
-      return { steps: [] };
-    }
-    return { steps: selectLearningPath(parsed?.steps ?? [], allNodes) };
-  }
-
   // ── Feature: Chat com o grafo ──────────────────────────────────────────────
   async chatWithGraph(
     userId: string,
