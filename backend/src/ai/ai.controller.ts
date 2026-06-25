@@ -22,6 +22,7 @@ import { SuggestGapFillUseCase } from '../modules/ai/application/use-cases/sugge
 import { AnalyzeRawTextUseCase } from '../modules/ai/application/use-cases/analyze-raw-text.use-case';
 import { GenerateFlashcardsViaIaUseCase } from '../modules/ai/application/use-cases/generate-flashcards-via-ia.use-case';
 import { SaveSelectedNotasUseCase } from '../modules/ai/application/use-cases/save-selected-notas.use-case';
+import { PopulateGraphFromBaralhoUseCase } from '../modules/ai/application/use-cases/populate-graph-from-baralho.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -50,6 +51,7 @@ export class AiController {
     private readonly analyzeRawTextUseCase: AnalyzeRawTextUseCase,
     private readonly generateFlashcardsViaIaUseCase: GenerateFlashcardsViaIaUseCase,
     private readonly saveSelectedNotasUseCase: SaveSelectedNotasUseCase,
+    private readonly populateGraphFromBaralhoUseCase: PopulateGraphFromBaralhoUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -258,7 +260,7 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Param('baralhoId') baralhoId: string,
   ) {
-    return this.ai.populateGraphFromBaralho(userId, grafoId, baralhoId);
+    return this.populateGraphFromBaralhoUseCase.execute(userId, grafoId, baralhoId);
   }
 
   @Post('graphs/:grafoId/merge-duplicates')

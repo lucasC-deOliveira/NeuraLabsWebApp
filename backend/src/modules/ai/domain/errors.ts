@@ -56,3 +56,24 @@ export class NoteNotFoundError extends Error {
     this.name = 'NoteNotFoundError';
   }
 }
+
+export class GraphNotFoundError extends Error {
+  constructor() {
+    super('The graph was not found.');
+    this.name = 'GraphNotFoundError';
+  }
+}
+
+export class BaralhoNotFoundError extends Error {
+  constructor() {
+    super('The deck was not found.');
+    this.name = 'BaralhoNotFoundError';
+  }
+}
+
+export class EmptyBaralhoError extends Error {
+  constructor() {
+    super('The deck has no flashcards.');
+    this.name = 'EmptyBaralhoError';
+  }
+}

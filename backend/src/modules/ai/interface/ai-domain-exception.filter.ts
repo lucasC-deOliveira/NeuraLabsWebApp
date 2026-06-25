@@ -9,27 +9,37 @@ import {
 import type { Response } from 'express';
 import {
   AiNodeNotFoundError,
+  BaralhoNotFoundError,
   EmptyAiContentError,
+  EmptyBaralhoError,
   EmptyClusterContentError,
   EmptyNodeListError,
+  GraphNotFoundError,
   InvalidAiJsonError,
   MergeKeepNotFoundError,
   NoteNotFoundError,
   UnsupportedExpandTypeError,
 } from '../domain/errors';
 
-type AiDomainError =
-  | InvalidAiJsonError
-  | AiNodeNotFoundError
-  | EmptyNodeListError
-  | EmptyClusterContentError
-  | UnsupportedExpandTypeError
-  | EmptyAiContentError
-  | MergeKeepNotFoundError
-  | NoteNotFoundError;
+// User-facing (Portuguese) HTTP response per AI domain error, keyed by error name.
+const HTTP_BY_ERROR: Record<string, () => HttpException> = {
+  AiNodeNotFoundError: () => new NotFoundException('Nó não encontrado neste grafo.'),
+  EmptyNodeListError: () => new BadRequestException('Lista de nós vazia'),
+  EmptyClusterContentError: () => new BadRequestException('Nós sem conteúdo para resumir'),
+  UnsupportedExpandTypeError: () =>
+    new BadRequestException(
+      'Tipo não suportado para expansão. Use ASSUNTO, TOPICO, CONCEITO ou NOTA.',
+    ),
+  EmptyAiContentError: () => new BadRequestException('A IA não retornou conteúdo.'),
+  MergeKeepNotFoundError: () => new BadRequestException('Nó principal não encontrado'),
+  NoteNotFoundError: () => new NotFoundException('Nota não encontrada'),
+  GraphNotFoundError: () => new NotFoundException('Grafo não encontrado.'),
+  BaralhoNotFoundError: () => new NotFoundException('Baralho não encontrado.'),
+  EmptyBaralhoError: () => new BadRequestException('O baralho não tem flashcards.'),
+};
 
 // Translates AI domain errors into HTTP responses. Domain messages stay internal
-// (English); user-facing messages produced here are in Portuguese.
+// (English); the user-facing messages above are in Portuguese.
 @Catch(
   InvalidAiJsonError,
   AiNodeNotFoundError,
@@ -39,29 +49,15 @@ type AiDomainError =
   EmptyAiContentError,
   MergeKeepNotFoundError,
   NoteNotFoundError,
+  GraphNotFoundError,
+  BaralhoNotFoundError,
+  EmptyBaralhoError,
 )
 export class AiDomainExceptionFilter implements ExceptionFilter {
-  catch(error: AiDomainError, host: ArgumentsHost): void {
-    const httpError = this.toHttpException(error);
+  catch(error: Error, host: ArgumentsHost): void {
+    const build = HTTP_BY_ERROR[error.name];
+    const httpError = build ? build() : new BadRequestException('A IA retornou JSON inválido.');
     const response = host.switchToHttp().getResponse<Response>();
     response.status(httpError.getStatus()).json(httpError.getResponse());
-  }
-
-  private toHttpException(error: AiDomainError): HttpException {
-    if (error instanceof AiNodeNotFoundError)
-      return new NotFoundException('Nó não encontrado neste grafo.');
-    if (error instanceof EmptyNodeListError) return new BadRequestException('Lista de nós vazia');
-    if (error instanceof EmptyClusterContentError)
-      return new BadRequestException('Nós sem conteúdo para resumir');
-    if (error instanceof UnsupportedExpandTypeError)
-      return new BadRequestException(
-        'Tipo não suportado para expansão. Use ASSUNTO, TOPICO, CONCEITO ou NOTA.',
-      );
-    if (error instanceof EmptyAiContentError)
-      return new BadRequestException('A IA não retornou conteúdo.');
-    if (error instanceof MergeKeepNotFoundError)
-      return new BadRequestException('Nó principal não encontrado');
-    if (error instanceof NoteNotFoundError) return new NotFoundException('Nota não encontrada');
-    return new BadRequestException('A IA retornou JSON inválido.');
   }
 }

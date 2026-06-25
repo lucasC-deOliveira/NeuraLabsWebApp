@@ -137,6 +137,12 @@ import {
 } from '../modules/ai/domain/ports/curriculum-repository';
 import { PrismaCurriculumRepository } from '../modules/ai/infrastructure/persistence/prisma-curriculum.repository';
 import { SaveSelectedNotasUseCase } from '../modules/ai/application/use-cases/save-selected-notas.use-case';
+import {
+  BARALHO_POPULATION_REPOSITORY,
+  type BaralhoPopulationRepository,
+} from '../modules/ai/domain/ports/baralho-population-repository';
+import { PrismaBaralhoPopulationRepository } from '../modules/ai/infrastructure/persistence/prisma-baralho-population.repository';
+import { PopulateGraphFromBaralhoUseCase } from '../modules/ai/application/use-cases/populate-graph-from-baralho.use-case';
 
 // Binds the structural-gap targets to the graph's relation rules.
 const gapRules: GapRulesPort = {
@@ -201,6 +207,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: GAP_RULES_PORT, useValue: gapRules },
     { provide: FLASHCARD_SOURCE_REPOSITORY, useClass: PrismaFlashcardSourceRepository },
     { provide: CURRICULUM_REPOSITORY, useClass: PrismaCurriculumRepository },
+    { provide: BARALHO_POPULATION_REPOSITORY, useClass: PrismaBaralhoPopulationRepository },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -362,6 +369,23 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (repo: CurriculumRepository, llm: LlmPort) =>
         new SaveSelectedNotasUseCase(repo, llm),
       inject: [CURRICULUM_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: PopulateGraphFromBaralhoUseCase,
+      useFactory: (
+        repo: BaralhoPopulationRepository,
+        names: GraphNameIndexRepository,
+        nodeWriter: GraphNodeWriter,
+        edgeWriter: GraphEdgeWriter,
+        llm: LlmPort,
+      ) => new PopulateGraphFromBaralhoUseCase(repo, names, nodeWriter, edgeWriter, llm),
+      inject: [
+        BARALHO_POPULATION_REPOSITORY,
+        GRAPH_NAME_INDEX_REPOSITORY,
+        GRAPH_NODE_WRITER,
+        GRAPH_EDGE_WRITER,
+        LLM_PORT,
+      ],
     },
   ],
 })
