@@ -19,6 +19,7 @@ import {
 import { selectDuplicateGroups } from '../modules/ai/domain/services/duplicate-groups';
 import { selectAutoLinkSuggestions } from '../modules/ai/domain/services/auto-link-suggestions';
 import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite-relation';
+import { selectLearningPath } from '../modules/ai/domain/services/learning-path';
 import {
   getAllowedRelations,
   isRelationAllowed,
@@ -1533,30 +1534,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     } catch {
       return { steps: [] };
     }
-    const nodeById = new Map(allNodes.map((n) => [n.id, n]));
-    const nodeByNome = new Map(allNodes.map((n) => [n.nome.toLowerCase().trim(), n]));
-    const out: Array<{ nodeId: string; nome: string; tipo: string; motivo: string }> = [];
-    const seen = new Set<string>();
-    for (const s of parsed?.steps ?? []) {
-      const nomeBusca = String(s?.nome ?? '')
-        .toLowerCase()
-        .trim();
-      const node =
-        nodeByNome.get(nomeBusca) ??
-        nodeById.get(s?.nodeId ?? '') ??
-        [...nodeByNome.entries()].find(
-          ([k]) => k.includes(nomeBusca) || nomeBusca.includes(k),
-        )?.[1];
-      if (!node || seen.has(node.id)) continue;
-      seen.add(node.id);
-      out.push({
-        nodeId: node.id,
-        nome: node.nome,
-        tipo: node.tipo,
-        motivo: typeof s?.motivo === 'string' ? s.motivo : '',
-      });
-    }
-    return { steps: out };
+    return { steps: selectLearningPath(parsed?.steps ?? [], allNodes) };
   }
 
   // ── Feature: Chat com o grafo ──────────────────────────────────────────────
