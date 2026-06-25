@@ -20,6 +20,7 @@ import { selectDuplicateGroups } from '../modules/ai/domain/services/duplicate-g
 import { selectAutoLinkSuggestions } from '../modules/ai/domain/services/auto-link-suggestions';
 import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite-relation';
 import { selectLearningPath } from '../modules/ai/domain/services/learning-path';
+import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
 import {
   getAllowedRelations,
   isRelationAllowed,
@@ -1591,22 +1592,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
       { role: 'user', content: question },
     ];
     const content = await this.callAI(userId, messages);
-    if (!content) return { answer: '', referencedNodes: [] };
-    const jsonMatch = content.match(/\{"referencedNodeIds"\s*:\s*\[[\s\S]*?\]\s*\}/);
-    let referencedIds: string[] = [];
-    let answer = content;
-    if (jsonMatch) {
-      try {
-        referencedIds = JSON.parse(jsonMatch[0]).referencedNodeIds ?? [];
-      } catch {}
-      answer = content.slice(0, content.lastIndexOf(jsonMatch[0])).trim();
-    }
-    const nodeById = new Map(allNodes.map((n) => [n.id, n]));
-    const referencedNodes = referencedIds
-      .map((id) => nodeById.get(id))
-      .filter((n): n is (typeof allNodes)[0] => !!n)
-      .map((n) => ({ id: n.id, nome: n.nome, tipo: n.tipo }));
-    return { answer, referencedNodes };
+    return extractChatAnswer(content, allNodes);
   }
 
   // ── Feature: Avaliação de completude ───────────────────────────────────────
