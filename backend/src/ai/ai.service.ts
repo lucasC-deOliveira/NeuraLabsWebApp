@@ -6,12 +6,7 @@ import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete
 import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/ports/llm-port';
 import { parseAiJson } from '../modules/ai/domain/services/ai-json';
 import { InvalidAiJsonError } from '../modules/ai/domain/errors';
-import {
-  selectNodeInsights,
-  selectGapInsights,
-  INSIGHT_CATEGORIES,
-  type NodeInsight,
-} from '../modules/ai/domain/services/node-insights';
+import { selectGapInsights, type NodeInsight } from '../modules/ai/domain/services/node-insights';
 import { selectAutoLinkSuggestions } from '../modules/ai/domain/services/auto-link-suggestions';
 import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite-relation';
 import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
@@ -20,7 +15,6 @@ import { parseClusterSummary } from '../modules/ai/domain/services/cluster-summa
 import {
   getAllowedRelations,
   isRelationAllowed,
-  getInsightTargets,
   getCanonicalDirection,
 } from '../modules/graph/domain/services/relation-rules';
 import {
@@ -289,117 +283,6 @@ export class AiService {
       notaIds.push(nota.id);
     }
     return { notaIds };
-  }
-
-  async generateNodeInsights(userId: string, grafoId: string, nodeId: string) {
-    const target = await this.prisma.nodeConhecimento.findFirst({
-      where: { grafoId, usuarioId: userId, referenciaId: nodeId },
-      select: { id: true, tipoNode: true },
-    });
-    if (!target) throw new NotFoundException('Nó não encontrado neste grafo.');
-
-    const graphNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
-      select: { tipoNode: true, referenciaId: true },
-    });
-    const ids: Record<string, string[]> = {};
-    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
-    const [assuntos, topicos, conceitos, notas, flashcards] = await Promise.all([
-      this.prisma.assunto.findMany({
-        where: { id: { in: ids.ASSUNTO ?? [] } },
-        select: { id: true, nome: true, descricao: true },
-      }),
-      this.prisma.topico.findMany({
-        where: { id: { in: ids.TOPICO ?? [] } },
-        select: { id: true, nome: true, descricao: true },
-      }),
-      this.prisma.conceito.findMany({
-        where: { id: { in: ids.CONCEITO ?? [] } },
-        select: { id: true, nome: true, descricao: true },
-      }),
-      this.prisma.nota.findMany({
-        where: { id: { in: ids.NOTA ?? [] } },
-        select: { id: true, titulo: true, conteudo: true },
-      }),
-      this.prisma.flashcard.findMany({
-        where: { id: { in: ids.FLASHCARD ?? [] } },
-        select: { id: true, pergunta: true, resposta: true },
-      }),
-    ]);
-    type Ctx = { id: string; tipo: string; nome: string; corpo?: string };
-    const ctx = new Map<string, Ctx>();
-    for (const a of assuntos)
-      ctx.set(a.id, { id: a.id, tipo: 'ASSUNTO', nome: a.nome, corpo: a.descricao ?? undefined });
-    for (const t of topicos)
-      ctx.set(t.id, { id: t.id, tipo: 'TOPICO', nome: t.nome, corpo: t.descricao ?? undefined });
-    for (const c of conceitos)
-      ctx.set(c.id, { id: c.id, tipo: 'CONCEITO', nome: c.nome, corpo: c.descricao ?? undefined });
-    for (const n of notas)
-      ctx.set(n.id, { id: n.id, tipo: 'NOTA', nome: n.titulo || 'Nota', corpo: n.conteudo });
-    for (const f of flashcards)
-      ctx.set(f.id, { id: f.id, tipo: 'FLASHCARD', nome: f.pergunta, corpo: f.resposta });
-
-    // Load direct neighbors for richer context
-    const neighborEdges = await this.prisma.conhecimentoAresta.findMany({
-      where: { grafoId, OR: [{ nodeOrigemId: target.id }, { nodeDestinoId: target.id }] },
-      select: { nodeOrigemId: true, nodeDestinoId: true },
-    });
-    const neighborNcIds = neighborEdges
-      .map((e) => (e.nodeOrigemId === target.id ? e.nodeDestinoId : e.nodeOrigemId))
-      .filter((id): id is string => !!id);
-    const neighborNcNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { id: { in: neighborNcIds } },
-      select: { referenciaId: true },
-    });
-    const neighborRefIds = new Set(neighborNcNodes.map((n) => n.referenciaId));
-
-    const alvo = ctx.get(nodeId);
-    if (!alvo) throw new NotFoundException('Conteúdo do nó não encontrado.');
-    const neighborCtx = [...ctx.values()].filter(
-      (c) => c.id !== nodeId && neighborRefIds.has(c.id),
-    );
-    const otherCtx = [...ctx.values()].filter((c) => c.id !== nodeId && !neighborRefIds.has(c.id));
-    const neighborSection =
-      neighborCtx.length > 0
-        ? `VIZINHOS DIRETOS:\n${neighborCtx.map((c) => `- [${TIPO_LABEL[c.tipo] ?? c.tipo}] ${c.nome}${c.corpo ? ': ' + c.corpo.slice(0, 200) : ''}`).join('\n')}`
-        : '';
-    const contextoLista = otherCtx
-      .slice(0, 80)
-      .map((c) => `- [${TIPO_LABEL[c.tipo] ?? c.tipo}] ${c.nome}`)
-      .join('\n');
-    const targets = getInsightTargets(target.tipoNode);
-    const targetsDesc = targets
-      .map((t) => `- tipoNo "${t.tipo}" → relacoes possíveis: ${t.relacoes.join(', ')}`)
-      .join('\n');
-    const defaultCombo = targets[0]
-      ? { tipoNo: targets[0].tipo, relacao: targets[0].relacoes[0] }
-      : null;
-
-    const tipoAlvo = TIPO_LABEL[alvo.tipo] ?? alvo.tipo;
-    const content = await this.llm.complete({
-      userId,
-      temperature: 0.5,
-      messages: [
-        {
-          role: 'system',
-          content: `Você é um tutor que analisa um nó de um grafo de conhecimento e gera INSIGHTS. Cada insight: categoria (uma de [${INSIGHT_CATEGORIES.join(', ')}]), titulo (3-8 palavras), descricao (1-2 frases), tipoNo e relacao escolhidos SOMENTE entre os combos válidos:\n${targetsDesc}\nEntre 4 e 8 insights. Responda em JSON: {"insights":[{"categoria":"...","titulo":"...","descricao":"...","tipoNo":"...","relacao":"..."}]}`,
-        },
-        {
-          role: 'user',
-          content: `NÓ-ALVO (${tipoAlvo}): ${alvo.nome}\n${alvo.corpo ? `Conteúdo:\n${alvo.corpo.slice(0, 2000)}` : '(sem conteúdo)'}\n\n${neighborSection}\n\nOUTROS NÓS DO GRAFO:\n${contextoLista || '(sem outros nós)'}`,
-        },
-      ],
-    });
-    let parsed: any;
-    try {
-      parsed = JSON.parse(content || '{}');
-    } catch {
-      throw new BadRequestException('A IA retornou resposta inválida.');
-    }
-    const insights = selectNodeInsights(parsed?.insights ?? [], defaultCombo, (tipoNo, relacao) =>
-      isRelationAllowed(target.tipoNode, tipoNo, relacao),
-    );
-    return { nodeNome: alvo.nome, nodeTipo: alvo.tipo, insights };
   }
 
   async addInsightsToGraph(

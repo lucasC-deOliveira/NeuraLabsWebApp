@@ -24,6 +24,8 @@ class FakeLlm implements LlmPort {
 const rules: RelationRulesPort = {
   allowedNotaRelations: () => ['DEFINE', 'EXPLICA'],
   isNotaRelationAllowed: (_t, relacao) => relacao === 'DEFINE',
+  isRelationAllowed: () => true,
+  insightTargets: () => [],
 };
 
 const candidate: RelationCandidate = {

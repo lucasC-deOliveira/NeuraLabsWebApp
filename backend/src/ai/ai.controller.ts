@@ -5,6 +5,7 @@ import { AiService } from './ai.service';
 import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
 import { SuggestNotaRelationsUseCase } from '../modules/ai/application/use-cases/suggest-nota-relations.use-case';
 import { GenerateLearningPathUseCase } from '../modules/ai/application/use-cases/generate-learning-path.use-case';
+import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases/generate-node-insights.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -16,6 +17,7 @@ export class AiController {
     private readonly detectDuplicatesUseCase: DetectDuplicatesUseCase,
     private readonly suggestNotaRelationsUseCase: SuggestNotaRelationsUseCase,
     private readonly generateLearningPathUseCase: GenerateLearningPathUseCase,
+    private readonly generateNodeInsightsUseCase: GenerateNodeInsightsUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -24,7 +26,7 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Param('nodeId') nodeId: string,
   ) {
-    return this.ai.generateNodeInsights(userId, grafoId, nodeId);
+    return this.generateNodeInsightsUseCase.execute(userId, grafoId, nodeId);
   }
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights/add')

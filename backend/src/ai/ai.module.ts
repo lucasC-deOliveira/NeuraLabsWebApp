@@ -31,12 +31,22 @@ import { GenerateLearningPathUseCase } from '../modules/ai/application/use-cases
 import {
   getAllowedRelations,
   isRelationAllowed,
+  getInsightTargets,
 } from '../modules/graph/domain/services/relation-rules';
+import {
+  INSIGHT_CONTEXT_REPOSITORY,
+  type InsightContextRepository,
+} from '../modules/ai/domain/ports/insight-context-repository';
+import { PrismaInsightContextRepository } from '../modules/ai/infrastructure/persistence/prisma-insight-context.repository';
+import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases/generate-node-insights.use-case';
 
 // Binds the AI context's RelationRulesPort to the graph context's published rules.
 const graphRelationRules: RelationRulesPort = {
   allowedNotaRelations: (targetTipo) => getAllowedRelations('NOTA', targetTipo),
   isNotaRelationAllowed: (targetTipo, relacao) => isRelationAllowed('NOTA', targetTipo, relacao),
+  isRelationAllowed: (sourceTipo, targetTipo, relacao) =>
+    isRelationAllowed(sourceTipo, targetTipo, relacao),
+  insightTargets: (tipo) => getInsightTargets(tipo),
 };
 
 @Module({
@@ -49,6 +59,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: RELATION_CANDIDATES_REPOSITORY, useClass: PrismaRelationCandidatesRepository },
     { provide: RELATION_RULES_PORT, useValue: graphRelationRules },
     { provide: LEARNING_GRAPH_REPOSITORY, useClass: PrismaLearningGraphRepository },
+    { provide: INSIGHT_CONTEXT_REPOSITORY, useClass: PrismaInsightContextRepository },
     {
       provide: DetectDuplicatesUseCase,
       useFactory: (nodes: DuplicateNodesRepository, llm: LlmPort) =>
@@ -69,6 +80,12 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (graph: LearningGraphRepository, llm: LlmPort) =>
         new GenerateLearningPathUseCase(graph, llm),
       inject: [LEARNING_GRAPH_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: GenerateNodeInsightsUseCase,
+      useFactory: (context: InsightContextRepository, llm: LlmPort, rules: RelationRulesPort) =>
+        new GenerateNodeInsightsUseCase(context, llm, rules),
+      inject: [INSIGHT_CONTEXT_REPOSITORY, LLM_PORT, RELATION_RULES_PORT],
     },
   ],
 })

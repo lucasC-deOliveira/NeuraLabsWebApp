@@ -7,3 +7,10 @@ export class InvalidAiJsonError extends Error {
     this.name = 'InvalidAiJsonError';
   }
 }
+
+export class AiNodeNotFoundError extends Error {
+  constructor() {
+    super('The target node was not found in the graph.');
+    this.name = 'AiNodeNotFoundError';
+  }
+}

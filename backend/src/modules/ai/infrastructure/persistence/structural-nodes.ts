@@ -31,7 +31,7 @@ export async function loadStructuralNodes(
   return [...tag(assuntos, 'ASSUNTO'), ...tag(topicos, 'TOPICO'), ...tag(conceitos, 'CONCEITO')];
 }
 
-async function refIdsByType(
+export async function refIdsByType(
   prisma: PrismaService,
   userId: string,
   grafoId: string,
