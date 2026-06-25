@@ -21,6 +21,7 @@ import { selectAutoLinkSuggestions } from '../modules/ai/domain/services/auto-li
 import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite-relation';
 import { selectLearningPath } from '../modules/ai/domain/services/learning-path';
 import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
+import { selectCompletenessAssessments } from '../modules/ai/domain/services/completeness-assessment';
 import {
   getAllowedRelations,
   isRelationAllowed,
@@ -1706,40 +1707,7 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     } catch {
       return { assessments: [] };
     }
-    const assuntoByNome = new Map(assuntos.map((a) => [a.nome.toLowerCase().trim(), a]));
-    const assuntoById = new Map(assuntos.map((a) => [a.id, a]));
-    const out: Array<{
-      assuntoId: string;
-      assuntoNome: string;
-      score: number;
-      wellCovered: string[];
-      shallow: string[];
-      missing: string[];
-    }> = [];
-    for (const a of parsed?.assessments ?? []) {
-      const nomeBusca = String(a?.assuntoNome ?? a?.nome ?? a?.assuntoId ?? '')
-        .toLowerCase()
-        .trim();
-      const assunto =
-        assuntoByNome.get(nomeBusca) ??
-        assuntoById.get(a?.assuntoId ?? '') ??
-        // Fallback: busca por correspondência parcial
-        [...assuntoByNome.entries()].find(
-          ([k]) => k.includes(nomeBusca) || nomeBusca.includes(k),
-        )?.[1];
-      if (!assunto) continue;
-      const toStrArr = (v: any, max: number) =>
-        Array.isArray(v) ? v.filter((s: any) => typeof s === 'string').slice(0, max) : [];
-      out.push({
-        assuntoId: assunto.id,
-        assuntoNome: assunto.nome,
-        score: typeof a?.score === 'number' ? Math.min(10, Math.max(0, Math.round(a.score))) : 5,
-        wellCovered: toStrArr(a?.wellCovered, 6),
-        shallow: toStrArr(a?.shallow, 6),
-        missing: toStrArr(a?.missing, 6),
-      });
-    }
-    return { assessments: out };
+    return { assessments: selectCompletenessAssessments(parsed?.assessments ?? [], assuntos) };
   }
 
   // ── Feature: Preencher lacunas de conhecimento ─────────────────────────────
