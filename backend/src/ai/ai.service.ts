@@ -111,36 +111,6 @@ export class AiService {
     return { nodeId: res.nodeId, created: true };
   }
 
-  // Estágio 1: divide texto bruto em notas candidatas.
-  async analyzeRawText(
-    userId: string,
-    rawText: string,
-  ): Promise<{
-    candidatas: Array<{ titulo: string; conteudo: string; conceitosPrevistos: string[] }>;
-  }> {
-    if (!rawText.trim()) return { candidatas: [] };
-    const content = await this.callAI(userId, [
-      {
-        role: 'system',
-        content: `Você é um assistente de análise de texto educacional. Dado um texto bruto, identifique QUANTAS NOTAS fizerem sentido. Cada nota deve ter titulo e conteudo organizado.\nResponda APENAS JSON: {"notas":[{"titulo":"Nome","conteudo":"Conteúdo organizado"}]}`,
-      },
-      { role: 'user', content: rawText.slice(0, 15000) },
-    ]);
-    if (!content) return { candidatas: [] };
-    try {
-      const parsed = this.extractJSON(content);
-      return {
-        candidatas: (parsed.notas || []).map((n: any) => ({
-          titulo: n.titulo || 'Nota sem título',
-          conteudo: n.conteudo || '',
-          conceitosPrevistos: [],
-        })),
-      };
-    } catch {
-      return { candidatas: [{ titulo: 'Nota', conteudo: rawText, conceitosPrevistos: [] }] };
-    }
-  }
-
   // Estágio 2: extrai hierarquia (assunto→tópico→conceito) e cria notas. Arestas semânticas ficam para a UI do grafo.
   async saveSelectedNotas(
     userId: string,

@@ -124,6 +124,7 @@ import { PrismaDuplicateMergeRepository } from '../modules/ai/infrastructure/per
 import { MergeDuplicateNodesUseCase } from '../modules/ai/application/use-cases/merge-duplicate-nodes.use-case';
 import { GAP_RULES_PORT, type GapRulesPort } from '../modules/ai/domain/ports/gap-rules-port';
 import { SuggestGapFillUseCase } from '../modules/ai/application/use-cases/suggest-gap-fill.use-case';
+import { AnalyzeRawTextUseCase } from '../modules/ai/application/use-cases/analyze-raw-text.use-case';
 
 // Binds the structural-gap targets to the graph's relation rules.
 const gapRules: GapRulesPort = {
@@ -330,6 +331,11 @@ const graphRelationRules: RelationRulesPort = {
       provide: SuggestGapFillUseCase,
       useFactory: (llm: LlmPort, rules: GapRulesPort) => new SuggestGapFillUseCase(llm, rules),
       inject: [LLM_PORT, GAP_RULES_PORT],
+    },
+    {
+      provide: AnalyzeRawTextUseCase,
+      useFactory: (llm: LlmPort) => new AnalyzeRawTextUseCase(llm),
+      inject: [LLM_PORT],
     },
   ],
 })

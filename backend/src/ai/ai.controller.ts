@@ -19,6 +19,7 @@ import { ExpandNodeUseCase } from '../modules/ai/application/use-cases/expand-no
 import { FillKnowledgeGapsUseCase } from '../modules/ai/application/use-cases/fill-knowledge-gaps.use-case';
 import { MergeDuplicateNodesUseCase } from '../modules/ai/application/use-cases/merge-duplicate-nodes.use-case';
 import { SuggestGapFillUseCase } from '../modules/ai/application/use-cases/suggest-gap-fill.use-case';
+import { AnalyzeRawTextUseCase } from '../modules/ai/application/use-cases/analyze-raw-text.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -44,6 +45,7 @@ export class AiController {
     private readonly fillKnowledgeGapsUseCase: FillKnowledgeGapsUseCase,
     private readonly mergeDuplicateNodesUseCase: MergeDuplicateNodesUseCase,
     private readonly suggestGapFillUseCase: SuggestGapFillUseCase,
+    private readonly analyzeRawTextUseCase: AnalyzeRawTextUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -89,7 +91,7 @@ export class AiController {
 
   @Post('notas/analyze')
   analyzeRawText(@CurrentUser() userId: string, @Body() body: { rawText: string }) {
-    return this.ai.analyzeRawText(userId, body.rawText ?? '');
+    return this.analyzeRawTextUseCase.execute(userId, body.rawText ?? '');
   }
 
   @Post('notas/save')
