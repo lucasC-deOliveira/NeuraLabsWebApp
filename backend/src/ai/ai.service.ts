@@ -7,7 +7,6 @@ import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/po
 import { parseAiJson } from '../modules/ai/domain/services/ai-json';
 import { InvalidAiJsonError } from '../modules/ai/domain/errors';
 import { selectGapInsights, type NodeInsight } from '../modules/ai/domain/services/node-insights';
-import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite-relation';
 import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
 import { parseClusterSummary } from '../modules/ai/domain/services/cluster-summary';
 import {
@@ -1044,42 +1043,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     return { prerequisites: out };
   }
 
-  async addMissingPrerequisite(
-    userId: string,
-    grafoId: string,
-    nome: string,
-    tipo: string,
-    connectToIds: string[],
-  ): Promise<{ nodeId: string }> {
-    const res = await this.graph.createNode(userId, grafoId, {
-      tipoNode: tipo as any,
-      nome,
-      descricao: '',
-    });
-    const targetNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId, referenciaId: { in: connectToIds } },
-      select: { referenciaId: true, tipoNode: true },
-    });
-    const typeByRefId = new Map(targetNodes.map((n) => [n.referenciaId, n.tipoNode]));
-    for (const targetId of connectToIds) {
-      const targetType = typeByRefId.get(targetId);
-      if (!targetType) continue;
-      const relacao = prerequisiteRelation(tipo, targetType);
-      if (!relacao) continue;
-      try {
-        await this.graph.createEdge(userId, grafoId, {
-          sourceNodeId: res.nodeId,
-          targetNodeId: targetId,
-          tipoRelacao: relacao,
-        });
-      } catch {
-        /* ignore duplicate */
-      }
-    }
-    return { nodeId: res.nodeId };
-  }
-
-  // ── Feature: Trilha de aprendizado ────────────────────────────────────────
   // ── Feature: Chat com o grafo ──────────────────────────────────────────────
   async chatWithGraph(
     userId: string,

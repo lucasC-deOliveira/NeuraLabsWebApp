@@ -55,14 +55,30 @@ import {
   GRAPH_EDGE_WRITER,
   type GraphEdgeWriter,
 } from '../modules/ai/domain/ports/graph-edge-writer';
+import {
+  GRAPH_NODE_WRITER,
+  type GraphNodeWriter,
+} from '../modules/ai/domain/ports/graph-node-writer';
+import {
+  NODE_TYPES_REPOSITORY,
+  type NodeTypesRepository,
+} from '../modules/ai/domain/ports/node-types-repository';
+import { PrismaNodeTypesRepository } from '../modules/ai/infrastructure/persistence/prisma-node-types.repository';
 import { ApplyAutoLinkUseCase } from '../modules/ai/application/use-cases/apply-auto-link.use-case';
+import { AddMissingPrerequisiteUseCase } from '../modules/ai/application/use-cases/add-missing-prerequisite.use-case';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
+import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create-node.use-case';
 
 // Binds the AI context's GraphEdgeWriter to the graph context's CreateEdge use-case.
 const graphEdgeWriter = (createEdge: CreateEdgeUseCase): GraphEdgeWriter => ({
   createEdge: async (userId, grafoId, edge) => {
     await createEdge.execute({ userId, grafoId, ...edge });
   },
+});
+
+// Binds the AI context's GraphNodeWriter to the graph context's CreateNode use-case.
+const graphNodeWriter = (createNode: CreateNodeUseCase): GraphNodeWriter => ({
+  createNode: (userId, grafoId, input) => createNode.execute(userId, grafoId, input),
 });
 
 // Binds the AI context's RelationRulesPort to the graph context's published rules.
@@ -87,10 +103,16 @@ const graphRelationRules: RelationRulesPort = {
     { provide: INSIGHT_CONTEXT_REPOSITORY, useClass: PrismaInsightContextRepository },
     { provide: AUTO_LINK_REPOSITORY, useClass: PrismaAutoLinkRepository },
     { provide: COMPLETENESS_REPOSITORY, useClass: PrismaCompletenessRepository },
+    { provide: NODE_TYPES_REPOSITORY, useClass: PrismaNodeTypesRepository },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
       inject: [CreateEdgeUseCase],
+    },
+    {
+      provide: GRAPH_NODE_WRITER,
+      useFactory: graphNodeWriter,
+      inject: [CreateNodeUseCase],
     },
     {
       provide: DetectDuplicatesUseCase,
@@ -135,6 +157,15 @@ const graphRelationRules: RelationRulesPort = {
       provide: ApplyAutoLinkUseCase,
       useFactory: (writer: GraphEdgeWriter) => new ApplyAutoLinkUseCase(writer),
       inject: [GRAPH_EDGE_WRITER],
+    },
+    {
+      provide: AddMissingPrerequisiteUseCase,
+      useFactory: (
+        nodeWriter: GraphNodeWriter,
+        edgeWriter: GraphEdgeWriter,
+        types: NodeTypesRepository,
+      ) => new AddMissingPrerequisiteUseCase(nodeWriter, edgeWriter, types),
+      inject: [GRAPH_NODE_WRITER, GRAPH_EDGE_WRITER, NODE_TYPES_REPOSITORY],
     },
   ],
 })

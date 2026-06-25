@@ -9,6 +9,7 @@ import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases
 import { AutoLinkGraphUseCase } from '../modules/ai/application/use-cases/auto-link-graph.use-case';
 import { AssessCompletenessUseCase } from '../modules/ai/application/use-cases/assess-completeness.use-case';
 import { ApplyAutoLinkUseCase } from '../modules/ai/application/use-cases/apply-auto-link.use-case';
+import { AddMissingPrerequisiteUseCase } from '../modules/ai/application/use-cases/add-missing-prerequisite.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -24,6 +25,7 @@ export class AiController {
     private readonly autoLinkGraphUseCase: AutoLinkGraphUseCase,
     private readonly assessCompletenessUseCase: AssessCompletenessUseCase,
     private readonly applyAutoLinkUseCase: ApplyAutoLinkUseCase,
+    private readonly addMissingPrerequisiteUseCase: AddMissingPrerequisiteUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -170,7 +172,7 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Body() body: { nome: string; tipo: string; connectToIds: string[] },
   ) {
-    return this.ai.addMissingPrerequisite(
+    return this.addMissingPrerequisiteUseCase.execute(
       userId,
       grafoId,
       body.nome,
