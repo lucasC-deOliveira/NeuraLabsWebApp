@@ -9,6 +9,7 @@ import {
 import type { Response } from 'express';
 import {
   AiNodeNotFoundError,
+  EmptyAiContentError,
   EmptyClusterContentError,
   EmptyNodeListError,
   InvalidAiJsonError,
@@ -20,7 +21,8 @@ type AiDomainError =
   | AiNodeNotFoundError
   | EmptyNodeListError
   | EmptyClusterContentError
-  | UnsupportedExpandTypeError;
+  | UnsupportedExpandTypeError
+  | EmptyAiContentError;
 
 // Translates AI domain errors into HTTP responses. Domain messages stay internal
 // (English); user-facing messages produced here are in Portuguese.
@@ -30,6 +32,7 @@ type AiDomainError =
   EmptyNodeListError,
   EmptyClusterContentError,
   UnsupportedExpandTypeError,
+  EmptyAiContentError,
 )
 export class AiDomainExceptionFilter implements ExceptionFilter {
   catch(error: AiDomainError, host: ArgumentsHost): void {
@@ -48,6 +51,8 @@ export class AiDomainExceptionFilter implements ExceptionFilter {
       return new BadRequestException(
         'Tipo não suportado para expansão. Use ASSUNTO, TOPICO, CONCEITO ou NOTA.',
       );
+    if (error instanceof EmptyAiContentError)
+      return new BadRequestException('A IA não retornou conteúdo.');
     return new BadRequestException('A IA retornou JSON inválido.');
   }
 }

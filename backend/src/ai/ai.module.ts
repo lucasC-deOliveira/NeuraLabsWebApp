@@ -75,6 +75,7 @@ import {
 import { PrismaExpandTargetRepository } from '../modules/ai/infrastructure/persistence/prisma-expand-target.repository';
 import { PrismaGraphNameIndexRepository } from '../modules/ai/infrastructure/persistence/prisma-graph-name-index.repository';
 import { ExpandNodeUseCase } from '../modules/ai/application/use-cases/expand-node.use-case';
+import { FillKnowledgeGapsUseCase } from '../modules/ai/application/use-cases/fill-knowledge-gaps.use-case';
 import {
   INSIGHT_CONTEXT_REPOSITORY,
   type InsightContextRepository,
@@ -268,6 +269,23 @@ const graphRelationRules: RelationRulesPort = {
         GRAPH_NAME_INDEX_REPOSITORY,
         GRAPH_NODE_WRITER,
         GRAPH_EDGE_WRITER,
+        LLM_PORT,
+      ],
+    },
+    {
+      provide: FillKnowledgeGapsUseCase,
+      useFactory: (
+        names: GraphNameIndexRepository,
+        nodeWriter: GraphNodeWriter,
+        edgeWriter: GraphEdgeWriter,
+        types: NodeTypesRepository,
+        llm: LlmPort,
+      ) => new FillKnowledgeGapsUseCase(names, nodeWriter, edgeWriter, types, llm),
+      inject: [
+        GRAPH_NAME_INDEX_REPOSITORY,
+        GRAPH_NODE_WRITER,
+        GRAPH_EDGE_WRITER,
+        NODE_TYPES_REPOSITORY,
         LLM_PORT,
       ],
     },

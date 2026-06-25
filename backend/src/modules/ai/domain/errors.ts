@@ -35,3 +35,10 @@ export class UnsupportedExpandTypeError extends Error {
     this.name = 'UnsupportedExpandTypeError';
   }
 }
+
+export class EmptyAiContentError extends Error {
+  constructor() {
+    super('The AI returned no content.');
+    this.name = 'EmptyAiContentError';
+  }
+}

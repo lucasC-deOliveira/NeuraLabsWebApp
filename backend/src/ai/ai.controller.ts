@@ -16,6 +16,7 @@ import { GenerateCommunitySummaryUseCase } from '../modules/ai/application/use-c
 import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
 import { ListBaralhosInGrafoUseCase } from '../modules/ai/application/use-cases/list-baralhos-in-grafo.use-case';
 import { ExpandNodeUseCase } from '../modules/ai/application/use-cases/expand-node.use-case';
+import { FillKnowledgeGapsUseCase } from '../modules/ai/application/use-cases/fill-knowledge-gaps.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -38,6 +39,7 @@ export class AiController {
     private readonly chatWithGraphUseCase: ChatWithGraphUseCase,
     private readonly listBaralhosInGrafoUseCase: ListBaralhosInGrafoUseCase,
     private readonly expandNodeUseCase: ExpandNodeUseCase,
+    private readonly fillKnowledgeGapsUseCase: FillKnowledgeGapsUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -232,7 +234,7 @@ export class AiController {
       }>;
     },
   ) {
-    return this.ai.fillKnowledgeGaps(userId, grafoId, body.gaps ?? []);
+    return this.fillKnowledgeGapsUseCase.execute(userId, grafoId, body.gaps ?? []);
   }
 
   @Post('graphs/:grafoId/baralhos')
