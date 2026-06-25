@@ -9,11 +9,7 @@ import { InvalidAiJsonError } from '../modules/ai/domain/errors';
 import { selectGapInsights, type NodeInsight } from '../modules/ai/domain/services/node-insights';
 import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
 import { parseClusterSummary } from '../modules/ai/domain/services/cluster-summary';
-import {
-  getAllowedRelations,
-  isRelationAllowed,
-  getCanonicalDirection,
-} from '../modules/graph/domain/services/relation-rules';
+import { getAllowedRelations } from '../modules/graph/domain/services/relation-rules';
 import {
   makeConceptResolver,
   FlashcardPreview,
@@ -280,77 +276,6 @@ export class AiService {
       notaIds.push(nota.id);
     }
     return { notaIds };
-  }
-
-  async addInsightsToGraph(
-    userId: string,
-    grafoId: string,
-    sourceNodeId: string,
-    insights: Array<{ tipoNo: string; relacao: string; titulo: string; descricao?: string }>,
-  ) {
-    const source = await this.prisma.nodeConhecimento.findFirst({
-      where: { grafoId, usuarioId: userId, referenciaId: sourceNodeId },
-      select: { tipoNode: true },
-    });
-    if (!source) throw new NotFoundException('Nó de origem não encontrado.');
-    const sourceType = source.tipoNode;
-
-    const existing = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId, tipoNode: { in: ['ASSUNTO', 'TOPICO', 'CONCEITO'] } },
-      select: { tipoNode: true, referenciaId: true },
-    });
-    const ids: Record<string, string[]> = {};
-    for (const e of existing) (ids[e.tipoNode] ??= []).push(e.referenciaId);
-    const [exA, exT, exC] = await Promise.all([
-      this.prisma.assunto.findMany({
-        where: { id: { in: ids.ASSUNTO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-      this.prisma.topico.findMany({
-        where: { id: { in: ids.TOPICO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-      this.prisma.conceito.findMany({
-        where: { id: { in: ids.CONCEITO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-    ]);
-    const nameIndex = new Map<string, string>();
-    for (const a of exA) nameIndex.set(`ASSUNTO|${a.nome.toLowerCase()}`, a.id);
-    for (const t of exT) nameIndex.set(`TOPICO|${t.nome.toLowerCase()}`, t.id);
-    for (const c of exC) nameIndex.set(`CONCEITO|${c.nome.toLowerCase()}`, c.id);
-
-    let added = 0;
-    for (const ins of insights) {
-      const titulo = (ins.titulo ?? '').trim();
-      if (!titulo) continue;
-      if (!isRelationAllowed(sourceType, ins.tipoNo, ins.relacao)) continue;
-      const dir = getCanonicalDirection(sourceType, ins.tipoNo, ins.relacao);
-      if (!dir) continue;
-      const key = `${ins.tipoNo}|${titulo.toLowerCase()}`;
-      let targetRef = nameIndex.get(key) ?? null;
-      if (!targetRef) {
-        const res = await this.graph.createNode(userId, grafoId, {
-          tipoNode: ins.tipoNo as never,
-          nome: titulo,
-          descricao: ins.descricao ?? '',
-        });
-        targetRef = res.nodeId;
-        nameIndex.set(key, targetRef);
-      }
-      const sourceIsOrigem = dir[0] === sourceType;
-      try {
-        await this.graph.createEdge(userId, grafoId, {
-          sourceNodeId: sourceIsOrigem ? sourceNodeId : targetRef,
-          targetNodeId: sourceIsOrigem ? targetRef : sourceNodeId,
-          tipoRelacao: ins.relacao,
-        });
-        added++;
-      } catch {
-        // aresta duplicada/inválida: ignora
-      }
-    }
-    return { added };
   }
 
   // Geração de flashcards via IA a partir de uma nota (9 tipos de card).

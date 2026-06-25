@@ -25,6 +25,7 @@ const rules: RelationRulesPort = {
   isNotaRelationAllowed: () => true,
   isRelationAllowed: (_s, _t, relacao) => relacao === 'IS_A',
   insightTargets: () => [],
+  canonicalDirection: () => null,
 };
 
 const data: AutoLinkData = {

@@ -10,6 +10,7 @@ import { AutoLinkGraphUseCase } from '../modules/ai/application/use-cases/auto-l
 import { AssessCompletenessUseCase } from '../modules/ai/application/use-cases/assess-completeness.use-case';
 import { ApplyAutoLinkUseCase } from '../modules/ai/application/use-cases/apply-auto-link.use-case';
 import { AddMissingPrerequisiteUseCase } from '../modules/ai/application/use-cases/add-missing-prerequisite.use-case';
+import { AddInsightsToGraphUseCase } from '../modules/ai/application/use-cases/add-insights-to-graph.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -26,6 +27,7 @@ export class AiController {
     private readonly assessCompletenessUseCase: AssessCompletenessUseCase,
     private readonly applyAutoLinkUseCase: ApplyAutoLinkUseCase,
     private readonly addMissingPrerequisiteUseCase: AddMissingPrerequisiteUseCase,
+    private readonly addInsightsToGraphUseCase: AddInsightsToGraphUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -47,7 +49,7 @@ export class AiController {
       insights: Array<{ tipoNo: string; relacao: string; titulo: string; descricao?: string }>;
     },
   ) {
-    return this.ai.addInsightsToGraph(userId, grafoId, nodeId, body.insights ?? []);
+    return this.addInsightsToGraphUseCase.execute(userId, grafoId, nodeId, body.insights ?? []);
   }
 
   @Post('graphs/:grafoId/nota-relations')

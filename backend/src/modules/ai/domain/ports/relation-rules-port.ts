@@ -15,6 +15,8 @@ export interface RelationRulesPort {
   isRelationAllowed(sourceTipo: string, targetTipo: string, relacao: string): boolean;
   // Valid insight targets (and relations) for a source node of the given type.
   insightTargets(tipo: string): InsightTarget[];
+  // Canonical [origem, destino] direction for a relation between two types, or null.
+  canonicalDirection(typeA: string, typeB: string, relacao: string): [string, string] | null;
 }
 
 export const RELATION_RULES_PORT = Symbol('RELATION_RULES_PORT');

@@ -29,6 +29,7 @@ const rules: RelationRulesPort = {
   isNotaRelationAllowed: () => true,
   isRelationAllowed: (_s, _t, relacao) => relacao === 'PREREQUISITO',
   insightTargets: () => [{ tipo: 'CONCEITO', relacoes: ['PREREQUISITO', 'DERIVA_DE'] }],
+  canonicalDirection: () => null,
 };
 
 const ctx: InsightContext = {

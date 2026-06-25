@@ -26,6 +26,7 @@ const rules: RelationRulesPort = {
   isNotaRelationAllowed: (_t, relacao) => relacao === 'DEFINE',
   isRelationAllowed: () => true,
   insightTargets: () => [],
+  canonicalDirection: () => null,
 };
 
 const candidate: RelationCandidate = {

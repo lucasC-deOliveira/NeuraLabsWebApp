@@ -32,7 +32,14 @@ import {
   getAllowedRelations,
   isRelationAllowed,
   getInsightTargets,
+  getCanonicalDirection,
 } from '../modules/graph/domain/services/relation-rules';
+import {
+  INSIGHT_TARGET_INDEX_REPOSITORY,
+  type InsightTargetIndexRepository,
+} from '../modules/ai/domain/ports/insight-target-index-repository';
+import { PrismaInsightTargetIndexRepository } from '../modules/ai/infrastructure/persistence/prisma-insight-target-index.repository';
+import { AddInsightsToGraphUseCase } from '../modules/ai/application/use-cases/add-insights-to-graph.use-case';
 import {
   INSIGHT_CONTEXT_REPOSITORY,
   type InsightContextRepository,
@@ -88,6 +95,7 @@ const graphRelationRules: RelationRulesPort = {
   isRelationAllowed: (sourceTipo, targetTipo, relacao) =>
     isRelationAllowed(sourceTipo, targetTipo, relacao),
   insightTargets: (tipo) => getInsightTargets(tipo),
+  canonicalDirection: (typeA, typeB, relacao) => getCanonicalDirection(typeA, typeB, relacao),
 };
 
 @Module({
@@ -104,6 +112,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: AUTO_LINK_REPOSITORY, useClass: PrismaAutoLinkRepository },
     { provide: COMPLETENESS_REPOSITORY, useClass: PrismaCompletenessRepository },
     { provide: NODE_TYPES_REPOSITORY, useClass: PrismaNodeTypesRepository },
+    { provide: INSIGHT_TARGET_INDEX_REPOSITORY, useClass: PrismaInsightTargetIndexRepository },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -166,6 +175,21 @@ const graphRelationRules: RelationRulesPort = {
         types: NodeTypesRepository,
       ) => new AddMissingPrerequisiteUseCase(nodeWriter, edgeWriter, types),
       inject: [GRAPH_NODE_WRITER, GRAPH_EDGE_WRITER, NODE_TYPES_REPOSITORY],
+    },
+    {
+      provide: AddInsightsToGraphUseCase,
+      useFactory: (
+        repo: InsightTargetIndexRepository,
+        nodeWriter: GraphNodeWriter,
+        edgeWriter: GraphEdgeWriter,
+        rules: RelationRulesPort,
+      ) => new AddInsightsToGraphUseCase(repo, nodeWriter, edgeWriter, rules),
+      inject: [
+        INSIGHT_TARGET_INDEX_REPOSITORY,
+        GRAPH_NODE_WRITER,
+        GRAPH_EDGE_WRITER,
+        RELATION_RULES_PORT,
+      ],
     },
   ],
 })
