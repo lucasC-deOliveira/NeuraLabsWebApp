@@ -681,28 +681,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     };
   }
 
-  // ── Feature: Auto-link ─────────────────────────────────────────────────
-  async applyAutoLink(
-    userId: string,
-    grafoId: string,
-    edges: Array<{ sourceId: string; targetId: string; relacao: string }>,
-  ): Promise<{ added: number }> {
-    let added = 0;
-    for (const e of edges) {
-      try {
-        await this.graph.createEdge(userId, grafoId, {
-          sourceNodeId: e.sourceId,
-          targetNodeId: e.targetId,
-          tipoRelacao: e.relacao,
-        });
-        added++;
-      } catch {
-        /* duplicata/inválida: ignora */
-      }
-    }
-    return { added };
-  }
-
   // ── Feature: Expandir nó ──────────────────────────────────────────────
   async expandNode(
     userId: string,

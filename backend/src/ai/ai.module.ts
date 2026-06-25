@@ -51,6 +51,19 @@ import {
 } from '../modules/ai/domain/ports/completeness-repository';
 import { PrismaCompletenessRepository } from '../modules/ai/infrastructure/persistence/prisma-completeness.repository';
 import { AssessCompletenessUseCase } from '../modules/ai/application/use-cases/assess-completeness.use-case';
+import {
+  GRAPH_EDGE_WRITER,
+  type GraphEdgeWriter,
+} from '../modules/ai/domain/ports/graph-edge-writer';
+import { ApplyAutoLinkUseCase } from '../modules/ai/application/use-cases/apply-auto-link.use-case';
+import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
+
+// Binds the AI context's GraphEdgeWriter to the graph context's CreateEdge use-case.
+const graphEdgeWriter = (createEdge: CreateEdgeUseCase): GraphEdgeWriter => ({
+  createEdge: async (userId, grafoId, edge) => {
+    await createEdge.execute({ userId, grafoId, ...edge });
+  },
+});
 
 // Binds the AI context's RelationRulesPort to the graph context's published rules.
 const graphRelationRules: RelationRulesPort = {
@@ -74,6 +87,11 @@ const graphRelationRules: RelationRulesPort = {
     { provide: INSIGHT_CONTEXT_REPOSITORY, useClass: PrismaInsightContextRepository },
     { provide: AUTO_LINK_REPOSITORY, useClass: PrismaAutoLinkRepository },
     { provide: COMPLETENESS_REPOSITORY, useClass: PrismaCompletenessRepository },
+    {
+      provide: GRAPH_EDGE_WRITER,
+      useFactory: graphEdgeWriter,
+      inject: [CreateEdgeUseCase],
+    },
     {
       provide: DetectDuplicatesUseCase,
       useFactory: (nodes: DuplicateNodesRepository, llm: LlmPort) =>
@@ -112,6 +130,11 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (repo: CompletenessRepository, llm: LlmPort) =>
         new AssessCompletenessUseCase(repo, llm),
       inject: [COMPLETENESS_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: ApplyAutoLinkUseCase,
+      useFactory: (writer: GraphEdgeWriter) => new ApplyAutoLinkUseCase(writer),
+      inject: [GRAPH_EDGE_WRITER],
     },
   ],
 })

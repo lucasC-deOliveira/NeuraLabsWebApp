@@ -8,6 +8,7 @@ import { GenerateLearningPathUseCase } from '../modules/ai/application/use-cases
 import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases/generate-node-insights.use-case';
 import { AutoLinkGraphUseCase } from '../modules/ai/application/use-cases/auto-link-graph.use-case';
 import { AssessCompletenessUseCase } from '../modules/ai/application/use-cases/assess-completeness.use-case';
+import { ApplyAutoLinkUseCase } from '../modules/ai/application/use-cases/apply-auto-link.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -22,6 +23,7 @@ export class AiController {
     private readonly generateNodeInsightsUseCase: GenerateNodeInsightsUseCase,
     private readonly autoLinkGraphUseCase: AutoLinkGraphUseCase,
     private readonly assessCompletenessUseCase: AssessCompletenessUseCase,
+    private readonly applyAutoLinkUseCase: ApplyAutoLinkUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -131,7 +133,7 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Body() body: { edges: Array<{ sourceId: string; targetId: string; relacao: string }> },
   ) {
-    return this.ai.applyAutoLink(userId, grafoId, body.edges ?? []);
+    return this.applyAutoLinkUseCase.execute(userId, grafoId, body.edges ?? []);
   }
 
   @Post('graphs/:grafoId/detect-duplicates')
