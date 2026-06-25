@@ -119,13 +119,6 @@ import {
 import { PlanGraphFromTextUseCase } from '../modules/ai/application/use-cases/plan-graph-from-text.use-case';
 import { BuildGraphFromPlanUseCase } from '../modules/ai/application/use-cases/build-graph-from-plan.use-case';
 import { GenerateGraphFromTextUseCase } from '../modules/ai/application/use-cases/generate-graph-from-text.use-case';
-
-// Binds the AI context's GraphDeckWriter to the graph context's CreateDeck use-case.
-const graphDeckWriter = (createDeck: CreateDeckUseCase): GraphDeckWriter => ({
-  createBaralho: async (userId, grafoId, nome, flashcardIds) => {
-    await createDeck.execute(userId, grafoId, nome, flashcardIds);
-  },
-});
 import {
   DUPLICATE_MERGE_REPOSITORY,
   type DuplicateMergeRepository,
@@ -157,6 +150,13 @@ import {
 } from '../modules/ai/domain/ports/baralho-population-repository';
 import { PrismaBaralhoPopulationRepository } from '../modules/ai/infrastructure/persistence/prisma-baralho-population.repository';
 import { PopulateGraphFromBaralhoUseCase } from '../modules/ai/application/use-cases/populate-graph-from-baralho.use-case';
+
+// Binds the AI context's GraphDeckWriter to the graph context's CreateDeck use-case.
+const graphDeckWriter = (createDeck: CreateDeckUseCase): GraphDeckWriter => ({
+  createBaralho: async (userId, grafoId, nome, flashcardIds) => {
+    await createDeck.execute(userId, grafoId, nome, flashcardIds);
+  },
+});
 
 // Binds the structural-gap targets to the graph's relation rules.
 const gapRules: GapRulesPort = {
