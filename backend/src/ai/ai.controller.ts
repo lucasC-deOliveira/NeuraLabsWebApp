@@ -7,6 +7,7 @@ import { SuggestNotaRelationsUseCase } from '../modules/ai/application/use-cases
 import { GenerateLearningPathUseCase } from '../modules/ai/application/use-cases/generate-learning-path.use-case';
 import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases/generate-node-insights.use-case';
 import { AutoLinkGraphUseCase } from '../modules/ai/application/use-cases/auto-link-graph.use-case';
+import { AssessCompletenessUseCase } from '../modules/ai/application/use-cases/assess-completeness.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -20,6 +21,7 @@ export class AiController {
     private readonly generateLearningPathUseCase: GenerateLearningPathUseCase,
     private readonly generateNodeInsightsUseCase: GenerateNodeInsightsUseCase,
     private readonly autoLinkGraphUseCase: AutoLinkGraphUseCase,
+    private readonly assessCompletenessUseCase: AssessCompletenessUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -192,7 +194,7 @@ export class AiController {
 
   @Post('graphs/:grafoId/assess-completeness')
   assessCompleteness(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
-    return this.ai.assessCompleteness(userId, grafoId);
+    return this.assessCompletenessUseCase.execute(userId, grafoId);
   }
 
   @Post('graphs/:grafoId/fill-gaps')

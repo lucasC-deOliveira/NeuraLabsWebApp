@@ -9,7 +9,6 @@ import { InvalidAiJsonError } from '../modules/ai/domain/errors';
 import { selectGapInsights, type NodeInsight } from '../modules/ai/domain/services/node-insights';
 import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite-relation';
 import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
-import { selectCompletenessAssessments } from '../modules/ai/domain/services/completeness-assessment';
 import { parseClusterSummary } from '../modules/ai/domain/services/cluster-summary';
 import {
   getAllowedRelations,
@@ -1158,120 +1157,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
     ];
     const content = await this.callAI(userId, messages);
     return extractChatAnswer(content, allNodes);
-  }
-
-  // ── Feature: Avaliação de completude ───────────────────────────────────────
-  async assessCompleteness(
-    userId: string,
-    grafoId: string,
-  ): Promise<{
-    assessments: Array<{
-      assuntoId: string;
-      assuntoNome: string;
-      score: number;
-      wellCovered: string[];
-      shallow: string[];
-      missing: string[];
-    }>;
-  }> {
-    const graphNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
-      select: { tipoNode: true, referenciaId: true },
-    });
-    const ids: Record<string, string[]> = {};
-    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
-
-    const [assuntos, topicos, conceitos] = await Promise.all([
-      this.prisma.assunto.findMany({
-        where: { id: { in: ids.ASSUNTO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-      this.prisma.topico.findMany({
-        where: { id: { in: ids.TOPICO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-      this.prisma.conceito.findMany({
-        where: { id: { in: ids.CONCEITO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-    ]);
-
-    if (!assuntos.length) return { assessments: [] };
-
-    // Busca relações para agrupar tópicos e conceitos por assunto
-    const edges = await this.prisma.conhecimentoAresta.findMany({
-      where: { grafoId, tipoRelacao: 'PERTENCE_A' as any },
-      select: { nodeOrigemId: true, nodeDestinoId: true },
-    });
-    const nodeById = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
-      select: { id: true, tipoNode: true, referenciaId: true },
-    });
-    const ncById = new Map(nodeById.map((n) => [n.id, n]));
-    const topicoNomeById = new Map(topicos.map((t) => [t.id, t.nome]));
-    const conceitoNomeById = new Map(conceitos.map((c) => [c.id, c.nome]));
-
-    // Mapeia assunto NC id → lista de tópicos/conceitos filhos
-    const childrenByAssuntoNcId = new Map<string, { topicos: string[]; conceitos: string[] }>();
-    for (const assunto of assuntos) {
-      const assuntoNc = nodeById.find(
-        (n) => n.tipoNode === 'ASSUNTO' && n.referenciaId === assunto.id,
-      );
-      if (assuntoNc) childrenByAssuntoNcId.set(assuntoNc.id, { topicos: [], conceitos: [] });
-    }
-    for (const edge of edges) {
-      if (!edge.nodeOrigemId || !edge.nodeDestinoId) continue;
-      const src = ncById.get(edge.nodeOrigemId);
-      if (!src) continue;
-      const bucket = childrenByAssuntoNcId.get(edge.nodeDestinoId);
-      if (bucket) {
-        if (src.tipoNode === 'TOPICO')
-          bucket.topicos.push(topicoNomeById.get(src.referenciaId) ?? src.referenciaId);
-        if (src.tipoNode === 'CONCEITO')
-          bucket.conceitos.push(conceitoNomeById.get(src.referenciaId) ?? src.referenciaId);
-      }
-    }
-
-    // Monta contexto agrupado por assunto
-    const ctxLines: string[] = [];
-    for (const assunto of assuntos) {
-      const assuntoNc = nodeById.find(
-        (n) => n.tipoNode === 'ASSUNTO' && n.referenciaId === assunto.id,
-      );
-      const children = assuntoNc ? childrenByAssuntoNcId.get(assuntoNc.id) : undefined;
-      ctxLines.push(`ASSUNTO: "${assunto.nome}"`);
-      if (children?.topicos.length) ctxLines.push(`  Tópicos: ${children.topicos.join(', ')}`);
-      if (children?.conceitos.length)
-        ctxLines.push(`  Conceitos: ${children.conceitos.join(', ')}`);
-      // Conceitos sem ligação direta ao assunto, listados globalmente como fallback
-    }
-    // Tópicos/conceitos sem assunto pai
-    const orphanTopicos = topicos.filter((t) => !ctxLines.join('').includes(t.nome));
-    const orphanConceitos = conceitos.filter((c) => !ctxLines.join('').includes(c.nome));
-    if (orphanTopicos.length || orphanConceitos.length) {
-      ctxLines.push('Outros (sem assunto pai):');
-      if (orphanTopicos.length)
-        ctxLines.push(`  Tópicos: ${orphanTopicos.map((t) => t.nome).join(', ')}`);
-      if (orphanConceitos.length)
-        ctxLines.push(`  Conceitos: ${orphanConceitos.map((c) => c.nome).join(', ')}`);
-    }
-    const ctx = ctxLines.join('\n');
-
-    const content = await this.callAI(userId, [
-      {
-        role: 'system',
-        content:
-          'Avalie a COMPLETUDE do conhecimento para cada ASSUNTO listado com seus tópicos e conceitos. Score 0-10. Responda JSON: {"assessments":[{"assuntoNome":"nome exato do assunto","score":7,"wellCovered":["tópico/conceito bem coberto"],"shallow":["área presente mas rasa"],"missing":["conceito importante AUSENTE"]}]} — wellCovered/shallow/missing: máx 6 itens cada, strings curtas. Use o nome exato do assunto no campo assuntoNome.',
-      },
-      { role: 'user', content: `GRAFO:\n${ctx.slice(0, 8000)}` },
-    ]);
-    let parsed: any;
-    try {
-      parsed = this.extractJSON(content ?? '{}');
-    } catch {
-      return { assessments: [] };
-    }
-    return { assessments: selectCompletenessAssessments(parsed?.assessments ?? [], assuntos) };
   }
 
   // ── Feature: Preencher lacunas de conhecimento ─────────────────────────────

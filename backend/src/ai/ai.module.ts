@@ -45,6 +45,12 @@ import {
 } from '../modules/ai/domain/ports/auto-link-repository';
 import { PrismaAutoLinkRepository } from '../modules/ai/infrastructure/persistence/prisma-auto-link.repository';
 import { AutoLinkGraphUseCase } from '../modules/ai/application/use-cases/auto-link-graph.use-case';
+import {
+  COMPLETENESS_REPOSITORY,
+  type CompletenessRepository,
+} from '../modules/ai/domain/ports/completeness-repository';
+import { PrismaCompletenessRepository } from '../modules/ai/infrastructure/persistence/prisma-completeness.repository';
+import { AssessCompletenessUseCase } from '../modules/ai/application/use-cases/assess-completeness.use-case';
 
 // Binds the AI context's RelationRulesPort to the graph context's published rules.
 const graphRelationRules: RelationRulesPort = {
@@ -67,6 +73,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: LEARNING_GRAPH_REPOSITORY, useClass: PrismaLearningGraphRepository },
     { provide: INSIGHT_CONTEXT_REPOSITORY, useClass: PrismaInsightContextRepository },
     { provide: AUTO_LINK_REPOSITORY, useClass: PrismaAutoLinkRepository },
+    { provide: COMPLETENESS_REPOSITORY, useClass: PrismaCompletenessRepository },
     {
       provide: DetectDuplicatesUseCase,
       useFactory: (nodes: DuplicateNodesRepository, llm: LlmPort) =>
@@ -99,6 +106,12 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (repo: AutoLinkRepository, llm: LlmPort, rules: RelationRulesPort) =>
         new AutoLinkGraphUseCase(repo, llm, rules),
       inject: [AUTO_LINK_REPOSITORY, LLM_PORT, RELATION_RULES_PORT],
+    },
+    {
+      provide: AssessCompletenessUseCase,
+      useFactory: (repo: CompletenessRepository, llm: LlmPort) =>
+        new AssessCompletenessUseCase(repo, llm),
+      inject: [COMPLETENESS_REPOSITORY, LLM_PORT],
     },
   ],
 })
