@@ -18,6 +18,7 @@ import { ListBaralhosInGrafoUseCase } from '../modules/ai/application/use-cases/
 import { ExpandNodeUseCase } from '../modules/ai/application/use-cases/expand-node.use-case';
 import { FillKnowledgeGapsUseCase } from '../modules/ai/application/use-cases/fill-knowledge-gaps.use-case';
 import { MergeDuplicateNodesUseCase } from '../modules/ai/application/use-cases/merge-duplicate-nodes.use-case';
+import { SuggestGapFillUseCase } from '../modules/ai/application/use-cases/suggest-gap-fill.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -42,6 +43,7 @@ export class AiController {
     private readonly expandNodeUseCase: ExpandNodeUseCase,
     private readonly fillKnowledgeGapsUseCase: FillKnowledgeGapsUseCase,
     private readonly mergeDuplicateNodesUseCase: MergeDuplicateNodesUseCase,
+    private readonly suggestGapFillUseCase: SuggestGapFillUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -137,7 +139,7 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Body() body: { labelsA: string[]; labelsB: string[]; bridgeA: string; bridgeB: string },
   ) {
-    return this.ai.suggestGapFill(userId, grafoId, body);
+    return this.suggestGapFillUseCase.execute(userId, grafoId, body);
   }
 
   @Post('graphs/:grafoId/auto-link')

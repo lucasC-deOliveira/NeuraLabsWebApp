@@ -5,8 +5,6 @@ import { GraphService } from '../graph/graph.service';
 import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/ports/llm-port';
 import { parseAiJson } from '../modules/ai/domain/services/ai-json';
 import { InvalidAiJsonError } from '../modules/ai/domain/errors';
-import { selectGapInsights, type NodeInsight } from '../modules/ai/domain/services/node-insights';
-import { getAllowedRelations } from '../modules/graph/domain/services/relation-rules';
 import {
   makeConceptResolver,
   FlashcardPreview,
@@ -599,43 +597,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
       flashcards: flashcardCount,
       baralho: baralhoNome,
     };
-  }
-
-  // Gap Detection: sugere nós que poderiam conectar dois clusters sem arestas entre si.
-  async suggestGapFill(
-    userId: string,
-    grafoId: string,
-    body: { labelsA: string[]; labelsB: string[]; bridgeA: string; bridgeB: string },
-  ): Promise<{ insights: NodeInsight[] }> {
-    const { labelsA, labelsB, bridgeA, bridgeB } = body;
-    if (!labelsA.length || !labelsB.length) return { insights: [] };
-
-    const targets = [
-      { tipo: 'CONCEITO', relacoes: getAllowedRelations('CONCEITO', 'CONCEITO') },
-      { tipo: 'NOTA', relacoes: getAllowedRelations('NOTA', 'CONCEITO') },
-    ];
-    const targetsDesc = targets
-      .map((t) => `- tipoNo "${t.tipo}" → relações: ${t.relacoes.join(', ')}`)
-      .join('\n');
-
-    const content = await this.callAI(userId, [
-      {
-        role: 'system',
-        content: `Você analisa dois clusters de um grafo de conhecimento que NÃO têm nenhuma conexão entre si — isso é uma lacuna estrutural (structural gap). Sugira 4-6 novos nós (conceitos ou notas) que poderiam criar pontes intelectuais entre eles.\nCada nó sugerido deve: (1) relacionar-se semanticamente com ambos os clusters; (2) usar tipoNo e relacao SOMENTE dos combos válidos:\n${targetsDesc}\nResponda em JSON: {"insights":[{"categoria":"Lacuna","titulo":"...","descricao":"...","tipoNo":"...","relacao":"..."}]}`,
-      },
-      {
-        role: 'user',
-        content: `CLUSTER A (${labelsA.length} nós): ${labelsA.slice(0, 20).join(', ')}\nNó de borda de A mais próximo de B: "${bridgeA}"\n\nCLUSTER B (${labelsB.length} nós): ${labelsB.slice(0, 20).join(', ')}\nNó de borda de B mais próximo de A: "${bridgeB}"`,
-      },
-    ]);
-
-    let parsed: any;
-    try {
-      parsed = JSON.parse(content ?? '{}');
-    } catch {
-      return { insights: [] };
-    }
-    return { insights: selectGapInsights(parsed?.insights ?? []) };
   }
 
   async populateGraphFromBaralho(

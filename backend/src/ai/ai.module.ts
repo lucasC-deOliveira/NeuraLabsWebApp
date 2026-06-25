@@ -122,6 +122,16 @@ import {
 } from '../modules/ai/domain/ports/graph-node-deleter';
 import { PrismaDuplicateMergeRepository } from '../modules/ai/infrastructure/persistence/prisma-duplicate-merge.repository';
 import { MergeDuplicateNodesUseCase } from '../modules/ai/application/use-cases/merge-duplicate-nodes.use-case';
+import { GAP_RULES_PORT, type GapRulesPort } from '../modules/ai/domain/ports/gap-rules-port';
+import { SuggestGapFillUseCase } from '../modules/ai/application/use-cases/suggest-gap-fill.use-case';
+
+// Binds the structural-gap targets to the graph's relation rules.
+const gapRules: GapRulesPort = {
+  gapTargets: () => [
+    { tipo: 'CONCEITO', relacoes: getAllowedRelations('CONCEITO', 'CONCEITO') },
+    { tipo: 'NOTA', relacoes: getAllowedRelations('NOTA', 'CONCEITO') },
+  ],
+};
 
 // Binds the AI context's GraphNodeDeleter to the graph context's DeleteNode use-case.
 const graphNodeDeleter = (deleteNode: DeleteNodeUseCase): GraphNodeDeleter => ({
@@ -175,6 +185,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: GRAPH_NAME_INDEX_REPOSITORY, useClass: PrismaGraphNameIndexRepository },
     { provide: DUPLICATE_MERGE_REPOSITORY, useClass: PrismaDuplicateMergeRepository },
     { provide: GRAPH_NODE_DELETER, useFactory: graphNodeDeleter, inject: [DeleteNodeUseCase] },
+    { provide: GAP_RULES_PORT, useValue: gapRules },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -314,6 +325,11 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (repo: DuplicateMergeRepository, deleter: GraphNodeDeleter) =>
         new MergeDuplicateNodesUseCase(repo, deleter),
       inject: [DUPLICATE_MERGE_REPOSITORY, GRAPH_NODE_DELETER],
+    },
+    {
+      provide: SuggestGapFillUseCase,
+      useFactory: (llm: LlmPort, rules: GapRulesPort) => new SuggestGapFillUseCase(llm, rules),
+      inject: [LLM_PORT, GAP_RULES_PORT],
     },
   ],
 })
