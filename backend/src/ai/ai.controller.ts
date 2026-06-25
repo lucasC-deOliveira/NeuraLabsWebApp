@@ -13,6 +13,7 @@ import { AddMissingPrerequisiteUseCase } from '../modules/ai/application/use-cas
 import { AddInsightsToGraphUseCase } from '../modules/ai/application/use-cases/add-insights-to-graph.use-case';
 import { DetectMissingPrerequisitesUseCase } from '../modules/ai/application/use-cases/detect-missing-prerequisites.use-case';
 import { GenerateCommunitySummaryUseCase } from '../modules/ai/application/use-cases/generate-community-summary.use-case';
+import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -32,6 +33,7 @@ export class AiController {
     private readonly addInsightsToGraphUseCase: AddInsightsToGraphUseCase,
     private readonly detectMissingPrerequisitesUseCase: DetectMissingPrerequisitesUseCase,
     private readonly generateCommunitySummaryUseCase: GenerateCommunitySummaryUseCase,
+    private readonly chatWithGraphUseCase: ChatWithGraphUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -199,7 +201,12 @@ export class AiController {
     @Body()
     body: { question: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> },
   ) {
-    return this.ai.chatWithGraph(userId, grafoId, body.question ?? '', body.history ?? []);
+    return this.chatWithGraphUseCase.execute(
+      userId,
+      grafoId,
+      body.question ?? '',
+      body.history ?? [],
+    );
   }
 
   @Post('graphs/:grafoId/assess-completeness')

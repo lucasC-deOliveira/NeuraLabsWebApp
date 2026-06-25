@@ -7,7 +7,6 @@ import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/po
 import { parseAiJson } from '../modules/ai/domain/services/ai-json';
 import { InvalidAiJsonError } from '../modules/ai/domain/errors';
 import { selectGapInsights, type NodeInsight } from '../modules/ai/domain/services/node-insights';
-import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
 import { getAllowedRelations } from '../modules/graph/domain/services/relation-rules';
 import {
   makeConceptResolver,
@@ -821,62 +820,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
   // ── Feature: Resumo de comunidade ──────────────────────────────────────
 
   // ── Feature: Chat com o grafo ──────────────────────────────────────────────
-  async chatWithGraph(
-    userId: string,
-    grafoId: string,
-    question: string,
-    history: Array<{ role: 'user' | 'assistant'; content: string }> = [],
-  ): Promise<{
-    answer: string;
-    referencedNodes: Array<{ id: string; nome: string; tipo: string }>;
-  }> {
-    const graphNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
-      select: { tipoNode: true, referenciaId: true },
-    });
-    const ids: Record<string, string[]> = {};
-    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
-    const [topicos, conceitos, notas] = await Promise.all([
-      this.prisma.topico.findMany({
-        where: { id: { in: ids.TOPICO ?? [] } },
-        select: { id: true, nome: true, descricao: true },
-      }),
-      this.prisma.conceito.findMany({
-        where: { id: { in: ids.CONCEITO ?? [] } },
-        select: { id: true, nome: true, descricao: true },
-      }),
-      this.prisma.nota.findMany({
-        where: { id: { in: ids.NOTA ?? [] } },
-        select: { id: true, titulo: true, conteudo: true },
-      }),
-    ]);
-    const allNodes = [
-      ...topicos.map((t) => ({ id: t.id, tipo: 'TOPICO', nome: t.nome })),
-      ...conceitos.map((c) => ({ id: c.id, tipo: 'CONCEITO', nome: c.nome })),
-    ];
-    const ctx = [
-      ...topicos.map(
-        (t) => `[TÓPICO:${t.id}] ${t.nome}${t.descricao ? ': ' + t.descricao.slice(0, 200) : ''}`,
-      ),
-      ...conceitos.map(
-        (c) => `[CONCEITO:${c.id}] ${c.nome}${c.descricao ? ': ' + c.descricao.slice(0, 300) : ''}`,
-      ),
-      ...notas.map(
-        (n) => `[NOTA:${n.id}] ${n.titulo || 'Nota'}: ${(n.conteudo ?? '').slice(0, 500)}`,
-      ),
-    ].join('\n\n');
-    const messages: any[] = [
-      {
-        role: 'system',
-        content: `Responda a pergunta do usuário baseado EXCLUSIVAMENTE no grafo de conhecimento abaixo. Seja direto. Responda em Markdown. Ao FINAL da resposta, em uma linha separada, inclua EXATAMENTE este JSON (sem markdown): {"referencedNodeIds":["id1","id2"]}\n\nGRAFO:\n${ctx.slice(0, 8000)}`,
-      },
-      ...history.slice(-6),
-      { role: 'user', content: question },
-    ];
-    const content = await this.callAI(userId, messages);
-    return extractChatAnswer(content, allNodes);
-  }
-
   // ── Feature: Preencher lacunas de conhecimento ─────────────────────────────
   async fillKnowledgeGaps(
     userId: string,

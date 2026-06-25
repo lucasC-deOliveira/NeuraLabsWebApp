@@ -53,6 +53,12 @@ import {
 import { PrismaClusterNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-cluster-nodes.repository';
 import { GenerateCommunitySummaryUseCase } from '../modules/ai/application/use-cases/generate-community-summary.use-case';
 import {
+  CHAT_NODES_REPOSITORY,
+  type ChatNodesRepository,
+} from '../modules/ai/domain/ports/chat-nodes-repository';
+import { PrismaChatNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-chat-nodes.repository';
+import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
+import {
   INSIGHT_CONTEXT_REPOSITORY,
   type InsightContextRepository,
 } from '../modules/ai/domain/ports/insight-context-repository';
@@ -127,6 +133,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: INSIGHT_TARGET_INDEX_REPOSITORY, useClass: PrismaInsightTargetIndexRepository },
     { provide: PREREQUISITE_NODES_REPOSITORY, useClass: PrismaPrerequisiteNodesRepository },
     { provide: CLUSTER_NODES_REPOSITORY, useClass: PrismaClusterNodesRepository },
+    { provide: CHAT_NODES_REPOSITORY, useClass: PrismaChatNodesRepository },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -216,6 +223,11 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (repo: ClusterNodesRepository, llm: LlmPort) =>
         new GenerateCommunitySummaryUseCase(repo, llm),
       inject: [CLUSTER_NODES_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: ChatWithGraphUseCase,
+      useFactory: (repo: ChatNodesRepository, llm: LlmPort) => new ChatWithGraphUseCase(repo, llm),
+      inject: [CHAT_NODES_REPOSITORY, LLM_PORT],
     },
   ],
 })
