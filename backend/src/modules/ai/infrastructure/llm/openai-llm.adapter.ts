@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { OpenAI } from 'openai';
-import { SettingsService } from '../../../../settings/settings.service';
+import { AI_CONFIG_RESOLVER, type AiConfigResolver } from '../../domain/ports/ai-config-resolver';
 import type { LlmMessage, LlmPort, LlmRequest } from '../../domain/ports/llm-port';
 
 // Minimal slice of the OpenAI chat API this adapter relies on — keeps the SDK's
@@ -28,10 +28,10 @@ const DEFAULT_TEMPERATURE = 0.3;
 // JSON-object chat completion. The only place that imports the OpenAI SDK.
 @Injectable()
 export class OpenAiLlmAdapter implements LlmPort {
-  constructor(private readonly settings: SettingsService) {}
+  constructor(@Inject(AI_CONFIG_RESOLVER) private readonly config: AiConfigResolver) {}
 
   async complete(request: LlmRequest): Promise<string> {
-    const cfg = await this.settings.resolveAIConfig(request.userId);
+    const cfg = await this.config.resolve(request.userId);
     if (!cfg.apiKey)
       throw new BadRequestException('API key não configurada. Configure em Configurações.');
     const client = this.createClient({ apiKey: cfg.apiKey, baseURL: cfg.baseUrl });

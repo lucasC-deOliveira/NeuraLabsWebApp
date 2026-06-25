@@ -1,6 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { SettingsService } from '../settings/settings.service';
+import { ResolveAiConfigUseCase } from '../modules/settings/application/use-cases/resolve-ai-config.use-case';
 import { OpenAI } from 'openai';
 import * as mammoth from 'mammoth';
 // pdf-parse is a CJS module; require() avoids the "not callable" TS error with import *
@@ -42,12 +47,16 @@ const QUESTAO_SELECT = {
 export class ProvasService {
   constructor(
     private prisma: PrismaService,
-    private settings: SettingsService,
+    private resolveAiConfig: ResolveAiConfigUseCase,
   ) {}
 
   // ---- Extração de texto ----
 
-  private async extractText(buffer: Buffer, mimetype: string, originalname: string): Promise<string> {
+  private async extractText(
+    buffer: Buffer,
+    mimetype: string,
+    originalname: string,
+  ): Promise<string> {
     const ext = originalname.split('.').pop()?.toLowerCase() ?? '';
 
     if (ext === 'pdf' || mimetype === 'application/pdf') {
@@ -55,7 +64,10 @@ export class ProvasService {
       return data.text;
     }
 
-    if (ext === 'docx' || mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    if (
+      ext === 'docx' ||
+      mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ) {
       const result = await mammoth.extractRawText({ buffer });
       return result.value;
     }
@@ -83,8 +95,9 @@ export class ProvasService {
       this.extractText(gabaritoBuffer, gabaritoMime, gabaritoName),
     ]);
 
-    const cfg = await this.settings.resolveAIConfig(userId);
-    if (!cfg.apiKey) throw new BadRequestException('API key não configurada. Configure em Configurações.');
+    const cfg = await this.resolveAiConfig.execute(userId);
+    if (!cfg.apiKey)
+      throw new BadRequestException('API key não configurada. Configure em Configurações.');
 
     const client = new OpenAI({ apiKey: cfg.apiKey, baseURL: cfg.baseUrl });
 
@@ -159,14 +172,17 @@ ${gabaritoText.slice(0, 4000)}`;
       else throw new BadRequestException('IA retornou formato inválido.');
     }
 
-    const questoes: ParsedQuestao[] = (parsed.questoes ?? []).map((q: any, i: number) => ({
-      numero: q.numero ?? i + 1,
-      enunciado: String(q.enunciado ?? '').trim(),
-      tipo: q.tipo === 'VERDADEIRO_FALSO' ? 'VERDADEIRO_FALSO' : 'MULTIPLA_ESCOLHA',
-      alternativas: Array.isArray(q.alternativas) && q.alternativas.length > 0 ? q.alternativas : null,
-      gabarito: String(q.gabarito ?? '?').toUpperCase(),
-      explicacao: q.explicacao ?? null,
-    })).filter((q: ParsedQuestao) => q.enunciado.length > 0);
+    const questoes: ParsedQuestao[] = (parsed.questoes ?? [])
+      .map((q: any, i: number) => ({
+        numero: q.numero ?? i + 1,
+        enunciado: String(q.enunciado ?? '').trim(),
+        tipo: q.tipo === 'VERDADEIRO_FALSO' ? 'VERDADEIRO_FALSO' : 'MULTIPLA_ESCOLHA',
+        alternativas:
+          Array.isArray(q.alternativas) && q.alternativas.length > 0 ? q.alternativas : null,
+        gabarito: String(q.gabarito ?? '?').toUpperCase(),
+        explicacao: q.explicacao ?? null,
+      }))
+      .filter((q: ParsedQuestao) => q.enunciado.length > 0);
 
     return {
       tituloSugerido: parsed.tituloSugerido ?? null,

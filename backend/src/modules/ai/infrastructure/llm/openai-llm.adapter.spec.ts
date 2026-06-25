@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 import { OpenAiLlmAdapter, type ChatClient, type ChatParams } from './openai-llm.adapter';
-import type { SettingsService } from '../../../../settings/settings.service';
+import type { AiConfigResolver } from '../../domain/ports/ai-config-resolver';
 
 type Config = { apiKey: string; baseUrl: string; model: string };
 
-class FakeSettings {
+class FakeResolver implements AiConfigResolver {
   constructor(private readonly cfg: Config) {}
-  async resolveAIConfig(): Promise<Config> {
+  async resolve(): Promise<Config> {
     return this.cfg;
   }
 }
@@ -16,10 +16,10 @@ class FakeSettings {
 class TestAdapter extends OpenAiLlmAdapter {
   lastParams: ChatParams | null = null;
   constructor(
-    settings: Config,
+    config: Config,
     private readonly content: string | null = '{"ok":1}',
   ) {
-    super(new FakeSettings(settings) as unknown as SettingsService);
+    super(new FakeResolver(config));
   }
   protected createClient(): ChatClient {
     return {

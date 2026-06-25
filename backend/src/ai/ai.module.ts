@@ -6,6 +6,16 @@ import { AiController } from './ai.controller';
 import { LLM_PORT, type LlmPort } from '../modules/ai/domain/ports/llm-port';
 import { OpenAiLlmAdapter } from '../modules/ai/infrastructure/llm/openai-llm.adapter';
 import {
+  AI_CONFIG_RESOLVER,
+  type AiConfigResolver,
+} from '../modules/ai/domain/ports/ai-config-resolver';
+import { ResolveAiConfigUseCase } from '../modules/settings/application/use-cases/resolve-ai-config.use-case';
+
+// Binds the AI context's config resolver to the settings context's use-case.
+const aiConfigResolver = (resolve: ResolveAiConfigUseCase): AiConfigResolver => ({
+  resolve: (userId) => resolve.execute(userId),
+});
+import {
   DUPLICATE_NODES_REPOSITORY,
   type DuplicateNodesRepository,
 } from '../modules/ai/domain/ports/duplicate-nodes-repository';
@@ -200,6 +210,7 @@ const graphRelationRules: RelationRulesPort = {
   controllers: [AiController],
   providers: [
     { provide: LLM_PORT, useClass: OpenAiLlmAdapter },
+    { provide: AI_CONFIG_RESOLVER, useFactory: aiConfigResolver, inject: [ResolveAiConfigUseCase] },
     { provide: DUPLICATE_NODES_REPOSITORY, useClass: PrismaDuplicateNodesRepository },
     { provide: RELATION_CANDIDATES_REPOSITORY, useClass: PrismaRelationCandidatesRepository },
     { provide: RELATION_RULES_PORT, useValue: graphRelationRules },
