@@ -41,6 +41,12 @@ import {
 import { PrismaInsightTargetIndexRepository } from '../modules/ai/infrastructure/persistence/prisma-insight-target-index.repository';
 import { AddInsightsToGraphUseCase } from '../modules/ai/application/use-cases/add-insights-to-graph.use-case';
 import {
+  PREREQUISITE_NODES_REPOSITORY,
+  type PrerequisiteNodesRepository,
+} from '../modules/ai/domain/ports/prerequisite-nodes-repository';
+import { PrismaPrerequisiteNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-prerequisite-nodes.repository';
+import { DetectMissingPrerequisitesUseCase } from '../modules/ai/application/use-cases/detect-missing-prerequisites.use-case';
+import {
   INSIGHT_CONTEXT_REPOSITORY,
   type InsightContextRepository,
 } from '../modules/ai/domain/ports/insight-context-repository';
@@ -113,6 +119,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: COMPLETENESS_REPOSITORY, useClass: PrismaCompletenessRepository },
     { provide: NODE_TYPES_REPOSITORY, useClass: PrismaNodeTypesRepository },
     { provide: INSIGHT_TARGET_INDEX_REPOSITORY, useClass: PrismaInsightTargetIndexRepository },
+    { provide: PREREQUISITE_NODES_REPOSITORY, useClass: PrismaPrerequisiteNodesRepository },
     {
       provide: GRAPH_EDGE_WRITER,
       useFactory: graphEdgeWriter,
@@ -190,6 +197,12 @@ const graphRelationRules: RelationRulesPort = {
         GRAPH_EDGE_WRITER,
         RELATION_RULES_PORT,
       ],
+    },
+    {
+      provide: DetectMissingPrerequisitesUseCase,
+      useFactory: (repo: PrerequisiteNodesRepository, llm: LlmPort) =>
+        new DetectMissingPrerequisitesUseCase(repo, llm),
+      inject: [PREREQUISITE_NODES_REPOSITORY, LLM_PORT],
     },
   ],
 })
