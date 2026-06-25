@@ -6,6 +6,7 @@ import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/det
 import { SuggestNotaRelationsUseCase } from '../modules/ai/application/use-cases/suggest-nota-relations.use-case';
 import { GenerateLearningPathUseCase } from '../modules/ai/application/use-cases/generate-learning-path.use-case';
 import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases/generate-node-insights.use-case';
+import { AutoLinkGraphUseCase } from '../modules/ai/application/use-cases/auto-link-graph.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -18,6 +19,7 @@ export class AiController {
     private readonly suggestNotaRelationsUseCase: SuggestNotaRelationsUseCase,
     private readonly generateLearningPathUseCase: GenerateLearningPathUseCase,
     private readonly generateNodeInsightsUseCase: GenerateNodeInsightsUseCase,
+    private readonly autoLinkGraphUseCase: AutoLinkGraphUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -118,7 +120,7 @@ export class AiController {
 
   @Post('graphs/:grafoId/auto-link')
   autoLink(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
-    return this.ai.autoLinkGraph(userId, grafoId);
+    return this.autoLinkGraphUseCase.execute(userId, grafoId);
   }
 
   @Post('graphs/:grafoId/auto-link/apply')

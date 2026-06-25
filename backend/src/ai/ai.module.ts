@@ -39,6 +39,12 @@ import {
 } from '../modules/ai/domain/ports/insight-context-repository';
 import { PrismaInsightContextRepository } from '../modules/ai/infrastructure/persistence/prisma-insight-context.repository';
 import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases/generate-node-insights.use-case';
+import {
+  AUTO_LINK_REPOSITORY,
+  type AutoLinkRepository,
+} from '../modules/ai/domain/ports/auto-link-repository';
+import { PrismaAutoLinkRepository } from '../modules/ai/infrastructure/persistence/prisma-auto-link.repository';
+import { AutoLinkGraphUseCase } from '../modules/ai/application/use-cases/auto-link-graph.use-case';
 
 // Binds the AI context's RelationRulesPort to the graph context's published rules.
 const graphRelationRules: RelationRulesPort = {
@@ -60,6 +66,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: RELATION_RULES_PORT, useValue: graphRelationRules },
     { provide: LEARNING_GRAPH_REPOSITORY, useClass: PrismaLearningGraphRepository },
     { provide: INSIGHT_CONTEXT_REPOSITORY, useClass: PrismaInsightContextRepository },
+    { provide: AUTO_LINK_REPOSITORY, useClass: PrismaAutoLinkRepository },
     {
       provide: DetectDuplicatesUseCase,
       useFactory: (nodes: DuplicateNodesRepository, llm: LlmPort) =>
@@ -86,6 +93,12 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (context: InsightContextRepository, llm: LlmPort, rules: RelationRulesPort) =>
         new GenerateNodeInsightsUseCase(context, llm, rules),
       inject: [INSIGHT_CONTEXT_REPOSITORY, LLM_PORT, RELATION_RULES_PORT],
+    },
+    {
+      provide: AutoLinkGraphUseCase,
+      useFactory: (repo: AutoLinkRepository, llm: LlmPort, rules: RelationRulesPort) =>
+        new AutoLinkGraphUseCase(repo, llm, rules),
+      inject: [AUTO_LINK_REPOSITORY, LLM_PORT, RELATION_RULES_PORT],
     },
   ],
 })

@@ -7,7 +7,6 @@ import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/po
 import { parseAiJson } from '../modules/ai/domain/services/ai-json';
 import { InvalidAiJsonError } from '../modules/ai/domain/errors';
 import { selectGapInsights, type NodeInsight } from '../modules/ai/domain/services/node-insights';
-import { selectAutoLinkSuggestions } from '../modules/ai/domain/services/auto-link-suggestions';
 import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite-relation';
 import { extractChatAnswer } from '../modules/ai/domain/services/chat-answer';
 import { selectCompletenessAssessments } from '../modules/ai/domain/services/completeness-assessment';
@@ -684,87 +683,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
   }
 
   // ── Feature: Auto-link ─────────────────────────────────────────────────
-  async autoLinkGraph(
-    userId: string,
-    grafoId: string,
-  ): Promise<{
-    suggestions: Array<{
-      sourceId: string;
-      targetId: string;
-      sourceNome: string;
-      targetNome: string;
-      relacao: string;
-      motivo: string;
-    }>;
-  }> {
-    const graphNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
-      select: { tipoNode: true, referenciaId: true },
-    });
-    const ids: Record<string, string[]> = {};
-    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
-    const [assuntos, topicos, conceitos, notas] = await Promise.all([
-      this.prisma.assunto.findMany({
-        where: { id: { in: ids.ASSUNTO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-      this.prisma.topico.findMany({
-        where: { id: { in: ids.TOPICO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-      this.prisma.conceito.findMany({
-        where: { id: { in: ids.CONCEITO ?? [] } },
-        select: { id: true, nome: true },
-      }),
-      this.prisma.nota.findMany({
-        where: { id: { in: ids.NOTA ?? [] } },
-        select: { id: true, titulo: true },
-      }),
-    ]);
-    const allNodes = [
-      ...assuntos.map((a) => ({ id: a.id, tipo: 'ASSUNTO', nome: a.nome })),
-      ...topicos.map((t) => ({ id: t.id, tipo: 'TOPICO', nome: t.nome })),
-      ...conceitos.map((c) => ({ id: c.id, tipo: 'CONCEITO', nome: c.nome })),
-      ...notas.map((n) => ({ id: n.id, tipo: 'NOTA', nome: n.titulo || 'Nota' })),
-    ];
-    if (allNodes.length < 2) return { suggestions: [] };
-    // Load existing edges to avoid suggesting duplicates
-    const [existingEdges, ncNodes] = await Promise.all([
-      this.prisma.conhecimentoAresta.findMany({
-        where: { grafoId },
-        select: { nodeOrigemId: true, nodeDestinoId: true },
-      }),
-      this.prisma.nodeConhecimento.findMany({
-        where: { grafoId, usuarioId: userId },
-        select: { id: true, referenciaId: true },
-      }),
-    ]);
-    const refByNcId = new Map(ncNodes.map((n) => [n.id, n.referenciaId]));
-    const existingPairs = new Set(
-      existingEdges
-        .filter((e) => e.nodeOrigemId && e.nodeDestinoId)
-        .map((e) => `${refByNcId.get(e.nodeOrigemId!)}:${refByNcId.get(e.nodeDestinoId!)}`),
-    );
-    const nodeList = allNodes.map((n) => `id:${n.id} tipo:${n.tipo} nome:"${n.nome}"`).join('\n');
-    const allowedDesc =
-      'TOPICO→ASSUNTO: PERTENCE_A | CONCEITO→TOPICO: PERTENCE_A, FUNDAMENTA | CONCEITO→CONCEITO: IS_A, PART_OF, PREREQUISITO, DERIVA_DE, EVOLUI_PARA, REFORCA, ALTERNATIVA_A, CONTRASTA_COM | NOTA→CONCEITO: DEFINE, EXPLICA, APROFUNDA, EXEMPLIFICA | NOTA→TOPICO: PERTENCE_A';
-    const content = await this.callAI(userId, [
-      {
-        role: 'system',
-        content: `Analise o grafo e sugira 5-15 ARESTAS que deveriam existir mas ainda não existem. Relações válidas: ${allowedDesc}\nJSON: {"suggestions":[{"sourceId":"...","targetId":"...","relacao":"...","motivo":"frase curta"}]}`,
-      },
-      { role: 'user', content: `NÓS:\n${nodeList.slice(0, 7000)}` },
-    ]);
-    const parsed = this.extractJSON(content ?? '{}');
-    const suggestions = selectAutoLinkSuggestions(
-      parsed?.suggestions ?? [],
-      allNodes,
-      existingPairs,
-      isRelationAllowed,
-    );
-    return { suggestions };
-  }
-
   async applyAutoLink(
     userId: string,
     grafoId: string,
