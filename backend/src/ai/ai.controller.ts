@@ -1,15 +1,25 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AiService } from './ai.service';
+import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
+import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
+@UseFilters(AiDomainExceptionFilter)
 @Controller('ai/graph')
 export class AiController {
-  constructor(private readonly ai: AiService) {}
+  constructor(
+    private readonly ai: AiService,
+    private readonly detectDuplicatesUseCase: DetectDuplicatesUseCase,
+  ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
-  nodeInsights(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Param('nodeId') nodeId: string) {
+  nodeInsights(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Param('nodeId') nodeId: string,
+  ) {
     return this.ai.generateNodeInsights(userId, grafoId, nodeId);
   }
 
@@ -18,13 +28,20 @@ export class AiController {
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
     @Param('nodeId') nodeId: string,
-    @Body() body: { insights: Array<{ tipoNo: string; relacao: string; titulo: string; descricao?: string }> },
+    @Body()
+    body: {
+      insights: Array<{ tipoNo: string; relacao: string; titulo: string; descricao?: string }>;
+    },
   ) {
     return this.ai.addInsightsToGraph(userId, grafoId, nodeId, body.insights ?? []);
   }
 
   @Post('graphs/:grafoId/nota-relations')
-  notaRelations(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { titulo: string; conteudo: string }) {
+  notaRelations(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { titulo: string; conteudo: string },
+  ) {
     return this.ai.suggestNotaRelations(userId, grafoId, body.titulo ?? '', body.conteudo ?? '');
   }
 
@@ -39,17 +56,28 @@ export class AiController {
   }
 
   @Post('notas/save')
-  saveSelectedNotas(@CurrentUser() userId: string, @Body() body: { candidatas: Array<{ titulo: string; conteudo: string }> }) {
+  saveSelectedNotas(
+    @CurrentUser() userId: string,
+    @Body() body: { candidatas: Array<{ titulo: string; conteudo: string }> },
+  ) {
     return this.ai.saveSelectedNotas(userId, body.candidatas ?? []);
   }
 
   @Post('graphs/:grafoId/generate-graph')
-  generateGraph(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { rawText: string }) {
+  generateGraph(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { rawText: string },
+  ) {
     return this.ai.generateGraphFromText(userId, grafoId, body.rawText ?? '');
   }
 
   @Post('graphs/:grafoId/generate-graph/plan')
-  planGraph(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { rawText: string }) {
+  planGraph(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { rawText: string },
+  ) {
     return this.ai.planGraphFromText(userId, grafoId, body.rawText ?? '');
   }
 
@@ -59,7 +87,13 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Body() body: { rawText: string; plan: any; saveBruto?: boolean },
   ) {
-    return this.ai.buildGraphFromPlan(userId, grafoId, body.rawText ?? '', body.plan, body.saveBruto !== false);
+    return this.ai.buildGraphFromPlan(
+      userId,
+      grafoId,
+      body.rawText ?? '',
+      body.plan,
+      body.saveBruto !== false,
+    );
   }
 
   @Post('graphs/:grafoId/gap-suggestions')
@@ -87,16 +121,24 @@ export class AiController {
 
   @Post('graphs/:grafoId/detect-duplicates')
   detectDuplicates(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
-    return this.ai.detectDuplicates(userId, grafoId);
+    return this.detectDuplicatesUseCase.execute(userId, grafoId);
   }
 
   @Post('graphs/:grafoId/nodes/:nodeId/expand')
-  expandNode(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Param('nodeId') nodeId: string) {
+  expandNode(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Param('nodeId') nodeId: string,
+  ) {
     return this.ai.expandNode(userId, grafoId, nodeId);
   }
 
   @Post('graphs/:grafoId/community-summary')
-  communitySummary(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Body() body: { nodeIds: string[] }) {
+  communitySummary(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { nodeIds: string[] },
+  ) {
     return this.ai.generateCommunitySummary(userId, grafoId, body.nodeIds ?? []);
   }
 
@@ -111,7 +153,13 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Body() body: { nome: string; tipo: string; connectToIds: string[] },
   ) {
-    return this.ai.addMissingPrerequisite(userId, grafoId, body.nome, body.tipo, body.connectToIds ?? []);
+    return this.ai.addMissingPrerequisite(
+      userId,
+      grafoId,
+      body.nome,
+      body.tipo,
+      body.connectToIds ?? [],
+    );
   }
 
   @Post('graphs/:grafoId/learning-path')
@@ -123,7 +171,8 @@ export class AiController {
   chat(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { question: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> },
+    @Body()
+    body: { question: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> },
   ) {
     return this.ai.chatWithGraph(userId, grafoId, body.question ?? '', body.history ?? []);
   }
@@ -137,7 +186,15 @@ export class AiController {
   fillGaps(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { gaps: Array<{ nome: string; tipo: 'missing' | 'shallow'; assuntoId: string; assuntoNome: string }> },
+    @Body()
+    body: {
+      gaps: Array<{
+        nome: string;
+        tipo: 'missing' | 'shallow';
+        assuntoId: string;
+        assuntoNome: string;
+      }>;
+    },
   ) {
     return this.ai.fillKnowledgeGaps(userId, grafoId, body.gaps ?? []);
   }
@@ -148,7 +205,11 @@ export class AiController {
   }
 
   @Post('graphs/:grafoId/baralhos/:baralhoId/populate')
-  populateFromBaralho(@CurrentUser() userId: string, @Param('grafoId') grafoId: string, @Param('baralhoId') baralhoId: string) {
+  populateFromBaralho(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Param('baralhoId') baralhoId: string,
+  ) {
     return this.ai.populateGraphFromBaralho(userId, grafoId, baralhoId);
   }
 

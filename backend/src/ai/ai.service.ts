@@ -16,7 +16,6 @@ import {
   INSIGHT_CATEGORIES,
   type NodeInsight,
 } from '../modules/ai/domain/services/node-insights';
-import { selectDuplicateGroups } from '../modules/ai/domain/services/duplicate-groups';
 import { selectAutoLinkSuggestions } from '../modules/ai/domain/services/auto-link-suggestions';
 import { prerequisiteRelation } from '../modules/ai/domain/services/prerequisite-relation';
 import { selectLearningPath } from '../modules/ai/domain/services/learning-path';
@@ -991,82 +990,6 @@ Regras: 1 ASSUNTO que engloba tudo; 2-5 TOPICOs principais; 2-4 CONCEITOs por t�
       }
     }
     return { added };
-  }
-
-  // ── Feature: Detectar duplicatas ───────────────────────────────────────
-  async detectDuplicates(
-    userId: string,
-    grafoId: string,
-  ): Promise<{
-    groups: Array<{ nodes: Array<{ id: string; nome: string; tipo: string }>; sugestao: string }>;
-  }> {
-    const graphNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
-      select: { tipoNode: true, referenciaId: true },
-    });
-    const ids: Record<string, string[]> = {};
-    for (const n of graphNodes) (ids[n.tipoNode] ??= []).push(n.referenciaId);
-    const [assuntos, topicos, conceitos] = await Promise.all([
-      this.prisma.assunto.findMany({
-        where: { id: { in: ids.ASSUNTO ?? [] } },
-        select: { id: true, nome: true, descricao: true },
-      }),
-      this.prisma.topico.findMany({
-        where: { id: { in: ids.TOPICO ?? [] } },
-        select: { id: true, nome: true, descricao: true },
-      }),
-      this.prisma.conceito.findMany({
-        where: { id: { in: ids.CONCEITO ?? [] } },
-        select: { id: true, nome: true, descricao: true },
-      }),
-    ]);
-    const allNodes = [
-      ...assuntos.map((a) => ({
-        id: a.id,
-        tipo: 'ASSUNTO',
-        nome: a.nome,
-        desc: a.descricao ?? '',
-      })),
-      ...topicos.map((t) => ({ id: t.id, tipo: 'TOPICO', nome: t.nome, desc: t.descricao ?? '' })),
-      ...conceitos.map((c) => ({
-        id: c.id,
-        tipo: 'CONCEITO',
-        nome: c.nome,
-        desc: c.descricao ?? '',
-      })),
-    ];
-    if (allNodes.length < 2) return { groups: [] };
-
-    // Usa índices numéricos para economizar tokens (sem UUIDs no input da IA)
-    const nodeList = allNodes
-      .map((n, i) => `[${i}] ${n.tipo}: "${n.nome}"${n.desc ? ` — ${n.desc.slice(0, 100)}` : ''}`)
-      .join('\n');
-
-    const content = await this.callAI(
-      userId,
-      [
-        {
-          role: 'system',
-          content:
-            'Você detecta DUPLICATAS semânticas em grafos de conhecimento. ' +
-            'REGRA FUNDAMENTAL: só agrupe nós do MESMO TIPO (ASSUNTO com ASSUNTO, TOPICO com TOPICO, CONCEITO com CONCEITO). ' +
-            'NUNCA agrupe tipos diferentes, mesmo que tenham nomes parecidos.\n' +
-            'Dois nós do mesmo tipo são duplicatas se representam o MESMO conceito, independentemente de:\n' +
-            '- idioma (português ↔ inglês): "Machine Learning" = "Aprendizado de Máquina", "Array" = "Vetor", "Binary Tree" = "Árvore Binária"\n' +
-            '- variação de nome: "Fotossíntese" = "Processo de Fotossíntese", "ML" = "Machine Learning"\n' +
-            '- abreviação/sigla: "POO" = "Programação Orientada a Objetos", "OOP" = "Object-Oriented Programming"\n' +
-            '- tradução parcial: "Stack" = "Pilha", "Queue" = "Fila", "Hash Table" = "Tabela Hash"\n' +
-            'Seja RIGOROSO e EXAUSTIVO: liste absolutamente TODOS os grupos de duplicatas, incluindo pares PT↔EN. ' +
-            'Use os índices numéricos [N] do input para identificar os nós. ' +
-            'JSON: {"groups":[{"indices":[0,3],"sugestao":"manter [0] — razão breve"}]}',
-        },
-        { role: 'user', content: `NÓS DO GRAFO:\n${nodeList.slice(0, 10000)}` },
-      ],
-      6000,
-    );
-
-    const parsed = this.extractJSON(content ?? '{}');
-    return { groups: selectDuplicateGroups(parsed?.groups ?? [], allNodes) };
   }
 
   // ── Feature: Expandir nó ──────────────────────────────────────────────
