@@ -12,6 +12,26 @@ import {
 } from '../modules/ai/domain/ports/duplicate-nodes-repository';
 import { PrismaDuplicateNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-duplicate-nodes.repository';
 import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
+import {
+  RELATION_CANDIDATES_REPOSITORY,
+  type RelationCandidatesRepository,
+} from '../modules/ai/domain/ports/relation-candidates-repository';
+import {
+  RELATION_RULES_PORT,
+  type RelationRulesPort,
+} from '../modules/ai/domain/ports/relation-rules-port';
+import { PrismaRelationCandidatesRepository } from '../modules/ai/infrastructure/persistence/prisma-relation-candidates.repository';
+import { SuggestNotaRelationsUseCase } from '../modules/ai/application/use-cases/suggest-nota-relations.use-case';
+import {
+  getAllowedRelations,
+  isRelationAllowed,
+} from '../modules/graph/domain/services/relation-rules';
+
+// Binds the AI context's RelationRulesPort to the graph context's published rules.
+const graphRelationRules: RelationRulesPort = {
+  allowedNotaRelations: (targetTipo) => getAllowedRelations('NOTA', targetTipo),
+  isNotaRelationAllowed: (targetTipo, relacao) => isRelationAllowed('NOTA', targetTipo, relacao),
+};
 
 @Module({
   imports: [AuthModule, SettingsModule, GraphModule],
@@ -20,11 +40,22 @@ import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/det
     AiService,
     { provide: LLM_PORT, useClass: OpenAiLlmAdapter },
     { provide: DUPLICATE_NODES_REPOSITORY, useClass: PrismaDuplicateNodesRepository },
+    { provide: RELATION_CANDIDATES_REPOSITORY, useClass: PrismaRelationCandidatesRepository },
+    { provide: RELATION_RULES_PORT, useValue: graphRelationRules },
     {
       provide: DetectDuplicatesUseCase,
       useFactory: (nodes: DuplicateNodesRepository, llm: LlmPort) =>
         new DetectDuplicatesUseCase(nodes, llm),
       inject: [DUPLICATE_NODES_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: SuggestNotaRelationsUseCase,
+      useFactory: (
+        candidates: RelationCandidatesRepository,
+        llm: LlmPort,
+        rules: RelationRulesPort,
+      ) => new SuggestNotaRelationsUseCase(candidates, llm, rules),
+      inject: [RELATION_CANDIDATES_REPOSITORY, LLM_PORT, RELATION_RULES_PORT],
     },
   ],
 })

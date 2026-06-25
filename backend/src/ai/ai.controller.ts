@@ -3,6 +3,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AiService } from './ai.service';
 import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
+import { SuggestNotaRelationsUseCase } from '../modules/ai/application/use-cases/suggest-nota-relations.use-case';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -12,6 +13,7 @@ export class AiController {
   constructor(
     private readonly ai: AiService,
     private readonly detectDuplicatesUseCase: DetectDuplicatesUseCase,
+    private readonly suggestNotaRelationsUseCase: SuggestNotaRelationsUseCase,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -42,7 +44,12 @@ export class AiController {
     @Param('grafoId') grafoId: string,
     @Body() body: { titulo: string; conteudo: string },
   ) {
-    return this.ai.suggestNotaRelations(userId, grafoId, body.titulo ?? '', body.conteudo ?? '');
+    return this.suggestNotaRelationsUseCase.execute(
+      userId,
+      grafoId,
+      body.titulo ?? '',
+      body.conteudo ?? '',
+    );
   }
 
   @Post('notas/:notaId/flashcards')

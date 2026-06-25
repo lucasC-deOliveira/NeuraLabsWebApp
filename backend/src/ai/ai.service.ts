@@ -7,10 +7,6 @@ import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/po
 import { parseAiJson } from '../modules/ai/domain/services/ai-json';
 import { InvalidAiJsonError } from '../modules/ai/domain/errors';
 import {
-  selectNotaRelations,
-  type NotaRelationSuggestion,
-} from '../modules/ai/domain/services/nota-relation-suggestions';
-import {
   selectNodeInsights,
   selectGapInsights,
   INSIGHT_CATEGORIES,
@@ -540,90 +536,6 @@ ${conceptContext}`,
       });
     }
     return out;
-  }
-
-  async suggestNotaRelations(
-    userId: string,
-    grafoId: string,
-    titulo: string,
-    conteudo: string,
-  ): Promise<NotaRelationSuggestion[]> {
-    if (!titulo.trim() && !conteudo.trim()) return [];
-    const graphNodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId, tipoNode: { in: ['ASSUNTO', 'TOPICO', 'CONCEITO'] } },
-      select: { tipoNode: true, referenciaId: true },
-    });
-    if (graphNodes.length === 0) return [];
-    const ids: Record<string, string[]> = { ASSUNTO: [], TOPICO: [], CONCEITO: [] };
-    for (const n of graphNodes) ids[n.tipoNode]?.push(n.referenciaId);
-    const [assuntos, topicos, conceitos] = await Promise.all([
-      this.prisma.assunto.findMany({
-        where: { id: { in: ids.ASSUNTO }, usuarioId: userId },
-        select: { id: true, nome: true, descricao: true },
-      }),
-      this.prisma.topico.findMany({
-        where: { id: { in: ids.TOPICO }, usuarioId: userId },
-        select: { id: true, nome: true, descricao: true },
-      }),
-      this.prisma.conceito.findMany({
-        where: { id: { in: ids.CONCEITO }, usuarioId: userId },
-        select: { id: true, nome: true, descricao: true },
-      }),
-    ]);
-    const candidates = [
-      ...assuntos.map((a) => ({
-        id: a.id,
-        tipo: 'ASSUNTO' as const,
-        nome: a.nome,
-        descricao: a.descricao,
-      })),
-      ...topicos.map((t) => ({
-        id: t.id,
-        tipo: 'TOPICO' as const,
-        nome: t.nome,
-        descricao: t.descricao,
-      })),
-      ...conceitos.map((c) => ({
-        id: c.id,
-        tipo: 'CONCEITO' as const,
-        nome: c.nome,
-        descricao: c.descricao,
-      })),
-    ];
-    if (candidates.length === 0) return [];
-    const candidateList = candidates
-      .map(
-        (c) =>
-          `- id: ${c.id} | tipo: ${c.tipo} | nome: ${c.nome}${c.descricao ? ` | descricao: ${c.descricao}` : ''}`,
-      )
-      .join('\n');
-    const allowedByType = (['CONCEITO', 'TOPICO', 'ASSUNTO'] as const)
-      .map((t) => `- NOTA → ${t}: ${getAllowedRelations('NOTA', t).join(', ')}`)
-      .join('\n');
-
-    const content = await this.llm.complete({
-      userId,
-      temperature: 0.2,
-      messages: [
-        {
-          role: 'system',
-          content: `Você analisa uma nota (Zettelkasten) e sugere relações com nós de um grafo (a nota é sempre a origem).\nRelações permitidas:\n${allowedByType}\nSugira APENAS nós da lista (id exato), só relações permitidas, no máximo 8 pertinentes. JSON: {"sugestoes":[{"nodeId":"...","relacao":"...","motivo":"frase curta"}]}`,
-        },
-        {
-          role: 'user',
-          content: `NOTA:\nTítulo: ${titulo}\nConteúdo:\n${conteudo.slice(0, 4000)}\n\nCANDIDATOS:\n${candidateList}`,
-        },
-      ],
-    });
-    let parsed: any;
-    try {
-      parsed = JSON.parse(content || '{}');
-    } catch {
-      throw new BadRequestException('A IA retornou resposta inválida.');
-    }
-    return selectNotaRelations(parsed?.sugestoes ?? [], candidates, (tipo, relacao) =>
-      isRelationAllowed('NOTA', tipo, relacao),
-    );
   }
 
   private readonly GRAPH_SYSTEM_PROMPT = `Você é especialista em organização curricular. A partir de um texto bruto, gere um grafo de conhecimento completo e hierárquico.
