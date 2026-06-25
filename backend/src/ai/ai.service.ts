@@ -4,6 +4,8 @@ import { SettingsService } from '../settings/settings.service';
 import { GraphService } from '../graph/graph.service';
 import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
 import { LLM_PORT, type LlmMessage, type LlmPort } from '../modules/ai/domain/ports/llm-port';
+import { parseAiJson } from '../modules/ai/domain/services/ai-json';
+import { InvalidAiJsonError } from '../modules/ai/domain/errors';
 import {
   getAllowedRelations,
   isRelationAllowed,
@@ -52,33 +54,16 @@ export class AiService {
     @Inject(LLM_PORT) private readonly llm: LlmPort,
   ) {}
 
+  // Delega ao domain service parseAiJson; traduz o erro de domínio para a
+  // resposta voltada ao usuário (mantém o contrato 400 dos chamadores legados).
   private extractJSON(text: string): any {
-    // 1. Tenta direto
     try {
-      return JSON.parse(text);
-    } catch {
-      /* continua */
+      return parseAiJson(text);
+    } catch (e) {
+      if (e instanceof InvalidAiJsonError)
+        throw new BadRequestException('A IA retornou JSON inválido.');
+      throw e;
     }
-    // 2. Strip de bloco markdown ```json ... ``` ou ``` ... ```
-    const mdMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (mdMatch) {
-      try {
-        return JSON.parse(mdMatch[1].trim());
-      } catch {
-        /* continua */
-      }
-    }
-    // 3. Extrai o maior bloco { ... } do texto
-    const first = text.indexOf('{');
-    const last = text.lastIndexOf('}');
-    if (first !== -1 && last > first) {
-      try {
-        return JSON.parse(text.slice(first, last + 1));
-      } catch {
-        /* continua */
-      }
-    }
-    throw new BadRequestException('A IA retornou JSON inválido.');
   }
 
   private callAI(userId: string, messages: LlmMessage[], maxTokens = 4000): Promise<string> {
