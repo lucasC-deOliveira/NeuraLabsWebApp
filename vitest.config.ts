@@ -17,7 +17,23 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json-summary"],
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/**/*.spec.ts", "src/**/*.test.tsx", "src/**/*.d.ts", "src/main.tsx"],
+      exclude: [
+        "src/**/*.spec.ts",
+        "src/**/*.test.tsx",
+        "src/**/*.d.ts",
+        "src/main.tsx",
+        // Componentes puros de react-three-fiber (WebGL): não montam em jsdom e um
+        // smoke só verificaria o mock, não o render real. Excluídos da métrica —
+        // como o backend exclui IO-heavy da mutação. A cobertura real virá quando o
+        // vr for refatorado (extrair lógica p/ hooks/serviços testáveis).
+        "src/modules/vr/components/VRScene.tsx",
+        "src/modules/vr/components/VRGraph.tsx",
+        "src/modules/vr/components/VRPanel3D.tsx",
+        "src/modules/vr/components/VRContentPanel3D.tsx",
+        "src/modules/vr/components/VRStudyPanel3D.tsx",
+        "src/modules/vr/components/VREditPanel3D.tsx",
+        "src/modules/vr/components/VRStudyMode.tsx",
+      ],
     },
     projects: [
       {
