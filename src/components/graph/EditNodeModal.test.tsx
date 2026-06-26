@@ -15,6 +15,12 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const node = { id: "n1", group: "CONCEITO", label: "Mitose" };
 
+// true quando `a` aparece antes de `b` na ordem do documento (camada estrutural:
+// garante hierarquia/ordem dos elementos sem depender de layout em pixels).
+function isBefore(a: Element, b: Element): boolean {
+  return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -60,6 +66,22 @@ describe("EditNodeModal (characterization)", () => {
     );
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it("keeps the form structure and order stable (structural net)", async () => {
+    vi.mocked(getNodeDetails).mockResolvedValue({ nome: "Mitose", descricao: "Divisão" });
+
+    render(<EditNodeModal open onOpenChange={() => {}} grafoId="g1" node={node} />);
+    await screen.findByDisplayValue("Mitose");
+
+    expect(screen.getByRole("heading", { name: "Editar nó" })).toBeInTheDocument();
+    expect(isBefore(screen.getByText("Nome"), screen.getByText("Descrição (opcional)"))).toBe(true);
+    expect(
+      isBefore(
+        screen.getByRole("button", { name: "Cancelar" }),
+        screen.getByRole("button", { name: "Salvar" }),
+      ),
+    ).toBe(true);
   });
 
   it("blocks the save when the name is empty and never calls the api", async () => {

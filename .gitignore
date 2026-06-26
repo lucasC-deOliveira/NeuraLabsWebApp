@@ -49,3 +49,6 @@ next-env.d.ts
 
 # vite build output
 /dist
+
+# vitest browser mode (transient screenshot attachments on failure)
+.vitest-attachments/
