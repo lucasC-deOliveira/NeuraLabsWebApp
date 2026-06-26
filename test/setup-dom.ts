@@ -14,6 +14,9 @@ class ResizeObserverStub {
 if (!("ResizeObserver" in globalThis)) {
   globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 }
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = (): void => {};
+}
 if (!window.matchMedia) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: false,
