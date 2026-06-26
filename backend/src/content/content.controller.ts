@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { ContentService } from './content.service';
 import { ListFlashcardsUseCase } from '../modules/flashcards/application/use-cases/list-flashcards.use-case';
 import { CreateFlashcardUseCase } from '../modules/flashcards/application/use-cases/create-flashcard.use-case';
 import { UpdateFlashcardUseCase } from '../modules/flashcards/application/use-cases/update-flashcard.use-case';
@@ -26,13 +25,23 @@ import type {
   PreviewCard,
   UpdateFlashcardPatch,
 } from '../modules/flashcards/domain/flashcard-views';
+import { CreateAssuntoUseCase } from '../modules/curriculum/application/use-cases/create-assunto.use-case';
+import { CreateTopicoUseCase } from '../modules/curriculum/application/use-cases/create-topico.use-case';
+import { CreateConceptUseCase } from '../modules/curriculum/application/use-cases/create-concept.use-case';
+import {
+  GetConceptHierarchyUseCase,
+  GetFlashcardFiltersUseCase,
+  GetHierarquiaTreeUseCase,
+  ListSubjectsUseCase,
+} from '../modules/curriculum/application/use-cases/curriculum-queries.use-cases';
+import { CurriculumExceptionFilter } from '../modules/curriculum/interface/curriculum-exception.filter';
+import { GetStudyHistoryUseCase } from '../modules/study/application/use-cases/get-study-history.use-case';
 
 @UseGuards(JwtAuthGuard)
-@UseFilters(FlashcardsExceptionFilter)
+@UseFilters(FlashcardsExceptionFilter, CurriculumExceptionFilter)
 @Controller()
 export class ContentController {
   constructor(
-    private readonly content: ContentService,
     private readonly listFlashcards: ListFlashcardsUseCase,
     private readonly createFlashcard: CreateFlashcardUseCase,
     private readonly updateFlashcard: UpdateFlashcardUseCase,
@@ -40,43 +49,51 @@ export class ContentController {
     private readonly deleteAllFlashcards: DeleteAllFlashcardsUseCase,
     private readonly previewFromNotaUseCase: PreviewFlashcardsFromNotaUseCase,
     private readonly saveFromNotaUseCase: SaveFlashcardPreviewsUseCase,
+    private readonly createAssunto: CreateAssuntoUseCase,
+    private readonly createTopico: CreateTopicoUseCase,
+    private readonly createConcept: CreateConceptUseCase,
+    private readonly listSubjectsUseCase: ListSubjectsUseCase,
+    private readonly conceptHierarchy: GetConceptHierarchyUseCase,
+    private readonly hierarquiaTreeUseCase: GetHierarquiaTreeUseCase,
+    private readonly flashcardFiltersUseCase: GetFlashcardFiltersUseCase,
+    private readonly getStudyHistory: GetStudyHistoryUseCase,
   ) {}
 
   @Get('subjects')
   subjects(@CurrentUser() userId: string) {
-    return this.content.listSubjects(userId);
+    return this.listSubjectsUseCase.execute(userId);
   }
 
   @Get('subjects/hierarchy')
   hierarchy(@CurrentUser() userId: string) {
-    return this.content.getConceptHierarchy(userId);
+    return this.conceptHierarchy.execute(userId);
   }
 
   @Get('subjects/tree')
   hierarchyTree(@CurrentUser() userId: string) {
-    return this.content.getHierarquiaConceitos(userId);
+    return this.hierarquiaTreeUseCase.execute(userId);
   }
 
   @Post('subjects')
-  createAssunto(@CurrentUser() userId: string, @Body() body: { nome: string }) {
-    return this.content.createAssunto(userId, body.nome);
+  create(@CurrentUser() userId: string, @Body() body: { nome: string }) {
+    return this.createAssunto.execute(userId, body.nome);
   }
 
   @Post('subjects/:assuntoId/topicos')
-  createTopico(
+  topico(
     @CurrentUser() userId: string,
     @Param('assuntoId') assuntoId: string,
     @Body() body: { nome: string },
   ) {
-    return this.content.createTopico(userId, body.nome, assuntoId);
+    return this.createTopico.execute(userId, body.nome, assuntoId);
   }
 
   @Post('conceitos')
-  createFullConcept(
+  concept(
     @CurrentUser() userId: string,
     @Body() body: { nome: string; assuntoId: string; topicoId: string },
   ) {
-    return this.content.createFullConcept(userId, body);
+    return this.createConcept.execute(userId, body);
   }
 
   @Get('flashcards')
@@ -90,11 +107,11 @@ export class ContentController {
 
   @Get('flashcards/filters')
   flashcardFilters(@CurrentUser() userId: string) {
-    return this.content.getFlashcardFilterData(userId);
+    return this.flashcardFiltersUseCase.execute(userId);
   }
 
   @Post('flashcards')
-  create(@CurrentUser() userId: string, @Body() body: CreateFlashcardInput) {
+  newFlashcard(@CurrentUser() userId: string, @Body() body: CreateFlashcardInput) {
     return this.createFlashcard.execute(userId, body);
   }
 
@@ -133,6 +150,6 @@ export class ContentController {
 
   @Get('study/history')
   studyHistory(@CurrentUser() userId: string) {
-    return this.content.getStudyHistory(userId);
+    return this.getStudyHistory.execute(userId);
   }
 }

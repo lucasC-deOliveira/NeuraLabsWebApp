@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { ContentController } from './content.controller';
-import { ContentService } from './content.service';
 import {
   FLASHCARD_REPOSITORY,
   type FlashcardRepository,
@@ -19,12 +18,36 @@ import { DeleteFlashcardUseCase } from '../modules/flashcards/application/use-ca
 import { DeleteAllFlashcardsUseCase } from '../modules/flashcards/application/use-cases/delete-all-flashcards.use-case';
 import { PreviewFlashcardsFromNotaUseCase } from '../modules/flashcards/application/use-cases/preview-flashcards-from-nota.use-case';
 import { SaveFlashcardPreviewsUseCase } from '../modules/flashcards/application/use-cases/save-flashcard-previews.use-case';
+import {
+  CURRICULUM_REPOSITORY,
+  type CurriculumRepository,
+} from '../modules/curriculum/domain/ports/curriculum-repository';
+import {
+  CURRICULUM_QUERY,
+  type CurriculumQuery,
+} from '../modules/curriculum/domain/ports/curriculum-query';
+import { PrismaCurriculumRepository } from '../modules/curriculum/infrastructure/persistence/prisma-curriculum.repository';
+import { PrismaCurriculumQuery } from '../modules/curriculum/infrastructure/persistence/prisma-curriculum.query';
+import { CreateAssuntoUseCase } from '../modules/curriculum/application/use-cases/create-assunto.use-case';
+import { CreateTopicoUseCase } from '../modules/curriculum/application/use-cases/create-topico.use-case';
+import { CreateConceptUseCase } from '../modules/curriculum/application/use-cases/create-concept.use-case';
+import {
+  GetConceptHierarchyUseCase,
+  GetFlashcardFiltersUseCase,
+  GetHierarquiaTreeUseCase,
+  ListSubjectsUseCase,
+} from '../modules/curriculum/application/use-cases/curriculum-queries.use-cases';
+import {
+  STUDY_HISTORY_QUERY,
+  type StudyHistoryQuery,
+} from '../modules/study/domain/ports/study-history-query';
+import { PrismaStudyHistoryQuery } from '../modules/study/infrastructure/persistence/prisma-study-history.query';
+import { GetStudyHistoryUseCase } from '../modules/study/application/use-cases/get-study-history.use-case';
 
 @Module({
   imports: [AuthModule],
   controllers: [ContentController],
   providers: [
-    ContentService,
     { provide: FLASHCARD_REPOSITORY, useClass: PrismaFlashcardRepository },
     { provide: FLASHCARD_QUERY, useClass: PrismaFlashcardQuery },
     {
@@ -61,6 +84,49 @@ import { SaveFlashcardPreviewsUseCase } from '../modules/flashcards/application/
       provide: SaveFlashcardPreviewsUseCase,
       useFactory: (repo: FlashcardRepository) => new SaveFlashcardPreviewsUseCase(repo),
       inject: [FLASHCARD_REPOSITORY],
+    },
+    { provide: CURRICULUM_REPOSITORY, useClass: PrismaCurriculumRepository },
+    { provide: CURRICULUM_QUERY, useClass: PrismaCurriculumQuery },
+    {
+      provide: CreateAssuntoUseCase,
+      useFactory: (repo: CurriculumRepository) => new CreateAssuntoUseCase(repo),
+      inject: [CURRICULUM_REPOSITORY],
+    },
+    {
+      provide: CreateTopicoUseCase,
+      useFactory: (repo: CurriculumRepository) => new CreateTopicoUseCase(repo),
+      inject: [CURRICULUM_REPOSITORY],
+    },
+    {
+      provide: CreateConceptUseCase,
+      useFactory: (repo: CurriculumRepository) => new CreateConceptUseCase(repo),
+      inject: [CURRICULUM_REPOSITORY],
+    },
+    {
+      provide: ListSubjectsUseCase,
+      useFactory: (query: CurriculumQuery) => new ListSubjectsUseCase(query),
+      inject: [CURRICULUM_QUERY],
+    },
+    {
+      provide: GetConceptHierarchyUseCase,
+      useFactory: (query: CurriculumQuery) => new GetConceptHierarchyUseCase(query),
+      inject: [CURRICULUM_QUERY],
+    },
+    {
+      provide: GetHierarquiaTreeUseCase,
+      useFactory: (query: CurriculumQuery) => new GetHierarquiaTreeUseCase(query),
+      inject: [CURRICULUM_QUERY],
+    },
+    {
+      provide: GetFlashcardFiltersUseCase,
+      useFactory: (query: CurriculumQuery) => new GetFlashcardFiltersUseCase(query),
+      inject: [CURRICULUM_QUERY],
+    },
+    { provide: STUDY_HISTORY_QUERY, useClass: PrismaStudyHistoryQuery },
+    {
+      provide: GetStudyHistoryUseCase,
+      useFactory: (query: StudyHistoryQuery) => new GetStudyHistoryUseCase(query),
+      inject: [STUDY_HISTORY_QUERY],
     },
   ],
 })
