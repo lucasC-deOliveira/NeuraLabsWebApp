@@ -1,21 +1,29 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { Body, Controller, Get, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { LoginDto, RegisterDto } from './dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
+import { RegisterUserUseCase } from '../modules/auth/application/use-cases/register-user.use-case';
+import { LoginUserUseCase } from '../modules/auth/application/use-cases/login-user.use-case';
+import { GetCurrentUserUseCase } from '../modules/auth/application/use-cases/get-current-user.use-case';
+import { AuthExceptionFilter } from '../modules/auth/interface/auth-exception.filter';
 
 @Controller('auth')
+@UseFilters(AuthExceptionFilter)
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly registerUser: RegisterUserUseCase,
+    private readonly loginUser: LoginUserUseCase,
+    private readonly getCurrentUser: GetCurrentUserUseCase,
+  ) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto);
+    return this.registerUser.execute(dto);
   }
 
   @Post('login')
   login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
+    return this.loginUser.execute(dto);
   }
 
   @Post('logout')
@@ -27,6 +35,6 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@CurrentUser() userId: string) {
-    return this.auth.me(userId);
+    return this.getCurrentUser.execute(userId);
   }
 }

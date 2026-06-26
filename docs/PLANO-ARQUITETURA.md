@@ -1,7 +1,9 @@
 # Plano de Arquitetura — Clean Code · Hexagonal · Clean Architecture · DDD · TDD
 
 > Escopo: **backend** (NestJS) como foco principal; clean code também no frontend.
-> Status: **plano aprovado, não iniciado**. Nenhuma fase começa sem a anterior 100%.
+> Status: **Fase 0 e Fase 1 (piloto `study`) concluídas** (submit-review + start-session
+> em DDD: VOs, agregados, repos por agregado + UoW, e2e, mutação). Fases 2…N pendentes.
+> Nenhuma fase começa sem a anterior 100%.
 
 ## 1. Princípios
 - **Clean Code:** funções pequenas, nomes intencionais (linguagem ubíqua), sem `any`, early-return, sem código morto; comentário explica o *porquê*.
@@ -107,9 +109,11 @@ A arquitetura e o TDD viram **código verificável**, não pedido educado:
 Criar pastas das camadas; `dependency-cruiser` + regras de fronteira; Stryker no backend; thresholds de cobertura; invariantes (DDD/TDD/camadas) no `AGENTS.md`; checagem test-first; ligar gates no `ci.yml`.
 *Done when:* CI reprova um import proibido proposital e um arquivo de domínio novo sem spec.
 
-**Fase 1 — Piloto: contexto `study` (referência), via TDD**
+**Fase 1 — Piloto: contexto `study` (referência), via TDD** ✅ **CONCLUÍDA**
 Linguagem ubíqua → VOs (Grade, Fase, ScheduleState) e entidades (Flashcard, SessãoEstudo) com testes primeiro; SM-2 vira `domain/services`; ports `FlashcardRepository`/`StudySessionRepository`; adapters Prisma + mappers; use-cases `SubmitReview`/`StartSession`.
 *Done when:* boundary verde; unidade+integração+e2e passam; mutation ≥ limiar; **sem regressão de comportamento**.
+*Entregue:* VOs com validação; agregados Flashcard/StudySession+Review; repos por agregado + `StudyUnitOfWork`; read models (card/flashcard/deck queries); filtro de erros na interface; e2e via supertest; mutação 100% em VOs/entidades, 74–100% nos use-cases. (Domain Events ficaram deferidos — não exigidos pelo Done-when.)
+*Contexto `study` 100% migrado:* todos os métodos do antigo `StudyService` viraram use-cases (submit-review, start-session, start-deck, start-single-card, get-flashcard, end/finalize-session, sync-vault-log) e o `StudyService` foi removido.
 
 **Fases 2…N — Replicar por contexto:** `graph` → `ai` (LlmPort/ACL OpenAI) → `content` → `notes` → `provas`/`questions` → `auth`/`settings`. Cada um com TDD e a pirâmide.
 

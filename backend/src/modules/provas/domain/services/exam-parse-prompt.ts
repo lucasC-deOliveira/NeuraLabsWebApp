@@ -1,0 +1,70 @@
+import type { ExamLlmMessage } from '../ports/exam-llm';
+
+// Hard caps on how much document text we feed the model, mirroring the original
+// limits: the exam carries the questions (12k), the answer key is terse (4k).
+const PROVA_CHAR_LIMIT = 12000;
+const GABARITO_CHAR_LIMIT = 4000;
+
+const INSTRUCTIONS = `Você receberá dois textos:
+1. PROVA: texto extraído de um documento de prova/exame
+2. GABARITO: texto extraído do gabarito correspondente
+
+Sua tarefa:
+- Extraia todas as questões da PROVA
+- Para cada questão, determine o tipo: "VERDADEIRO_FALSO" ou "MULTIPLA_ESCOLHA"
+- Para questões de múltipla escolha, extraia as alternativas (letras A, B, C, D, E ou a, b, c, d, e)
+- Cruze com o GABARITO para preencher o campo gabarito de cada questão
+  - Para V/F: use "V" ou "F"
+  - Para múltipla escolha: use a letra maiúscula correta ("A", "B", "C", "D" ou "E")
+- Se o título/nome da prova aparecer no texto, sugira como tituloSugerido
+
+Retorne JSON exatamente neste formato:
+{
+  "tituloSugerido": "Nome da prova ou null",
+  "questoes": [
+    {
+      "numero": 1,
+      "enunciado": "Texto completo da questão",
+      "tipo": "MULTIPLA_ESCOLHA",
+      "alternativas": [
+        {"letra": "A", "texto": "Texto da alternativa A"},
+        {"letra": "B", "texto": "Texto da alternativa B"},
+        {"letra": "C", "texto": "Texto da alternativa C"},
+        {"letra": "D", "texto": "Texto da alternativa D"}
+      ],
+      "gabarito": "C",
+      "explicacao": null
+    },
+    {
+      "numero": 2,
+      "enunciado": "A água ferve a 100°C ao nível do mar.",
+      "tipo": "VERDADEIRO_FALSO",
+      "alternativas": null,
+      "gabarito": "V",
+      "explicacao": null
+    }
+  ]
+}
+
+Regras importantes:
+- Inclua todas as questões na ordem em que aparecem
+- Se uma questão não tiver gabarito correspondente, use "?" como gabarito
+- Preserve o enunciado completo, incluindo dados de contexto se houver
+- Normalize as letras das alternativas para maiúsculas (A, B, C, D)
+- Ignore cabeçalhos, instruções gerais e rodapés — apenas as questões`;
+
+/**
+ * Builds the LLM prompt that extracts questions from an exam and cross-references
+ * its answer key. Truncates each text to its char budget to bound token usage.
+ * @example buildExamParsePrompt('Questão 1...', 'Gabarito: 1-C')
+ */
+export function buildExamParsePrompt(provaText: string, gabaritoText: string): ExamLlmMessage[] {
+  const content = `${INSTRUCTIONS}
+
+=== PROVA ===
+${provaText.slice(0, PROVA_CHAR_LIMIT)}
+
+=== GABARITO ===
+${gabaritoText.slice(0, GABARITO_CHAR_LIMIT)}`;
+  return [{ role: 'user', content }];
+}

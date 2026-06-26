@@ -31,12 +31,19 @@ const DEFINITION_PATTERN = /^([A-ZÀ-ÚÇ][a-zÀ-úÇ, ]{2,40}):\s(.+)$/;
 
 export function parseNoteSections(rawText: string) {
   const lines = rawText.split('\n');
-  const sections: Array<{ heading: string; content: string[]; definitions: Array<{ term: string; explanation: string }> }> = [];
+  const sections: Array<{
+    heading: string;
+    content: string[];
+    definitions: Array<{ term: string; explanation: string }>;
+  }> = [];
   let current: (typeof sections)[number] | null = null;
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
-    if (line.startsWith('#') || (line === line.toUpperCase() && line.length > 3 && /^[A-Z0-9À-ÚÇ ]+$/.test(line))) {
+    if (
+      line.startsWith('#') ||
+      (line === line.toUpperCase() && line.length > 3 && /^[A-Z0-9À-ÚÇ ]+$/.test(line))
+    ) {
       if (current) sections.push(current);
       current = { heading: line.replace(/^#+\s*/, ''), content: [], definitions: [] };
       continue;
@@ -55,7 +62,9 @@ export function parseNoteSections(rawText: string) {
   }
   if (current) sections.push(current);
   if (sections.length === 0) {
-    return [{ heading: 'Nota', content: lines.filter((l) => l.trim().length > 0), definitions: [] }];
+    return [
+      { heading: 'Nota', content: lines.filter((l) => l.trim().length > 0), definitions: [] },
+    ];
   }
   return sections;
 }
@@ -65,12 +74,15 @@ export function makeConceptResolver(allConcepts: Array<{ id: string; nome: strin
   const findConcept = (searchFor: string): { id: string; nome: string } | null => {
     if (!searchFor) return null;
     const lower = searchFor.toLowerCase();
-    const match = allConcepts.find((c) => c.nome.toLowerCase().includes(lower) || lower.includes(c.nome.toLowerCase()));
+    const match = allConcepts.find(
+      (c) => c.nome.toLowerCase().includes(lower) || lower.includes(c.nome.toLowerCase()),
+    );
     return match ? { id: match.id, nome: match.nome } : null;
   };
   const resolveFallback = (conceptTerm: string): { id: string; nome: string } | null => {
     let target = findConcept(conceptTerm);
-    if (!target && allConcepts.length > 0) target = { id: allConcepts[0].id, nome: allConcepts[0].nome };
+    if (!target && allConcepts.length > 0)
+      target = { id: allConcepts[0].id, nome: allConcepts[0].nome };
     return target;
   };
   return { findConcept, resolveFallback };
@@ -85,7 +97,10 @@ function createClozeCard(content: string): { pergunta: string; resposta: string 
 }
 
 // Preview baseado em regras (sem IA).
-export function buildRulePreview(conteudo: string, allConcepts: Array<{ id: string; nome: string }>): FlashcardPreview[] {
+export function buildRulePreview(
+  conteudo: string,
+  allConcepts: Array<{ id: string; nome: string }>,
+): FlashcardPreview[] {
   const { resolveFallback } = makeConceptResolver(allConcepts);
   const sections = parseNoteSections(conteudo);
   const preview: FlashcardPreview[] = [];
@@ -116,14 +131,42 @@ export function buildRulePreview(conteudo: string, allConcepts: Array<{ id: stri
     const typeCount = Math.min(4, Math.max(1, Math.ceil(wordCount / 50)));
 
     const templates = [
-      { pergunta: `O que é ${section.heading}?`, resposta: content.slice(0, 500), source: 'pergunta_resposta' as const },
+      {
+        pergunta: `O que é ${section.heading}?`,
+        resposta: content.slice(0, 500),
+        source: 'pergunta_resposta' as const,
+      },
       { resposta: content.slice(0, 500), source: 'cloze' as const },
-      { pergunta: `O que é o oposto de ${section.heading}?`, resposta: content.slice(0, 400), source: 'bidirecional' as const },
-      { pergunta: `Explique detalhadamente: ${section.heading}`, resposta: content.slice(0, 600), source: 'explicacao_profunda' as const },
-      { pergunta: `Diferença entre ${section.heading} e conceitos similares`, resposta: content.slice(0, 400), source: 'comparacao' as const },
-      { pergunta: `Cite os pontos principais sobre ${section.heading}`, resposta: content.split('\n').slice(0, 3).join('\n').slice(0, 300), source: 'lista_fragmentada' as const },
-      { pergunta: `O que acontece se ignorarmos ${section.heading}?`, resposta: content.slice(0, 400), source: 'aplicacao_problema' as const },
-      { pergunta: `Qual o erro mais comum sobre ${section.heading}?`, resposta: content.slice(0, 400), source: 'erro_comum' as const },
+      {
+        pergunta: `O que é o oposto de ${section.heading}?`,
+        resposta: content.slice(0, 400),
+        source: 'bidirecional' as const,
+      },
+      {
+        pergunta: `Explique detalhadamente: ${section.heading}`,
+        resposta: content.slice(0, 600),
+        source: 'explicacao_profunda' as const,
+      },
+      {
+        pergunta: `Diferença entre ${section.heading} e conceitos similares`,
+        resposta: content.slice(0, 400),
+        source: 'comparacao' as const,
+      },
+      {
+        pergunta: `Cite os pontos principais sobre ${section.heading}`,
+        resposta: content.split('\n').slice(0, 3).join('\n').slice(0, 300),
+        source: 'lista_fragmentada' as const,
+      },
+      {
+        pergunta: `O que acontece se ignorarmos ${section.heading}?`,
+        resposta: content.slice(0, 400),
+        source: 'aplicacao_problema' as const,
+      },
+      {
+        pergunta: `Qual o erro mais comum sobre ${section.heading}?`,
+        resposta: content.slice(0, 400),
+        source: 'erro_comum' as const,
+      },
     ];
 
     const startIndex = hasDefCards ? 1 : 0;
@@ -144,5 +187,5 @@ export function buildRulePreview(conteudo: string, allConcepts: Array<{ id: stri
 }
 
 function randomId(): string {
-  return (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+  return globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
 }
