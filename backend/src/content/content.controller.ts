@@ -1,12 +1,46 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { ContentService } from './content.service';
+import { ListFlashcardsUseCase } from '../modules/flashcards/application/use-cases/list-flashcards.use-case';
+import { CreateFlashcardUseCase } from '../modules/flashcards/application/use-cases/create-flashcard.use-case';
+import { UpdateFlashcardUseCase } from '../modules/flashcards/application/use-cases/update-flashcard.use-case';
+import { DeleteFlashcardUseCase } from '../modules/flashcards/application/use-cases/delete-flashcard.use-case';
+import { DeleteAllFlashcardsUseCase } from '../modules/flashcards/application/use-cases/delete-all-flashcards.use-case';
+import { PreviewFlashcardsFromNotaUseCase } from '../modules/flashcards/application/use-cases/preview-flashcards-from-nota.use-case';
+import { SaveFlashcardPreviewsUseCase } from '../modules/flashcards/application/use-cases/save-flashcard-previews.use-case';
+import { FlashcardsExceptionFilter } from '../modules/flashcards/interface/flashcards-exception.filter';
+import type {
+  CreateFlashcardInput,
+  PreviewCard,
+  UpdateFlashcardPatch,
+} from '../modules/flashcards/domain/flashcard-views';
 
 @UseGuards(JwtAuthGuard)
+@UseFilters(FlashcardsExceptionFilter)
 @Controller()
 export class ContentController {
-  constructor(private readonly content: ContentService) {}
+  constructor(
+    private readonly content: ContentService,
+    private readonly listFlashcards: ListFlashcardsUseCase,
+    private readonly createFlashcard: CreateFlashcardUseCase,
+    private readonly updateFlashcard: UpdateFlashcardUseCase,
+    private readonly deleteFlashcardUseCase: DeleteFlashcardUseCase,
+    private readonly deleteAllFlashcards: DeleteAllFlashcardsUseCase,
+    private readonly previewFromNotaUseCase: PreviewFlashcardsFromNotaUseCase,
+    private readonly saveFromNotaUseCase: SaveFlashcardPreviewsUseCase,
+  ) {}
 
   @Get('subjects')
   subjects(@CurrentUser() userId: string) {
@@ -29,18 +63,29 @@ export class ContentController {
   }
 
   @Post('subjects/:assuntoId/topicos')
-  createTopico(@CurrentUser() userId: string, @Param('assuntoId') assuntoId: string, @Body() body: { nome: string }) {
+  createTopico(
+    @CurrentUser() userId: string,
+    @Param('assuntoId') assuntoId: string,
+    @Body() body: { nome: string },
+  ) {
     return this.content.createTopico(userId, body.nome, assuntoId);
   }
 
   @Post('conceitos')
-  createFullConcept(@CurrentUser() userId: string, @Body() body: { nome: string; assuntoId: string; topicoId: string }) {
+  createFullConcept(
+    @CurrentUser() userId: string,
+    @Body() body: { nome: string; assuntoId: string; topicoId: string },
+  ) {
     return this.content.createFullConcept(userId, body);
   }
 
   @Get('flashcards')
-  flashcards(@CurrentUser() userId: string, @Query('conceptId') conceptId?: string, @Query('topicId') topicId?: string) {
-    return this.content.getFlashcards(userId, { conceptId, topicId });
+  flashcards(
+    @CurrentUser() userId: string,
+    @Query('conceptId') conceptId?: string,
+    @Query('topicId') topicId?: string,
+  ) {
+    return this.listFlashcards.execute(userId, { conceptId, topicId });
   }
 
   @Get('flashcards/filters')
@@ -49,37 +94,41 @@ export class ContentController {
   }
 
   @Post('flashcards')
-  createFlashcard(@CurrentUser() userId: string, @Body() body: { pergunta: string; resposta: string; conceitoId?: string | null; tipo?: string | null }) {
-    return this.content.createFlashcard(userId, body);
+  create(@CurrentUser() userId: string, @Body() body: CreateFlashcardInput) {
+    return this.createFlashcard.execute(userId, body);
   }
 
   @Patch('flashcards/:id')
-  updateFlashcard(@CurrentUser() userId: string, @Param('id') id: string, @Body() body: { pergunta?: string; resposta?: string; tipo?: string | null }) {
-    return this.content.updateFlashcard(userId, id, body);
+  update(
+    @CurrentUser() userId: string,
+    @Param('id') id: string,
+    @Body() body: UpdateFlashcardPatch,
+  ) {
+    return this.updateFlashcard.execute(userId, id, body);
   }
 
   @Delete('flashcards')
-  deleteAllFlashcards(@CurrentUser() userId: string) {
-    return this.content.deleteAllFlashcards(userId);
+  deleteAll(@CurrentUser() userId: string) {
+    return this.deleteAllFlashcards.execute(userId);
   }
 
   @Delete('flashcards/:id')
-  deleteFlashcard(@CurrentUser() userId: string, @Param('id') id: string) {
-    return this.content.deleteFlashcard(userId, id);
+  delete(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.deleteFlashcardUseCase.execute(userId, id);
   }
 
   @Get('notas/:notaId/flashcard-preview')
   previewFromNota(@CurrentUser() userId: string, @Param('notaId') notaId: string) {
-    return this.content.previewFlashcardsFromNota(userId, notaId);
+    return this.previewFromNotaUseCase.execute(userId, notaId);
   }
 
   @Post('notas/:notaId/flashcards')
   saveFromNota(
     @CurrentUser() userId: string,
-    @Param('notaId') notaId: string,
-    @Body() body: { flashcards: Array<{ pergunta: string; resposta: string; conceitoId: string }> },
+    @Param('notaId') _notaId: string,
+    @Body() body: { flashcards: PreviewCard[] },
   ) {
-    return this.content.saveFlashcardPreviewsFromNota(userId, notaId, body.flashcards ?? []);
+    return this.saveFromNotaUseCase.execute(userId, body.flashcards ?? []);
   }
 
   @Get('study/history')
