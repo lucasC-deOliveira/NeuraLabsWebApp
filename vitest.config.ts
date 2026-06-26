@@ -35,6 +35,9 @@ export default defineConfig({
           name: "dom",
           environment: "jsdom",
           include: ["src/**/*.test.tsx", "test/**/*.test.tsx"],
+          // *.visual.test.tsx casa com *.test.tsx mas roda só no browser mode
+          // (vitest.visual.config.ts) — fora do jsdom.
+          exclude: ["**/*.visual.test.tsx", "**/node_modules/**"],
           setupFiles: ["./test/setup-dom.ts"],
         },
       },
