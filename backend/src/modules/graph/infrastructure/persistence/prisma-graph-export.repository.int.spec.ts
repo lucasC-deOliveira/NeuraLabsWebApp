@@ -45,8 +45,10 @@ describe('Graph export (integration — neuralabs_test)', () => {
 
     expect(await repo.findGraph(grafoId, userId)).toEqual({ id: grafoId, nome: 'Bio' });
     const rows = await repo.listNodes(grafoId, userId);
+    // posicaoY is unset on insert, so it falls back to the schema @default(0.0),
+    // matching the convention asserted in the sibling position int specs.
     expect(rows).toEqual([
-      { tipoNode: 'CONCEITO', referenciaId: 'c1', posicaoX: 5, posicaoY: null, nivelDominio: 0 },
+      { tipoNode: 'CONCEITO', referenciaId: 'c1', posicaoX: 5, posicaoY: 0, nivelDominio: 0 },
     ]);
   });
 
