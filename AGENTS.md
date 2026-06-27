@@ -18,11 +18,19 @@ de servidor — essa lógica vive no `backend/` (NestJS).
 # Regras de engenharia (obrigatórias)
 
 Valem para humanos E agentes. Violá-las = PR rejeitado. Onde há ferramenta, o CI
-enforça (escopo estrito em `backend/src/modules/**`; legado é report-only). O resto
-é revisão.
+enforça o **gate estrito** em dois escopos: `backend/src/modules/**` (NestJS) e
+`src/modules/**` (frontend Vite/React). Fora desses escopos é report-only/revisão.
+
+> **Backend e frontend compartilham o MESMO espírito, mas com gates diferentes** —
+> o frontend tem variações pela natureza do React (JSX verboso, sem DI container).
+> As seções abaixo descrevem a regra geral; as duas tabelas **Enforce automático**
+> no fim (uma por stack) são a fonte da verdade sobre o que cada gate cobra.
 
 ## Code style
 - Funções: **4–20 linhas**. Maior que isso, divida.
+  - **Exceção frontend:** componentes React (`.tsx`) NÃO têm cap por função (JSX é
+    verboso). O god-component é contido por `max-lines` (arquivo) + `complexity`.
+    A lógica em `.ts` (domain/application/infra/hooks) segue o cap de 20 linhas.
 - Arquivos: **< 500 linhas**. Divida por responsabilidade.
 - Uma coisa por função; **uma responsabilidade por módulo (SRP)**.
 - Nomes específicos e únicos. Evite `data`, `handler`, `Manager`, `service` genérico.
@@ -61,21 +69,34 @@ enforça (escopo estrito em `backend/src/modules/**`; legado é report-only). O 
 - I/O externo (DB, API, filesystem) é mockado por **classes fake nomeadas** que
   implementam os *ports* (ex.: `FakeFlashcardRepository`), nunca stub inline.
 - Testes **F.I.R.S.T**: rápidos, independentes, repetíveis, auto-validáveis, no tempo certo.
+- **Convenção de arquivos (frontend):** `*.spec.ts` → lógica pura (vitest `node`);
+  `*.test.tsx` → componentes/hooks React (vitest `jsdom` + `@testing-library/react`
+  + `jest-dom`, setup em `test/setup-dom.ts`). No backend é tudo `*.spec.ts` (`node`).
 
 ## Dependencies
 - Injete dependências por **construtor/parâmetro** (NestJS DI), nunca por global/import direto.
 - Envolva libs de terceiros (**Prisma, OpenAI**) atrás de uma **interface fina (port)**
   deste projeto — só o adapter conhece a lib (Anti-Corruption Layer).
+- **Frontend:** não há DI container. Injete por **parâmetro/factory/props** (ex.: um
+  use-case recebe o *port* por argumento). A borda HTTP (`src/lib/*-api.ts`) é o
+  adapter — só a camada `infra/` de cada módulo a importa; `presentation/` chama
+  use-cases, nunca `@/lib/*-api` direto.
 
 ## Structure
 - Siga a convenção do framework: **NestJS** no backend, **Vite/React** no frontend.
 - Módulos pequenos e focados, não "god files".
-- Caminhos previsíveis. No backend refatorado, por bounded context:
-  `domain/ application/ infrastructure/ interface/`.
+- Caminhos previsíveis, por bounded context / feature em `src/modules/<nome>/`:
+  - **Backend:** `domain/ application/ infrastructure/ interface/`.
+  - **Frontend:** `domain/ application/ infra/ presentation/` (nomes diferentes:
+    `infra` no lugar de `infrastructure`; `presentation` — components/hooks/controllers —
+    no lugar de `interface`).
 
 ## Formatting
-- Use o formatter padrão da linguagem: **Prettier** (`npm run format`). Não discuta
-  estilo além disso.
+- **Backend:** use o formatter padrão — **Prettier** (`npm run format`, aspas simples).
+  Não discuta estilo além disso.
+- **Frontend:** ainda **sem Prettier** (só eslint; estilo atual usa aspas duplas). Não
+  reformate em massa; siga o estilo do arquivo ao redor. (Adotar Prettier no frontend
+  é um passo futuro, fora do escopo do refactor atual.)
 
 ## Logging
 - **JSON estruturado** para debug/observabilidade (NestJS `Logger`).
@@ -85,7 +106,7 @@ enforça (escopo estrito em `backend/src/modules/**`; legado é report-only). O 
 - Regra de domínio/use-case nova **começa por um teste que falha** (Red→Green→Refactor).
 - PR sem teste correspondente é rejeitado.
 
-## Enforce automático (CI — escopo `backend/src/modules/**`)
+## Enforce automático — backend (escopo `backend/src/modules/**`, em `backend/`)
 | Regra | Gate |
 |---|---|
 | Funções ≤20 linhas, ≤2 indentação, complexidade | `lint:strict` (`max-lines-per-function`, `max-depth`, `complexity`) |
@@ -95,6 +116,23 @@ enforça (escopo estrito em `backend/src/modules/**`; legado é report-only). O 
 | Fronteiras hexagonais / DI por ports | `arch:check` (dependency-cruiser) |
 | Formatação | `format:check` (Prettier) |
 | Qualidade de teste | `test:mutation` (Stryker, break 70) |
+
+## Enforce automático — frontend (escopo `src/modules/**`, na raiz)
+Mesmo espírito, adaptado ao React. Gates atuais: `npm run lint:strict`, `npm run arch:check`.
+
+| Regra | Gate | Diferença vs backend |
+|---|---|---|
+| Funções ≤20 linhas | `lint:strict` (só `.ts`) | **`.tsx` (componentes) isentos** do cap por função (JSX); contidos por `max-lines` + `complexity` |
+| Arquivos <500 linhas | `lint:strict` (`max-lines`) | igual (vale p/ `.ts` e `.tsx`) |
+| Sem `any` / tipos | `lint:strict` (`no-explicit-any`) | `explicit-*-types` só em `.ts` (em `.tsx` infere `JSX.Element`) |
+| Nomes | `lint:strict` (`naming-convention`) | igual |
+| Fronteiras hexagonais | `arch:check` (dependency-cruiser) | camadas `domain/application/infra/presentation`; **`@/lib/*-api` só via `infra/`**. Regras de pureza de domain e ACL de api **endurecem na Fase 1a** (hoje só: sem ciclos, domain sem outras camadas, sem cruzar domínio de outro módulo) |
+| Formatação | — | **sem Prettier ainda** |
+| Qualidade de teste | — | **sem `test:mutation` ainda** |
+
+- **Ratchet:** `STRICT_DEBT` em `eslint.config.mjs` lista os arquivos legados de
+  `src/modules` (graph/vr, extraídos numa passada anterior) isentos do gate estrito;
+  cada arquivo sai da lista ao ser refatorado ao padrão. **Arquivo novo já nasce estrito.**
 
 <!-- ai-memory:start -->
 ## Long-term memory (ai-memory)

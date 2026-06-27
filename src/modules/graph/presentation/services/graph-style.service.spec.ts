@@ -7,6 +7,7 @@ import {
   truncateLabel,
   RELATION_COLORS,
 } from "./graph-style.service";
+import { NODE_TYPE_COLORS } from "../../constants/graph-ui.constants";
 
 describe("RELATION_COLORS", () => {
   it("toda relação tem cor única na paleta clara", () => {
@@ -179,5 +180,44 @@ describe("truncateLabel", () => {
   it("mantém pelo menos alguns caracteres mesmo em nós minúsculos", () => {
     const out = truncateLabel("abcdefgh", "CONCEITO", 10);
     expect(out.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// Mutation hardening: pina a aritmética exata (fatores de forma, CHAR_WIDTH,
+// LABEL_PADDING, o slice maxChars-1, o Math.max(3) e o limite <=) e os ternários
+// dark/light — onde sobreviviam mutantes que só verificações relativas não matam.
+describe("graph-style — valores exatos (anti-mutação)", () => {
+  it("trunca com a contagem exata por forma na mesma largura (fatores 0.78/0.85/1)", () => {
+    // largura 120: CONCEITO usable=108 → 16 chars; TOPICO=90 → 13; ASSUNTO=81.6 → 12.
+    // (slice em maxChars-1, depois "…")
+    expect(truncateLabel("a".repeat(40), "CONCEITO", 120)).toBe("a".repeat(15) + "…");
+    expect(truncateLabel("a".repeat(40), "TOPICO", 120)).toBe("a".repeat(12) + "…");
+    expect(truncateLabel("a".repeat(40), "ASSUNTO", 120)).toBe("a".repeat(11) + "…");
+  });
+
+  it("respeita o limite <= maxChars (intacto vs cortado em 1 char a mais)", () => {
+    // CONCEITO largura 120 → maxChars 16
+    expect(truncateLabel("a".repeat(16), "CONCEITO", 120)).toBe("a".repeat(16));
+    expect(truncateLabel("a".repeat(17), "CONCEITO", 120)).toBe("a".repeat(15) + "…");
+  });
+
+  it("aplica o piso Math.max(3) em nós minúsculos", () => {
+    // CONCEITO largura 10 → usable negativo → floor < 3 → maxChars = 3 → slice(0,2)
+    expect(truncateLabel("abcdefgh", "CONCEITO", 10)).toBe("ab…");
+  });
+
+  it("getNodeColors devolve exatamente a paleta dark/light do tipo", () => {
+    expect(getNodeColors("ASSUNTO", true)).toEqual(NODE_TYPE_COLORS.ASSUNTO.dark);
+    expect(getNodeColors("ASSUNTO", false)).toEqual(NODE_TYPE_COLORS.ASSUNTO.light);
+  });
+
+  it("getRelationColor devolve exatamente o tom dark/light da relação", () => {
+    expect(getRelationColor("DEFINE", true)).toBe("#22d3ee");
+    expect(getRelationColor("DEFINE", false)).toBe("#0891b2");
+  });
+
+  it("getDominioColor cobre o limite > 0 (0 = cinza, 0.0001 = vermelho)", () => {
+    expect(getDominioColor(0)).toBe("#71717a");
+    expect(getDominioColor(0.0001)).toBe("#ef4444");
   });
 });
