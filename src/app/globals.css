@@ -578,14 +578,14 @@ html[data-color-theme="cyberpunk-2077"] {
 
 /* ── DARK: Jinx — #00AEEF ── */
 html[data-color-theme="jinx"] {
-  --background: #C000B2;
+  --background: #0C387B;
   --foreground: oklch(0.95 0.01 250);
   --card: oklch(0.240 0.024 267);
   --card-foreground: oklch(0.95 0.01 250);
   --popover: oklch(0.240 0.024 267);
   --popover-foreground: oklch(0.95 0.01 250);
-  --primary: oklch(0.708 0.149 234);
-  --primary-foreground: oklch(0.16 0.03 250);
+  --primary: #C000B2;
+  --primary-foreground: oklch(0.98 0 0);
   --secondary: oklch(0.25 0.02 267);
   --secondary-foreground: oklch(0.95 0.01 250);
   --muted: oklch(0.25 0.012 267);
@@ -595,15 +595,15 @@ html[data-color-theme="jinx"] {
   --destructive: oklch(0.65 0.22 25);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.708 0.149 234);
+  --ring: #C000B2;
   --sidebar: oklch(0.16 0.015 267);
   --sidebar-foreground: oklch(0.90 0.01 250);
-  --sidebar-primary: oklch(0.708 0.149 234);
-  --sidebar-primary-foreground: oklch(0.16 0.03 250);
+  --sidebar-primary: #C000B2;
+  --sidebar-primary-foreground: oklch(0.98 0 0);
   --sidebar-accent: oklch(0.23 0.012 267);
   --sidebar-accent-foreground: oklch(0.90 0.01 250);
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.708 0.149 234);
+  --sidebar-ring: #C000B2;
   color-scheme: dark;
 }
 
