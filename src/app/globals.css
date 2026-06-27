@@ -578,7 +578,7 @@ html[data-color-theme="cyberpunk-2077"] {
 
 /* ── DARK: Jinx — #00AEEF ── */
 html[data-color-theme="jinx"] {
-  --background: oklch(0.187 0.015 267);
+  --background: #321328;
   --foreground: oklch(0.95 0.01 250);
   --card: oklch(0.240 0.024 267);
   --card-foreground: oklch(0.95 0.01 250);
