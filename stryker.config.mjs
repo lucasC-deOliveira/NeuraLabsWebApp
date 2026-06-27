@@ -2,7 +2,10 @@
 export default {
   testRunner: "vitest",
   vitest: {
-    configFile: "vitest.config.ts",
+    // Config dedicada: só o projeto de lógica (*.spec.ts, node). O vitest.config
+    // principal tem 2 projetos (node + jsdom); rodar o jsdom no dry-run da mutação
+    // deixaria cada run em horas. Ver vitest.mutation.config.ts.
+    configFile: "vitest.mutation.config.ts",
   },
 
   // Mutate only pure-logic files where mutation testing gives real value.
