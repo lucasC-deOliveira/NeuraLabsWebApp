@@ -28,7 +28,7 @@ const DARK_THEMES: ThemeOption[] = [
   { id: "white-wolf",        name: "White Wolf",        bg: "#121212", card: "#1c1c1c", accent: "#E6E6E6" },
   { id: "cyberpunk-neon",    name: "Cyberpunk Neon",    bg: "#0b0f1a", card: "#161b2d", accent: "#FF008C" },
   { id: "cyberpunk-2077",    name: "Cyberpunk 2077",    bg: "#0f0f0a", card: "#1a1a0d", accent: "#FCEE0A" },
-  { id: "jinx",              name: "Jinx",              bg: "#0C387B", card: "#1a1f2b", accent: "#C000B2" },
+  { id: "jinx",              name: "Jinx",              bg: "#082046", card: "#1a1f2b", accent: "#C000B2" },
   { id: "hackerman",         name: "Hackerman",         bg: "#0b0c16", card: "#1a1d2b", accent: "#28C23C" },
 ];
 
