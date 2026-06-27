@@ -33,6 +33,12 @@ export default defineConfig({
         "src/modules/vr/components/VRStudyPanel3D.tsx",
         "src/modules/vr/components/VREditPanel3D.tsx",
         "src/modules/vr/components/VRStudyMode.tsx",
+        // vr/[id]: página que monta a cena r3f (VRScene) — mesmo motivo acima.
+        "src/app/vr/[id]/page.tsx",
+        // graph/[id]: god-page (1200 linhas) que orquestra o controller + render 3D +
+        // 30 modais. É o ALVO Nº1 de decomposição; um smoke mockaria tudo que importa.
+        // A cobertura real virá ao afiná-la em controller fino (Fase 1f do plano).
+        "src/app/graph/[id]/page.tsx",
       ],
     },
     projects: [
