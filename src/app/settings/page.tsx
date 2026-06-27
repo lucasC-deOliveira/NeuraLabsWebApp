@@ -18,7 +18,7 @@ import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
 type ThemeOption = { id: ColorTheme; name: string; bg: string; card: string; accent: string };
 
 const DARK_THEMES: ThemeOption[] = [
-  { id: "classic-gx",        name: "Classic GX",        bg: "#1a0a0a", card: "#260f0f", accent: "#FA1E4E" },
+  { id: "classic-gx",        name: "Classic",           bg: "#1a0a0a", card: "#260f0f", accent: "#FA1E4E" },
   { id: "cyber-ultraviolet", name: "Cyber Ultraviolet", bg: "#0f0a1a", card: "#160f26", accent: "#9D4EDD" },
   { id: "chroma-teal",       name: "Chroma Teal",       bg: "#091a19", card: "#0f2625", accent: "#00F5D4" },
   { id: "acid-toxic",        name: "Acid Toxic",        bg: "#091409", card: "#0e1f0e", accent: "#39FF14" },
@@ -27,12 +27,13 @@ const DARK_THEMES: ThemeOption[] = [
   { id: "rose-quartz",       name: "Rose Quartz",       bg: "#1a171b", card: "#242028", accent: "#F7CAC9" },
   { id: "white-wolf",        name: "White Wolf",        bg: "#121212", card: "#1c1c1c", accent: "#E6E6E6" },
   { id: "cyberpunk-neon",    name: "Cyberpunk Neon",    bg: "#0b0f1a", card: "#161b2d", accent: "#FF008C" },
+  { id: "cyberpunk-2077",    name: "Cyberpunk 2077",    bg: "#0f0f0a", card: "#1a1a0d", accent: "#FCEE0A" },
   { id: "jinx",              name: "Jinx",              bg: "#10131a", card: "#1a1f2b", accent: "#00AEEF" },
   { id: "hackerman",         name: "Hackerman",         bg: "#0b0c16", card: "#1a1d2b", accent: "#28C23C" },
 ];
 
 const LIGHT_THEMES: ThemeOption[] = [
-  { id: "light-gx-core", name: "Light GX Core", bg: "#fafafa", card: "#ffffff", accent: "#E01A4F" },
+  { id: "light-gx-core", name: "Light Core", bg: "#fafafa", card: "#ffffff", accent: "#E01A4F" },
   { id: "neon-frost",    name: "Neon Frost",    bg: "#f0f6fb", card: "#ffffff", accent: "#0284C7" },
   { id: "cyber-quartz",  name: "Cyber Quartz",  bg: "#f4f0fb", card: "#ffffff", accent: "#7B2CBF" },
   { id: "digital-mint",  name: "Digital Mint",  bg: "#f0faf6", card: "#ffffff", accent: "#059669" },
@@ -223,7 +224,7 @@ export default function SettingsPage() {
             Tema
           </CardTitle>
           <CardDescription className="text-xs sm:text-sm">
-            Escolha um tema Opera GX ou use o padrao do sistema.
+            Escolha um tema de cor ou use o padrao do sistema.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 px-3 sm:px-6">

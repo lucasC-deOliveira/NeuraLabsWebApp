@@ -133,7 +133,7 @@
 }
 
 /* =========================================================
-   OPERA GX THEMES — 4 dark + 4 light
+   TEMAS DE COR — presets escuros e claros
    Applied via data-color-theme on <html>
    60% background · 30% card/structure · 10% neon accent
    ========================================================= */
@@ -387,7 +387,7 @@ html[data-color-theme="digital-mint"] {
 }
 
 /* =========================================================
-   OPERA GX THEMES — extra dark presets
+   TEMAS DE COR — presets escuros extras
    ========================================================= */
 
 /* ── DARK: Purple Haze — #4E387E ── */
@@ -545,6 +545,37 @@ html[data-color-theme="cyberpunk-neon"] {
   color-scheme: dark;
 }
 
+/* ── DARK: Cyberpunk 2077 — Yellow #FCEE0A (capa do jogo) ── */
+html[data-color-theme="cyberpunk-2077"] {
+  --background: oklch(0.12 0.012 100);
+  --foreground: oklch(0.95 0.012 100);
+  --card: oklch(0.16 0.018 100);
+  --card-foreground: oklch(0.95 0.012 100);
+  --popover: oklch(0.16 0.018 100);
+  --popover-foreground: oklch(0.95 0.012 100);
+  --primary: oklch(0.925 0.188 103);
+  --primary-foreground: oklch(0.14 0.02 100);
+  --secondary: oklch(0.21 0.02 100);
+  --secondary-foreground: oklch(0.95 0.012 100);
+  --muted: oklch(0.21 0.012 100);
+  --muted-foreground: oklch(0.67 0.03 100);
+  --accent: oklch(0.925 0.188 103);
+  --accent-foreground: oklch(0.14 0.02 100);
+  --destructive: oklch(0.65 0.22 25);
+  --border: oklch(0.925 0.188 103 / 14%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.925 0.188 103);
+  --sidebar: oklch(0.14 0.015 100);
+  --sidebar-foreground: oklch(0.90 0.012 100);
+  --sidebar-primary: oklch(0.925 0.188 103);
+  --sidebar-primary-foreground: oklch(0.14 0.02 100);
+  --sidebar-accent: oklch(0.19 0.012 100);
+  --sidebar-accent-foreground: oklch(0.90 0.012 100);
+  --sidebar-border: oklch(0.925 0.188 103 / 12%);
+  --sidebar-ring: oklch(0.925 0.188 103);
+  color-scheme: dark;
+}
+
 /* ── DARK: Jinx — #00AEEF ── */
 html[data-color-theme="jinx"] {
   --background: oklch(0.187 0.015 267);
@@ -610,7 +641,7 @@ html[data-color-theme="hackerman"] {
 /* ==========================================
    EFEITO NEON NA SIDEBAR
    Ativado pela checkbox na seção de tema (html[data-neon="true"]).
-   Usa a cor primária do tema ativo — acompanha qualquer tema Opera GX.
+   Usa a cor primária do tema ativo — acompanha qualquer tema de cor.
    ========================================== */
 html[data-neon="true"] .app-sidebar {
   border-right: 1px solid var(--primary);
