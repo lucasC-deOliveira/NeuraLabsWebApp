@@ -122,60 +122,74 @@ O app desktop expõe um IPC para ler e gravar arquivos `.md` na pasta de vault e
 
 ## Estrutura do projeto
 
+Ambos os lados seguem **arquitetura hexagonal / DDD** por bounded context, em
+`src/modules/<contexto>/`. No backend a migração está **completa** (todos os contextos);
+no frontend ela começou pelo `graph` e está em andamento (ver _Qualidade e testes_).
+
 ```
 flashcard-app/
   src/                         ← Frontend React 19 + Vite + TypeScript
     app/                       ← Páginas (dashboard, flashcards, notas, estudo, grafo, settings)
-    components/                ← UI (shadcn/ui, flashcard, grafo, sidebar)
-    lib/                       ← Clientes HTTP, vault bridge, utilitários
-    modules/graph/             ← Módulo do grafo (domínio, infra, apresentação)
+    components/                ← UI (shadcn/ui, flashcard, grafo, sidebar) — legado a migrar
+    lib/                       ← Clientes HTTP (*-api.ts), vault bridge, utilitários
+    modules/                   ← Código hexagonal (domain/application/infra/presentation)
+      graph/                   ←   Grafo: render, hooks, controller, serviços, layout
+      vr/                      ←   Visualização XR (Three.js / react-three-fiber)
+  test/                        ← Setup jsdom + visual regression (Playwright)
   electron/
     main.js                    ← Processo principal: janela, IPC, vault, config
     preload.js                 ← Bridge segura entre renderer e main
-  backend/                     ← API NestJS
+  backend/                     ← API NestJS — 100% hexagonal/DDD
     src/
-      auth/                    ← JWT (registro, login, guard)
-      content/                 ← Flashcards, decks, geração por IA
-      study/                   ← Controller HTTP do estudo (rotas → use-cases)
-      modules/study/           ← Contexto de estudo em camadas hexagonais (DDD):
-        domain/                ←   VOs (Grade/Phase/EaseFactor), agregados (Flashcard/
-                               ←   StudySession), SM-2, interleaving, ports, erros
-        application/           ←   use-cases: submit-review, start-session, start-deck,
-                               ←   start-single-card, get-flashcard, end/finalize, sync-vault-log
-        infrastructure/        ←   adapters Prisma (repos por agregado + UoW, queries) + mappers
-        interface/             ←   filtro de erros de domínio → HTTP
-      graph/                   ← Nós, arestas, regras de relação, insights IA
-      notes/                   ← Notas Zettelkasten
-      ai/                      ← AiService (OpenAI-compatible client)
-      settings/                ← Config de IA por usuário
+      modules/<contexto>/      ← Cada bounded context em 4 camadas:
+        domain/                ←   tipos, regras, value objects, ports, erros (puro)
+        application/           ←   use-cases (orquestram domínio + ports)
+        infrastructure/        ←   adapters (Prisma, OpenAI) que implementam os ports
+        interface/             ←   filtros de erro de domínio → HTTP
+                               ←   contextos: ai, auth, curriculum, flashcards, graph,
+                               ←   notes, provas, questions, settings, study
+      <contexto>/              ← Glue NestJS fino: controllers + módulos compondo use-cases
     prisma/
       schema.prisma            ← Modelo de dados (PostgreSQL)
   docker-compose.yml           ← Postgres + backend + frontend nginx
 ```
 
-## Testes
+## Qualidade e testes
 
 ```bash
-# Frontend — unitários e integração
+# Frontend — testes (2 ambientes: *.spec.ts em node, *.test.tsx em jsdom)
 npm run test
+npm run test -- --coverage          # com cobertura
 
-# Frontend — com cobertura
-npm run test -- --coverage
+# Frontend — regressão visual (browser real via Playwright; screenshots)
+npm run test:visual
 
-# Testes de mutação (Stryker) — verifica a qualidade dos testes
+# Frontend — gates de arquitetura (escopo src/modules/**)
+npm run lint:strict                 # clean code: tamanho, complexidade, tipos, naming
+npm run arch:check                  # fronteiras hexagonais (dependency-cruiser)
+
+# Frontend — mutação (Stryker, só lógica pura)
 npm run test:mutation
 
-# Backend — unitários (sem banco)
+# Backend — unitários (sem banco) / integração / e2e / mutação
 cd backend && npm run test
-
-# Backend — integração (requer o Postgres de teste neuralabs_test)
-cd backend && npm run test:integration
-
-# Backend — e2e (sobe a app Nest via supertest; requer o Postgres de teste)
-cd backend && npm run test:e2e
-
-# Backend — mutação (Stryker)
+cd backend && npm run test:integration   # requer o Postgres de teste neuralabs_test
+cd backend && npm run test:e2e           # sobe a app Nest via supertest
 cd backend && npm run test:mutation
+cd backend && npm run lint:strict && npm run arch:check
 ```
 
-Os testes de mutação do frontend cobrem os módulos de lógica pura: `vault-format`, `graph-communities`, `graph-metrics`, `srs-local`, `relation-rules`, `roadmap.service`, `graph.selectors`, `graph-style.service`, `graph-physics.service`, `force-layout.engine` e `card-styles`. No backend, a mutação cobre o domínio de estudo (Value Objects, agregados `Flashcard`/`StudySession`, `spaced-repetition`, `interleaving`) e os use-cases `submit-review` e `start-session`. O relatório HTML é gerado em `reports/mutation/index.html`.
+**Convenção de testes do frontend:** `*.spec.ts` → lógica pura (ambiente `node`);
+`*.test.tsx` → componentes/hooks (`jsdom` + `@testing-library/react`); `*.visual.test.tsx`
+→ regressão visual (Playwright/Chromium, fora do `npm test`).
+
+**Gates estritos** (`lint:strict` + `arch:check`) valem em `src/modules/**` (código
+hexagonal); o legado em `src/{app,components,lib}` é report-only e migra de forma
+incremental. As regras e suas diferenças backend × frontend estão no [`AGENTS.md`](AGENTS.md).
+
+**Mutação** (verifica a _eficácia_ dos testes, não só a cobertura) mira a lógica pura.
+Frontend: `vault-format`, `graph-communities`, `graph-metrics`, `srs-local`,
+`relation-rules`, `roadmap.service`, `graph.selectors`, `graph-style.service`,
+`graph-physics.service`, `force-layout.engine`, `card-styles`. Backend: domínio de estudo
+(Value Objects, agregados `Flashcard`/`StudySession`, `spaced-repetition`, `interleaving`)
++ use-cases. Relatório HTML em `reports/mutation/index.html`.
