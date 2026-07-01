@@ -30,6 +30,8 @@ import {
   mergeDuplicates,
   assessCompleteness,
   fillKnowledgeGaps,
+  detectMissingPrerequisites,
+  addMissingPrerequisite,
 } from "@/lib/ai-api";
 import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
 import type {
@@ -48,6 +50,7 @@ import type {
   CompletenessAssessment,
   GapItem,
   GeneratedContentCount,
+  MissingPrereq,
 } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
@@ -166,6 +169,14 @@ export class HttpGraphAdapter
 
   fillKnowledgeGaps(grafoId: string, gaps: GapItem[]): Promise<GeneratedContentCount> {
     return fillKnowledgeGaps(grafoId, gaps);
+  }
+
+  detectMissingPrerequisites(grafoId: string): Promise<{ prerequisites: MissingPrereq[] }> {
+    return detectMissingPrerequisites(grafoId);
+  }
+
+  addMissingPrerequisite(grafoId: string, nome: string, tipo: string, connectToIds: string[]): Promise<{ nodeId: string }> {
+    return addMissingPrerequisite(grafoId, nome, tipo, connectToIds);
   }
 
   parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult> {

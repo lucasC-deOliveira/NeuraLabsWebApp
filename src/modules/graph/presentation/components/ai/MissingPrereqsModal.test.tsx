@@ -3,14 +3,9 @@ import { render, screen } from "@testing-library/react";
 import { MissingPrereqsModal } from "./MissingPrereqsModal";
 import { detectMissingPrerequisites } from "@/lib/ai-api";
 
-vi.mock("@/lib/ai-api", () => ({
-  detectMissingPrerequisites: vi.fn(),
-  addMissingPrerequisite: vi.fn(),
-}));
+// O adapter delega para @/lib/ai-api, então mockar a borda cobre o fluxo.
+vi.mock("@/lib/ai-api", () => ({ detectMissingPrerequisites: vi.fn(), addMissingPrerequisite: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock("@/components/markdown-content", () => ({
-  MarkdownContent: ({ children }: { children: string }) => children,
-}));
 
 beforeEach(() => vi.clearAllMocks());
 

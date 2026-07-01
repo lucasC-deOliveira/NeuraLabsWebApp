@@ -61,6 +61,12 @@ export interface GeneratedContentCount {
   notas: number;
   flashcards: number;
 }
+export interface MissingPrereq {
+  nome: string;
+  tipo: string;
+  motivo: string;
+  shouldConnectTo: Array<{ id: string; nome: string }>;
+}
 
 export interface GraphAiPort {
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }>;
@@ -71,4 +77,6 @@ export interface GraphAiPort {
   mergeDuplicates(grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }>;
   assessCompleteness(grafoId: string): Promise<{ assessments: CompletenessAssessment[] }>;
   fillKnowledgeGaps(grafoId: string, gaps: GapItem[]): Promise<GeneratedContentCount>;
+  detectMissingPrerequisites(grafoId: string): Promise<{ prerequisites: MissingPrereq[] }>;
+  addMissingPrerequisite(grafoId: string, nome: string, tipo: string, connectToIds: string[]): Promise<{ nodeId: string }>;
 }

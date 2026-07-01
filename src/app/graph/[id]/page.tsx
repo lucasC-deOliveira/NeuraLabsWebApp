@@ -26,7 +26,7 @@ import { GenerateGraphFromBaralhoModal } from "@/components/graph/GenerateGraphF
 import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLinkModal";
 import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/DuplicatesModal";
 import { CommunitySummaryModal } from "@/components/graph/CommunitySummaryModal";
-import { MissingPrereqsModal } from "@/components/graph/MissingPrereqsModal";
+import { MissingPrereqsModal } from "@/modules/graph/presentation/components/ai/MissingPrereqsModal";
 import { GraphChatModal } from "@/components/graph/GraphChatModal";
 import { CompletenessModal } from "@/modules/graph/presentation/components/ai/CompletenessModal";
 import { clustersFromHierarchy, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
