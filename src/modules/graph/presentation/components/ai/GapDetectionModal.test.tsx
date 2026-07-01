@@ -4,11 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { GapDetectionModal } from "./GapDetectionModal";
 import { suggestGapFill } from "@/lib/ai-api";
 
+// O adapter delega para @/lib/ai-api, então mockar a borda cobre o fluxo.
 vi.mock("@/lib/ai-api", () => ({ suggestGapFill: vi.fn(), addInsightsToGraph: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock("@/components/markdown-content", () => ({
-  MarkdownContent: ({ children }: { children: string }) => children,
-}));
 
 const gap = {
   communityA: { nodes: [{ label: "X" }] },
@@ -23,16 +21,7 @@ beforeEach(() => {
 });
 
 function setup(gaps: unknown[]) {
-  render(
-    <GapDetectionModal
-      open
-      onOpenChange={vi.fn()}
-      grafoId="g1"
-      gaps={gaps as never}
-      onAdded={vi.fn()}
-      onHighlightGap={vi.fn()}
-    />,
-  );
+  render(<GapDetectionModal open onOpenChange={vi.fn()} grafoId="g1" gaps={gaps as never} onAdded={vi.fn()} onHighlightGap={vi.fn()} />);
 }
 
 describe("GapDetectionModal", () => {
@@ -45,12 +34,7 @@ describe("GapDetectionModal", () => {
     setup([gap]);
     await userEvent.click(screen.getByRole("button", { name: /Preencher com IA/ }));
     await waitFor(() =>
-      expect(suggestGapFill).toHaveBeenCalledWith("g1", {
-        labelsA: ["X"],
-        labelsB: ["Y"],
-        bridgeA: "A1",
-        bridgeB: "B1",
-      }),
+      expect(suggestGapFill).toHaveBeenCalledWith("g1", { labelsA: ["X"], labelsB: ["Y"], bridgeA: "A1", bridgeB: "B1" }),
     );
   });
 });

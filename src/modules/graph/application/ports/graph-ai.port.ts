@@ -114,4 +114,8 @@ export interface GraphAiPort {
     question: string,
     history: ChatHistoryItem[],
   ): Promise<{ answer: string; referencedNodes: ChatReferencedNode[] }>;
+  suggestGapFill(
+    grafoId: string,
+    body: { labelsA: string[]; labelsB: string[]; bridgeA: string; bridgeB: string },
+  ): Promise<{ insights: NodeInsight[] }>;
 }

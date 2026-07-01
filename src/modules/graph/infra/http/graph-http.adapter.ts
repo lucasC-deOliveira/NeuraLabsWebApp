@@ -36,6 +36,7 @@ import {
   addInsightsToGraph,
   generateCommunitySummary,
   chatWithGraph,
+  suggestGapFill,
 } from "@/lib/ai-api";
 import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
 import type {
@@ -59,6 +60,7 @@ import type {
   InsightToAdd,
   ChatHistoryItem,
   ChatReferencedNode,
+  NodeInsight,
 } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
@@ -205,6 +207,13 @@ export class HttpGraphAdapter
     history: ChatHistoryItem[],
   ): Promise<{ answer: string; referencedNodes: ChatReferencedNode[] }> {
     return chatWithGraph(grafoId, question, history);
+  }
+
+  suggestGapFill(
+    grafoId: string,
+    body: { labelsA: string[]; labelsB: string[]; bridgeA: string; bridgeB: string },
+  ): Promise<{ insights: NodeInsight[] }> {
+    return suggestGapFill(grafoId, body);
   }
 
   parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult> {
