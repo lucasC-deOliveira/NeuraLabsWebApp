@@ -23,8 +23,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PlusIcon, Loader2Icon, SparklesIcon, XIcon, SearchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { suggestNotaRelations, type NotaRelationSuggestion } from "@/lib/ai-api";
-import { getAvailableItems, listUserFlashcards, addProvaToGraph } from "@/lib/graph-api";
+import { getAvailableItems, listUserFlashcards } from "@/lib/graph-api";
+import type { NotaRelationSuggestion } from "@/modules/graph/application/ports/graph-ai.port";
 import { parseProvaUpload, createProvaFromParsed, type ParsedQuestaoPreview } from "@/lib/provas-api";
 import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
@@ -252,7 +252,7 @@ export function CreateNodeModal({
     }
     setAiLoading(true);
     try {
-      const suggestions = await suggestNotaRelations(
+      const suggestions = await graphHttp.suggestNotaRelations(
         grafoId,
         formData.nome.trim(),
         formData.conteudo.trim()
@@ -312,7 +312,7 @@ export function CreateNodeModal({
           }
           setLoading(true);
           try {
-            await addProvaToGraph(grafoId, selectedProvaId);
+            await graphHttp.addProvaToGraph(grafoId, selectedProvaId);
             toast.success("Prova adicionada ao grafo!");
             resetForm();
             onOpenChange(false);
@@ -334,7 +334,7 @@ export function CreateNodeModal({
           setLoading(true);
           try {
             const { provaId } = await createProvaFromParsed({ titulo: parsedTitulo.trim(), questoes: parsedQuestoes });
-            await addProvaToGraph(grafoId, provaId);
+            await graphHttp.addProvaToGraph(grafoId, provaId);
             toast.success(`Prova criada com ${parsedQuestoes.length} questões e adicionada ao grafo!`);
             resetForm();
             onOpenChange(false);

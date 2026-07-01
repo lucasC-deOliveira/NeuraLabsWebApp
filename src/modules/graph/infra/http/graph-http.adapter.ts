@@ -13,16 +13,17 @@ import {
   updateGraphNode,
   addNodeToGraph,
   createBaralhoNode,
+  addProvaToGraph,
   createEdge,
   updateEdge,
   deleteEdge,
 } from "@/lib/graph-api";
-import { generateLearningPath } from "@/lib/ai-api";
+import { generateLearningPath, suggestNotaRelations } from "@/lib/ai-api";
 import type {
   GraphDataPort,
   NodePosition,
 } from "../../application/ports/graph-data.port";
-import type { GraphAiPort, LearningStep } from "../../application/ports/graph-ai.port";
+import type { GraphAiPort, LearningStep, NotaRelationSuggestion } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
 import type {
@@ -89,6 +90,14 @@ export class HttpGraphAdapter implements GraphDataPort, GraphAiPort, GraphNodesP
     flashcardIds: string[],
   ): Promise<{ success: boolean; nodeId: string }> {
     return createBaralhoNode(grafoId, titulo, flashcardIds);
+  }
+
+  addProvaToGraph(grafoId: string, provaId: string): Promise<{ success: boolean; nodeId: string }> {
+    return addProvaToGraph(grafoId, provaId);
+  }
+
+  suggestNotaRelations(grafoId: string, titulo: string, conteudo: string): Promise<NotaRelationSuggestion[]> {
+    return suggestNotaRelations(grafoId, titulo, conteudo);
   }
 
   createEdge(grafoId: string, data: CreateEdgeData): Promise<{ success: boolean; edgeId: string }> {

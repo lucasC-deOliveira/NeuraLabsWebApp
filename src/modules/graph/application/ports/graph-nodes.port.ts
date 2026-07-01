@@ -21,4 +21,5 @@ export interface GraphNodesPort {
     titulo: string,
     flashcardIds: string[],
   ): Promise<{ success: boolean; nodeId: string }>;
+  addProvaToGraph(grafoId: string, provaId: string): Promise<{ success: boolean; nodeId: string }>;
 }
