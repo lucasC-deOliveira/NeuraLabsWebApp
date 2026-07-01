@@ -8,7 +8,7 @@ import { DeleteDeckModal } from "@/components/graph/DeleteDeckModal";
 import { GenerateDeckModal } from "@/components/graph/GenerateDeckModal";
 
 import { Button } from "@/components/ui/button";
-import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
+import { PropertiesPanel } from "@/modules/graph/presentation/components/PropertiesPanel";
 
 import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon, LayersIcon } from "lucide-react";
 import {

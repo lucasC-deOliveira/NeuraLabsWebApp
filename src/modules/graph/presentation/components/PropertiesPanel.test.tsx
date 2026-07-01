@@ -1,14 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PropertiesPanel } from "./PropertiesPanel";
 
+// Characterization test (safety net for the hexagonal decomposition of this panel
+// into data hooks + presentational subcomponents). The HTTP/vault edges are mocked.
 vi.mock("@/lib/graph-api", () => ({ getNodeDetails: vi.fn(() => Promise.resolve(null)) }));
 vi.mock("@/lib/vault-bridge", () => ({ isDesktop: () => false, desktop: {} }));
 vi.mock("@/lib/vault-sync", () => ({ readAllVaultNodes: vi.fn(), graphVaultDir: vi.fn() }));
-vi.mock("@/lib/srs-local", () => ({ readSrsLog: vi.fn(() => Promise.resolve({ schedule: {} })) }));
-vi.mock("@/lib/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/lib/srs-local", () => ({
+  readSrsLog: vi.fn(() => Promise.resolve({ schedule: {} })),
+  isDue: vi.fn(() => false),
+}));
 
 const node = {
   id: "n1",
