@@ -34,6 +34,7 @@ import { graphHttp } from "@/modules/graph/infra/http";
 import { RelationLinkList } from "@/modules/graph/presentation/components/create-node/RelationLinkList";
 import { ProvaForm } from "@/modules/graph/presentation/components/create-node/ProvaForm";
 import { DeckForm } from "@/modules/graph/presentation/components/create-node/DeckForm";
+import { NotaFields, NotaAiSuggestions } from "@/modules/graph/presentation/components/create-node/NotaForm";
 import { useRouter } from "@/lib/navigation";
 
 // Mensagens pt-BR específicas por tipo para os códigos de validação da criação.
@@ -931,183 +932,20 @@ export function CreateNodeModal({
               {/* NOTA form */}
               {selectedType === "NOTA" && (
                 <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="nota-titulo">Título</Label>
-                    <Input
-                      id="nota-titulo"
-                      placeholder="Ex: SVM maximiza a margem entre classes"
-                      value={formData.nome}
-                      onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
-                    />
-                  </div>
-
-                  {/* Zettelkasten: tipo da nota */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="nota-tipo">Tipo de nota (Zettelkasten)</Label>
-                    <Select
-                      value={formData.tipoNota}
-                      onValueChange={(value) => setFormData((f) => ({ ...f, tipoNota: value ?? "PERMANENTE" }))}
-                    >
-                      <SelectTrigger id="nota-tipo">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="LITERATURA">
-                          <div className="py-0.5">
-                            <div className="font-medium">Nota de referência (literatura)</div>
-                            <div className="text-xs text-muted-foreground">Anotações de leitura — próximas da fonte original</div>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="PERMANENTE">
-                          <div className="py-0.5">
-                            <div className="font-medium">Nota permanente</div>
-                            <div className="text-xs text-muted-foreground">Uma ideia, suas palavras, compreensível isoladamente</div>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="ESTRUTURA">
-                          <div className="py-0.5">
-                            <div className="font-medium">Nota de estrutura</div>
-                            <div className="text-xs text-muted-foreground">Índice ou mapa de conhecimento</div>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* subtipo do conteúdo */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="nota-subtipo">Subtipo</Label>
-                    <Select
-                      value={formData.subtipo}
-                      onValueChange={(value) => setFormData((f) => ({ ...f, subtipo: value ?? "" }))}
-                    >
-                      <SelectTrigger id="nota-subtipo">
-                        <SelectValue placeholder="Selecione o subtipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="DEFINICAO">Definição</SelectItem>
-                        <SelectItem value="EXPLICACAO">Explicação</SelectItem>
-                        <SelectItem value="EXEMPLO">Exemplo</SelectItem>
-                        <SelectItem value="COMPARACAO">Comparação</SelectItem>
-                        <SelectItem value="SINTESE">Síntese</SelectItem>
-                        <SelectItem value="PREREQUISITO">Pré-requisito</SelectItem>
-                        <SelectItem value="ERRO_COMUM">Erro comum</SelectItem>
-                        <SelectItem value="APLICACAO">Aplicação</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* fonte: obrigatória para notas de literatura */}
-                  {formData.tipoNota === "LITERATURA" && (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="nota-fonte">Fonte</Label>
-                      <Input
-                        id="nota-fonte"
-                        placeholder="Ex: Livro sobre Machine Learning, cap. 4"
-                        value={formData.fonte}
-                        onChange={(e) => setFormData((f) => ({ ...f, fonte: e.target.value }))}
-                      />
-                    </div>
-                  )}
-
-                  {formData.tipoNota === "PERMANENTE" && (
-                    <p className="text-xs text-muted-foreground">
-                      Dica: uma única ideia principal por nota. Depois, conecte-a a conceitos
-                      pelo grafo (define, explica, aprofunda...).
-                    </p>
-                  )}
-                  {formData.tipoNota === "ESTRUTURA" && (
-                    <p className="text-xs text-muted-foreground">
-                      Dica: use esta nota como índice — relacione-a aos tópicos e conceitos
-                      que ela organiza.
-                    </p>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="texto-bruto">Texto da nota (suporta Markdown)</Label>
-                    <Textarea
-                      id="texto-bruto"
-                      placeholder="Digite ou cole sua nota aqui... (markdown: # título, **negrito**, - listas, tabelas)"
-                      value={formData.conteudo}
-                      onChange={(e) => setFormData((f) => ({ ...f, conteudo: e.target.value }))}
-                      rows={6}
-                    />
-                  </div>
-
+                  <NotaFields
+                    form={formData}
+                    onField={(key, value) => setFormData((f) => ({ ...f, [key]: value }))}
+                  />
                   {/* Texto bruto de origem (no máximo 1) — relação GERA */}
                   {renderNotaTextoBruto()}
-
                   {/* Conceitos relacionados (relação + peso) — manualmente, além da IA */}
                   {renderNotaConceitos()}
-
-                  {/* IA: sugerir relações com o grafo */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-2"
-                    onClick={handleSuggestRelations}
-                    disabled={aiLoading}
-                  >
-                    {aiLoading ? (
-                      <Loader2Icon className="size-4 animate-spin" />
-                    ) : (
-                      <SparklesIcon className="size-4" />
-                    )}
-                    Sugerir relações com IA
-                  </Button>
-
-                  {aiSuggestions.length > 0 && (
-                    <div className="space-y-2 rounded-md border border-primary/40 p-2">
-                      <p className="text-xs font-semibold text-primary">
-                        Sugestões — desmarque as que não quiser; a relação é criada junto com a nota
-                      </p>
-                      {aiSuggestions.map((sg, idx) => (
-                        <div key={sg.nodeId} className="flex items-start gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            className="mt-1"
-                            checked={sg.accepted}
-                            onChange={(e) =>
-                              setAiSuggestions((prev) =>
-                                prev.map((x, i) => (i === idx ? { ...x, accepted: e.target.checked } : x))
-                              )
-                            }
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <Badge variant="outline" className="text-[10px]">
-                                {sg.nodeTipo.toLowerCase()}
-                              </Badge>
-                              <span className="truncate font-medium">{sg.nodeNome}</span>
-                              <Select
-                                value={sg.relacao}
-                                onValueChange={(value) =>
-                                  setAiSuggestions((prev) =>
-                                    prev.map((x, i) => (i === idx ? { ...x, relacao: value ?? x.relacao } : x))
-                                  )
-                                }
-                              >
-                                <SelectTrigger className="h-6 w-auto px-2 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {getAllowedRelations("NOTA", sg.nodeTipo).map((rel) => (
-                                    <SelectItem key={rel} value={rel}>
-                                      {RELATION_LABELS[rel] ?? rel}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            {sg.motivo && (
-                              <p className="text-xs text-muted-foreground">{sg.motivo}</p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <NotaAiSuggestions
+                    loading={aiLoading}
+                    suggestions={aiSuggestions}
+                    onSuggest={handleSuggestRelations}
+                    onChange={setAiSuggestions}
+                  />
                 </div>
               )}
             </>
