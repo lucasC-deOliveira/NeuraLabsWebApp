@@ -123,7 +123,6 @@ export function CreateNodeModal({
   const [deckFlashcards, setDeckFlashcards] = useState<Array<{ id: string; pergunta: string; conceito: string | null }>>([]);
   const [deckSelected, setDeckSelected] = useState<Set<string>>(new Set());
   const [deckSearch, setDeckSearch] = useState("");
-  const [deckLoading, setDeckLoading] = useState(false);
   // tópico: conjunto de assuntos relacionados (relação + peso) escolhidos na criação
   const [topicoAssuntos, setTopicoAssuntos] = useState<TopicoAssuntoLink[]>([]);
   // conceito: conjunto de tópicos relacionados (relação + peso)
@@ -171,48 +170,47 @@ export function CreateNodeModal({
     fonte: "",
   });
 
-  // Load available items when modal opens or PROVA type is selected
-  useEffect(() => {
-    if (open && (activeTab === "existing" || selectedType === "PROVA")) {
-      loadAvailableItems();
-    }
-  }, [open, activeTab, selectedType]);
-
-  // Reset to "create" tab when selected type changes to non-FLASHCARD/NOTA
-  useEffect(() => {
-    if (selectedType && selectedType !== "FLASHCARD" && selectedType !== "NOTA") {
-      setActiveTab("create");
-    }
-  }, [selectedType]);
-
-  // Carrega os flashcards ao escolher criar um BARALHO. Diferente das outras
-  // regras: o baralho só pode conter flashcards que JÁ estão no grafo.
-  useEffect(() => {
-    if (!open || selectedType !== "BARALHO") return;
-    setDeckLoading(true);
-    const noGrafo = new Set(parentIds.flashcards.map((f) => f.id));
-    graphHttp.listUserFlashcards()
-      .then((fcs) =>
-        setDeckFlashcards(
-          fcs
-            .filter((f) => noGrafo.has(f.id))
-            .map((f) => ({ id: f.id, pergunta: f.pergunta, conceito: f.conceito }))
-        )
-      )
-      .catch(() => toast.error("Erro ao carregar flashcards"))
-      .finally(() => setDeckLoading(false));
-  }, [open, selectedType, parentIds.flashcards]);
-
-  const loadAvailableItems = async () => {
-    try {
-      const data = await graphHttp.getAvailableItems(grafoId);
-      setAvailableItems({ flashcards: data.flashcards ?? [], notas: data.notas ?? [], provas: data.provas ?? [] });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Erro desconhecido";
-      console.error("Erro ao carregar itens disponíveis:", e);
-      toast.error(`Erro ao carregar itens disponíveis: ${message}`);
-    }
+  // Muda o tipo e volta à aba "create" quando o novo tipo não tem aba de
+  // existentes (evita um setState-in-effect só para sincronizar a aba).
+  const changeType = (type: string): void => {
+    setSelectedType(type);
+    if (type && type !== "FLASHCARD" && type !== "NOTA") setActiveTab("create");
   };
+
+  // Carrega os itens disponíveis ao abrir na aba de existentes ou em PROVA
+  // (fetch assíncrono no effect — sem setState síncrono).
+  useEffect(() => {
+    if (!open || !(activeTab === "existing" || selectedType === "PROVA")) return;
+    let ignore = false;
+    graphHttp
+      .getAvailableItems(grafoId)
+      .then((data): void => {
+        if (!ignore) setAvailableItems({ flashcards: data.flashcards ?? [], notas: data.notas ?? [], provas: data.provas ?? [] });
+      })
+      .catch((e): void => {
+        if (!ignore) toast.error(`Erro ao carregar itens disponíveis: ${e instanceof Error ? e.message : "Erro desconhecido"}`);
+      });
+    return (): void => { ignore = true; };
+  }, [open, activeTab, selectedType, grafoId]);
+
+  // Carrega os flashcards ao criar um BARALHO (só flashcards já no grafo). O
+  // `deckLoading` é DERIVADO de uma chave, evitando setState síncrono no effect.
+  const deckKey = open && selectedType === "BARALHO" ? parentIds.flashcards.map((f) => f.id).join(",") : "";
+  const [deckLoadedKey, setDeckLoadedKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (open === false || selectedType !== "BARALHO") return;
+    let ignore = false;
+    const noGrafo = new Set(parentIds.flashcards.map((f) => f.id));
+    graphHttp
+      .listUserFlashcards()
+      .then((fcs): void => {
+        if (!ignore) setDeckFlashcards(fcs.filter((f) => noGrafo.has(f.id)).map((f) => ({ id: f.id, pergunta: f.pergunta, conceito: f.conceito })));
+      })
+      .catch((): void => { if (!ignore) toast.error("Erro ao carregar flashcards"); })
+      .finally((): void => { if (!ignore) setDeckLoadedKey(deckKey); });
+    return (): void => { ignore = true; };
+  }, [open, selectedType, parentIds.flashcards, deckKey]);
+  const deckLoading = deckKey !== "" && deckLoadedKey !== deckKey;
 
   const resetForm = () => {
     setActiveTab("create");
@@ -629,7 +627,7 @@ export function CreateNodeModal({
           {activeTab === "create" && (
             <>
               {/* Type selection */}
-              <NodeTypeSelect value={selectedType} onChange={setSelectedType} />
+              <NodeTypeSelect value={selectedType} onChange={changeType} />
 
               {/* BARALHO form */}
               {selectedType === "BARALHO" && (
