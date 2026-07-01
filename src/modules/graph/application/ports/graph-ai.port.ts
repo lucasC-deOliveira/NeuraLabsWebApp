@@ -102,6 +102,17 @@ export interface GenerateGraphResult {
   flashcards: number;
   baralho: string | null;
 }
+export interface BaralhoItem {
+  id: string;
+  titulo: string;
+  flashcardCount: number;
+}
+export interface PopulateFromBaralhoResult {
+  assuntos: number;
+  topicos: number;
+  conceitos: number;
+  baralhoNome: string;
+}
 
 export interface GraphAiPort {
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }>;
@@ -135,4 +146,6 @@ export interface GraphAiPort {
     plan: unknown,
     saveBruto: boolean,
   ): Promise<GenerateGraphResult>;
+  listBaralhosInGrafo(grafoId: string): Promise<BaralhoItem[]>;
+  populateGraphFromBaralho(grafoId: string, baralhoId: string): Promise<PopulateFromBaralhoResult>;
 }
