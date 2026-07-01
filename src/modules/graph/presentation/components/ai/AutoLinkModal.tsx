@@ -8,10 +8,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Loader2Icon, Link2Icon, CheckCircle2Icon, AlertCircleIcon, CheckIcon } from "lucide-react";
+import { Loader2Icon, Link2Icon, CheckCircle2Icon, AlertCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { AutoLinkSuggestion } from "@/modules/graph/application/ports/graph-ai.port";
+import { AiStepRow } from "./AiStepRow";
 
 interface AutoLinkModalProps {
   open: boolean;
@@ -202,52 +203,11 @@ function AutoLinkFooter({ step, suggestionCount, selectedCount, onApply }: { ste
   return null;
 }
 
-function StepRow({ index, label, sublabel, status, elapsed }: { index: number; label: string; sublabel?: string; status: "done" | "active" | "pending"; elapsed?: number }) {
-  return (
-    <div className={`flex items-start gap-3 transition-opacity ${status === "pending" ? "opacity-40" : "opacity-100"}`}>
-      <div className="mt-0.5 shrink-0">
-        <StepIcon index={index} status={status} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className={`text-sm font-medium leading-tight ${status === "active" ? "text-foreground" : "text-muted-foreground"}`}>{label}</p>
-        {status === "active" && sublabel && <p className="text-xs text-muted-foreground mt-0.5">{sublabel}</p>}
-        {status === "active" && elapsed !== undefined && (
-          <p className="text-xs text-muted-foreground/60 mt-0.5 tabular-nums">
-            {Math.floor(elapsed / 60) > 0 ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s` : `${elapsed}s`}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function StepIcon({ index, status }: { index: number; status: "done" | "active" | "pending" }) {
-  if (status === "done") {
-    return (
-      <span className="flex size-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
-        <CheckIcon className="size-3.5" />
-      </span>
-    );
-  }
-  if (status === "active") {
-    return (
-      <span className="flex size-6 items-center justify-center rounded-full bg-primary/10">
-        <Loader2Icon className="size-3.5 animate-spin text-primary" />
-      </span>
-    );
-  }
-  return (
-    <span className="flex size-6 items-center justify-center rounded-full border border-border text-xs text-muted-foreground font-medium">
-      {index}
-    </span>
-  );
-}
-
 function LoadingView({ elapsed, subStep }: { elapsed: number; subStep: number }) {
   return (
     <div className="space-y-5 py-6 px-1">
-      <StepRow index={1} label="Analisando conexões com IA" sublabel={ANALYSIS_STEPS[subStep]} status="active" elapsed={elapsed} />
-      <StepRow index={2} label="Apresentar sugestões" status="pending" />
+      <AiStepRow index={1} label="Analisando conexões com IA" sublabel={ANALYSIS_STEPS[subStep]} status="active" elapsed={elapsed} />
+      <AiStepRow index={2} label="Apresentar sugestões" status="pending" />
       {elapsed > 15 && (
         <p className="text-[11px] text-muted-foreground/60 text-center pt-2">
           A IA está processando — modelos locais podem levar 1-2 minutos.
@@ -260,8 +220,8 @@ function LoadingView({ elapsed, subStep }: { elapsed: number; subStep: number })
 function ApplyingView({ count }: { count: number }) {
   return (
     <div className="space-y-5 py-6 px-1">
-      <StepRow index={1} label="Analisando conexões com IA" status="done" />
-      <StepRow index={2} label="Criando conexões no grafo" sublabel={`Adicionando ${count} relação(ões)...`} status="active" />
+      <AiStepRow index={1} label="Analisando conexões com IA" status="done" />
+      <AiStepRow index={2} label="Criando conexões no grafo" sublabel={`Adicionando ${count} relação(ões)...`} status="active" />
     </div>
   );
 }

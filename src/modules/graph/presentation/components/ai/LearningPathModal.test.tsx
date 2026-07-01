@@ -3,11 +3,9 @@ import { render, screen } from "@testing-library/react";
 import { LearningPathModal } from "./LearningPathModal";
 import { generateLearningPath } from "@/lib/ai-api";
 
+// O adapter delega para @/lib/ai-api, então mockar a borda cobre o fluxo.
 vi.mock("@/lib/ai-api", () => ({ generateLearningPath: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock("@/components/markdown-content", () => ({
-  MarkdownContent: ({ children }: { children: string }) => children,
-}));
 
 beforeEach(() => vi.clearAllMocks());
 
