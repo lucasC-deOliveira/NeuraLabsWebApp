@@ -31,6 +31,7 @@ import { validateCreateNodeForm, type CreateNodeError } from "@/modules/graph/do
 import { createGraphNode, createDeck } from "@/modules/graph/application/use-cases/create-graph-node";
 import { addExistingItems } from "@/modules/graph/application/use-cases/add-existing-items";
 import { graphHttp } from "@/modules/graph/infra/http";
+import { RelationLinkList } from "@/modules/graph/presentation/components/create-node/RelationLinkList";
 import { useRouter } from "@/lib/navigation";
 
 // Mensagens pt-BR específicas por tipo para os códigos de validação da criação.
@@ -470,115 +471,17 @@ export function CreateNodeModal({
   // Bloco de "Conceitos relacionados" do flashcard (relação + peso, sem repetir).
   // Reutilizado tanto ao criar um flashcard quanto ao adicionar existentes.
   const renderFlashcardConceitos = () => (
-    <div className="space-y-2">
-      <Label>Conceitos relacionados (opcional)</Label>
-      {parentIds.conceitos.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          Nenhum conceito no grafo para relacionar.
-        </p>
-      ) : (
-        <>
-          {flashcardConceitos.map((link, idx) => {
-            // um conceito já escolhido em outra linha não aparece de novo
-            const usados = new Set(
-              flashcardConceitos
-                .filter((_, i) => i !== idx)
-                .map((l) => l.conceitoId)
-                .filter(Boolean)
-            );
-            const opcoes = parentIds.conceitos.filter(
-              (c) => c.id === link.conceitoId || !usados.has(c.id)
-            );
-            return (
-              <div key={idx} className="flex items-center gap-1.5">
-                <Select
-                  value={link.conceitoId || "__none__"}
-                  onValueChange={(value) =>
-                    setFlashcardConceitos((prev) =>
-                      prev.map((l, i) =>
-                        i === idx ? { ...l, conceitoId: value === "__none__" ? "" : value ?? "" } : l
-                      )
-                    )
-                  }
-                >
-                  <SelectTrigger className="flex-1 min-w-0">
-                    <SelectValue placeholder="Conceito" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {opcoes.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={link.relacao}
-                  onValueChange={(value) =>
-                    setFlashcardConceitos((prev) =>
-                      prev.map((l, i) => (i === idx ? { ...l, relacao: value ?? l.relacao } : l))
-                    )
-                  }
-                >
-                  <SelectTrigger className="w-32 shrink-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FLASHCARD_CONCEITO_RELATIONS.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {RELATION_LABELS[r] ?? r.toLowerCase()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  min={0.1}
-                  max={2}
-                  step={0.1}
-                  value={link.peso}
-                  title="Peso da relação (0.1 a 2)"
-                  onChange={(e) =>
-                    setFlashcardConceitos((prev) =>
-                      prev.map((l, i) =>
-                        i === idx ? { ...l, peso: Number(e.target.value) } : l
-                      )
-                    )
-                  }
-                  className="w-16 shrink-0"
-                />
-                <button
-                  type="button"
-                  onClick={() => setFlashcardConceitos((prev) => prev.filter((_, i) => i !== idx))}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
-                  title="Remover"
-                >
-                  <XIcon className="size-4" />
-                </button>
-              </div>
-            );
-          })}
-          {/* só dá pra adicionar enquanto houver conceito ainda não usado */}
-          {flashcardConceitos.length < parentIds.conceitos.length && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() =>
-                setFlashcardConceitos((prev) => [
-                  ...prev,
-                  { conceitoId: "", relacao: FLASHCARD_CONCEITO_RELATIONS[0], peso: 1 },
-                ])
-              }
-            >
-              <PlusIcon className="size-3.5" />
-              Adicionar conceito
-            </Button>
-          )}
-        </>
-      )}
-    </div>
+    <RelationLinkList
+      links={flashcardConceitos.map((l) => ({ targetId: l.conceitoId, relacao: l.relacao, peso: l.peso }))}
+      onChange={(rows) =>
+        setFlashcardConceitos(rows.map((r) => ({ conceitoId: r.targetId, relacao: r.relacao, peso: r.peso })))
+      }
+      options={parentIds.conceitos}
+      relations={FLASHCARD_CONCEITO_RELATIONS}
+      title="Conceitos relacionados (opcional)"
+      emptyMessage="Nenhum conceito no grafo para relacionar."
+      addLabel="Adicionar conceito"
+    />
   );
 
   // Texto bruto de origem da nota (no máximo 1) — relação GERA.
@@ -621,115 +524,17 @@ export function CreateNodeModal({
   // Bloco de "Conceitos relacionados" da nota (relação + peso, sem repetir).
   // Reutilizado ao criar uma nota e ao adicionar notas existentes.
   const renderNotaConceitos = () => (
-    <div className="space-y-2">
-      <Label>Conceitos relacionados (opcional)</Label>
-      {parentIds.conceitos.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          Nenhum conceito no grafo para relacionar.
-        </p>
-      ) : (
-        <>
-          {notaConceitos.map((link, idx) => {
-            // um conceito já escolhido em outra linha não aparece de novo
-            const usados = new Set(
-              notaConceitos
-                .filter((_, i) => i !== idx)
-                .map((l) => l.conceitoId)
-                .filter(Boolean)
-            );
-            const opcoes = parentIds.conceitos.filter(
-              (c) => c.id === link.conceitoId || !usados.has(c.id)
-            );
-            return (
-              <div key={idx} className="flex items-center gap-1.5">
-                <Select
-                  value={link.conceitoId || "__none__"}
-                  onValueChange={(value) =>
-                    setNotaConceitos((prev) =>
-                      prev.map((l, i) =>
-                        i === idx ? { ...l, conceitoId: value === "__none__" ? "" : value ?? "" } : l
-                      )
-                    )
-                  }
-                >
-                  <SelectTrigger className="flex-1 min-w-0">
-                    <SelectValue placeholder="Conceito" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {opcoes.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={link.relacao}
-                  onValueChange={(value) =>
-                    setNotaConceitos((prev) =>
-                      prev.map((l, i) => (i === idx ? { ...l, relacao: value ?? l.relacao } : l))
-                    )
-                  }
-                >
-                  <SelectTrigger className="w-32 shrink-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {NOTA_CONCEITO_RELATIONS.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {RELATION_LABELS[r] ?? r.toLowerCase()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  min={0.1}
-                  max={2}
-                  step={0.1}
-                  value={link.peso}
-                  title="Peso da relação (0.1 a 2)"
-                  onChange={(e) =>
-                    setNotaConceitos((prev) =>
-                      prev.map((l, i) =>
-                        i === idx ? { ...l, peso: Number(e.target.value) } : l
-                      )
-                    )
-                  }
-                  className="w-16 shrink-0"
-                />
-                <button
-                  type="button"
-                  onClick={() => setNotaConceitos((prev) => prev.filter((_, i) => i !== idx))}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
-                  title="Remover"
-                >
-                  <XIcon className="size-4" />
-                </button>
-              </div>
-            );
-          })}
-          {/* só dá pra adicionar enquanto houver conceito ainda não usado */}
-          {notaConceitos.length < parentIds.conceitos.length && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              onClick={() =>
-                setNotaConceitos((prev) => [
-                  ...prev,
-                  { conceitoId: "", relacao: NOTA_CONCEITO_RELATIONS[0], peso: 1 },
-                ])
-              }
-            >
-              <PlusIcon className="size-3.5" />
-              Adicionar conceito
-            </Button>
-          )}
-        </>
-      )}
-    </div>
+    <RelationLinkList
+      links={notaConceitos.map((l) => ({ targetId: l.conceitoId, relacao: l.relacao, peso: l.peso }))}
+      onChange={(rows) =>
+        setNotaConceitos(rows.map((r) => ({ conceitoId: r.targetId, relacao: r.relacao, peso: r.peso })))
+      }
+      options={parentIds.conceitos}
+      relations={NOTA_CONCEITO_RELATIONS}
+      title="Conceitos relacionados (opcional)"
+      emptyMessage="Nenhum conceito no grafo para relacionar."
+      addLabel="Adicionar conceito"
+    />
   );
 
   return (
@@ -1210,115 +1015,17 @@ export function CreateNodeModal({
                     />
                   </div>
                   {/* Assuntos relacionados (relação + peso) — substitui o "assunto pai" */}
-                  <div className="space-y-2">
-                    <Label>Assuntos relacionados (opcional)</Label>
-                    {parentIds.assuntos.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        Nenhum assunto no grafo para relacionar.
-                      </p>
-                    ) : (
-                      <>
-                        {topicoAssuntos.map((link, idx) => {
-                          // um assunto já escolhido em outra linha não aparece de novo
-                          const usados = new Set(
-                            topicoAssuntos
-                              .filter((_, i) => i !== idx)
-                              .map((l) => l.assuntoId)
-                              .filter(Boolean)
-                          );
-                          const opcoes = parentIds.assuntos.filter(
-                            (a) => a.id === link.assuntoId || !usados.has(a.id)
-                          );
-                          return (
-                            <div key={idx} className="flex items-center gap-1.5">
-                              <Select
-                                value={link.assuntoId || "__none__"}
-                                onValueChange={(value) =>
-                                  setTopicoAssuntos((prev) =>
-                                    prev.map((l, i) =>
-                                      i === idx ? { ...l, assuntoId: value === "__none__" ? "" : value ?? "" } : l
-                                    )
-                                  )
-                                }
-                              >
-                                <SelectTrigger className="flex-1 min-w-0">
-                                  <SelectValue placeholder="Assunto" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {opcoes.map((a) => (
-                                    <SelectItem key={a.id} value={a.id}>
-                                      {a.nome}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Select
-                                value={link.relacao}
-                                onValueChange={(value) =>
-                                  setTopicoAssuntos((prev) =>
-                                    prev.map((l, i) => (i === idx ? { ...l, relacao: value ?? l.relacao } : l))
-                                  )
-                                }
-                              >
-                                <SelectTrigger className="w-32 shrink-0">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {TOPICO_ASSUNTO_RELATIONS.map((r) => (
-                                    <SelectItem key={r} value={r}>
-                                      {RELATION_LABELS[r] ?? r.toLowerCase()}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Input
-                                type="number"
-                                min={0.1}
-                                max={2}
-                                step={0.1}
-                                value={link.peso}
-                                title="Peso da relação (0.1 a 2)"
-                                onChange={(e) =>
-                                  setTopicoAssuntos((prev) =>
-                                    prev.map((l, i) =>
-                                      i === idx ? { ...l, peso: Number(e.target.value) } : l
-                                    )
-                                  )
-                                }
-                                className="w-16 shrink-0"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setTopicoAssuntos((prev) => prev.filter((_, i) => i !== idx))}
-                                className="shrink-0 text-muted-foreground hover:text-destructive"
-                                title="Remover"
-                              >
-                                <XIcon className="size-4" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                        {/* só dá pra adicionar enquanto houver assunto ainda não usado */}
-                        {topicoAssuntos.length < parentIds.assuntos.length && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="gap-1.5"
-                            onClick={() =>
-                              setTopicoAssuntos((prev) => [
-                                ...prev,
-                                { assuntoId: "", relacao: TOPICO_ASSUNTO_RELATIONS[0], peso: 1 },
-                              ])
-                            }
-                          >
-                            <PlusIcon className="size-3.5" />
-                            Adicionar assunto
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  <RelationLinkList
+                    links={topicoAssuntos.map((l) => ({ targetId: l.assuntoId, relacao: l.relacao, peso: l.peso }))}
+                    onChange={(rows) =>
+                      setTopicoAssuntos(rows.map((r) => ({ assuntoId: r.targetId, relacao: r.relacao, peso: r.peso })))
+                    }
+                    options={parentIds.assuntos}
+                    relations={TOPICO_ASSUNTO_RELATIONS}
+                    title="Assuntos relacionados (opcional)"
+                    emptyMessage="Nenhum assunto no grafo para relacionar."
+                    addLabel="Adicionar assunto"
+                  />
                 </div>
               )}
 
@@ -1345,115 +1052,17 @@ export function CreateNodeModal({
                     />
                   </div>
                   {/* Tópicos relacionados (relação + peso) — substitui o "tópico pai" */}
-                  <div className="space-y-2">
-                    <Label>Tópicos relacionados (opcional)</Label>
-                    {parentIds.topicos.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        Nenhum tópico no grafo para relacionar.
-                      </p>
-                    ) : (
-                      <>
-                        {conceitoTopicos.map((link, idx) => {
-                          // um tópico já escolhido em outra linha não aparece de novo
-                          const usados = new Set(
-                            conceitoTopicos
-                              .filter((_, i) => i !== idx)
-                              .map((l) => l.topicoId)
-                              .filter(Boolean)
-                          );
-                          const opcoes = parentIds.topicos.filter(
-                            (t) => t.id === link.topicoId || !usados.has(t.id)
-                          );
-                          return (
-                            <div key={idx} className="flex items-center gap-1.5">
-                              <Select
-                                value={link.topicoId || "__none__"}
-                                onValueChange={(value) =>
-                                  setConceitoTopicos((prev) =>
-                                    prev.map((l, i) =>
-                                      i === idx ? { ...l, topicoId: value === "__none__" ? "" : value ?? "" } : l
-                                    )
-                                  )
-                                }
-                              >
-                                <SelectTrigger className="flex-1 min-w-0">
-                                  <SelectValue placeholder="Tópico" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {opcoes.map((t) => (
-                                    <SelectItem key={t.id} value={t.id}>
-                                      {t.nome}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Select
-                                value={link.relacao}
-                                onValueChange={(value) =>
-                                  setConceitoTopicos((prev) =>
-                                    prev.map((l, i) => (i === idx ? { ...l, relacao: value ?? l.relacao } : l))
-                                  )
-                                }
-                              >
-                                <SelectTrigger className="w-32 shrink-0">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {CONCEITO_TOPICO_RELATIONS.map((r) => (
-                                    <SelectItem key={r} value={r}>
-                                      {RELATION_LABELS[r] ?? r.toLowerCase()}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Input
-                                type="number"
-                                min={0.1}
-                                max={2}
-                                step={0.1}
-                                value={link.peso}
-                                title="Peso da relação (0.1 a 2)"
-                                onChange={(e) =>
-                                  setConceitoTopicos((prev) =>
-                                    prev.map((l, i) =>
-                                      i === idx ? { ...l, peso: Number(e.target.value) } : l
-                                    )
-                                  )
-                                }
-                                className="w-16 shrink-0"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setConceitoTopicos((prev) => prev.filter((_, i) => i !== idx))}
-                                className="shrink-0 text-muted-foreground hover:text-destructive"
-                                title="Remover"
-                              >
-                                <XIcon className="size-4" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                        {/* só dá pra adicionar enquanto houver tópico ainda não usado */}
-                        {conceitoTopicos.length < parentIds.topicos.length && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="gap-1.5"
-                            onClick={() =>
-                              setConceitoTopicos((prev) => [
-                                ...prev,
-                                { topicoId: "", relacao: CONCEITO_TOPICO_RELATIONS[0], peso: 1 },
-                              ])
-                            }
-                          >
-                            <PlusIcon className="size-3.5" />
-                            Adicionar tópico
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  <RelationLinkList
+                    links={conceitoTopicos.map((l) => ({ targetId: l.topicoId, relacao: l.relacao, peso: l.peso }))}
+                    onChange={(rows) =>
+                      setConceitoTopicos(rows.map((r) => ({ topicoId: r.targetId, relacao: r.relacao, peso: r.peso })))
+                    }
+                    options={parentIds.topicos}
+                    relations={CONCEITO_TOPICO_RELATIONS}
+                    title="Tópicos relacionados (opcional)"
+                    emptyMessage="Nenhum tópico no grafo para relacionar."
+                    addLabel="Adicionar tópico"
+                  />
                 </div>
               )}
 
