@@ -11,4 +11,14 @@ export interface GraphNodesPort {
     data: Record<string, unknown>,
     grafoId: string,
   ): Promise<{ success: boolean }>;
+  addNodeToGraph(
+    grafoId: string,
+    tipoNode: string,
+    data: Record<string, unknown>,
+  ): Promise<{ success: boolean; nodeId: string }>;
+  createBaralhoNode(
+    grafoId: string,
+    titulo: string,
+    flashcardIds: string[],
+  ): Promise<{ success: boolean; nodeId: string }>;
 }

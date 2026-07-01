@@ -11,6 +11,8 @@ import {
   searchGraphNodeContent,
   getNodeDetails,
   updateGraphNode,
+  addNodeToGraph,
+  createBaralhoNode,
   createEdge,
   updateEdge,
   deleteEdge,
@@ -71,6 +73,22 @@ export class HttpGraphAdapter implements GraphDataPort, GraphAiPort, GraphNodesP
     grafoId: string,
   ): Promise<{ success: boolean }> {
     return updateGraphNode(group, nodeId, data, grafoId);
+  }
+
+  addNodeToGraph(
+    grafoId: string,
+    tipoNode: string,
+    data: Record<string, unknown>,
+  ): Promise<{ success: boolean; nodeId: string }> {
+    return addNodeToGraph(grafoId, tipoNode, data);
+  }
+
+  createBaralhoNode(
+    grafoId: string,
+    titulo: string,
+    flashcardIds: string[],
+  ): Promise<{ success: boolean; nodeId: string }> {
+    return createBaralhoNode(grafoId, titulo, flashcardIds);
   }
 
   createEdge(grafoId: string, data: CreateEdgeData): Promise<{ success: boolean; edgeId: string }> {

@@ -24,16 +24,14 @@ import { toast } from "sonner";
 import { PlusIcon, Loader2Icon, SparklesIcon, XIcon, SearchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { suggestNotaRelations, type NotaRelationSuggestion } from "@/lib/ai-api";
-import { addNodeToGraph, createEdge, createBaralhoNode, getAvailableItems, listUserFlashcards, addProvaToGraph } from "@/lib/graph-api";
+import { addNodeToGraph, createEdge, getAvailableItems, listUserFlashcards, addProvaToGraph } from "@/lib/graph-api";
 import { parseProvaUpload, createProvaFromParsed, type ParsedQuestaoPreview } from "@/lib/provas-api";
 import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
-import { buildCreatedNodeEdges, clampEdgePeso } from "@/modules/graph/domain/services/node-creation-edges";
-import {
-  validateCreateNodeForm,
-  buildCreateNodePayload,
-  type CreateNodeError,
-} from "@/modules/graph/domain/services/create-node-form";
+import { clampEdgePeso } from "@/modules/graph/domain/services/node-creation-edges";
+import { validateCreateNodeForm, type CreateNodeError } from "@/modules/graph/domain/services/create-node-form";
+import { createGraphNode, createDeck } from "@/modules/graph/application/use-cases/create-graph-node";
+import { graphHttp } from "@/modules/graph/infra/http";
 import { useRouter } from "@/lib/navigation";
 
 // Mensagens pt-BR específicas por tipo para os códigos de validação da criação.
@@ -286,11 +284,7 @@ export function CreateNodeModal({
         }
         setLoading(true);
         try {
-          const r = await createBaralhoNode(
-            grafoId,
-            formData.nome.trim(),
-            Array.from(deckSelected)
-          );
+          const r = await createDeck(graphHttp, grafoId, formData.nome, Array.from(deckSelected));
           toast.success(
             deckSelected.size > 0
               ? `Baralho criado com ${deckSelected.size} flashcard(s)!`
@@ -380,40 +374,23 @@ export function CreateNodeModal({
         toast.error(createNodeErrorMessage(validationError, selectedType));
         return;
       }
-      const payload = buildCreateNodePayload(selectedType, formData);
-
       setLoading(true);
       try {
-        const data = await addNodeToGraph(grafoId, selectedType, payload);
-
-        // arestas a criar após o nó (relações por tipo + sugestões da IA aceitas +
-        // texto bruto de origem). sourceNodeId opcional: por padrão a origem é o nó
-        // recém-criado, mas algumas relações têm o novo nó como destino (TEXTO_BRUTO→NOTA).
-        const edgesToCreate = buildCreatedNodeEdges({
+        // cria o nó + as arestas (relações por tipo + sugestões IA aceitas + texto
+        // bruto de origem), tolerando falha individual de aresta. Regra no use-case.
+        const { createdEdges } = await createGraphNode(graphHttp, {
+          grafoId,
           type: selectedType,
-          newNodeId: data.nodeId,
+          form: formData,
           topicoAssuntos,
           conceitoTopicos,
           flashcardConceitos,
           notaConceitos,
-          acceptedSuggestions: aiSuggestions.filter((s) => s.accepted),
+          acceptedSuggestions: aiSuggestions
+            .filter((s) => s.accepted)
+            .map((s) => ({ nodeId: s.nodeId, relacao: s.relacao })),
           notaTextoBrutoId,
         });
-
-        let createdEdges = 0;
-        for (const e of edgesToCreate) {
-          try {
-            await createEdge(grafoId, {
-              sourceNodeId: e.sourceNodeId ?? data.nodeId,
-              targetNodeId: e.targetNodeId,
-              tipoRelacao: e.tipoRelacao,
-              peso: e.peso,
-            });
-            createdEdges++;
-          } catch {
-            // segue criando as demais
-          }
-        }
 
         toast.success(
           createdEdges > 0
