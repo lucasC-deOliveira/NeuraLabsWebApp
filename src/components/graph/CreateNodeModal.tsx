@@ -28,6 +28,7 @@ import { addNodeToGraph, createEdge, createBaralhoNode, getAvailableItems, listU
 import { parseProvaUpload, createProvaFromParsed, type ParsedQuestaoPreview } from "@/lib/provas-api";
 import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
+import { buildCreatedNodeEdges, clampEdgePeso } from "@/modules/graph/domain/services/node-creation-edges";
 import { useRouter } from "@/lib/navigation";
 
 
@@ -413,43 +414,19 @@ export function CreateNodeModal({
       try {
         const data = await addNodeToGraph(grafoId, selectedType, payload);
 
-        // arestas a criar após o nó: relações do tópico com assuntos (origem→destino
-        // = tópico→assunto) ou relações de nota sugeridas pela IA e aceitas.
-        // sourceNodeId opcional: por padrão a origem é o nó recém-criado, mas
-        // algumas relações têm o novo nó como destino (ex.: TEXTO_BRUTO→NOTA).
-        const edgesToCreate: Array<{ sourceNodeId?: string; targetNodeId: string; tipoRelacao: string; peso: number }> = [];
-        if (selectedType === "TOPICO") {
-          for (const link of topicoAssuntos) {
-            if (!link.assuntoId) continue;
-            const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
-            edgesToCreate.push({ targetNodeId: link.assuntoId, tipoRelacao: link.relacao, peso });
-          }
-        } else if (selectedType === "CONCEITO") {
-          for (const link of conceitoTopicos) {
-            if (!link.topicoId) continue;
-            const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
-            edgesToCreate.push({ targetNodeId: link.topicoId, tipoRelacao: link.relacao, peso });
-          }
-        } else if (selectedType === "FLASHCARD") {
-          for (const link of flashcardConceitos) {
-            if (!link.conceitoId) continue;
-            const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
-            edgesToCreate.push({ targetNodeId: link.conceitoId, tipoRelacao: link.relacao, peso });
-          }
-        } else if (selectedType === "NOTA") {
-          for (const link of notaConceitos) {
-            if (!link.conceitoId) continue;
-            const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
-            edgesToCreate.push({ targetNodeId: link.conceitoId, tipoRelacao: link.relacao, peso });
-          }
-          for (const sg of aiSuggestions.filter((s) => s.accepted)) {
-            edgesToCreate.push({ targetNodeId: sg.nodeId, tipoRelacao: sg.relacao, peso: 1.0 });
-          }
-          // texto bruto de origem (no máximo 1): a aresta vai do texto para a nota
-          if (notaTextoBrutoId) {
-            edgesToCreate.push({ sourceNodeId: notaTextoBrutoId, targetNodeId: data.nodeId, tipoRelacao: "GERA", peso: 1.0 });
-          }
-        }
+        // arestas a criar após o nó (relações por tipo + sugestões da IA aceitas +
+        // texto bruto de origem). sourceNodeId opcional: por padrão a origem é o nó
+        // recém-criado, mas algumas relações têm o novo nó como destino (TEXTO_BRUTO→NOTA).
+        const edgesToCreate = buildCreatedNodeEdges({
+          type: selectedType,
+          newNodeId: data.nodeId,
+          topicoAssuntos,
+          conceitoTopicos,
+          flashcardConceitos,
+          notaConceitos,
+          acceptedSuggestions: aiSuggestions.filter((s) => s.accepted),
+          notaTextoBrutoId,
+        });
 
         let createdEdges = 0;
         for (const e of edgesToCreate) {
@@ -543,8 +520,7 @@ export function CreateNodeModal({
           for (const fcId of addedFlashcardIds) {
             for (const link of flashcardConceitos) {
               if (!link.conceitoId) continue;
-              const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
-              if (await postEdge(fcId, link.conceitoId, link.relacao, peso)) createdEdges++;
+              if (await postEdge(fcId, link.conceitoId, link.relacao, clampEdgePeso(link.peso))) createdEdges++;
             }
           }
         }
@@ -555,8 +531,7 @@ export function CreateNodeModal({
           for (const notaId of addedNotaIds) {
             for (const link of notaConceitos) {
               if (!link.conceitoId) continue;
-              const peso = Number.isFinite(link.peso) && link.peso > 0 ? Math.min(2, link.peso) : 1;
-              if (await postEdge(notaId, link.conceitoId, link.relacao, peso)) createdEdges++;
+              if (await postEdge(notaId, link.conceitoId, link.relacao, clampEdgePeso(link.peso))) createdEdges++;
             }
             if (notaTextoBrutoId) {
               if (await postEdge(notaTextoBrutoId, notaId, "GERA", 1.0)) createdEdges++;
