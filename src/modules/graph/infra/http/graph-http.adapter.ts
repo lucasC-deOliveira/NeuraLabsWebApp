@@ -28,6 +28,8 @@ import {
   applyAutoLink,
   detectDuplicates,
   mergeDuplicates,
+  assessCompleteness,
+  fillKnowledgeGaps,
 } from "@/lib/ai-api";
 import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
 import type {
@@ -43,6 +45,9 @@ import type {
   AutoLinkSuggestion,
   AppliedEdge,
   DuplicateGroup,
+  CompletenessAssessment,
+  GapItem,
+  GeneratedContentCount,
 } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
@@ -153,6 +158,14 @@ export class HttpGraphAdapter
 
   mergeDuplicates(grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }> {
     return mergeDuplicates(grafoId, keepId, deleteIds);
+  }
+
+  assessCompleteness(grafoId: string): Promise<{ assessments: CompletenessAssessment[] }> {
+    return assessCompleteness(grafoId);
+  }
+
+  fillKnowledgeGaps(grafoId: string, gaps: GapItem[]): Promise<GeneratedContentCount> {
+    return fillKnowledgeGaps(grafoId, gaps);
   }
 
   parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult> {

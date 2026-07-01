@@ -41,6 +41,27 @@ export interface DuplicateGroup {
   sugestao: string;
 }
 
+export interface CompletenessAssessment {
+  assuntoId: string;
+  assuntoNome: string;
+  score: number;
+  wellCovered: string[];
+  shallow: string[];
+  missing: string[];
+}
+export interface GapItem {
+  nome: string;
+  tipo: "missing" | "shallow";
+  assuntoId: string;
+  assuntoNome: string;
+}
+export interface GeneratedContentCount {
+  topicos: number;
+  conceitos: number;
+  notas: number;
+  flashcards: number;
+}
+
 export interface GraphAiPort {
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }>;
   suggestNotaRelations(grafoId: string, titulo: string, conteudo: string): Promise<NotaRelationSuggestion[]>;
@@ -48,4 +69,6 @@ export interface GraphAiPort {
   applyAutoLink(grafoId: string, edges: AppliedEdge[]): Promise<{ added: number }>;
   detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }>;
   mergeDuplicates(grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }>;
+  assessCompleteness(grafoId: string): Promise<{ assessments: CompletenessAssessment[] }>;
+  fillKnowledgeGaps(grafoId: string, gaps: GapItem[]): Promise<GeneratedContentCount>;
 }

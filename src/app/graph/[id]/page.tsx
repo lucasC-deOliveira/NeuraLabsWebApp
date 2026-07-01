@@ -28,7 +28,7 @@ import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/Dupl
 import { CommunitySummaryModal } from "@/components/graph/CommunitySummaryModal";
 import { MissingPrereqsModal } from "@/components/graph/MissingPrereqsModal";
 import { GraphChatModal } from "@/components/graph/GraphChatModal";
-import { CompletenessModal } from "@/components/graph/CompletenessModal";
+import { CompletenessModal } from "@/modules/graph/presentation/components/ai/CompletenessModal";
 import { clustersFromHierarchy, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
 import { createBaralhoNode } from "@/lib/graph-api";
 
