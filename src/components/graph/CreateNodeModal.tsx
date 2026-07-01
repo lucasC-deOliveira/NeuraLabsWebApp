@@ -29,7 +29,37 @@ import { parseProvaUpload, createProvaFromParsed, type ParsedQuestaoPreview } fr
 import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { buildCreatedNodeEdges, clampEdgePeso } from "@/modules/graph/domain/services/node-creation-edges";
+import {
+  validateCreateNodeForm,
+  buildCreateNodePayload,
+  type CreateNodeError,
+} from "@/modules/graph/domain/services/create-node-form";
 import { useRouter } from "@/lib/navigation";
+
+// Mensagens pt-BR específicas por tipo para os códigos de validação da criação.
+const CREATE_NAME_MESSAGES: Record<string, string> = {
+  ASSUNTO: "Digite um nome para o assunto",
+  TOPICO: "Digite um nome para o tópico",
+  CONCEITO: "Digite um nome para o conceito",
+  NOTA: "Digite um título para a nota",
+};
+
+function createNodeErrorMessage(code: CreateNodeError, type: string): string {
+  switch (code) {
+    case "missing-name":
+      return CREATE_NAME_MESSAGES[type] ?? "Digite um nome";
+    case "flashcard-missing-question":
+      return "Digite a pergunta do flashcard";
+    case "flashcard-missing-answer":
+      return "Digite a resposta para o flashcard";
+    case "nota-missing-subtype":
+      return "Selecione o subtipo da nota";
+    case "nota-missing-source":
+      return "Notas de referência exigem a fonte (livro, artigo, vídeo...)";
+    case "nota-missing-content":
+      return "Digite o texto da nota";
+  }
+}
 
 
 // relações possíveis entre um Tópico (origem) e um Assunto (destino)
@@ -344,71 +374,13 @@ export function CreateNodeModal({
         return;
       }
 
-      let payload: any = {};
-
-      // Validate required fields and build payload based on type
-      switch (selectedType) {
-        case "ASSUNTO":
-          if (!formData.nome.trim()) {
-            toast.error("Digite um nome para o assunto");
-            return;
-          }
-          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null };
-          break;
-        case "TOPICO":
-          if (!formData.nome.trim()) {
-            toast.error("Digite um nome para o tópico");
-            return;
-          }
-          // sem "assunto pai": a ligação com assuntos é feita por arestas (relação + peso)
-          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null, assuntoId: null };
-          break;
-        case "CONCEITO":
-          if (!formData.nome.trim()) {
-            toast.error("Digite um nome para o conceito");
-            return;
-          }
-          // sem "tópico pai": a ligação com tópicos é feita por arestas (relação + peso)
-          payload = { nome: formData.nome.trim(), descricao: formData.descricao.trim() || null, topicoId: null };
-          break;
-        case "FLASHCARD":
-          if (!formData.pergunta.trim()) {
-            toast.error("Digite a pergunta do flashcard");
-            return;
-          }
-          if (!formData.resposta.trim()) {
-            toast.error("Digite a resposta para o flashcard");
-            return;
-          }
-          
-          payload = { pergunta: formData.pergunta.trim(), resposta: formData.resposta.trim() };
-          break;
-        case "NOTA":
-          if (!formData.nome.trim()) {
-            toast.error("Digite um título para a nota");
-            return;
-          }
-          if (!formData.subtipo) {
-            toast.error("Selecione o subtipo da nota");
-            return;
-          }
-          if (formData.tipoNota === "LITERATURA" && !formData.fonte.trim()) {
-            toast.error("Notas de referência exigem a fonte (livro, artigo, vídeo...)");
-            return;
-          }
-          if (!formData.conteudo.trim()) {
-            toast.error("Digite o texto da nota");
-            return;
-          }
-          payload = {
-            titulo: formData.nome.trim(),
-            conteudo: formData.conteudo.trim(),
-            tipoNota: formData.tipoNota,
-            subtipo: formData.subtipo,
-            fonte: formData.fonte.trim() || null,
-          };
-          break;
+      // valida os campos por tipo e monta o payload (regra pura no domínio)
+      const validationError = validateCreateNodeForm(selectedType, formData);
+      if (validationError) {
+        toast.error(createNodeErrorMessage(validationError, selectedType));
+        return;
       }
+      const payload = buildCreateNodePayload(selectedType, formData);
 
       setLoading(true);
       try {
