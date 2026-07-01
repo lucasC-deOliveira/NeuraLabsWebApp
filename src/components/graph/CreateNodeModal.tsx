@@ -36,6 +36,7 @@ import { ProvaForm } from "@/modules/graph/presentation/components/create-node/P
 import { DeckForm } from "@/modules/graph/presentation/components/create-node/DeckForm";
 import { NotaFields, NotaAiSuggestions } from "@/modules/graph/presentation/components/create-node/NotaForm";
 import { ExistingItemsPicker } from "@/modules/graph/presentation/components/create-node/ExistingItemsPicker";
+import { NodeTypeSelect, NameDescriptionFields, FlashcardFields } from "@/modules/graph/presentation/components/create-node/NodeFields";
 import { useRouter } from "@/lib/navigation";
 
 // Mensagens pt-BR específicas por tipo para os códigos de validação da criação.
@@ -628,58 +629,7 @@ export function CreateNodeModal({
           {activeTab === "create" && (
             <>
               {/* Type selection */}
-              <div className="space-y-2">
-                <Label htmlFor="node-type">Tipo de nó</Label>
-                <Select value={selectedType} onValueChange={(value) => setSelectedType(value ?? "")}>
-                  <SelectTrigger id="node-type">
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ASSUNTO">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#eef2ff] border border-[#4338ca] rounded" />
-                        <span>Assunto</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="TOPICO">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#e0f2fe] border border-[#0369a1] rounded" />
-                        <span>Tópico</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="CONCEITO">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#d1fae5] border border-[#059669] rounded" />
-                        <span>Conceito</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="FLASHCARD">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#fef9c3] border border-[#eab308] rounded" />
-                        <span>Flashcard</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="NOTA">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#fdf4ff] border border-[#9333ea] rounded" />
-                        <span>Nota</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="BARALHO">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#fff7ed] border border-[#ea580c] rounded" />
-                        <span>Baralho</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="PROVA">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#fffbeb] border border-[#d97706] rounded" />
-                        <span>Prova</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <NodeTypeSelect value={selectedType} onChange={setSelectedType} />
 
               {/* BARALHO form */}
               {selectedType === "BARALHO" && (
@@ -726,50 +676,30 @@ export function CreateNodeModal({
               {/* ASSUNTO form */}
               {selectedType === "ASSUNTO" && (
                 <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="nome">Nome</Label>
-                    <Input
-                      id="nome"
-                      placeholder="Ex: Direito Constitucional"
-                      value={formData.nome}
-                      onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="descricao">Descrição (opcional)</Label>
-                    <Textarea
-                      id="descricao"
-                      placeholder="Breve descrição do assunto"
-                      value={formData.descricao}
-                      onChange={(e) => setFormData((f) => ({ ...f, descricao: e.target.value }))}
-                      rows={3}
-                    />
-                  </div>
+                  <NameDescriptionFields
+                    idPrefix="assunto"
+                    nome={formData.nome}
+                    descricao={formData.descricao}
+                    onNome={(value) => setFormData((f) => ({ ...f, nome: value }))}
+                    onDescricao={(value) => setFormData((f) => ({ ...f, descricao: value }))}
+                    nomePlaceholder="Ex: Direito Constitucional"
+                    descricaoPlaceholder="Breve descrição do assunto"
+                  />
                 </div>
               )}
 
               {/* TOPICO form */}
               {selectedType === "TOPICO" && (
                 <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="topico-nome">Nome</Label>
-                    <Input
-                      id="topico-nome"
-                      placeholder="Ex: Princípios Fundamentais"
-                      value={formData.nome}
-                      onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="topico-descricao">Descrição (opcional)</Label>
-                    <Textarea
-                      id="topico-descricao"
-                      placeholder="Breve descrição do tópico"
-                      value={formData.descricao}
-                      onChange={(e) => setFormData((f) => ({ ...f, descricao: e.target.value }))}
-                      rows={3}
-                    />
-                  </div>
+                  <NameDescriptionFields
+                    idPrefix="topico"
+                    nome={formData.nome}
+                    descricao={formData.descricao}
+                    onNome={(value) => setFormData((f) => ({ ...f, nome: value }))}
+                    onDescricao={(value) => setFormData((f) => ({ ...f, descricao: value }))}
+                    nomePlaceholder="Ex: Princípios Fundamentais"
+                    descricaoPlaceholder="Breve descrição do tópico"
+                  />
                   {/* Assuntos relacionados (relação + peso) — substitui o "assunto pai" */}
                   <RelationLinkList
                     links={topicoAssuntos.map((l) => ({ targetId: l.assuntoId, relacao: l.relacao, peso: l.peso }))}
@@ -788,25 +718,15 @@ export function CreateNodeModal({
               {/* CONCEITO form */}
               {selectedType === "CONCEITO" && (
                 <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="conceito-nome">Nome</Label>
-                    <Input
-                      id="conceito-nome"
-                      placeholder="Ex: Habeas Corpus"
-                      value={formData.nome}
-                      onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="conceito-descricao">Descrição (opcional)</Label>
-                    <Textarea
-                      id="conceito-descricao"
-                      placeholder="Breve descrição do conceito"
-                      value={formData.descricao}
-                      onChange={(e) => setFormData((f) => ({ ...f, descricao: e.target.value }))}
-                      rows={3}
-                    />
-                  </div>
+                  <NameDescriptionFields
+                    idPrefix="conceito"
+                    nome={formData.nome}
+                    descricao={formData.descricao}
+                    onNome={(value) => setFormData((f) => ({ ...f, nome: value }))}
+                    onDescricao={(value) => setFormData((f) => ({ ...f, descricao: value }))}
+                    nomePlaceholder="Ex: Habeas Corpus"
+                    descricaoPlaceholder="Breve descrição do conceito"
+                  />
                   {/* Tópicos relacionados (relação + peso) — substitui o "tópico pai" */}
                   <RelationLinkList
                     links={conceitoTopicos.map((l) => ({ targetId: l.topicoId, relacao: l.relacao, peso: l.peso }))}
@@ -825,27 +745,12 @@ export function CreateNodeModal({
               {/* FLASHCARD form */}
               {selectedType === "FLASHCARD" && (
                 <div className="space-y-3">
-                 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="pergunta">Pergunta</Label>
-                    <Textarea
-                      id="pergunta"
-                      placeholder="O que você quer memorizar?"
-                      value={formData.pergunta}
-                      onChange={(e) => setFormData((f) => ({ ...f, pergunta: e.target.value }))}
-                      rows={3}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="resposta">Resposta</Label>
-                    <Textarea
-                      id="resposta"
-                      placeholder="A resposta para a pergunta"
-                      value={formData.resposta}
-                      onChange={(e) => setFormData((f) => ({ ...f, resposta: e.target.value }))}
-                      rows={3}
-                    />
-                  </div>
+                  <FlashcardFields
+                    pergunta={formData.pergunta}
+                    resposta={formData.resposta}
+                    onPergunta={(value) => setFormData((f) => ({ ...f, pergunta: value }))}
+                    onResposta={(value) => setFormData((f) => ({ ...f, resposta: value }))}
+                  />
                   {/* Conceitos relacionados (relação + peso) — o flashcard herda os conceitos */}
                   {renderFlashcardConceitos()}
                 </div>
