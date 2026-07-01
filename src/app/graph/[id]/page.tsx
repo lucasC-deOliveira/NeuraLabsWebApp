@@ -19,7 +19,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { CommunitiesPanel } from "@/components/graph/CommunitiesPanel";
+import { CommunitiesPanel } from "@/modules/graph/presentation/components/CommunitiesPanel";
 import { GapDetectionModal } from "@/modules/graph/presentation/components/ai/GapDetectionModal";
 import { GenerateGraphModal } from "@/modules/graph/presentation/components/ai/GenerateGraphModal";
 import { GenerateGraphFromBaralhoModal } from "@/modules/graph/presentation/components/ai/GenerateGraphFromBaralhoModal";
