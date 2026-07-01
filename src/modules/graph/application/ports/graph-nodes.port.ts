@@ -22,4 +22,9 @@ export interface GraphNodesPort {
     flashcardIds: string[],
   ): Promise<{ success: boolean; nodeId: string }>;
   addProvaToGraph(grafoId: string, provaId: string): Promise<{ success: boolean; nodeId: string }>;
+  deleteGraphNode(
+    graphNodeId: string,
+    grafoId?: string,
+    options?: { deleteConnected?: boolean },
+  ): Promise<{ success: boolean; deletedType?: string }>;
 }

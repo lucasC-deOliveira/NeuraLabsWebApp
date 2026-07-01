@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { DuplicatesModal } from "./DuplicatesModal";
 import { detectDuplicates } from "@/lib/ai-api";
 
+// O adapter delega para @/lib/*, então mockar a borda cobre o fluxo.
 vi.mock("@/lib/ai-api", () => ({ detectDuplicates: vi.fn(), mergeDuplicates: vi.fn() }));
 vi.mock("@/lib/graph-api", () => ({ deleteGraphNode: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

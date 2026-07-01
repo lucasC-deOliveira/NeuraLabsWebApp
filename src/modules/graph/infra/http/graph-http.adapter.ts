@@ -16,11 +16,19 @@ import {
   addNodeToGraph,
   createBaralhoNode,
   addProvaToGraph,
+  deleteGraphNode,
   createEdge,
   updateEdge,
   deleteEdge,
 } from "@/lib/graph-api";
-import { generateLearningPath, suggestNotaRelations, autoLinkGraph, applyAutoLink } from "@/lib/ai-api";
+import {
+  generateLearningPath,
+  suggestNotaRelations,
+  autoLinkGraph,
+  applyAutoLink,
+  detectDuplicates,
+  mergeDuplicates,
+} from "@/lib/ai-api";
 import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
 import type {
   GraphDataPort,
@@ -34,6 +42,7 @@ import type {
   NotaRelationSuggestion,
   AutoLinkSuggestion,
   AppliedEdge,
+  DuplicateGroup,
 } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
@@ -118,6 +127,14 @@ export class HttpGraphAdapter
     return addProvaToGraph(grafoId, provaId);
   }
 
+  deleteGraphNode(
+    graphNodeId: string,
+    grafoId?: string,
+    options?: { deleteConnected?: boolean },
+  ): Promise<{ success: boolean; deletedType?: string }> {
+    return deleteGraphNode(graphNodeId, grafoId, options);
+  }
+
   suggestNotaRelations(grafoId: string, titulo: string, conteudo: string): Promise<NotaRelationSuggestion[]> {
     return suggestNotaRelations(grafoId, titulo, conteudo);
   }
@@ -128,6 +145,14 @@ export class HttpGraphAdapter
 
   applyAutoLink(grafoId: string, edges: AppliedEdge[]): Promise<{ added: number }> {
     return applyAutoLink(grafoId, edges);
+  }
+
+  detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }> {
+    return detectDuplicates(grafoId);
+  }
+
+  mergeDuplicates(grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }> {
+    return mergeDuplicates(grafoId, keepId, deleteIds);
   }
 
   parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult> {

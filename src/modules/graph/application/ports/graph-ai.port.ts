@@ -31,9 +31,21 @@ export interface AppliedEdge {
   relacao: string;
 }
 
+export interface DuplicateNode {
+  id: string;
+  nome: string;
+  tipo: string;
+}
+export interface DuplicateGroup {
+  nodes: DuplicateNode[];
+  sugestao: string;
+}
+
 export interface GraphAiPort {
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }>;
   suggestNotaRelations(grafoId: string, titulo: string, conteudo: string): Promise<NotaRelationSuggestion[]>;
   autoLinkGraph(grafoId: string): Promise<{ suggestions: AutoLinkSuggestion[] }>;
   applyAutoLink(grafoId: string, edges: AppliedEdge[]): Promise<{ added: number }>;
+  detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }>;
+  mergeDuplicates(grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }>;
 }
