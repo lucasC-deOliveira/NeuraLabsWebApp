@@ -94,6 +94,14 @@ export interface ChatReferencedNode {
   nome: string;
   tipo: string;
 }
+export interface GenerateGraphResult {
+  assunto: string;
+  topicos: number;
+  conceitos: number;
+  notas: number;
+  flashcards: number;
+  baralho: string | null;
+}
 
 export interface GraphAiPort {
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }>;
@@ -118,4 +126,13 @@ export interface GraphAiPort {
     grafoId: string,
     body: { labelsA: string[]; labelsB: string[]; bridgeA: string; bridgeB: string },
   ): Promise<{ insights: NodeInsight[] }>;
+  // The plan is an opaque AI artifact produced by planGraphFromText and fed back into
+  // buildGraphFromPlan — presentation never inspects it, so it stays `unknown` here.
+  planGraphFromText(grafoId: string, rawText: string): Promise<{ plan: unknown }>;
+  buildGraphFromPlan(
+    grafoId: string,
+    rawText: string,
+    plan: unknown,
+    saveBruto: boolean,
+  ): Promise<GenerateGraphResult>;
 }

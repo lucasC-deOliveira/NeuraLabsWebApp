@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CommunitiesPanel } from "@/components/graph/CommunitiesPanel";
 import { GapDetectionModal } from "@/modules/graph/presentation/components/ai/GapDetectionModal";
-import { GenerateGraphModal } from "@/components/graph/GenerateGraphModal";
+import { GenerateGraphModal } from "@/modules/graph/presentation/components/ai/GenerateGraphModal";
 import { GenerateGraphFromBaralhoModal } from "@/components/graph/GenerateGraphFromBaralhoModal";
 import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLinkModal";
 import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/DuplicatesModal";
