@@ -23,9 +23,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PlusIcon, Loader2Icon, SparklesIcon, XIcon, SearchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getAvailableItems, listUserFlashcards } from "@/lib/graph-api";
 import type { NotaRelationSuggestion } from "@/modules/graph/application/ports/graph-ai.port";
-import { parseProvaUpload, createProvaFromParsed, type ParsedQuestaoPreview } from "@/lib/provas-api";
+import type { ParsedQuestao } from "@/modules/graph/application/ports/graph-prova.port";
 import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { validateCreateNodeForm, type CreateNodeError } from "@/modules/graph/domain/services/create-node-form";
@@ -137,7 +136,7 @@ export function CreateNodeModal({
   const [provaUploadStep, setProvaUploadStep] = useState<"files" | "reviewing" | "review">("files");
   const [provaFile, setProvaFile] = useState<File | null>(null);
   const [gabaritoFile, setGabaritoFile] = useState<File | null>(null);
-  const [parsedQuestoes, setParsedQuestoes] = useState<ParsedQuestaoPreview[]>([]);
+  const [parsedQuestoes, setParsedQuestoes] = useState<ParsedQuestao[]>([]);
   const [parsedTitulo, setParsedTitulo] = useState<string>("");
 
   const [formData, setFormData] = useState<{
@@ -186,7 +185,7 @@ export function CreateNodeModal({
     if (!open || selectedType !== "BARALHO") return;
     setDeckLoading(true);
     const noGrafo = new Set(parentIds.flashcards.map((f) => f.id));
-    listUserFlashcards()
+    graphHttp.listUserFlashcards()
       .then((fcs) =>
         setDeckFlashcards(
           fcs
@@ -200,7 +199,7 @@ export function CreateNodeModal({
 
   const loadAvailableItems = async () => {
     try {
-      const data = await getAvailableItems(grafoId);
+      const data = await graphHttp.getAvailableItems(grafoId);
       setAvailableItems({ flashcards: data.flashcards ?? [], notas: data.notas ?? [], provas: data.provas ?? [] });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Erro desconhecido";
@@ -333,7 +332,7 @@ export function CreateNodeModal({
           }
           setLoading(true);
           try {
-            const { provaId } = await createProvaFromParsed({ titulo: parsedTitulo.trim(), questoes: parsedQuestoes });
+            const { provaId } = await graphHttp.createProvaFromParsed({ titulo: parsedTitulo.trim(), questoes: parsedQuestoes });
             await graphHttp.addProvaToGraph(grafoId, provaId);
             toast.success(`Prova criada com ${parsedQuestoes.length} questões e adicionada ao grafo!`);
             resetForm();
@@ -355,7 +354,7 @@ export function CreateNodeModal({
         setProvaUploadStep("reviewing");
         setLoading(true);
         try {
-          const result = await parseProvaUpload(provaFile, gabaritoFile);
+          const result = await graphHttp.parseProvaUpload(provaFile, gabaritoFile);
           setParsedQuestoes(result.questoes);
           setParsedTitulo(result.tituloSugerido ?? "");
           setProvaUploadStep("review");

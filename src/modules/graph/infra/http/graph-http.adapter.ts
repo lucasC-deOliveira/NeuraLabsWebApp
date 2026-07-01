@@ -9,6 +9,8 @@ import {
   loadGraphVisualState,
   saveGraphPositions,
   searchGraphNodeContent,
+  getAvailableItems,
+  listUserFlashcards,
   getNodeDetails,
   updateGraphNode,
   addNodeToGraph,
@@ -19,13 +21,17 @@ import {
   deleteEdge,
 } from "@/lib/graph-api";
 import { generateLearningPath, suggestNotaRelations } from "@/lib/ai-api";
+import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
 import type {
   GraphDataPort,
   NodePosition,
+  AvailableItems,
+  UserFlashcard,
 } from "../../application/ports/graph-data.port";
 import type { GraphAiPort, LearningStep, NotaRelationSuggestion } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
+import type { GraphProvaPort, ProvaParseResult, ParsedQuestao } from "../../application/ports/graph-prova.port";
 import type {
   GraphNodeType,
   GraphEdgeType,
@@ -34,7 +40,9 @@ import type {
   GraphVisualState,
 } from "../../domain/types/graph.types";
 
-export class HttpGraphAdapter implements GraphDataPort, GraphAiPort, GraphNodesPort, GraphEdgesPort {
+export class HttpGraphAdapter
+  implements GraphDataPort, GraphAiPort, GraphNodesPort, GraphEdgesPort, GraphProvaPort
+{
   getGraphNodes(grafoId?: string): Promise<{ nodes: GraphNodeType[]; edges: GraphEdgeType[] }> {
     return getGraphNodes(grafoId);
   }
@@ -57,6 +65,14 @@ export class HttpGraphAdapter implements GraphDataPort, GraphAiPort, GraphNodesP
 
   searchGraphNodeContent(grafoId: string, query: string): Promise<string[]> {
     return searchGraphNodeContent(grafoId, query);
+  }
+
+  getAvailableItems(grafoId: string): Promise<AvailableItems> {
+    return getAvailableItems(grafoId);
+  }
+
+  listUserFlashcards(): Promise<UserFlashcard[]> {
+    return listUserFlashcards();
   }
 
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }> {
@@ -98,6 +114,14 @@ export class HttpGraphAdapter implements GraphDataPort, GraphAiPort, GraphNodesP
 
   suggestNotaRelations(grafoId: string, titulo: string, conteudo: string): Promise<NotaRelationSuggestion[]> {
     return suggestNotaRelations(grafoId, titulo, conteudo);
+  }
+
+  parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult> {
+    return parseProvaUpload(provaFile, gabaritoFile);
+  }
+
+  createProvaFromParsed(input: { titulo: string; questoes: ParsedQuestao[] }): Promise<{ provaId: string }> {
+    return createProvaFromParsed(input);
   }
 
   createEdge(grafoId: string, data: CreateEdgeData): Promise<{ success: boolean; edgeId: string }> {

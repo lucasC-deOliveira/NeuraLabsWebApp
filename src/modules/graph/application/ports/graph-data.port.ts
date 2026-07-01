@@ -14,6 +14,28 @@ export interface NodePosition {
   y: number;
 }
 
+export interface AvailableItem {
+  id: string;
+  label: string;
+  fullText: string;
+  tipo: string;
+  hierarquia: string;
+  conceitoId?: string | null;
+}
+
+export interface AvailableItems {
+  flashcards: AvailableItem[];
+  notas: AvailableItem[];
+  questoes?: AvailableItem[];
+  provas?: AvailableItem[];
+}
+
+export interface UserFlashcard {
+  id: string;
+  pergunta: string;
+  conceito: string | null;
+}
+
 export interface GraphDataPort {
   getGraphNodes(grafoId?: string): Promise<{ nodes: GraphNodeType[]; edges: GraphEdgeType[] }>;
   getGraphEdges(grafoId: string): Promise<EdgeView[]>;
@@ -21,4 +43,6 @@ export interface GraphDataPort {
   loadGraphVisualState(grafoId: string): Promise<GraphVisualState | null>;
   saveGraphPositions(grafoId: string, positions: Record<string, NodePosition>): Promise<void>;
   searchGraphNodeContent(grafoId: string, query: string): Promise<string[]>;
+  getAvailableItems(grafoId: string): Promise<AvailableItems>;
+  listUserFlashcards(): Promise<UserFlashcard[]>;
 }
