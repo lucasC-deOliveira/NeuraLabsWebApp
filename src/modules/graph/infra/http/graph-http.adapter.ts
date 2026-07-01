@@ -34,6 +34,7 @@ import {
   addMissingPrerequisite,
   generateNodeInsights,
   addInsightsToGraph,
+  generateCommunitySummary,
 } from "@/lib/ai-api";
 import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
 import type {
@@ -189,6 +190,10 @@ export class HttpGraphAdapter
 
   addInsightsToGraph(grafoId: string, sourceNodeId: string, insights: InsightToAdd[]): Promise<{ added: number }> {
     return addInsightsToGraph(grafoId, sourceNodeId, insights);
+  }
+
+  generateCommunitySummary(grafoId: string, nodeIds: string[]): Promise<{ titulo: string; resumo: string }> {
+    return generateCommunitySummary(grafoId, nodeIds);
   }
 
   parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult> {

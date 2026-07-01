@@ -99,4 +99,5 @@ export interface GraphAiPort {
   addMissingPrerequisite(grafoId: string, nome: string, tipo: string, connectToIds: string[]): Promise<{ nodeId: string }>;
   generateNodeInsights(grafoId: string, nodeId: string): Promise<NodeInsightsResult>;
   addInsightsToGraph(grafoId: string, sourceNodeId: string, insights: InsightToAdd[]): Promise<{ added: number }>;
+  generateCommunitySummary(grafoId: string, nodeIds: string[]): Promise<{ titulo: string; resumo: string }>;
 }

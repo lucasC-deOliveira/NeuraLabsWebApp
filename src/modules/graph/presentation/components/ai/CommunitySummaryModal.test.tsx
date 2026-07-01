@@ -4,11 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { CommunitySummaryModal } from "./CommunitySummaryModal";
 import { generateCommunitySummary } from "@/lib/ai-api";
 
+// O adapter delega para @/lib/ai-api, então mockar a borda cobre o fluxo.
 vi.mock("@/lib/ai-api", () => ({ generateCommunitySummary: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock("@/components/markdown-content", () => ({
-  MarkdownContent: ({ children }: { children: string }) => children,
-}));
+vi.mock("@/components/markdown-content", () => ({ MarkdownContent: ({ children }: { children: string }) => children }));
 
 const writeText = vi.fn(() => Promise.resolve());
 
@@ -20,16 +19,7 @@ beforeEach(() => {
 
 function setup(overrides: Record<string, unknown> = {}) {
   const onOpenChange = vi.fn();
-  render(
-    <CommunitySummaryModal
-      open
-      onOpenChange={onOpenChange}
-      grafoId="g1"
-      communityLabel="Cluster X"
-      nodeIds={["n1", "n2"]}
-      {...overrides}
-    />,
-  );
+  render(<CommunitySummaryModal open onOpenChange={onOpenChange} grafoId="g1" communityLabel="Cluster X" nodeIds={["n1", "n2"]} {...overrides} />);
   return { onOpenChange };
 }
 
