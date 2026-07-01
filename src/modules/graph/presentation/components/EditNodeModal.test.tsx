@@ -4,8 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { EditNodeModal } from "./EditNodeModal";
 import { getNodeDetails, updateGraphNode } from "@/lib/graph-api";
 
-// Characterization test (safety net before the hexagonal refactor moves/decomposes
-// this modal). Captures the current observable behavior with the HTTP layer mocked.
+// Characterization test (safety net for the hexagonal decomposition of this modal
+// into use-case + hook + presentational component). Captures the observable
+// behavior with the HTTP edge mocked — the port/adapter still delegates to it, so
+// these assertions prove behavior was preserved across the move.
 // The CONCEITO node path is the simplest form (nome + descrição, no Select).
 vi.mock("@/lib/graph-api", () => ({
   getNodeDetails: vi.fn(),
