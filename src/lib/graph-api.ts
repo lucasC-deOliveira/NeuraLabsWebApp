@@ -1,61 +1,27 @@
 // Cliente do grafo: mesmas assinaturas das antigas server actions, mas chamando
 // a API NestJS. Components/hooks só trocam o import (@/actions/graph → @/lib/graph-api).
 import { apiFetch } from "./api";
+import type {
+  GrafoRefMeta,
+  GraphNodeType,
+  GraphEdgeType,
+  EdgeView,
+  GrafoInfo,
+  GrafoInfoDetail,
+  GraphVisualState,
+} from "@/modules/graph/domain/types/graph.types";
 
-export interface GrafoRefMeta {
-  nome: string;
-  nodeCount: number;
-  tipoRelacao: string | null;
-}
-
-export interface GraphNodeType {
-  id: string;
-  label: string;
-  type: string;
-  nivelDominio: number;
-  prioridadeRevisao: number;
-  parentId?: string;
-  pergunta?: string;
-  posicaoX?: number;
-  posicaoY?: number;
-  grafoRefMeta?: GrafoRefMeta;
-  /** Assunto-raiz do grafo: fixo no centro, ancora o layout, não-deletável. */
-  isRoot?: boolean;
-}
-export interface GraphEdgeType {
-  source: string;
-  target: string;
-  type: string;
-  peso: number;
-}
-export interface EdgeView {
-  id: string;
-  source: string;
-  target: string;
-  tipoRelacao: string;
-  peso: number;
-  sourceLabel: string;
-  targetLabel: string;
-}
-export interface GrafoInfo {
-  id: string;
-  nome: string;
-  descricao?: string | null;
-  parentGrafoId?: string | null;
-  tipoRelacaoPai?: string | null;
-  filhosCount?: number;
-  dataCriacao?: string;
-  dataAtualizacao?: string;
-}
-
-export interface GrafoInfoDetail {
-  nome: string;
-  descricao?: string;
-  parentGrafoId: string | null;
-  parentNome: string | null;
-  tipoRelacaoPai: string | null;
-  filhosCount: number;
-}
+// Os tipos-modelo do grafo agora vivem no domínio (src/modules/graph/domain);
+// re-exportados aqui para preservar o import `@/lib/graph-api` dos consumidores legados.
+export type {
+  GrafoRefMeta,
+  GraphNodeType,
+  GraphEdgeType,
+  EdgeView,
+  GrafoInfo,
+  GrafoInfoDetail,
+  GraphVisualState,
+};
 
 const qs = (params: Record<string, string | undefined>) => {
   const sp = new URLSearchParams();
@@ -115,11 +81,6 @@ export async function updateGrafoNome(grafoId: string, nome: string): Promise<vo
 }
 export async function saveGraphVisualState(grafoId: string, state: unknown): Promise<void> {
   await apiFetch(`/graph/graphs/${grafoId}/visual`, { method: "PUT", body: JSON.stringify({ state }) });
-}
-export interface GraphVisualState {
-  zoom: number;
-  pan: { x: number; y: number };
-  positions?: Record<string, { x: number; y: number }>;
 }
 export function loadGraphVisualState(grafoId: string): Promise<GraphVisualState | null> {
   return apiFetch(`/graph/graphs/${grafoId}/visual`);

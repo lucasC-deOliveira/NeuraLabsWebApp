@@ -1,5 +1,5 @@
 
-import type { GraphNodeType, GraphEdgeType } from "@/lib/graph-api";
+import type { GraphNodeType, GraphEdgeType } from "../../domain/types/graph.types";
 import { deriveHierarchy } from "@/lib/graph-hierarchy";
 
 const RELATION_LABELS: Record<string, string> = {

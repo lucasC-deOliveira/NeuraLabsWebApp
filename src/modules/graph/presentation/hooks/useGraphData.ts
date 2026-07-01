@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  getGraphNodes,
-  getGraphEdges,
-  getGrafoInfo,
-  loadGraphVisualState,
-} from "@/lib/graph-api";
+import { graphHttp } from "../../infra/http";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { graphVaultDir, vaultToGraphNode, vaultToGraphEdges } from "@/lib/vault-sync";
 import { parseNode } from "@/lib/vault-format";
@@ -34,9 +29,9 @@ export function useGraphData(graphId: string) {
       setLoading(true);
       try {
         const [result, saved, info] = await Promise.all([
-          getGraphNodes(graphId),
-          loadGraphVisualState(graphId),
-          getGrafoInfo(graphId).catch(() => null),
+          graphHttp.getGraphNodes(graphId),
+          graphHttp.loadGraphVisualState(graphId),
+          graphHttp.getGrafoInfo(graphId).catch(() => null),
         ]);
 
         if (saved) {
@@ -83,7 +78,7 @@ export function useGraphData(graphId: string) {
 
       // Carrega detalhes de arestas em background — não bloqueia a renderização.
       // Grafos grandes (14k+ arestas) têm este endpoint lento; o grafo funciona sem ele.
-      getGraphEdges(graphId)
+      graphHttp.getGraphEdges(graphId)
         .then((d) => { if (d) setGraphEdges(d); })
         .catch(() => {});
     }

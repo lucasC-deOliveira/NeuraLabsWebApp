@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { searchGraphNodeContent } from "@/lib/graph-api";
+import { graphHttp } from "../../infra/http";
 
 // Busca com filtros poderosos sobre o layout do grafo:
 //   • texto (escopo: tudo / título / conteúdo)
@@ -151,7 +151,7 @@ export function useGraphSearch<T extends SearchNode>(
     let cancelled = false;
     setContentLoading(true);
     const handle = setTimeout(() => {
-      searchGraphNodeContent(grafoId, trimmedQuery)
+      graphHttp.searchGraphNodeContent(grafoId, trimmedQuery)
         .then((ids) => {
           if (!cancelled) setContentMatchIds(new Set(ids));
         })
