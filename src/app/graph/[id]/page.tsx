@@ -27,7 +27,7 @@ import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLi
 import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/DuplicatesModal";
 import { CommunitySummaryModal } from "@/modules/graph/presentation/components/ai/CommunitySummaryModal";
 import { MissingPrereqsModal } from "@/modules/graph/presentation/components/ai/MissingPrereqsModal";
-import { GraphChatModal } from "@/components/graph/GraphChatModal";
+import { GraphChatModal } from "@/modules/graph/presentation/components/ai/GraphChatModal";
 import { CompletenessModal } from "@/modules/graph/presentation/components/ai/CompletenessModal";
 import { clustersFromHierarchy, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
 import { createBaralhoNode } from "@/lib/graph-api";

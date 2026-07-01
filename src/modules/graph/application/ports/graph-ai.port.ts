@@ -85,6 +85,15 @@ export interface InsightToAdd {
   titulo: string;
   descricao?: string;
 }
+export interface ChatHistoryItem {
+  role: "user" | "assistant";
+  content: string;
+}
+export interface ChatReferencedNode {
+  id: string;
+  nome: string;
+  tipo: string;
+}
 
 export interface GraphAiPort {
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }>;
@@ -100,4 +109,9 @@ export interface GraphAiPort {
   generateNodeInsights(grafoId: string, nodeId: string): Promise<NodeInsightsResult>;
   addInsightsToGraph(grafoId: string, sourceNodeId: string, insights: InsightToAdd[]): Promise<{ added: number }>;
   generateCommunitySummary(grafoId: string, nodeIds: string[]): Promise<{ titulo: string; resumo: string }>;
+  chatWithGraph(
+    grafoId: string,
+    question: string,
+    history: ChatHistoryItem[],
+  ): Promise<{ answer: string; referencedNodes: ChatReferencedNode[] }>;
 }

@@ -4,10 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { GraphChatModal } from "./GraphChatModal";
 import { chatWithGraph } from "@/lib/ai-api";
 
+// O adapter delega para @/lib/ai-api, então mockar a borda cobre o fluxo.
 vi.mock("@/lib/ai-api", () => ({ chatWithGraph: vi.fn() }));
-vi.mock("@/components/markdown-content", () => ({
-  MarkdownContent: ({ children }: { children: string }) => children,
-}));
+vi.mock("@/components/markdown-content", () => ({ MarkdownContent: ({ children }: { children: string }) => children }));
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -16,10 +15,7 @@ describe("GraphChatModal", () => {
     vi.mocked(chatWithGraph).mockResolvedValue({ answer: "É a mitose.", referencedNodes: [] });
     render(<GraphChatModal open onOpenChange={vi.fn()} grafoId="g1" />);
 
-    await userEvent.type(
-      screen.getByPlaceholderText("Pergunte algo sobre seu grafo..."),
-      "Qual o conceito?{Enter}",
-    );
+    await userEvent.type(screen.getByPlaceholderText("Pergunte algo sobre seu grafo..."), "Qual o conceito?{Enter}");
 
     await waitFor(() => expect(chatWithGraph).toHaveBeenCalledWith("g1", "Qual o conceito?", []));
     expect(screen.getByText("Qual o conceito?")).toBeInTheDocument();
