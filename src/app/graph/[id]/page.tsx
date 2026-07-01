@@ -57,7 +57,7 @@ import { CreateSubgrafoModal } from "@/components/graph/CreateSubgrafoModal";
 import { ExtractSubgrafoModal } from "@/components/graph/ExtractSubgrafoModal";
 import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
 import { ImportJsonModal } from "@/components/graph/ImportJsonModal";
-import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";
+import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeManagerModal";
 import { EditNodeModal } from "@/modules/graph/presentation/components/EditNodeModal";
 import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
 import { ViewTextoBrutoModal } from "@/components/graph/ViewTextoBrutoModal";

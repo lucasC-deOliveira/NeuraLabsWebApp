@@ -11,6 +11,9 @@ import {
   searchGraphNodeContent,
   getNodeDetails,
   updateGraphNode,
+  createEdge,
+  updateEdge,
+  deleteEdge,
 } from "@/lib/graph-api";
 import { generateLearningPath } from "@/lib/ai-api";
 import type {
@@ -19,6 +22,7 @@ import type {
 } from "../../application/ports/graph-data.port";
 import type { GraphAiPort, LearningStep } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
+import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
 import type {
   GraphNodeType,
   GraphEdgeType,
@@ -27,7 +31,7 @@ import type {
   GraphVisualState,
 } from "../../domain/types/graph.types";
 
-export class HttpGraphAdapter implements GraphDataPort, GraphAiPort, GraphNodesPort {
+export class HttpGraphAdapter implements GraphDataPort, GraphAiPort, GraphNodesPort, GraphEdgesPort {
   getGraphNodes(grafoId?: string): Promise<{ nodes: GraphNodeType[]; edges: GraphEdgeType[] }> {
     return getGraphNodes(grafoId);
   }
@@ -67,5 +71,21 @@ export class HttpGraphAdapter implements GraphDataPort, GraphAiPort, GraphNodesP
     grafoId: string,
   ): Promise<{ success: boolean }> {
     return updateGraphNode(group, nodeId, data, grafoId);
+  }
+
+  createEdge(grafoId: string, data: CreateEdgeData): Promise<{ success: boolean; edgeId: string }> {
+    return createEdge(grafoId, data);
+  }
+
+  updateEdge(
+    edgeId: string,
+    grafoId: string,
+    data: { tipoRelacao?: string; peso?: number },
+  ): Promise<{ success: boolean }> {
+    return updateEdge(edgeId, grafoId, data);
+  }
+
+  deleteEdge(edgeId: string, grafoId: string): Promise<{ success: boolean }> {
+    return deleteEdge(edgeId, grafoId);
   }
 }
