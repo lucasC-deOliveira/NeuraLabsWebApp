@@ -35,6 +35,7 @@ import { RelationLinkList } from "@/modules/graph/presentation/components/create
 import { ProvaForm } from "@/modules/graph/presentation/components/create-node/ProvaForm";
 import { DeckForm } from "@/modules/graph/presentation/components/create-node/DeckForm";
 import { NotaFields, NotaAiSuggestions } from "@/modules/graph/presentation/components/create-node/NotaForm";
+import { ExistingItemsPicker } from "@/modules/graph/presentation/components/create-node/ExistingItemsPicker";
 import { useRouter } from "@/lib/navigation";
 
 // Mensagens pt-BR específicas por tipo para os códigos de validação da criação.
@@ -580,102 +581,23 @@ export function CreateNodeModal({
         <div className="min-h-0 flex-1 overflow-y-auto py-4 px-1 -mx-1">
         {activeTab === "existing" && (
           <>
-            {/* Search */}
-            <div className="relative mb-3">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder={selectedType === "NOTA" ? "Buscar notas..." : "Buscar flashcards (pergunta, conceito, tópico...)"}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md bg-transparent"
-              />
-            </div>
-
-            {/* Items list */}
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {/* Flashcards (quando o tipo é FLASHCARD) */}
-              {selectedType === "FLASHCARD" && (
-                availableItems.flashcards.length === 0 ? (
-                  <p className="text-center text-zinc-500 py-8">Nenhum flashcard disponível</p>
-                ) : filteredFlashcards.length === 0 ? (
-                  <p className="text-center text-zinc-500 py-8">Nenhum flashcard corresponde à busca</p>
-                ) : (
-                  <div className="space-y-1">
-                    {filteredFlashcards.map((flashcard) => (
-                      <div
-                        key={flashcard.id}
-                        className={`flex items-start gap-2 p-2 border rounded cursor-pointer transition-colors ${
-                          selectedItems.has(flashcard.id)
-                            ? "bg-primary/10 border-primary"
-                            : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                        }`}
-                        onClick={() => {
-                          setSelectedItems((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(flashcard.id)) next.delete(flashcard.id);
-                            else next.add(flashcard.id);
-                            return next;
-                          });
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.has(flashcard.id)}
-                          onChange={() => {}}
-                          className="mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{flashcard.label}</div>
-                          <div className="text-xs text-zinc-500 truncate">{flashcard.hierarquia}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              )}
-
-              {/* Notas (quando o tipo é NOTA) */}
-              {selectedType === "NOTA" && (
-                availableItems.notas.length === 0 ? (
-                  <p className="text-center text-zinc-500 py-8">Nenhuma nota disponível</p>
-                ) : (
-                  <div className="space-y-1">
-                    {availableItems.notas
-                      .filter((n) => searchQuery === "" || n.label.toLowerCase().includes(searchQuery.toLowerCase()) || n.fullText.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((nota) => (
-                        <div
-                          key={nota.id}
-                          className={`flex items-start gap-2 p-2 border rounded cursor-pointer transition-colors ${
-                            selectedItems.has(nota.id)
-                              ? "bg-primary/10 border-primary"
-                              : "hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                          }`}
-                          onClick={() => {
-                            setSelectedItems((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(nota.id)) next.delete(nota.id);
-                              else next.add(nota.id);
-                              return next;
-                            });
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedItems.has(nota.id)}
-                            onChange={() => {}}
-                            className="mt-1"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">{nota.label}</div>
-                            <div className="text-xs text-zinc-500">{nota.hierarquia}</div>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                )
-              )}
-            </div>
+            <ExistingItemsPicker
+              type={selectedType as "FLASHCARD" | "NOTA"}
+              searchQuery={searchQuery}
+              onSearch={setSearchQuery}
+              flashcards={availableItems.flashcards}
+              filteredFlashcards={filteredFlashcards}
+              notas={availableItems.notas}
+              selectedItems={selectedItems}
+              onToggle={(id) =>
+                setSelectedItems((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(id)) next.delete(id);
+                  else next.add(id);
+                  return next;
+                })
+              }
+            />
 
             {/* Mesmas relações com conceitos do "Criar flashcard": aplicadas a
                 cada flashcard existente selecionado */}
