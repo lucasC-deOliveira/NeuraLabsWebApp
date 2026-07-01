@@ -32,6 +32,7 @@ import { createGraphNode, createDeck } from "@/modules/graph/application/use-cas
 import { addExistingItems } from "@/modules/graph/application/use-cases/add-existing-items";
 import { graphHttp } from "@/modules/graph/infra/http";
 import { RelationLinkList } from "@/modules/graph/presentation/components/create-node/RelationLinkList";
+import { ProvaForm } from "@/modules/graph/presentation/components/create-node/ProvaForm";
 import { useRouter } from "@/lib/navigation";
 
 // Mensagens pt-BR específicas por tipo para os códigos de validação da criação.
@@ -834,137 +835,23 @@ export function CreateNodeModal({
 
               {/* PROVA form */}
               {selectedType === "PROVA" && (
-                <div className="space-y-3">
-                  {/* sub-tabs: existente ou importar */}
-                  <div className="flex rounded-md overflow-hidden border border-zinc-200 dark:border-zinc-700 text-sm">
-                    <button
-                      type="button"
-                      className={`flex-1 py-1.5 transition-colors ${provaSubMode === "existing" ? "bg-primary text-primary-foreground" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}
-                      onClick={() => { setProvaSubMode("existing"); setProvaUploadStep("files"); }}
-                    >
-                      Vincular existente
-                    </button>
-                    <button
-                      type="button"
-                      className={`flex-1 py-1.5 transition-colors ${provaSubMode === "upload" ? "bg-primary text-primary-foreground" : "hover:bg-zinc-100 dark:hover:bg-zinc-800"}`}
-                      onClick={() => { setProvaSubMode("upload"); setProvaUploadStep("files"); }}
-                    >
-                      Importar arquivos
-                    </button>
-                  </div>
-
-                  {/* modo: vincular prova existente */}
-                  {provaSubMode === "existing" && (
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                        <input
-                          type="text"
-                          placeholder="Buscar provas..."
-                          value={provaSearchQuery}
-                          onChange={(e) => setProvaSearchQuery(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md bg-transparent"
-                        />
-                      </div>
-                      <div className="max-h-56 overflow-y-auto space-y-1 rounded-md border border-zinc-200 dark:border-zinc-800 p-1">
-                        {availableItems.provas.length === 0 ? (
-                          <p className="py-6 text-center text-xs text-muted-foreground">Nenhuma prova disponível. Crie provas em Provas primeiro.</p>
-                        ) : (
-                          availableItems.provas
-                            .filter((p) => !provaSearchQuery || p.label.toLowerCase().includes(provaSearchQuery.toLowerCase()))
-                            .map((p) => (
-                              <label
-                                key={p.id}
-                                className={`flex cursor-pointer items-start gap-2 rounded p-2 text-sm transition-colors ${
-                                  selectedProvaId === p.id
-                                    ? "bg-primary/10 border border-primary"
-                                    : "border border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  className="mt-0.5"
-                                  checked={selectedProvaId === p.id}
-                                  onChange={() => setSelectedProvaId(p.id)}
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="truncate font-medium">{p.label}</div>
-                                  <div className="truncate text-xs text-muted-foreground">{p.hierarquia}</div>
-                                </div>
-                              </label>
-                            ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* modo: importar arquivos — step files */}
-                  {provaSubMode === "upload" && provaUploadStep === "files" && (
-                    <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground">Selecione o arquivo da prova e o gabarito. A IA irá extrair e cruzar as questões automaticamente.</p>
-                      <div className="space-y-1.5">
-                        <Label>Arquivo da prova (PDF, DOCX ou TXT)</Label>
-                        <input
-                          type="file"
-                          accept=".pdf,.docx,.txt"
-                          onChange={(e) => setProvaFile(e.target.files?.[0] ?? null)}
-                          className="block w-full text-sm file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-3 file:py-1 file:text-sm dark:file:bg-zinc-800"
-                        />
-                        {provaFile && <p className="text-xs text-muted-foreground">{provaFile.name}</p>}
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Gabarito (PDF, DOCX ou TXT)</Label>
-                        <input
-                          type="file"
-                          accept=".pdf,.docx,.txt"
-                          onChange={(e) => setGabaritoFile(e.target.files?.[0] ?? null)}
-                          className="block w-full text-sm file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-3 file:py-1 file:text-sm dark:file:bg-zinc-800"
-                        />
-                        {gabaritoFile && <p className="text-xs text-muted-foreground">{gabaritoFile.name}</p>}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* step reviewing */}
-                  {provaSubMode === "upload" && provaUploadStep === "reviewing" && (
-                    <div className="flex flex-col items-center gap-3 py-6">
-                      <Loader2Icon className="size-8 animate-spin text-primary" />
-                      <p className="text-sm text-muted-foreground">Extraindo e cruzando questões com a IA...</p>
-                    </div>
-                  )}
-
-                  {/* step review */}
-                  {provaSubMode === "upload" && provaUploadStep === "review" && (
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label>Título da prova</Label>
-                        <Input
-                          value={parsedTitulo}
-                          onChange={(e) => setParsedTitulo(e.target.value)}
-                          placeholder="Título da prova"
-                        />
-                      </div>
-                      <div className="space-y-1 max-h-64 overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800 p-2">
-                        <p className="text-xs font-medium text-muted-foreground mb-2">{parsedQuestoes.length} questão(ões) encontrada(s)</p>
-                        {parsedQuestoes.map((q, i) => (
-                          <div key={i} className="border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-2 last:border-0 last:mb-0 last:pb-0">
-                            <div className="flex items-start gap-2">
-                              <span className="shrink-0 text-xs font-mono text-muted-foreground w-6">{q.numero}.</span>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs line-clamp-2">{q.enunciado}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-[10px]">{q.tipo === "VERDADEIRO_FALSO" ? "V/F" : "MC"}</Badge>
-                                  <span className="text-[10px] text-muted-foreground">Gabarito: <strong>{q.gabarito}</strong></span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-foreground">Verifique as questões acima. Clique em "Criar prova e adicionar ao grafo" para salvar.</p>
-                    </div>
-                  )}
-                </div>
+                <ProvaForm
+                  provas={availableItems.provas}
+                  subMode={provaSubMode}
+                  onSubModeChange={(mode) => { setProvaSubMode(mode); setProvaUploadStep("files"); }}
+                  searchQuery={provaSearchQuery}
+                  onSearchChange={setProvaSearchQuery}
+                  selectedProvaId={selectedProvaId}
+                  onSelectProva={setSelectedProvaId}
+                  uploadStep={provaUploadStep}
+                  provaFile={provaFile}
+                  onProvaFile={setProvaFile}
+                  gabaritoFile={gabaritoFile}
+                  onGabaritoFile={setGabaritoFile}
+                  parsedTitulo={parsedTitulo}
+                  onParsedTitulo={setParsedTitulo}
+                  parsedQuestoes={parsedQuestoes}
+                />
               )}
 
               {/* ASSUNTO form */}
