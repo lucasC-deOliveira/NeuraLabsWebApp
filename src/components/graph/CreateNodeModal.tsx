@@ -33,6 +33,7 @@ import { addExistingItems } from "@/modules/graph/application/use-cases/add-exis
 import { graphHttp } from "@/modules/graph/infra/http";
 import { RelationLinkList } from "@/modules/graph/presentation/components/create-node/RelationLinkList";
 import { ProvaForm } from "@/modules/graph/presentation/components/create-node/ProvaForm";
+import { DeckForm } from "@/modules/graph/presentation/components/create-node/DeckForm";
 import { useRouter } from "@/lib/navigation";
 
 // Mensagens pt-BR específicas por tipo para os códigos de validação da criação.
@@ -759,78 +760,23 @@ export function CreateNodeModal({
 
               {/* BARALHO form */}
               {selectedType === "BARALHO" && (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="baralho-titulo">Título do baralho</Label>
-                    <Input
-                      id="baralho-titulo"
-                      placeholder="Ex: Revisão de Redes"
-                      value={formData.nome}
-                      onChange={(e) => setFormData((f) => ({ ...f, nome: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label>Flashcards do baralho (opcional)</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {deckSelected.size} selecionado(s)
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Buscar flashcards..."
-                      value={deckSearch}
-                      onChange={(e) => setDeckSearch(e.target.value)}
-                      className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
-                    />
-                    <div className="max-h-60 space-y-1 overflow-y-auto rounded-md border border-zinc-200 p-1 dark:border-zinc-800">
-                      {deckLoading ? (
-                        <p className="py-6 text-center text-xs text-muted-foreground">Carregando...</p>
-                      ) : deckFlashcards.length === 0 ? (
-                        <p className="py-6 text-center text-xs text-muted-foreground">
-                          Nenhum flashcard no grafo. Adicione flashcards ao grafo primeiro — o baralho pode ser criado vazio.
-                        </p>
-                      ) : (
-                        deckFlashcards
-                          .filter((fc) => deckSearch === "" || fc.pergunta.toLowerCase().includes(deckSearch.toLowerCase()))
-                          .map((fc) => (
-                            <label
-                              key={fc.id}
-                              className={`flex cursor-pointer items-start gap-2 rounded p-2 text-sm transition-colors ${
-                                deckSelected.has(fc.id)
-                                  ? "bg-primary/10 border border-primary"
-                                  : "border border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                className="mt-0.5"
-                                checked={deckSelected.has(fc.id)}
-                                onChange={() =>
-                                  setDeckSelected((prev) => {
-                                    const next = new Set(prev);
-                                    if (next.has(fc.id)) next.delete(fc.id);
-                                    else next.add(fc.id);
-                                    return next;
-                                  })
-                                }
-                              />
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate font-medium">{fc.pergunta}</div>
-                                {fc.conceito && (
-                                  <div className="truncate text-xs text-muted-foreground">{fc.conceito}</div>
-                                )}
-                              </div>
-                            </label>
-                          ))
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Um flashcard pode estar em vários baralhos. Você pode adicionar mais depois.
-                    </p>
-                  </div>
-                </div>
+                <DeckForm
+                  titulo={formData.nome}
+                  onTitulo={(value) => setFormData((f) => ({ ...f, nome: value }))}
+                  flashcards={deckFlashcards}
+                  loading={deckLoading}
+                  selected={deckSelected}
+                  onToggle={(id) =>
+                    setDeckSelected((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(id)) next.delete(id);
+                      else next.add(id);
+                      return next;
+                    })
+                  }
+                  search={deckSearch}
+                  onSearch={setDeckSearch}
+                />
               )}
 
               {/* PROVA form */}
