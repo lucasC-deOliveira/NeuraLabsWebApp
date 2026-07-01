@@ -271,185 +271,139 @@ export function CreateNodeModal({
     }
   };
 
-  const handleSubmit = async () => {
-    if (activeTab === "create") {
-      // Original create flow
-      if (!selectedType) {
-        toast.error("Selecione um tipo de nó");
-        return;
-      }
+  // fecha o modal + notifica sucesso após uma submissão bem-sucedida
+  const finishSubmit = (): void => {
+    resetForm();
+    onOpenChange(false);
+    onSuccess?.();
+    router.refresh();
+  };
 
-      // BARALHO tem fluxo próprio (entidade + nó + arestas CONTEM, numa transação)
-      if (selectedType === "BARALHO") {
-        if (!formData.nome.trim()) {
-          toast.error("Digite um título para o baralho");
-          return;
-        }
-        setLoading(true);
-        try {
-          const r = await createDeck(graphHttp, grafoId, formData.nome, Array.from(deckSelected));
-          toast.success(
-            deckSelected.size > 0
-              ? `Baralho criado com ${deckSelected.size} flashcard(s)!`
-              : "Baralho criado (vazio)!"
-          );
-          resetForm();
-          onOpenChange(false);
-          if (onSuccess) onSuccess();
-          router.refresh();
-          void r;
-        } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Erro ao criar baralho");
-        } finally {
-          setLoading(false);
-        }
-        return;
-      }
-
-      // PROVA tem fluxo próprio (selecionar existente ou criar via upload)
-      if (selectedType === "PROVA") {
-        if (provaSubMode === "existing") {
-          if (!selectedProvaId) {
-            toast.error("Selecione uma prova");
-            return;
-          }
-          setLoading(true);
-          try {
-            await graphHttp.addProvaToGraph(grafoId, selectedProvaId);
-            toast.success("Prova adicionada ao grafo!");
-            resetForm();
-            onOpenChange(false);
-            if (onSuccess) onSuccess();
-            router.refresh();
-          } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Erro ao adicionar prova");
-          } finally {
-            setLoading(false);
-          }
-          return;
-        }
-        // upload: step "review" → salvar
-        if (provaUploadStep === "review") {
-          if (!parsedTitulo.trim()) {
-            toast.error("Informe o título da prova");
-            return;
-          }
-          setLoading(true);
-          try {
-            const { provaId } = await graphHttp.createProvaFromParsed({ titulo: parsedTitulo.trim(), questoes: parsedQuestoes });
-            await graphHttp.addProvaToGraph(grafoId, provaId);
-            toast.success(`Prova criada com ${parsedQuestoes.length} questões e adicionada ao grafo!`);
-            resetForm();
-            onOpenChange(false);
-            if (onSuccess) onSuccess();
-            router.refresh();
-          } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Erro ao salvar prova");
-          } finally {
-            setLoading(false);
-          }
-          return;
-        }
-        // step "files": iniciar parsing
-        if (!provaFile || !gabaritoFile) {
-          toast.error("Selecione os dois arquivos (prova e gabarito)");
-          return;
-        }
-        setProvaUploadStep("reviewing");
-        setLoading(true);
-        try {
-          const result = await graphHttp.parseProvaUpload(provaFile, gabaritoFile);
-          setParsedQuestoes(result.questoes);
-          setParsedTitulo(result.tituloSugerido ?? "");
-          setProvaUploadStep("review");
-        } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Erro ao processar arquivos");
-          setProvaUploadStep("files");
-        } finally {
-          setLoading(false);
-        }
-        return;
-      }
-
-      // valida os campos por tipo e monta o payload (regra pura no domínio)
-      const validationError = validateCreateNodeForm(selectedType, formData);
-      if (validationError) {
-        toast.error(createNodeErrorMessage(validationError, selectedType));
-        return;
-      }
-      setLoading(true);
-      try {
-        // cria o nó + as arestas (relações por tipo + sugestões IA aceitas + texto
-        // bruto de origem), tolerando falha individual de aresta. Regra no use-case.
-        const { createdEdges } = await createGraphNode(graphHttp, {
-          grafoId,
-          type: selectedType,
-          form: formData,
-          topicoAssuntos,
-          conceitoTopicos,
-          flashcardConceitos,
-          notaConceitos,
-          acceptedSuggestions: aiSuggestions
-            .filter((s) => s.accepted)
-            .map((s) => ({ nodeId: s.nodeId, relacao: s.relacao })),
-          notaTextoBrutoId,
-        });
-
-        toast.success(
-          createdEdges > 0
-            ? `Nó criado com ${createdEdges} relação(ões)!`
-            : "Nó criado com sucesso!"
-        );
-        resetForm();
-        setSelectedType("");
-        onOpenChange(false);
-        if (onSuccess) onSuccess();
-
-        router.refresh();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Erro ao criar nó");
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      // Add existing items flow
-      const itemsToAdd = Array.from(selectedItems);
-      if (itemsToAdd.length === 0) {
-        toast.error("Selecione pelo menos um item para adicionar");
-        return;
-      }
-
-      setLoading(true);
-      try {
-        // adiciona as entidades existentes + as relações escolhidas (regra no use-case)
-        const { createdEdges } = await addExistingItems(graphHttp, {
-          grafoId,
-          type: selectedType,
-          itemIds: itemsToAdd,
-          flashcards: availableItems.flashcards,
-          notas: availableItems.notas,
-          flashcardConceitos,
-          notaConceitos,
-          notaTextoBrutoId,
-        });
-
-        toast.success(
-          createdEdges > 0
-            ? `${itemsToAdd.length} item(s) adicionado(s) com ${createdEdges} relação(ões)!`
-            : `${itemsToAdd.length} item(s) adicionado(s) ao grafo!`
-        );
-        resetForm();
-        setSelectedItems(new Set());
-        setSearchQuery("");
-        onOpenChange(false);
-        if (onSuccess) onSuccess();
-        router.refresh();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Erro ao adicionar itens");
-      } finally {
-        setLoading(false);
-      }
+  const submitBaralho = async (): Promise<void> => {
+    if (!formData.nome.trim()) return void toast.error("Digite um título para o baralho");
+    setLoading(true);
+    try {
+      await createDeck(graphHttp, grafoId, formData.nome, Array.from(deckSelected));
+      toast.success(deckSelected.size > 0 ? `Baralho criado com ${deckSelected.size} flashcard(s)!` : "Baralho criado (vazio)!");
+      finishSubmit();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao criar baralho");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const submitProvaExisting = async (): Promise<void> => {
+    if (!selectedProvaId) return void toast.error("Selecione uma prova");
+    setLoading(true);
+    try {
+      await graphHttp.addProvaToGraph(grafoId, selectedProvaId);
+      toast.success("Prova adicionada ao grafo!");
+      finishSubmit();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao adicionar prova");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitProvaSave = async (): Promise<void> => {
+    if (!parsedTitulo.trim()) return void toast.error("Informe o título da prova");
+    setLoading(true);
+    try {
+      const { provaId } = await graphHttp.createProvaFromParsed({ titulo: parsedTitulo.trim(), questoes: parsedQuestoes });
+      await graphHttp.addProvaToGraph(grafoId, provaId);
+      toast.success(`Prova criada com ${parsedQuestoes.length} questões e adicionada ao grafo!`);
+      finishSubmit();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar prova");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitProvaParse = async (): Promise<void> => {
+    if (!provaFile || !gabaritoFile) return void toast.error("Selecione os dois arquivos (prova e gabarito)");
+    setProvaUploadStep("reviewing");
+    setLoading(true);
+    try {
+      const result = await graphHttp.parseProvaUpload(provaFile, gabaritoFile);
+      setParsedQuestoes(result.questoes);
+      setParsedTitulo(result.tituloSugerido ?? "");
+      setProvaUploadStep("review");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao processar arquivos");
+      setProvaUploadStep("files");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitProva = (): Promise<void> => {
+    if (provaSubMode === "existing") return submitProvaExisting();
+    if (provaUploadStep === "review") return submitProvaSave();
+    return submitProvaParse();
+  };
+
+  const submitCreateNode = async (): Promise<void> => {
+    const validationError = validateCreateNodeForm(selectedType, formData);
+    if (validationError) return void toast.error(createNodeErrorMessage(validationError, selectedType));
+    setLoading(true);
+    try {
+      const { createdEdges } = await createGraphNode(graphHttp, {
+        grafoId,
+        type: selectedType,
+        form: formData,
+        topicoAssuntos,
+        conceitoTopicos,
+        flashcardConceitos,
+        notaConceitos,
+        acceptedSuggestions: aiSuggestions.filter((s) => s.accepted).map((s) => ({ nodeId: s.nodeId, relacao: s.relacao })),
+        notaTextoBrutoId,
+      });
+      toast.success(createdEdges > 0 ? `Nó criado com ${createdEdges} relação(ões)!` : "Nó criado com sucesso!");
+      finishSubmit();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao criar nó");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitAddExisting = async (): Promise<void> => {
+    const itemsToAdd = Array.from(selectedItems);
+    if (itemsToAdd.length === 0) return void toast.error("Selecione pelo menos um item para adicionar");
+    setLoading(true);
+    try {
+      const { createdEdges } = await addExistingItems(graphHttp, {
+        grafoId,
+        type: selectedType,
+        itemIds: itemsToAdd,
+        flashcards: availableItems.flashcards,
+        notas: availableItems.notas,
+        flashcardConceitos,
+        notaConceitos,
+        notaTextoBrutoId,
+      });
+      const suffix = createdEdges > 0 ? ` com ${createdEdges} relação(ões)!` : " ao grafo!";
+      toast.success(`${itemsToAdd.length} item(s) adicionado(s)${suffix}`);
+      finishSubmit();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao adicionar itens");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (): Promise<void> => {
+    if (activeTab !== "create") return submitAddExisting();
+    if (!selectedType) {
+      toast.error("Selecione um tipo de nó");
+      return Promise.resolve();
+    }
+    if (selectedType === "BARALHO") return submitBaralho();
+    if (selectedType === "PROVA") return submitProva();
+    return submitCreateNode();
   };
 
   const handleOpenChange = (newOpen: boolean) => {
