@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { AutoLinkModal } from "./AutoLinkModal";
 import { autoLinkGraph, applyAutoLink } from "@/lib/ai-api";
 
+// O adapter delega para @/lib/ai-api, então mockar a borda cobre o fluxo.
 vi.mock("@/lib/ai-api", () => ({ autoLinkGraph: vi.fn(), applyAutoLink: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -32,9 +33,7 @@ describe("AutoLinkModal", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Adicionar selecionadas/ }));
 
     await waitFor(() =>
-      expect(applyAutoLink).toHaveBeenCalledWith("g1", [
-        { sourceId: "a", targetId: "b", relacao: "RELACIONADO" },
-      ]),
+      expect(applyAutoLink).toHaveBeenCalledWith("g1", [{ sourceId: "a", targetId: "b", relacao: "RELACIONADO" }]),
     );
     expect(onApplied).toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenCalledWith(false);

@@ -20,7 +20,7 @@ import {
   updateEdge,
   deleteEdge,
 } from "@/lib/graph-api";
-import { generateLearningPath, suggestNotaRelations } from "@/lib/ai-api";
+import { generateLearningPath, suggestNotaRelations, autoLinkGraph, applyAutoLink } from "@/lib/ai-api";
 import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
 import type {
   GraphDataPort,
@@ -28,7 +28,13 @@ import type {
   AvailableItems,
   UserFlashcard,
 } from "../../application/ports/graph-data.port";
-import type { GraphAiPort, LearningStep, NotaRelationSuggestion } from "../../application/ports/graph-ai.port";
+import type {
+  GraphAiPort,
+  LearningStep,
+  NotaRelationSuggestion,
+  AutoLinkSuggestion,
+  AppliedEdge,
+} from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
 import type { GraphProvaPort, ProvaParseResult, ParsedQuestao } from "../../application/ports/graph-prova.port";
@@ -114,6 +120,14 @@ export class HttpGraphAdapter
 
   suggestNotaRelations(grafoId: string, titulo: string, conteudo: string): Promise<NotaRelationSuggestion[]> {
     return suggestNotaRelations(grafoId, titulo, conteudo);
+  }
+
+  autoLinkGraph(grafoId: string): Promise<{ suggestions: AutoLinkSuggestion[] }> {
+    return autoLinkGraph(grafoId);
+  }
+
+  applyAutoLink(grafoId: string, edges: AppliedEdge[]): Promise<{ added: number }> {
+    return applyAutoLink(grafoId, edges);
   }
 
   parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult> {

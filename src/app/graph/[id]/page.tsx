@@ -23,7 +23,7 @@ import { CommunitiesPanel } from "@/components/graph/CommunitiesPanel";
 import { GapDetectionModal } from "@/components/graph/GapDetectionModal";
 import { GenerateGraphModal } from "@/components/graph/GenerateGraphModal";
 import { GenerateGraphFromBaralhoModal } from "@/components/graph/GenerateGraphFromBaralhoModal";
-import { AutoLinkModal } from "@/components/graph/AutoLinkModal";
+import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLinkModal";
 import { DuplicatesModal } from "@/components/graph/DuplicatesModal";
 import { CommunitySummaryModal } from "@/components/graph/CommunitySummaryModal";
 import { MissingPrereqsModal } from "@/components/graph/MissingPrereqsModal";

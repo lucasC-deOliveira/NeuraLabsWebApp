@@ -16,7 +16,24 @@ export interface NotaRelationSuggestion {
   motivo: string;
 }
 
+export interface AutoLinkSuggestion {
+  sourceId: string;
+  targetId: string;
+  sourceNome: string;
+  targetNome: string;
+  relacao: string;
+  motivo: string;
+}
+
+export interface AppliedEdge {
+  sourceId: string;
+  targetId: string;
+  relacao: string;
+}
+
 export interface GraphAiPort {
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }>;
   suggestNotaRelations(grafoId: string, titulo: string, conteudo: string): Promise<NotaRelationSuggestion[]>;
+  autoLinkGraph(grafoId: string): Promise<{ suggestions: AutoLinkSuggestion[] }>;
+  applyAutoLink(grafoId: string, edges: AppliedEdge[]): Promise<{ added: number }>;
 }
