@@ -24,13 +24,13 @@ import { toast } from "sonner";
 import { PlusIcon, Loader2Icon, SparklesIcon, XIcon, SearchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { suggestNotaRelations, type NotaRelationSuggestion } from "@/lib/ai-api";
-import { addNodeToGraph, createEdge, getAvailableItems, listUserFlashcards, addProvaToGraph } from "@/lib/graph-api";
+import { getAvailableItems, listUserFlashcards, addProvaToGraph } from "@/lib/graph-api";
 import { parseProvaUpload, createProvaFromParsed, type ParsedQuestaoPreview } from "@/lib/provas-api";
 import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
-import { clampEdgePeso } from "@/modules/graph/domain/services/node-creation-edges";
 import { validateCreateNodeForm, type CreateNodeError } from "@/modules/graph/domain/services/create-node-form";
 import { createGraphNode, createDeck } from "@/modules/graph/application/use-cases/create-graph-node";
+import { addExistingItems } from "@/modules/graph/application/use-cases/add-existing-items";
 import { graphHttp } from "@/modules/graph/infra/http";
 import { useRouter } from "@/lib/navigation";
 
@@ -418,75 +418,17 @@ export function CreateNodeModal({
 
       setLoading(true);
       try {
-        // ids das entidades adicionadas — recebem as relações escolhidas
-        const addedFlashcardIds: string[] = [];
-        const addedNotaIds: string[] = [];
-
-        // Add each selected item to the graph
-        for (const itemId of itemsToAdd) {
-          // Determine item type from availableItems
-          const flashcard = availableItems.flashcards.find((f) => f.id === itemId);
-          const nota = availableItems.notas.find((n) => n.id === itemId);
-
-          let tipoNode: string;
-          let data: any = { entityId: itemId }; // Send entityId to indicate existing item
-
-          if (flashcard) {
-            tipoNode = "FLASHCARD";
-            // For existing flashcards, we still need the conceitoId for the nodeConhecimento
-            data.conceitoId = flashcard.conceitoId;
-          } else if (nota) {
-            tipoNode = "NOTA";
-          } else {
-            continue; // Skip unknown items
-          }
-
-          const resData = await addNodeToGraph(grafoId, tipoNode, data);
-          if (flashcard) addedFlashcardIds.push(resData?.nodeId ?? itemId);
-          else if (nota) addedNotaIds.push(resData?.nodeId ?? itemId);
-        }
-
-        // cria uma aresta no grafo, tolerando falha individual
-        const postEdge = async (
-          sourceNodeId: string,
-          targetNodeId: string,
-          tipoRelacao: string,
-          peso: number
-        ): Promise<boolean> => {
-          try {
-            await createEdge(grafoId, { sourceNodeId, targetNodeId, tipoRelacao, peso });
-            return true;
-          } catch {
-            return false;
-          }
-        };
-
-        let createdEdges = 0;
-
-        // mesmas relações com conceitos do "Criar flashcard": aplica a cada
-        // flashcard existente adicionado (relação + peso, sem repetir conceito)
-        if (selectedType === "FLASHCARD" && flashcardConceitos.length > 0) {
-          for (const fcId of addedFlashcardIds) {
-            for (const link of flashcardConceitos) {
-              if (!link.conceitoId) continue;
-              if (await postEdge(fcId, link.conceitoId, link.relacao, clampEdgePeso(link.peso))) createdEdges++;
-            }
-          }
-        }
-
-        // mesmas relações do "Criar nota": conceitos (relação + peso) e o texto
-        // bruto de origem (no máximo 1, GERA do texto para a nota) — por nota
-        if (selectedType === "NOTA") {
-          for (const notaId of addedNotaIds) {
-            for (const link of notaConceitos) {
-              if (!link.conceitoId) continue;
-              if (await postEdge(notaId, link.conceitoId, link.relacao, clampEdgePeso(link.peso))) createdEdges++;
-            }
-            if (notaTextoBrutoId) {
-              if (await postEdge(notaTextoBrutoId, notaId, "GERA", 1.0)) createdEdges++;
-            }
-          }
-        }
+        // adiciona as entidades existentes + as relações escolhidas (regra no use-case)
+        const { createdEdges } = await addExistingItems(graphHttp, {
+          grafoId,
+          type: selectedType,
+          itemIds: itemsToAdd,
+          flashcards: availableItems.flashcards,
+          notas: availableItems.notas,
+          flashcardConceitos,
+          notaConceitos,
+          notaTextoBrutoId,
+        });
 
         toast.success(
           createdEdges > 0

@@ -22,7 +22,7 @@ export class CreateNodeValidationError extends Error {
   }
 }
 
-type NodeCreationPort = Pick<GraphNodesPort, "addNodeToGraph"> & Pick<GraphEdgesPort, "createEdge">;
+export type NodeCreationPort = Pick<GraphNodesPort, "addNodeToGraph"> & Pick<GraphEdgesPort, "createEdge">;
 
 export interface CreateGraphNodeInput {
   grafoId: string;
