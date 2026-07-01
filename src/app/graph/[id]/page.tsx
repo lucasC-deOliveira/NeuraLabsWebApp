@@ -55,7 +55,7 @@ import {
 } from "@/lib/graph-api";
 import { CreateSubgrafoModal } from "@/components/graph/CreateSubgrafoModal";
 import { ExtractSubgrafoModal } from "@/components/graph/ExtractSubgrafoModal";
-import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
+import { CreateNodeModal } from "@/modules/graph/presentation/components/create-node/CreateNodeModal";
 import { ImportJsonModal } from "@/components/graph/ImportJsonModal";
 import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeManagerModal";
 import { EditNodeModal } from "@/modules/graph/presentation/components/EditNodeModal";
