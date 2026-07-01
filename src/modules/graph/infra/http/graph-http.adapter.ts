@@ -32,6 +32,8 @@ import {
   fillKnowledgeGaps,
   detectMissingPrerequisites,
   addMissingPrerequisite,
+  generateNodeInsights,
+  addInsightsToGraph,
 } from "@/lib/ai-api";
 import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
 import type {
@@ -51,6 +53,8 @@ import type {
   GapItem,
   GeneratedContentCount,
   MissingPrereq,
+  NodeInsightsResult,
+  InsightToAdd,
 } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
@@ -177,6 +181,14 @@ export class HttpGraphAdapter
 
   addMissingPrerequisite(grafoId: string, nome: string, tipo: string, connectToIds: string[]): Promise<{ nodeId: string }> {
     return addMissingPrerequisite(grafoId, nome, tipo, connectToIds);
+  }
+
+  generateNodeInsights(grafoId: string, nodeId: string): Promise<NodeInsightsResult> {
+    return generateNodeInsights(grafoId, nodeId);
+  }
+
+  addInsightsToGraph(grafoId: string, sourceNodeId: string, insights: InsightToAdd[]): Promise<{ added: number }> {
+    return addInsightsToGraph(grafoId, sourceNodeId, insights);
   }
 
   parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult> {

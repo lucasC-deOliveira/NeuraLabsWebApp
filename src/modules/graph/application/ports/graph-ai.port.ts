@@ -67,6 +67,24 @@ export interface MissingPrereq {
   motivo: string;
   shouldConnectTo: Array<{ id: string; nome: string }>;
 }
+export interface NodeInsight {
+  categoria: string;
+  titulo: string;
+  descricao: string;
+  tipoNo: string;
+  relacao: string;
+}
+export interface NodeInsightsResult {
+  nodeNome: string;
+  nodeTipo: string;
+  insights: NodeInsight[];
+}
+export interface InsightToAdd {
+  tipoNo: string;
+  relacao: string;
+  titulo: string;
+  descricao?: string;
+}
 
 export interface GraphAiPort {
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }>;
@@ -79,4 +97,6 @@ export interface GraphAiPort {
   fillKnowledgeGaps(grafoId: string, gaps: GapItem[]): Promise<GeneratedContentCount>;
   detectMissingPrerequisites(grafoId: string): Promise<{ prerequisites: MissingPrereq[] }>;
   addMissingPrerequisite(grafoId: string, nome: string, tipo: string, connectToIds: string[]): Promise<{ nodeId: string }>;
+  generateNodeInsights(grafoId: string, nodeId: string): Promise<NodeInsightsResult>;
+  addInsightsToGraph(grafoId: string, sourceNodeId: string, insights: InsightToAdd[]): Promise<{ added: number }>;
 }

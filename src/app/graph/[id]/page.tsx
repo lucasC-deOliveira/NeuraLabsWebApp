@@ -63,7 +63,7 @@ import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
 import { ViewTextoBrutoModal } from "@/components/graph/ViewTextoBrutoModal";
 import { StudyFlashcardModal } from "@/components/graph/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/components/graph/ViewFlashcardModal";
-import { NodeInsightsModal } from "@/components/graph/NodeInsightsModal";
+import { NodeInsightsModal } from "@/modules/graph/presentation/components/ai/NodeInsightsModal";
 import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
 import { ViewDeckModal } from "@/components/graph/ViewDeckModal";
 import { VaultSyncModal } from "@/components/graph/VaultSyncModal";

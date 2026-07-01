@@ -4,19 +4,12 @@ import userEvent from "@testing-library/user-event";
 import { NodeInsightsModal } from "./NodeInsightsModal";
 import { generateNodeInsights, addInsightsToGraph } from "@/lib/ai-api";
 
+// O adapter delega para @/lib/ai-api, então mockar a borda cobre o fluxo.
 vi.mock("@/lib/ai-api", () => ({ generateNodeInsights: vi.fn(), addInsightsToGraph: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock("@/components/markdown-content", () => ({
-  MarkdownContent: ({ children }: { children: string }) => children,
-}));
+vi.mock("@/components/markdown-content", () => ({ MarkdownContent: ({ children }: { children: string }) => children }));
 
-const insight = {
-  categoria: "Relacionado",
-  titulo: "Insight 1",
-  descricao: "Descrição",
-  tipoNo: "CONCEITO",
-  relacao: "RELACIONADO",
-};
+const insight = { categoria: "Relacionado", titulo: "Insight 1", descricao: "Descrição", tipoNo: "CONCEITO", relacao: "RELACIONADO" };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -28,9 +21,7 @@ describe("NodeInsightsModal", () => {
   it("generates insights, adds the selected ones and notifies", async () => {
     const onAdded = vi.fn();
     const onOpenChange = vi.fn();
-    render(
-      <NodeInsightsModal open onOpenChange={onOpenChange} grafoId="g1" nodeId="n1" nodeLabel="Mitose" onAdded={onAdded} />,
-    );
+    render(<NodeInsightsModal open onOpenChange={onOpenChange} grafoId="g1" nodeId="n1" nodeLabel="Mitose" onAdded={onAdded} />);
 
     expect(generateNodeInsights).toHaveBeenCalledWith("g1", "n1");
     await userEvent.click(await screen.findByRole("button", { name: /Insight 1/ }));
