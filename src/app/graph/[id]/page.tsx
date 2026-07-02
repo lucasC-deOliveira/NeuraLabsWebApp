@@ -67,7 +67,7 @@ import { NodeInsightsModal } from "@/modules/graph/presentation/components/ai/No
 import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
 import { ViewDeckModal } from "@/modules/graph/presentation/components/deck/ViewDeckModal";
 import { VaultSyncModal } from "@/modules/graph/presentation/components/vault/VaultSyncModal";
-import { GraphDashboard } from "@/components/graph/GraphDashboard";
+import { GraphDashboard } from "@/modules/graph/presentation/components/dashboard/GraphDashboard";
 import { isDesktop } from "@/lib/vault-bridge";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 
