@@ -44,6 +44,12 @@ import {
   populateGraphFromBaralho,
 } from "@/lib/ai-api";
 import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
+import {
+  startSingleCardStudy,
+  startDeckStudy,
+  submitCardReview,
+  finalizeStudySession,
+} from "@/lib/study-api";
 import type {
   GraphDataPort,
   NodePosition,
@@ -72,6 +78,12 @@ import type {
 } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphDeckPort, DeckForStudy } from "../../application/ports/graph-deck.port";
+import type {
+  StudyPort,
+  SingleCardStudy,
+  DeckStudySession,
+  CardReviewInput,
+} from "../../application/ports/study.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
 import type { GraphProvaPort, ProvaParseResult, ParsedQuestao } from "../../application/ports/graph-prova.port";
 import type {
@@ -83,7 +95,14 @@ import type {
 } from "../../domain/types/graph.types";
 
 export class HttpGraphAdapter
-  implements GraphDataPort, GraphAiPort, GraphNodesPort, GraphDeckPort, GraphEdgesPort, GraphProvaPort
+  implements
+    GraphDataPort,
+    GraphAiPort,
+    GraphNodesPort,
+    GraphDeckPort,
+    StudyPort,
+    GraphEdgesPort,
+    GraphProvaPort
 {
   getGraphNodes(grafoId?: string): Promise<{ nodes: GraphNodeType[]; edges: GraphEdgeType[] }> {
     return getGraphNodes(grafoId);
@@ -156,6 +175,22 @@ export class HttpGraphAdapter
 
   getDeckForStudy(baralhoId: string): Promise<DeckForStudy | null> {
     return getDeckForStudy(baralhoId);
+  }
+
+  startSingleCardStudy(flashcardId: string): Promise<SingleCardStudy | null> {
+    return startSingleCardStudy(flashcardId);
+  }
+
+  startDeckStudy(baralhoId: string): Promise<DeckStudySession | null> {
+    return startDeckStudy(baralhoId);
+  }
+
+  submitCardReview(input: CardReviewInput): Promise<{ success: boolean }> {
+    return submitCardReview(input);
+  }
+
+  finalizeStudySession(sessionId: string): Promise<{ success: boolean }> {
+    return finalizeStudySession(sessionId);
   }
 
   deleteGraphNode(

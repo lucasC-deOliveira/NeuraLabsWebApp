@@ -61,7 +61,7 @@ import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeMa
 import { EditNodeModal } from "@/modules/graph/presentation/components/EditNodeModal";
 import { ViewNotaModal } from "@/modules/graph/presentation/components/deck/ViewNotaModal";
 import { ViewTextoBrutoModal } from "@/modules/graph/presentation/components/deck/ViewTextoBrutoModal";
-import { StudyFlashcardModal } from "@/components/graph/StudyFlashcardModal";
+import { StudyFlashcardModal } from "@/modules/graph/presentation/components/deck/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/modules/graph/presentation/components/deck/ViewFlashcardModal";
 import { NodeInsightsModal } from "@/modules/graph/presentation/components/ai/NodeInsightsModal";
 import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
