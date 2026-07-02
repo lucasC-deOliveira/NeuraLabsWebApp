@@ -1,6 +1,4 @@
-"use client";
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -32,10 +30,15 @@ export function GenerateDeckModal({
   onConfirm,
 }: GenerateDeckModalProps) {
   const [titulo, setTitulo] = useState(defaultTitle);
+  const [prevSig, setPrevSig] = useState("");
 
-  useEffect(() => {
+  // Prefill the title when (re)opening or when the default changes — during render,
+  // since react-hooks v7 forbids synchronous setState in an effect body.
+  const sig = `${open}:${defaultTitle}`;
+  if (sig !== prevSig) {
+    setPrevSig(sig);
     if (open) setTitulo(defaultTitle);
-  }, [open, defaultTitle]);
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

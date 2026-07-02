@@ -4,8 +4,8 @@ import { useParams, useRouter } from "@/lib/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DeleteDeckModal } from "@/components/graph/DeleteDeckModal";
-import { GenerateDeckModal } from "@/components/graph/GenerateDeckModal";
+import { DeleteDeckModal } from "@/modules/graph/presentation/components/deck/DeleteDeckModal";
+import { GenerateDeckModal } from "@/modules/graph/presentation/components/deck/GenerateDeckModal";
 
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/modules/graph/presentation/components/PropertiesPanel";
