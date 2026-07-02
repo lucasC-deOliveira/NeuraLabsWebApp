@@ -17,6 +17,7 @@ import {
   createBaralhoNode,
   addProvaToGraph,
   deleteGraphNode,
+  removeNodeFromGraph,
   getDeckForStudy,
   createSubgrafo,
   extractNodesToSubgrafo,
@@ -226,6 +227,10 @@ export class HttpGraphAdapter
     options?: { deleteConnected?: boolean },
   ): Promise<{ success: boolean; deletedType?: string }> {
     return deleteGraphNode(graphNodeId, grafoId, options);
+  }
+
+  removeNodeFromGraph(graphNodeId: string, grafoId: string): Promise<{ success: boolean }> {
+    return removeNodeFromGraph(graphNodeId, grafoId);
   }
 
   suggestNotaRelations(grafoId: string, titulo: string, conteudo: string): Promise<NotaRelationSuggestion[]> {

@@ -30,7 +30,7 @@ import { MissingPrereqsModal } from "@/modules/graph/presentation/components/ai/
 import { GraphChatModal } from "@/modules/graph/presentation/components/ai/GraphChatModal";
 import { CompletenessModal } from "@/modules/graph/presentation/components/ai/CompletenessModal";
 import { clustersFromHierarchy, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
-import { createBaralhoNode } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
@@ -43,16 +43,7 @@ import { RoadmapPanel } from "@/modules/graph/presentation/components/RoadmapPan
 import { GraphSettingsModal, DEFAULT_FOCUS_DEPTH } from "@/modules/graph/presentation/components/GraphSettingsModal";
 import type { PhysicsMode } from "@/modules/graph/presentation/services/graph-physics.service";
 
-import {
-  deleteGraphNode,
-  removeNodeFromGraph,
-  getGraphNodes,
-  getGraphEdges,
-  deleteEdge,
-  getGrafoInfo,
-  extractNodesToSubgrafo,
-  type GrafoInfoDetail,
-} from "@/lib/graph-api";
+import type { GrafoInfoDetail } from "@/modules/graph/domain/types/graph.types";
 import { CreateSubgrafoModal } from "@/modules/graph/presentation/components/vault/CreateSubgrafoModal";
 import { ExtractSubgrafoModal } from "@/modules/graph/presentation/components/vault/ExtractSubgrafoModal";
 import { CreateNodeModal } from "@/modules/graph/presentation/components/create-node/CreateNodeModal";
@@ -247,7 +238,7 @@ export default function GraphPage() {
   const [isExtractSubgrafoOpen, setIsExtractSubgrafoOpen] = useState(false);
 
   useEffect(() => {
-    getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
+    graphHttp.getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
   }, [graphId]);
 
   const closeToolbarModals = () => {
@@ -299,7 +290,7 @@ export default function GraphPage() {
       let done = 0;
       for (const baralho of baralhos) {
         const flashcardIds = contemByBaralho.get(baralho.id) ?? [];
-        await extractNodesToSubgrafo(graphId, {
+        await graphHttp.extractNodesToSubgrafo(graphId, {
           nodeIds: [baralho.id, ...flashcardIds],
           nome: baralho.label,
           tipoRelacao: "CONTEM",
@@ -309,7 +300,7 @@ export default function GraphPage() {
       }
 
       toast.success(`${baralhos.length} baralho(s) divididos com sucesso!`, { id: toastId });
-      const result = await getGraphNodes(graphId);
+      const result = await graphHttp.getGraphNodes(graphId);
       controller.actions.setRawNodes(result.nodes);
       controller.actions.setRawEdges(result.edges);
     } catch {
@@ -326,7 +317,7 @@ export default function GraphPage() {
 
   const loadEdges = async () => {
     try {
-      setGraphEdges(await getGraphEdges(graphId));
+      setGraphEdges(await graphHttp.getGraphEdges(graphId));
     } catch {
       toast.error("Erro ao carregar relações");
     }
@@ -415,7 +406,7 @@ export default function GraphPage() {
   // GRAPH REFRESH
   // ======================
   const refreshGraph = async () => {
-    const result = await getGraphNodes(graphId);
+    const result = await graphHttp.getGraphNodes(graphId);
 
     // o controller mescla os nós novos preservando as posições dos existentes
     controller.actions.setRawNodes(result.nodes);
@@ -450,7 +441,7 @@ export default function GraphPage() {
   const handleDeleteEdge = async (edge: any) => {
     if (!confirm("Excluir esta relação?")) return;
     try {
-      await deleteEdge(edge.id, graphId);
+      await graphHttp.deleteEdge(edge.id, graphId);
       toast.success("Relação excluída");
       await refreshGraph();
     } catch (e) {
@@ -465,7 +456,7 @@ export default function GraphPage() {
     controller.actions.selectNode(null);
     setIsDeletingNode(true);
     try {
-      await deleteGraphNode(node.id, graphId, { deleteConnected });
+      await graphHttp.deleteGraphNode(node.id, graphId, { deleteConnected });
       controller.actions.removeNodeFromLayout(node.id);
       toast.success("Nó excluído do aplicativo");
       await refreshGraph();
@@ -497,7 +488,7 @@ export default function GraphPage() {
 
     setIsDeletingNode(true);
     try {
-      await removeNodeFromGraph(node.id, graphId);
+      await graphHttp.removeNodeFromGraph(node.id, graphId);
       toast.success("Removido do grafo");
       await refreshGraph();
     } catch {
@@ -527,7 +518,7 @@ export default function GraphPage() {
     const { flashcardIds } = generateDeckConfirm;
     setIsGeneratingDeck(true);
     try {
-      await createBaralhoNode(graphId, titulo, flashcardIds);
+      await graphHttp.createBaralhoNode(graphId, titulo, flashcardIds);
       setGenerateDeckConfirm(null);
       toast.success("Baralho criado com sucesso");
       await refreshGraph();
@@ -1047,7 +1038,7 @@ export default function GraphPage() {
         onCreateDeck={async (community) => {
           const ids = community.nodes.filter(n => n.group === "FLASHCARD").map(n => n.id);
           try {
-            await createBaralhoNode(graphId, `Baralho — ${community.label}`, ids);
+            await graphHttp.createBaralhoNode(graphId, `Baralho — ${community.label}`, ids);
             await refreshGraph();
             toast.success("Baralho criado!");
           } catch { toast.error("Erro ao criar baralho."); }
@@ -1159,7 +1150,7 @@ export default function GraphPage() {
         parentGrafoId={graphId}
         onCreated={async (_grafoId, _nodeId) => {
           await refreshGraph();
-          await getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
+          await graphHttp.getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
         }}
       />
       <ExtractSubgrafoModal
@@ -1173,7 +1164,7 @@ export default function GraphPage() {
         onExtracted={async (_grafoId, _nodeId) => {
           controller.actions.selectNode(null);
           await refreshGraph();
-          await getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
+          await graphHttp.getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
         }}
       />
 

@@ -27,4 +27,6 @@ export interface GraphNodesPort {
     grafoId?: string,
     options?: { deleteConnected?: boolean },
   ): Promise<{ success: boolean; deletedType?: string }>;
+  // remove só o vínculo com o grafo (mantém a entidade no app)
+  removeNodeFromGraph(graphNodeId: string, grafoId: string): Promise<{ success: boolean }>;
 }
