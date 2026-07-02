@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -13,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
-import { getNodeDetails } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
+import type { NodeDetails } from "@/modules/graph/application/ports/graph-nodes.port";
 import { MarkdownContent } from "@/components/markdown-content";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { graphVaultDir } from "@/lib/vault-sync";
@@ -49,7 +48,7 @@ async function fetchNotaFromVault(
   notaId: string,
   grafoId: string,
   grafoNome: string,
-): Promise<Record<string, string | null> | null> {
+): Promise<NodeDetails | null> {
   try {
     const vaultDir = await desktop.vault.getPath();
     if (!vaultDir) return null;
@@ -76,26 +75,60 @@ async function fetchNotaFromVault(
   return null;
 }
 
+async function loadNota(notaId: string, grafoId?: string, grafoNome?: string): Promise<NodeDetails | null> {
+  let details: NodeDetails | null = null;
+  try { details = await graphHttp.getNodeDetails("NOTA", notaId); } catch { /* não está no backend */ }
+  if (details) return details;
+  if (isDesktop() && grafoId && grafoNome) {
+    return fetchNotaFromVault(notaId, grafoId, grafoNome);
+  }
+  return null;
+}
+
+function NotaMeta({ nota }: { nota: NodeDetails }) {
+  return (
+    <DialogDescription className="space-y-1">
+      <span className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="text-xs">
+          {TIPO_LABELS[nota.tipoNota ?? ""] ?? nota.tipoNota}
+        </Badge>
+        {nota.subtipo && (
+          <Badge variant="secondary" className="text-xs">
+            {SUBTIPO_LABELS[nota.subtipo] ?? nota.subtipo}
+          </Badge>
+        )}
+        {nota.fonte && <span className="text-xs">Fonte: {nota.fonte}</span>}
+      </span>
+    </DialogDescription>
+  );
+}
+
 export function ViewNotaModal({ open, onOpenChange, notaId, grafoId, grafoNome }: ViewNotaModalProps) {
   const [loading, setLoading] = useState(false);
-  const [nota, setNota] = useState<Record<string, string | null> | null>(null);
+  const [nota, setNota] = useState<NodeDetails | null>(null);
+  const [prevKey, setPrevKey] = useState("");
+
+  // Reset during render (react-hooks v7 forbids synchronous setState in the effect body).
+  const loadKey = open && notaId ? notaId : "";
+  if (loadKey !== prevKey) {
+    setPrevKey(loadKey);
+    if (loadKey) { setLoading(true); setNota(null); }
+  }
 
   useEffect(() => {
     if (!open || !notaId) return;
-    setLoading(true);
-    setNota(null);
-    async function load() {
-      let details = null;
-      try { details = await getNodeDetails("NOTA", notaId!); } catch { /* não está no backend */ }
-      if (details) { setNota(details); return; }
-      if (isDesktop() && grafoId && grafoNome) {
-        const fromVault = await fetchNotaFromVault(notaId!, grafoId, grafoNome);
-        if (fromVault) { setNota(fromVault); return; }
-      }
-      toast.error("Nota não encontrada");
-      onOpenChange(false);
-    }
-    load().catch(() => toast.error("Erro ao carregar a nota")).finally(() => setLoading(false));
+    let ignore = false;
+    loadNota(notaId, grafoId, grafoNome)
+      .then((found): void => {
+        if (ignore) return;
+        if (found) { setNota(found); return; }
+        toast.error("Nota não encontrada");
+        onOpenChange(false);
+      })
+      .catch((): void => { if (!ignore) toast.error("Erro ao carregar a nota"); })
+      .finally((): void => { if (!ignore) setLoading(false); });
+    return (): void => { ignore = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, notaId]);
 
   return (
@@ -105,21 +138,7 @@ export function ViewNotaModal({ open, onOpenChange, notaId, grafoId, grafoNome }
           <DialogTitle className="text-primary">
             {nota?.titulo ?? "Carregando..."}
           </DialogTitle>
-          {nota && (
-            <DialogDescription className="space-y-1">
-              <span className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="text-xs">
-                  {TIPO_LABELS[nota.tipoNota ?? ""] ?? nota.tipoNota}
-                </Badge>
-                {nota.subtipo && (
-                  <Badge variant="secondary" className="text-xs">
-                    {SUBTIPO_LABELS[nota.subtipo] ?? nota.subtipo}
-                  </Badge>
-                )}
-                {nota.fonte && <span className="text-xs">Fonte: {nota.fonte}</span>}
-              </span>
-            </DialogDescription>
-          )}
+          {nota && <NotaMeta nota={nota} />}
         </DialogHeader>
 
         {loading ? (

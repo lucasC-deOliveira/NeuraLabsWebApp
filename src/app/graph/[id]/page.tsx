@@ -59,8 +59,8 @@ import { CreateNodeModal } from "@/modules/graph/presentation/components/create-
 import { ImportJsonModal } from "@/components/graph/ImportJsonModal";
 import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeManagerModal";
 import { EditNodeModal } from "@/modules/graph/presentation/components/EditNodeModal";
-import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
-import { ViewTextoBrutoModal } from "@/components/graph/ViewTextoBrutoModal";
+import { ViewNotaModal } from "@/modules/graph/presentation/components/deck/ViewNotaModal";
+import { ViewTextoBrutoModal } from "@/modules/graph/presentation/components/deck/ViewTextoBrutoModal";
 import { StudyFlashcardModal } from "@/components/graph/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/components/graph/ViewFlashcardModal";
 import { NodeInsightsModal } from "@/modules/graph/presentation/components/ai/NodeInsightsModal";
