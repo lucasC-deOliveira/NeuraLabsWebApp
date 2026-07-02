@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import {
   Dialog,
@@ -35,7 +33,7 @@ export function DeleteGraphModal({ open, onOpenChange, graphName, loading, onCon
   // default: manter tudo que é reutilizável (mais seguro)
   const [keep, setKeep] = useState<Set<string>>(() => new Set(KEEPABLE.map((k) => k.type)));
 
-  const toggle = (type: string) =>
+  const toggle = (type: string): void =>
     setKeep((prev) => {
       const next = new Set(prev);
       if (next.has(type)) next.delete(type);
