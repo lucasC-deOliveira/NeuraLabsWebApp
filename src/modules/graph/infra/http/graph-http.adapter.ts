@@ -17,6 +17,7 @@ import {
   createBaralhoNode,
   addProvaToGraph,
   deleteGraphNode,
+  getDeckForStudy,
   createEdge,
   updateEdge,
   deleteEdge,
@@ -70,6 +71,7 @@ import type {
   PopulateFromBaralhoResult,
 } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
+import type { GraphDeckPort, DeckForStudy } from "../../application/ports/graph-deck.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
 import type { GraphProvaPort, ProvaParseResult, ParsedQuestao } from "../../application/ports/graph-prova.port";
 import type {
@@ -81,7 +83,7 @@ import type {
 } from "../../domain/types/graph.types";
 
 export class HttpGraphAdapter
-  implements GraphDataPort, GraphAiPort, GraphNodesPort, GraphEdgesPort, GraphProvaPort
+  implements GraphDataPort, GraphAiPort, GraphNodesPort, GraphDeckPort, GraphEdgesPort, GraphProvaPort
 {
   getGraphNodes(grafoId?: string): Promise<{ nodes: GraphNodeType[]; edges: GraphEdgeType[] }> {
     return getGraphNodes(grafoId);
@@ -150,6 +152,10 @@ export class HttpGraphAdapter
 
   addProvaToGraph(grafoId: string, provaId: string): Promise<{ success: boolean; nodeId: string }> {
     return addProvaToGraph(grafoId, provaId);
+  }
+
+  getDeckForStudy(baralhoId: string): Promise<DeckForStudy | null> {
+    return getDeckForStudy(baralhoId);
   }
 
   deleteGraphNode(

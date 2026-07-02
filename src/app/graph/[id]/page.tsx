@@ -65,7 +65,7 @@ import { StudyFlashcardModal } from "@/components/graph/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/modules/graph/presentation/components/deck/ViewFlashcardModal";
 import { NodeInsightsModal } from "@/modules/graph/presentation/components/ai/NodeInsightsModal";
 import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
-import { ViewDeckModal } from "@/components/graph/ViewDeckModal";
+import { ViewDeckModal } from "@/modules/graph/presentation/components/deck/ViewDeckModal";
 import { VaultSyncModal } from "@/components/graph/VaultSyncModal";
 import { GraphDashboard } from "@/components/graph/GraphDashboard";
 import { isDesktop } from "@/lib/vault-bridge";
