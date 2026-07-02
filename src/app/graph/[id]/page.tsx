@@ -61,6 +61,7 @@ import { VaultSyncModal } from "@/modules/graph/presentation/components/vault/Va
 import { GraphDashboard } from "@/modules/graph/presentation/components/dashboard/GraphDashboard";
 import { isDesktop } from "@/lib/vault-bridge";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
+import { splitGraphEntities, countNodesByType, neighborhoodFlashcardIds } from "@/modules/graph/domain/services/graph-derivations";
 
 export default function GraphPage() {
   const router = useRouter();
@@ -82,22 +83,10 @@ export default function GraphPage() {
   const [insightsNode, setInsightsNode] = useState<{ id: string; label?: string } | null>(null);
 
   // assuntos/tópicos/conceitos já no grafo (para relacionar ao criar nós)
-  const graphEntities = useMemo(() => {
-    const assuntos: { id: string; nome: string }[] = [];
-    const topicos: { id: string; nome: string }[] = [];
-    const conceitos: { id: string; nome: string }[] = [];
-    const textosBrutos: { id: string; nome: string }[] = [];
-    const flashcards: { id: string; nome: string }[] = [];
-    for (const n of controller.state.layout) {
-      const item = { id: n.id, nome: n.label };
-      if (n.group === "ASSUNTO") assuntos.push(item);
-      else if (n.group === "TOPICO") topicos.push(item);
-      else if (n.group === "CONCEITO") conceitos.push(item);
-      else if (n.group === "TEXTO_BRUTO") textosBrutos.push(item);
-      else if (n.group === "FLASHCARD") flashcards.push(item);
-    }
-    return { assuntos, topicos, conceitos, textosBrutos, flashcards };
-  }, [controller.state.layout]);
+  const graphEntities = useMemo(
+    () => splitGraphEntities(controller.state.layout),
+    [controller.state.layout],
+  );
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [deleteDeckConfirm, setDeleteDeckConfirm] = useState<{ node: any } | null>(null);
@@ -180,26 +169,8 @@ export default function GraphPage() {
   }, [highlightedCommunityId, highlightedGap, communities]);
 
   // P4 — BFS a partir do nó selecionado para coletar IDs de FLASHCARDs vizinhos
-  const getNeighborhoodFlashcardIds = (nodeId: string, depth: number): string[] => {
-    const adj = new Map<string, string[]>();
-    for (const e of controller.state.edges) {
-      (adj.get(e.source) ?? (adj.set(e.source, []), adj.get(e.source)!)).push(e.target);
-      (adj.get(e.target) ?? (adj.set(e.target, []), adj.get(e.target)!)).push(e.source);
-    }
-    const dist = new Map<string, number>([[nodeId, 0]]);
-    const queue: string[] = [nodeId];
-    let head = 0;
-    while (head < queue.length) {
-      const cur = queue[head++];
-      const d = dist.get(cur)!;
-      if (d >= depth) continue;
-      for (const nb of adj.get(cur) ?? []) {
-        if (!dist.has(nb)) { dist.set(nb, d + 1); queue.push(nb); }
-      }
-    }
-    const nodeMap = new Map(controller.state.layout.map(n => [n.id, n]));
-    return [...dist.keys()].filter(id => nodeMap.get(id)?.group === "FLASHCARD");
-  };
+  const getNeighborhoodFlashcardIds = (nodeId: string, depth: number): string[] =>
+    neighborhoodFlashcardIds(nodeId, depth, controller.state.layout, controller.state.edges);
 
   const combinedMatchedIds = useMemo(() => {
     const a = dashFilterIds;
@@ -361,10 +332,7 @@ export default function GraphPage() {
     );
   }
   // contagem de nós por tipo (painel de camadas/filtro)
-  const nodeStats: Record<string, number> = {};
-  for (const n of controller.state.layout) {
-    nodeStats[n.group] = (nodeStats[n.group] || 0) + 1;
-  }
+  const nodeStats = countNodesByType(controller.state.layout);
 
   // ======================
   // ZOOM BUTTONS (zoom around SVG center)
