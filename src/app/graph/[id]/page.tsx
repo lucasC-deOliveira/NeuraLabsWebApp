@@ -29,8 +29,9 @@ import { CommunitySummaryModal } from "@/modules/graph/presentation/components/a
 import { MissingPrereqsModal } from "@/modules/graph/presentation/components/ai/MissingPrereqsModal";
 import { GraphChatModal } from "@/modules/graph/presentation/components/ai/GraphChatModal";
 import { CompletenessModal } from "@/modules/graph/presentation/components/ai/CompletenessModal";
-import { clustersFromHierarchy, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
+import type { Community, StructuralGap } from "@/lib/graph-communities";
 import { graphHttp } from "@/modules/graph/infra/http";
+import { useGraphCommunities } from "@/modules/graph/presentation/hooks/useGraphCommunities";
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
@@ -117,56 +118,12 @@ export default function GraphPage() {
   const [completenessOpen, setCompletenessOpen] = useState(false);
   const [isSplittingBaralhos, setIsSplittingBaralhos] = useState(false);
 
-  // Chave topológica estável — muda só quando nós/arestas são adicionados/removidos,
-  // não a cada tick de física (posições não afetam comunidades).
-  const topologyKey = useMemo(
-    () => controller.state.layout.map(n => n.id).sort().join(','),
-    [controller.state.layout],
+  // P3 clusters hierárquicos + P1 lacunas + P5 pontes/destaque — derivados do layout.
+  const { communities, gaps, gapBridges, highlightedCommunityNodeIds } = useGraphCommunities(
+    controller.state.layout,
+    controller.state.edges,
+    { gapsOpen, highlightedCommunityId, highlightedGap },
   );
-
-  // P3 — clusters hierárquicos: um cluster principal por ASSUNTO (subárvore
-  // inteira), consistente com as regiões de cluster do grafo. Usa o clusterId
-  // já derivado em cada nó (independente de posições).
-  const communities = useMemo<Community[]>(() => {
-    if (controller.state.layout.length < 3) return [];
-    return clustersFromHierarchy(controller.state.layout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topologyKey, controller.state.edges]);
-
-  // P1 — detecta lacunas entre comunidades
-  const gaps = useMemo<StructuralGap[]>(
-    () => detectGaps(communities, controller.state.edges),
-    [communities, controller.state.edges],
-  );
-
-  // P5 — coordenadas das pontes para overlay no renderer (usa posições atuais)
-  const gapBridges = useMemo(
-    () => {
-      if (!gapsOpen) return [];
-      const layoutById = new Map(controller.state.layout.map(n => [n.id, n]));
-      return gaps.map(g => {
-        const bA = layoutById.get(g.bridgeA.id) ?? g.bridgeA;
-        const bB = layoutById.get(g.bridgeB.id) ?? g.bridgeB;
-        return { x1: bA.x, y1: bA.y, x2: bB.x, y2: bB.y, colorA: g.communityA.color, colorB: g.communityB.color };
-      });
-    },
-    [gaps, gapsOpen, controller.state.layout],
-  );
-
-  // Ids da comunidade em hover para destacar no renderer
-  const highlightedCommunityNodeIds = useMemo<Set<string> | null>(() => {
-    if (highlightedCommunityId) {
-      const c = communities.find(c => c.id === highlightedCommunityId);
-      return c ? new Set(c.nodes.map(n => n.id)) : null;
-    }
-    if (highlightedGap) {
-      return new Set([
-        ...highlightedGap.communityA.nodes.map(n => n.id),
-        ...highlightedGap.communityB.nodes.map(n => n.id),
-      ]);
-    }
-    return null;
-  }, [highlightedCommunityId, highlightedGap, communities]);
 
   // P4 — BFS a partir do nó selecionado para coletar IDs de FLASHCARDs vizinhos
   const getNeighborhoodFlashcardIds = (nodeId: string, depth: number): string[] =>
