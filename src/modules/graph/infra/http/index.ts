@@ -7,6 +7,7 @@ import type { GraphNodesPort } from "../../application/ports/graph-nodes.port";
 import type { GraphDeckPort } from "../../application/ports/graph-deck.port";
 import type { StudyPort } from "../../application/ports/study.port";
 import type { GraphSubgrafoPort } from "../../application/ports/graph-subgrafo.port";
+import type { GraphImportPort } from "../../application/ports/graph-import.port";
 import type { GraphEdgesPort } from "../../application/ports/graph-edges.port";
 import type { GraphProvaPort } from "../../application/ports/graph-prova.port";
 
@@ -18,5 +19,6 @@ export const graphHttp: GraphDataPort &
   GraphDeckPort &
   StudyPort &
   GraphSubgrafoPort &
+  GraphImportPort &
   GraphEdgesPort &
   GraphProvaPort = new HttpGraphAdapter();
