@@ -64,7 +64,7 @@ import { ViewTextoBrutoModal } from "@/modules/graph/presentation/components/dec
 import { StudyFlashcardModal } from "@/modules/graph/presentation/components/deck/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/modules/graph/presentation/components/deck/ViewFlashcardModal";
 import { NodeInsightsModal } from "@/modules/graph/presentation/components/ai/NodeInsightsModal";
-import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
+import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
 import { ViewDeckModal } from "@/modules/graph/presentation/components/deck/ViewDeckModal";
 import { VaultSyncModal } from "@/components/graph/VaultSyncModal";
 import { GraphDashboard } from "@/components/graph/GraphDashboard";
