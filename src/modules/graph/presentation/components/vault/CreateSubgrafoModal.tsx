@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2Icon, NetworkIcon } from "lucide-react";
 import { toast } from "sonner";
-import { createSubgrafo, GRAFO_REF_RELATIONS } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
+import { GRAFO_REF_RELATIONS } from "./grafo-ref-relations";
 
 interface Props {
   open: boolean;
@@ -24,11 +23,11 @@ export function CreateSubgrafoModal({ open, onClose, parentGrafoId, onCreated }:
   const [tipoRelacao, setTipoRelacao] = useState("APROFUNDA");
   const [saving, setSaving] = useState(false);
 
-  const handleCreate = async () => {
+  const handleCreate = async (): Promise<void> => {
     if (!nome.trim()) { toast.error("Informe o nome do subgrafo."); return; }
     setSaving(true);
     try {
-      const result = await createSubgrafo(parentGrafoId, { nome: nome.trim(), descricao: descricao.trim() || undefined, tipoRelacao });
+      const result = await graphHttp.createSubgrafo(parentGrafoId, { nome: nome.trim(), descricao: descricao.trim() || undefined, tipoRelacao });
       toast.success(`Subgrafo "${nome}" criado!`);
       setNome(""); setDescricao(""); setTipoRelacao("APROFUNDA");
       onCreated(result.grafoId, result.grafoRefNodeId);
@@ -54,12 +53,7 @@ export function CreateSubgrafoModal({ open, onClose, parentGrafoId, onCreated }:
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label>Nome</Label>
-            <Input
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: Álgebra Linear"
-              autoFocus
-            />
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Álgebra Linear" autoFocus />
           </div>
 
           <div className="space-y-1.5">

@@ -53,8 +53,8 @@ import {
   extractNodesToSubgrafo,
   type GrafoInfoDetail,
 } from "@/lib/graph-api";
-import { CreateSubgrafoModal } from "@/components/graph/CreateSubgrafoModal";
-import { ExtractSubgrafoModal } from "@/components/graph/ExtractSubgrafoModal";
+import { CreateSubgrafoModal } from "@/modules/graph/presentation/components/vault/CreateSubgrafoModal";
+import { ExtractSubgrafoModal } from "@/modules/graph/presentation/components/vault/ExtractSubgrafoModal";
 import { CreateNodeModal } from "@/modules/graph/presentation/components/create-node/CreateNodeModal";
 import { ImportJsonModal } from "@/components/graph/ImportJsonModal";
 import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeManagerModal";

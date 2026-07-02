@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2Icon, ScissorsIcon, ArrowRightIcon } from "lucide-react";
 import { toast } from "sonner";
-import { extractNodesToSubgrafo, GRAFO_REF_RELATIONS } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
+import { GRAFO_REF_RELATIONS } from "./grafo-ref-relations";
 
 interface Props {
   open: boolean;
@@ -24,12 +23,12 @@ export function ExtractSubgrafoModal({ open, onClose, parentGrafoId, selectedNod
   const [tipoRelacao, setTipoRelacao] = useState("APROFUNDA");
   const [saving, setSaving] = useState(false);
 
-  const handleExtract = async () => {
+  const handleExtract = async (): Promise<void> => {
     if (!nome.trim()) { toast.error("Informe o nome do subgrafo."); return; }
     if (selectedNodes.length === 0) { toast.error("Nenhum nó selecionado."); return; }
     setSaving(true);
     try {
-      const result = await extractNodesToSubgrafo(parentGrafoId, {
+      const result = await graphHttp.extractNodesToSubgrafo(parentGrafoId, {
         nodeIds: selectedNodes.map((n) => n.id),
         nome: nome.trim(),
         tipoRelacao,
@@ -57,7 +56,6 @@ export function ExtractSubgrafoModal({ open, onClose, parentGrafoId, selectedNod
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Preview dos nós que serão movidos */}
           <div className="space-y-1.5">
             <Label className="text-xs text-zinc-500">
               {selectedNodes.length} nó(s) serão movidos para o novo grafo
@@ -79,12 +77,7 @@ export function ExtractSubgrafoModal({ open, onClose, parentGrafoId, selectedNod
 
           <div className="space-y-1.5">
             <Label>Nome do subgrafo</Label>
-            <Input
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: Fundamentos de Cálculo"
-              autoFocus
-            />
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Fundamentos de Cálculo" autoFocus />
           </div>
 
           <div className="space-y-1.5">

@@ -18,6 +18,8 @@ import {
   addProvaToGraph,
   deleteGraphNode,
   getDeckForStudy,
+  createSubgrafo,
+  extractNodesToSubgrafo,
   createEdge,
   updateEdge,
   deleteEdge,
@@ -79,6 +81,11 @@ import type {
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphDeckPort, DeckForStudy } from "../../application/ports/graph-deck.port";
 import type {
+  GraphSubgrafoPort,
+  CreateSubgrafoInput,
+  ExtractSubgrafoInput,
+} from "../../application/ports/graph-subgrafo.port";
+import type {
   StudyPort,
   SingleCardStudy,
   DeckStudySession,
@@ -101,6 +108,7 @@ export class HttpGraphAdapter
     GraphNodesPort,
     GraphDeckPort,
     StudyPort,
+    GraphSubgrafoPort,
     GraphEdgesPort,
     GraphProvaPort
 {
@@ -191,6 +199,17 @@ export class HttpGraphAdapter
 
   finalizeStudySession(sessionId: string): Promise<{ success: boolean }> {
     return finalizeStudySession(sessionId);
+  }
+
+  createSubgrafo(parentGrafoId: string, input: CreateSubgrafoInput): Promise<{ grafoId: string; grafoRefNodeId: string }> {
+    return createSubgrafo(parentGrafoId, input);
+  }
+
+  extractNodesToSubgrafo(
+    parentGrafoId: string,
+    input: ExtractSubgrafoInput,
+  ): Promise<{ grafoId: string; grafoRefNodeId: string; movedCount: number; rewiredEdgeCount: number }> {
+    return extractNodesToSubgrafo(parentGrafoId, input);
   }
 
   deleteGraphNode(

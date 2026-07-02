@@ -49,16 +49,6 @@ export function getGrafoInfo(grafoId: string): Promise<GrafoInfoDetail | null> {
   return apiFetch(`/graph/graphs/${grafoId}/info`);
 }
 
-export const GRAFO_REF_RELATIONS = [
-  { value: "PREREQUISITO", label: "Pré-requisito" },
-  { value: "APROFUNDA", label: "Aprofunda" },
-  { value: "DERIVA_DE", label: "Deriva de" },
-  { value: "APLICADO_EM", label: "Aplicado em" },
-  { value: "CONTRASTA_COM", label: "Contrasta com" },
-  { value: "SINTETIZA", label: "Sintetiza" },
-  { value: "RELACIONADO", label: "Relacionado" },
-] as const;
-
 export function createSubgrafo(
   parentGrafoId: string,
   input: { nome: string; descricao?: string; tipoRelacao: string; posX?: number; posY?: number },
