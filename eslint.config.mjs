@@ -33,20 +33,22 @@ const GRAPH_PERF_EXEMPT = [
   "src/modules/graph/presentation/hooks/useGraphLayout.ts",
 ];
 
-// STRICT_DEBT: legado de src/modules ainda a refatorar (Fase 4 — módulo vr). Sai da lista
-// ao ser limpo. Todo arquivo NOVO em src/modules já nasce sob o gate.
-const STRICT_DEBT = [
+// VR_R3F_EXEMPT: isenção PERMANENTE justificada — componentes @react-three/fiber (WebGL).
+// Cena/câmera/meshes/loop de render 3D: o modelo declarativo do r3f (Canvas > mesh >
+// geometry/material) é intrinsecamente verboso e com callbacks aninhados (useFrame); as
+// regras de tamanho/complexidade/react-hooks-refs não se aplicam a esse paradigma.
+const VR_R3F_EXEMPT = [
   "src/modules/vr/components/VRContentPanel3D.tsx",
-  "src/modules/vr/components/VRContentViewer.tsx",
-  "src/modules/vr/components/VREditForm.tsx",
   "src/modules/vr/components/VREditPanel3D.tsx",
   "src/modules/vr/components/VRGraph.tsx",
   "src/modules/vr/components/VRPanel3D.tsx",
   "src/modules/vr/components/VRScene.tsx",
-  "src/modules/vr/components/VRStudyMode.tsx",
   "src/modules/vr/components/VRStudyPanel3D.tsx",
-  "src/modules/vr/vr-panel.helpers.ts",
 ];
+
+// STRICT_DEBT: legado temporário a refatorar. VAZIO — todo src/modules está estrito ou
+// isento-com-justificativa (GRAPH_PERF_EXEMPT / VR_R3F_EXEMPT). Arquivo NOVO nasce estrito.
+const STRICT_DEBT = [];
 
 const STRICT_TS_RULES = {
   "@typescript-eslint/no-explicit-any": "error",
@@ -151,7 +153,7 @@ export default tseslint.config(
   // reportUnusedDisableDirectives off: esses arquivos têm eslint-disable inline p/
   // regras que aqui desligamos — sem isso virariam "unused directive".
   {
-    files: [...GRAPH_PERF_EXEMPT, ...STRICT_DEBT],
+    files: [...GRAPH_PERF_EXEMPT, ...VR_R3F_EXEMPT, ...STRICT_DEBT],
     linterOptions: { reportUnusedDisableDirectives: "off" },
     rules: DEBT_RULES_OFF,
   },
