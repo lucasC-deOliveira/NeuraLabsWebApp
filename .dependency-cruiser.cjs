@@ -7,9 +7,11 @@
 // TODOS os módulos (ratchet concluído): domain/application puros (sem React nem
 // @/lib/*-api) e @/lib/*-api só acessível pela camada infra/ (ACL HTTP).
 //
-// Exceção documentada: `vr` é um renderizador 3D alternativo do domínio `graph`
-// (não um bounded context próprio) — consome a superfície pública do graph
-// (infra/http port + domain types). Ver `vr-consome-graph` abaixo.
+// Exceções documentadas de cross-context (composição/rendering deliberados, não
+// acoplamento acidental): `vr` é um renderizador 3D alternativo do domínio `graph`;
+// `provas` é um agregado composto de `questions` (uma prova contém questões).
+// Ambos consomem só a superfície pública do parceiro (infra/http port + domain
+// types). Ver `vr-so-consome-graph` e `provas-so-consome-questions` abaixo.
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
@@ -50,9 +52,9 @@ module.exports = {
       name: "sem-cruzar-contexto",
       severity: "error",
       comment:
-        "um módulo não importa o domínio de outro módulo. Exceção: vr → graph " +
-        "(vr é um renderizador alternativo do graph, não um contexto próprio)",
-      from: { path: "src/modules/([^/]+)/", pathNot: ["src/modules/vr/"] },
+        "um módulo não importa o domínio de outro módulo. Exceções: vr → graph, " +
+        "provas → questions (composição/rendering deliberados — ver abaixo)",
+      from: { path: "src/modules/([^/]+)/", pathNot: ["src/modules/(vr|provas)/"] },
       to: {
         path: "src/modules/([^/]+)/domain/",
         pathNot: ["src/modules/$1/"],
@@ -68,6 +70,18 @@ module.exports = {
       to: {
         path: "src/modules/([^/]+)/(domain|application|infra|presentation)/",
         pathNot: ["src/modules/(vr|graph)/"],
+      },
+    },
+    {
+      name: "provas-so-consome-questions",
+      severity: "error",
+      comment:
+        "provas só pode cruzar contexto para questions (uma prova é composta de " +
+        "questões); nenhum outro módulo externo",
+      from: { path: "src/modules/provas/" },
+      to: {
+        path: "src/modules/([^/]+)/(domain|application|infra|presentation)/",
+        pathNot: ["src/modules/(provas|questions)/"],
       },
     },
     {
