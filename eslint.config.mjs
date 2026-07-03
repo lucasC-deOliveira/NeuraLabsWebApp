@@ -20,7 +20,6 @@ const STRICT_DEBT = [
   "src/modules/graph/presentation/components/GraphSideToolbar.tsx",
   "src/modules/graph/presentation/components/RoadmapPanel.tsx",
   "src/modules/graph/presentation/controllers/useGraphController.ts",
-  "src/modules/graph/presentation/hooks/useGraphData.ts",
   "src/modules/graph/presentation/hooks/useGraphLayout.ts",
   "src/modules/graph/presentation/services/graph-physics.service.ts",
   "src/modules/graph/presentation/workers/graph-render.worker.ts",
