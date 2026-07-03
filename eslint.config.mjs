@@ -10,17 +10,32 @@ import reactRefresh from "eslint-plugin-react-refresh";
 //  - .tsx (componentes React): JSX é verboso, então não há cap por função; o que segura
 //    god-components é max-lines (500/arquivo) + complexity. Tipos/naming continuam estritos.
 //
-// STRICT_DEBT: arquivos de src/modules extraídos numa passada anterior (graph/vr), ainda
-// fora do padrão estrito. Ficam ISENTOS (bloco de dívida no fim) e são removidos da lista
-// conforme a Fase 1 os refatora. Todo arquivo NOVO em src/modules já nasce sob o gate.
-const STRICT_DEBT = [
-  "src/modules/graph/infra/layout/force-layout.engine.ts",
-  "src/modules/graph/presentation/components/Graph3DRenderer.tsx",
+// GRAPH_PERF_EXEMPT: isenção PERMANENTE e justificada (Fase 2c). Arquivos onde as regras
+// estritas CONFLITAM com padrões legítimos de engenharia — hot paths de render/simulação
+// que ficariam PIORES fatiados em funções ≤20 linhas / complexity ≤10. Espelha o backend
+// excluir IO-heavy da mutação. NÃO são dívida a "limpar" — são exceções conscientes.
+const GRAPH_PERF_EXEMPT = [
+  // Render em <canvas> 2D — loop de desenho por frame (draw calls, transform, culling).
   "src/modules/graph/presentation/components/GraphRenderer.tsx",
-  "src/modules/graph/presentation/controllers/useGraphController.ts",
-  "src/modules/graph/presentation/hooks/useGraphLayout.ts",
-  "src/modules/graph/presentation/services/graph-physics.service.ts",
+  // Render 3D (three/WebGL) — cena/câmera/loop de animação.
+  "src/modules/graph/presentation/components/Graph3DRenderer.tsx",
+  // Web worker de render — protocolo de mensagens + desenho off-thread.
   "src/modules/graph/presentation/workers/graph-render.worker.ts",
+  // Simulação de física O(n²) (repulsão/molas/gravidade) — laços numéricos quentes.
+  "src/modules/graph/presentation/services/graph-physics.service.ts",
+  // Motor de force-layout — mesma natureza de simulação numérica.
+  "src/modules/graph/infra/layout/force-layout.engine.ts",
+  // Orquestrador perf-crítico: modo-ref p/ grafos de ~14k nós (evita reconciliar 14k
+  // fibers, freeze de 2-3s) + animação big-bang; lê refs no render de propósito.
+  "src/modules/graph/presentation/controllers/useGraphController.ts",
+  // Layout: lê nodesRef.current no render (modo grafo-grande) p/ não re-renderizar a
+  // cada tick de física — padrão de performance deliberado (react-hooks/refs).
+  "src/modules/graph/presentation/hooks/useGraphLayout.ts",
+];
+
+// STRICT_DEBT: legado de src/modules ainda a refatorar (Fase 4 — módulo vr). Sai da lista
+// ao ser limpo. Todo arquivo NOVO em src/modules já nasce sob o gate.
+const STRICT_DEBT = [
   "src/modules/vr/components/VRContentPanel3D.tsx",
   "src/modules/vr/components/VRContentViewer.tsx",
   "src/modules/vr/components/VREditForm.tsx",
@@ -136,7 +151,7 @@ export default tseslint.config(
   // reportUnusedDisableDirectives off: esses arquivos têm eslint-disable inline p/
   // regras que aqui desligamos — sem isso virariam "unused directive".
   {
-    files: STRICT_DEBT,
+    files: [...GRAPH_PERF_EXEMPT, ...STRICT_DEBT],
     linterOptions: { reportUnusedDisableDirectives: "off" },
     rules: DEBT_RULES_OFF,
   },
