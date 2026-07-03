@@ -76,6 +76,16 @@ export function filterFlatConcepts(flat: FlatConcept[], search: string): FlatCon
   );
 }
 
+/** How many concepts under a topico are currently selected. */
+export function countSelectedInTopico(top: TopicoEntry, selected: Set<string>): number {
+  return conceptTuplesOf(top).filter((c) => selected.has(c.id)).length;
+}
+
+/** How many concepts under an assunto are currently selected. */
+export function countSelectedInAssunto(ass: ConceitoArvore, selected: Set<string>): number {
+  return topicosOf(ass).reduce((sum, top) => sum + countSelectedInTopico(top, selected), 0);
+}
+
 /** Resolves a topic name from the tree by id (empty string when unknown). */
 export function findTopicName(tree: ConceitoArvore[], topicoId: string): string {
   const found = tree
