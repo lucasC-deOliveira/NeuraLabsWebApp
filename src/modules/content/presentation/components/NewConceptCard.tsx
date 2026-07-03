@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PlusCircleIcon, PlusIcon, XIcon } from "lucide-react";
-import type { ConceitoArvore } from "../../../domain/concept-tree.types";
-import { getTopicosForAssunto, findTopicName } from "../../../domain/services/concept-tree";
+import type { ConceitoArvore } from "../../domain/concept-tree.types";
+import { getTopicosForAssunto, findTopicName } from "../../domain/services/concept-tree";
 import {
   buildPendingConcept, type StagedRelation, type PendingConcept, type PendingTopic, type PendingAssunto,
-} from "../../../domain/manual-nota-draft";
-import { nextTempId } from "../../temp-id";
+} from "../../domain/concept-draft";
+import { nextTempId } from "../temp-id";
 import { ExistingTopicPicker, type SelectedTopic } from "./ExistingTopicPicker";
 import { NewTopicPicker, type SelectedAssunto } from "./NewTopicPicker";
 

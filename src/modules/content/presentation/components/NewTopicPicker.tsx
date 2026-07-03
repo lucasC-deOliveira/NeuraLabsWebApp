@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2Icon, LinkIcon, PlusIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { ConceitoArvore } from "../../../domain/concept-tree.types";
-import type { PendingAssunto } from "../../../domain/manual-nota-draft";
+import type { ConceitoArvore } from "../../domain/concept-tree.types";
+import type { PendingAssunto } from "../../domain/concept-draft";
 
 export interface SelectedAssunto {
   id: string;

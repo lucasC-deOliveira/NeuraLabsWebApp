@@ -1,4 +1,5 @@
-// Relation type options for the manual note editor's <select>s.
+// Relation type options for the manual note editor's relation <select>s
+// (note→concept and concept↔concept).
 
 export interface RelationTypeOption {
   value: string;
@@ -28,10 +29,4 @@ export const CONCEITO_TO_CONCEITO_TYPES: RelationTypeOption[] = [
   { value: "ANTI_PADRAO_DE", label: "ANTI_PADRAO_DE" },
   { value: "MEDIDO_POR", label: "MEDIDO_POR" },
   { value: "OBJETIVO_DE", label: "OBJETIVO_DE" },
-];
-
-export const CONCEITO_TO_TOPICO_TYPES: RelationTypeOption[] = [
-  { value: "PERTENCE_A", label: "PERTENCE_A" },
-  { value: "FUNDAMENTA", label: "FUNDAMENTA" },
-  { value: "APLICADO_EM", label: "APLICADO_EM" },
 ];

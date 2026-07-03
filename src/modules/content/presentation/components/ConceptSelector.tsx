@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { SearchIcon, CheckCircle2Icon, Loader2Icon, XIcon } from "lucide-react";
-import type { ConceitoArvore, ConceptContext } from "../../../domain/concept-tree.types";
-import { filterFlatConcepts } from "../../../domain/services/concept-tree";
-import type { FlatConcept } from "../../../domain/concept-tree.types";
+import type { ConceitoArvore, ConceptContext } from "../../domain/concept-tree.types";
+import { filterFlatConcepts } from "../../domain/services/concept-tree";
+import type { FlatConcept } from "../../domain/concept-tree.types";
 import { AssuntoNode, type ExpandKind, type TreeCtx } from "./ConceptTree";
 
 interface ConceptSelectorProps {

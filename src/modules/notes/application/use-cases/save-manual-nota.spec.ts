@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { saveManualNota, type ManualNotaDraft } from "./save-manual-nota";
-import type { ContentPort } from "../ports/content.port";
+import type { ContentPort } from "@/modules/content/application/ports/content.port";
 import type { NotesPort, CreateNotaManualInput } from "../ports/notes.port";
-import type { ConceitoArvore } from "../../domain/concept-tree.types";
+import type { ConceitoArvore } from "@/modules/content/domain/concept-tree.types";
 
 class FakeContentPort implements ContentPort {
   public created: string[] = [];

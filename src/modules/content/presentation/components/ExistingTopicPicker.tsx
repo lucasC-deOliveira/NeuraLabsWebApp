@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { CheckCircle2Icon, LinkIcon } from "lucide-react";
-import { CONCEITO_TO_TOPICO_TYPES } from "../../constants/relation-types";
+import { CONCEITO_TO_TOPICO_TYPES } from "../constants/relation-types";
 
 export interface TopicoGroup {
   assuntoId: string;

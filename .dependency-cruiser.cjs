@@ -53,11 +53,12 @@ module.exports = {
       severity: "error",
       comment:
         "um módulo não importa o domínio de outro módulo. Exceções: vr → graph, " +
-        "provas → questions (composição/rendering deliberados — ver abaixo)",
+        "provas → questions (composição/rendering deliberados); `content` é um " +
+        "shared kernel (hierarquia de conceitos) que qualquer módulo pode consumir",
       from: { path: "src/modules/([^/]+)/", pathNot: ["src/modules/(vr|provas)/"] },
       to: {
         path: "src/modules/([^/]+)/domain/",
-        pathNot: ["src/modules/$1/"],
+        pathNot: ["src/modules/$1/", "src/modules/content/"],
       },
     },
     {

@@ -2,8 +2,8 @@
 
 import { Badge } from "@/components/ui/badge";
 import { ChevronDownIcon, ChevronRightIcon, CheckCircle2Icon } from "lucide-react";
-import type { ConceitoArvore, TopicoEntry, ConceitoNode } from "../../../domain/concept-tree.types";
-import { countSelectedInAssunto, countSelectedInTopico } from "../../../domain/services/concept-tree";
+import type { ConceitoArvore, TopicoEntry, ConceitoNode } from "../../domain/concept-tree.types";
+import { countSelectedInAssunto, countSelectedInTopico } from "../../domain/services/concept-tree";
 
 export type ExpandKind = "assunto" | "relAssunto" | "topico" | "relTopico";
 
