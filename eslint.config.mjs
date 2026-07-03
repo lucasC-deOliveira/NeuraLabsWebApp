@@ -26,7 +26,6 @@ const STRICT_DEBT = [
   "src/modules/graph/presentation/hooks/useGraphInteractions.ts",
   "src/modules/graph/presentation/hooks/useGraphLayout.ts",
   "src/modules/graph/presentation/hooks/useGraphSearch.ts",
-  "src/modules/graph/presentation/hooks/useVaultWatch.ts",
   "src/modules/graph/presentation/services/graph-physics.service.ts",
   "src/modules/graph/presentation/workers/graph-render.worker.ts",
   "src/modules/vr/components/VRContentPanel3D.tsx",
