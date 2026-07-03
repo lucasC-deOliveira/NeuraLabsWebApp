@@ -18,7 +18,6 @@ const STRICT_DEBT = [
   "src/modules/graph/infra/layout/force-layout.engine.ts",
   "src/modules/graph/presentation/components/Graph3DRenderer.tsx",
   "src/modules/graph/presentation/components/GraphRenderer.tsx",
-  "src/modules/graph/presentation/components/GraphSettingsModal.tsx",
   "src/modules/graph/presentation/components/GraphSideToolbar.tsx",
   "src/modules/graph/presentation/components/RoadmapPanel.tsx",
   "src/modules/graph/presentation/controllers/useGraphController.ts",
