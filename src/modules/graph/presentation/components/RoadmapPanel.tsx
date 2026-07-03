@@ -22,7 +22,7 @@ import {
   type RoadmapItem,
   type RoadmapStatus,
 } from "../../domain/services/roadmap.service";
-import { generateLearningPath } from "@/lib/ai-api";
+import { graphHttp } from "../../infra/http";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -197,7 +197,7 @@ export function RoadmapPanel({ open, onClose, grafoId, nodes, edges, onFocusNode
     setSaveFailed(false);
     setCurrentStep(0);
     try {
-      const res = await generateLearningPath(grafoId);
+      const res = await graphHttp.generateLearningPath(grafoId);
       const now = new Date().toISOString();
       setAiSteps(res.steps);
       setGeneratedAt(now);

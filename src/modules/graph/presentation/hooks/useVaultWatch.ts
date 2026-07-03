@@ -3,7 +3,7 @@ import { isDesktop, desktop, type VaultFile } from "@/lib/vault-bridge";
 import { parseNode } from "@/lib/vault-format";
 import { VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 import { graphVaultDir, vaultToGraphNode, vaultToGraphEdges } from "@/lib/vault-sync";
-import type { GraphNodeType, GraphEdgeType } from "@/lib/graph-api";
+import type { GraphNodeType, GraphEdgeType } from "../../domain/types/graph.types";
 import type { VaultNode } from "@/lib/vault-format";
 
 export function useVaultWatch({

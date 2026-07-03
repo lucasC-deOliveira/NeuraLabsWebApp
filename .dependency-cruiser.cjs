@@ -1,13 +1,40 @@
 // Fitness functions de arquitetura (Hexagonal/DDD) para o código novo do frontend
 // em src/modules/**. Falham o build se a regra de dependência for violada.
 //
-// FASE 0 (fundação): só as regras que JÁ passam no código atual (graph/vr) —
+// FASE 0 (fundação): regras globais que JÁ passam em todo src/modules (graph/vr) —
 // sem ciclos, domain não importa outras camadas, sem cruzar domínio de outro módulo.
-// FASE 1a endurece: domain/application puros (sem React nem @/lib/*-api), e
-// @/lib/*-api só acessível pela camada infra/ (ACL HTTP). Ver o plano.
+// FASE 1a endurece o módulo `graph` (ratchet — os demais módulos aderem ao serem
+// refatorados): domain/application puros (sem React nem @/lib/*-api) e @/lib/*-api
+// só acessível pela camada infra/ (ACL HTTP). Ver o plano.
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
+    {
+      name: "graph-api-so-via-infra",
+      severity: "error",
+      comment:
+        "graph: a borda HTTP (@/lib/*-api) só pode ser importada pela camada infra/ " +
+        "(testes podem mockar a borda diretamente)",
+      from: {
+        path: "src/modules/graph/",
+        pathNot: ["src/modules/graph/infra/", "\\.(test|spec)\\.(ts|tsx)$"],
+      },
+      to: { path: "src/lib/[^/]+-api\\.(ts|tsx)$" },
+    },
+    {
+      name: "graph-domain-application-sem-react",
+      severity: "error",
+      comment: "graph: domain/ e application/ são puros — não importam React",
+      from: { path: "src/modules/graph/(domain|application)/" },
+      to: { path: "node_modules/react(-dom)?/" },
+    },
+    {
+      name: "graph-application-sem-infra-presentation",
+      severity: "error",
+      comment: "graph: application/ depende só de domain e ports, não de infra/presentation",
+      from: { path: "src/modules/graph/application/" },
+      to: { path: "src/modules/graph/(infra|presentation)/" },
+    },
     {
       name: "domain-sem-camadas",
       severity: "error",

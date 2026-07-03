@@ -6,7 +6,7 @@ import { useGraphInteractions } from "../hooks/useGraphInteractions";
 import { useGraphPhysics } from "../hooks/useGraphPhysics";
 import { DEFAULT_PHYSICS_OPTIONS, physicsStep, type PhysicsOptions } from "../services/graph-physics.service";
 import { getFilteredEdges, getFilteredNodes } from "../../domain/selectors/graph.selectors";
-import { saveGraphPositions } from "@/lib/graph-api";
+import { graphHttp } from "../../infra/http";
 import { useVaultWatch } from "../hooks/useVaultWatch";
 
 // Grafo grande: layout fica num ref (não no estado React) para evitar
@@ -261,7 +261,7 @@ export function useGraphController(graphId: string) {
             // Persiste posições só quando foram simuladas (nós sem posição salva).
             // Grafos com todas as posições salvas já têm dados inalterados.
             if (!allPinned) {
-              saveGraphPositions(
+              graphHttp.saveGraphPositions(
                 graphId,
                 Object.fromEntries(targets.map((n) => [n.id, { x: n.x, y: n.y }])),
               ).catch(() => { /* silencia — não bloqueia o usuário */ });

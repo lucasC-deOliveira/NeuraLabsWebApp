@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, startTransition } from "react";
 import { runForceLayout, SimNode, SimEdge } from "@/modules/graph/infra/layout/force-layout.engine";
 import { deriveHierarchy } from "@/lib/graph-hierarchy";
-import type { GraphNodeType, GraphEdgeType } from "@/lib/graph-api";
+import type { GraphNodeType, GraphEdgeType } from "../../domain/types/graph.types";
 
 function nodeDim(type: string): { width: number; height: number } {
   switch (type) {

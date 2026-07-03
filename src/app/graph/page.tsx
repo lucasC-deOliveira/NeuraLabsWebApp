@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { graphVaultDir } from "@/lib/vault-sync";
 import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
-import { DeleteGraphModal } from "@/components/graph/DeleteGraphModal";
+import { DeleteGraphModal } from "@/modules/graph/presentation/components/vault/DeleteGraphModal";
 
 interface GrafosList {
   id: string;

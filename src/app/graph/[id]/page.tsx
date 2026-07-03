@@ -4,11 +4,11 @@ import { useParams, useRouter } from "@/lib/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DeleteDeckModal } from "@/components/graph/DeleteDeckModal";
-import { GenerateDeckModal } from "@/components/graph/GenerateDeckModal";
+import { DeleteDeckModal } from "@/modules/graph/presentation/components/deck/DeleteDeckModal";
+import { GenerateDeckModal } from "@/modules/graph/presentation/components/deck/GenerateDeckModal";
 
 import { Button } from "@/components/ui/button";
-import { PropertiesPanel } from "@/components/graph/PropertiesPanel";
+import { PropertiesPanel } from "@/modules/graph/presentation/components/PropertiesPanel";
 
 import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon, LayersIcon } from "lucide-react";
 import {
@@ -19,18 +19,19 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { CommunitiesPanel } from "@/components/graph/CommunitiesPanel";
-import { GapDetectionModal } from "@/components/graph/GapDetectionModal";
-import { GenerateGraphModal } from "@/components/graph/GenerateGraphModal";
-import { GenerateGraphFromBaralhoModal } from "@/components/graph/GenerateGraphFromBaralhoModal";
-import { AutoLinkModal } from "@/components/graph/AutoLinkModal";
-import { DuplicatesModal } from "@/components/graph/DuplicatesModal";
-import { CommunitySummaryModal } from "@/components/graph/CommunitySummaryModal";
-import { MissingPrereqsModal } from "@/components/graph/MissingPrereqsModal";
-import { GraphChatModal } from "@/components/graph/GraphChatModal";
-import { CompletenessModal } from "@/components/graph/CompletenessModal";
-import { clustersFromHierarchy, detectGaps, type Community, type StructuralGap } from "@/lib/graph-communities";
-import { createBaralhoNode } from "@/lib/graph-api";
+import { CommunitiesPanel } from "@/modules/graph/presentation/components/CommunitiesPanel";
+import { GapDetectionModal } from "@/modules/graph/presentation/components/ai/GapDetectionModal";
+import { GenerateGraphModal } from "@/modules/graph/presentation/components/ai/GenerateGraphModal";
+import { GenerateGraphFromBaralhoModal } from "@/modules/graph/presentation/components/ai/GenerateGraphFromBaralhoModal";
+import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLinkModal";
+import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/DuplicatesModal";
+import { CommunitySummaryModal } from "@/modules/graph/presentation/components/ai/CommunitySummaryModal";
+import { MissingPrereqsModal } from "@/modules/graph/presentation/components/ai/MissingPrereqsModal";
+import { GraphChatModal } from "@/modules/graph/presentation/components/ai/GraphChatModal";
+import { CompletenessModal } from "@/modules/graph/presentation/components/ai/CompletenessModal";
+import type { Community, StructuralGap } from "@/lib/graph-communities";
+import { graphHttp } from "@/modules/graph/infra/http";
+import { useGraphCommunities } from "@/modules/graph/presentation/hooks/useGraphCommunities";
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
 import { GraphRenderer } from "@/modules/graph/presentation/components/GraphRenderer";
@@ -43,33 +44,25 @@ import { RoadmapPanel } from "@/modules/graph/presentation/components/RoadmapPan
 import { GraphSettingsModal, DEFAULT_FOCUS_DEPTH } from "@/modules/graph/presentation/components/GraphSettingsModal";
 import type { PhysicsMode } from "@/modules/graph/presentation/services/graph-physics.service";
 
-import {
-  deleteGraphNode,
-  removeNodeFromGraph,
-  getGraphNodes,
-  getGraphEdges,
-  deleteEdge,
-  getGrafoInfo,
-  extractNodesToSubgrafo,
-  type GrafoInfoDetail,
-} from "@/lib/graph-api";
-import { CreateSubgrafoModal } from "@/components/graph/CreateSubgrafoModal";
-import { ExtractSubgrafoModal } from "@/components/graph/ExtractSubgrafoModal";
-import { CreateNodeModal } from "@/components/graph/CreateNodeModal";
-import { ImportJsonModal } from "@/components/graph/ImportJsonModal";
-import { EdgeManagerModal } from "@/components/graph/EdgeManagerModal";
-import { EditNodeModal } from "@/components/graph/EditNodeModal";
-import { ViewNotaModal } from "@/components/graph/ViewNotaModal";
-import { ViewTextoBrutoModal } from "@/components/graph/ViewTextoBrutoModal";
-import { StudyFlashcardModal } from "@/components/graph/StudyFlashcardModal";
-import { ViewFlashcardModal } from "@/components/graph/ViewFlashcardModal";
-import { NodeInsightsModal } from "@/components/graph/NodeInsightsModal";
-import { StudyDeckModal } from "@/components/graph/StudyDeckModal";
-import { ViewDeckModal } from "@/components/graph/ViewDeckModal";
-import { VaultSyncModal } from "@/components/graph/VaultSyncModal";
-import { GraphDashboard } from "@/components/graph/GraphDashboard";
+import type { GrafoInfoDetail } from "@/modules/graph/domain/types/graph.types";
+import { CreateSubgrafoModal } from "@/modules/graph/presentation/components/vault/CreateSubgrafoModal";
+import { ExtractSubgrafoModal } from "@/modules/graph/presentation/components/vault/ExtractSubgrafoModal";
+import { CreateNodeModal } from "@/modules/graph/presentation/components/create-node/CreateNodeModal";
+import { ImportJsonModal } from "@/modules/graph/presentation/components/vault/ImportJsonModal";
+import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeManagerModal";
+import { EditNodeModal } from "@/modules/graph/presentation/components/EditNodeModal";
+import { ViewNotaModal } from "@/modules/graph/presentation/components/deck/ViewNotaModal";
+import { ViewTextoBrutoModal } from "@/modules/graph/presentation/components/deck/ViewTextoBrutoModal";
+import { StudyFlashcardModal } from "@/modules/graph/presentation/components/deck/StudyFlashcardModal";
+import { ViewFlashcardModal } from "@/modules/graph/presentation/components/deck/ViewFlashcardModal";
+import { NodeInsightsModal } from "@/modules/graph/presentation/components/ai/NodeInsightsModal";
+import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
+import { ViewDeckModal } from "@/modules/graph/presentation/components/deck/ViewDeckModal";
+import { VaultSyncModal } from "@/modules/graph/presentation/components/vault/VaultSyncModal";
+import { GraphDashboard } from "@/modules/graph/presentation/components/dashboard/GraphDashboard";
 import { isDesktop } from "@/lib/vault-bridge";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
+import { splitGraphEntities, countNodesByType, neighborhoodFlashcardIds } from "@/modules/graph/domain/services/graph-derivations";
 
 export default function GraphPage() {
   const router = useRouter();
@@ -91,22 +84,10 @@ export default function GraphPage() {
   const [insightsNode, setInsightsNode] = useState<{ id: string; label?: string } | null>(null);
 
   // assuntos/tópicos/conceitos já no grafo (para relacionar ao criar nós)
-  const graphEntities = useMemo(() => {
-    const assuntos: { id: string; nome: string }[] = [];
-    const topicos: { id: string; nome: string }[] = [];
-    const conceitos: { id: string; nome: string }[] = [];
-    const textosBrutos: { id: string; nome: string }[] = [];
-    const flashcards: { id: string; nome: string }[] = [];
-    for (const n of controller.state.layout) {
-      const item = { id: n.id, nome: n.label };
-      if (n.group === "ASSUNTO") assuntos.push(item);
-      else if (n.group === "TOPICO") topicos.push(item);
-      else if (n.group === "CONCEITO") conceitos.push(item);
-      else if (n.group === "TEXTO_BRUTO") textosBrutos.push(item);
-      else if (n.group === "FLASHCARD") flashcards.push(item);
-    }
-    return { assuntos, topicos, conceitos, textosBrutos, flashcards };
-  }, [controller.state.layout]);
+  const graphEntities = useMemo(
+    () => splitGraphEntities(controller.state.layout),
+    [controller.state.layout],
+  );
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isDeletingNode, setIsDeletingNode] = useState(false);
   const [deleteDeckConfirm, setDeleteDeckConfirm] = useState<{ node: any } | null>(null);
@@ -137,78 +118,16 @@ export default function GraphPage() {
   const [completenessOpen, setCompletenessOpen] = useState(false);
   const [isSplittingBaralhos, setIsSplittingBaralhos] = useState(false);
 
-  // Chave topológica estável — muda só quando nós/arestas são adicionados/removidos,
-  // não a cada tick de física (posições não afetam comunidades).
-  const topologyKey = useMemo(
-    () => controller.state.layout.map(n => n.id).sort().join(','),
-    [controller.state.layout],
+  // P3 clusters hierárquicos + P1 lacunas + P5 pontes/destaque — derivados do layout.
+  const { communities, gaps, gapBridges, highlightedCommunityNodeIds } = useGraphCommunities(
+    controller.state.layout,
+    controller.state.edges,
+    { gapsOpen, highlightedCommunityId, highlightedGap },
   );
-
-  // P3 — clusters hierárquicos: um cluster principal por ASSUNTO (subárvore
-  // inteira), consistente com as regiões de cluster do grafo. Usa o clusterId
-  // já derivado em cada nó (independente de posições).
-  const communities = useMemo<Community[]>(() => {
-    if (controller.state.layout.length < 3) return [];
-    return clustersFromHierarchy(controller.state.layout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topologyKey, controller.state.edges]);
-
-  // P1 — detecta lacunas entre comunidades
-  const gaps = useMemo<StructuralGap[]>(
-    () => detectGaps(communities, controller.state.edges),
-    [communities, controller.state.edges],
-  );
-
-  // P5 — coordenadas das pontes para overlay no renderer (usa posições atuais)
-  const gapBridges = useMemo(
-    () => {
-      if (!gapsOpen) return [];
-      const layoutById = new Map(controller.state.layout.map(n => [n.id, n]));
-      return gaps.map(g => {
-        const bA = layoutById.get(g.bridgeA.id) ?? g.bridgeA;
-        const bB = layoutById.get(g.bridgeB.id) ?? g.bridgeB;
-        return { x1: bA.x, y1: bA.y, x2: bB.x, y2: bB.y, colorA: g.communityA.color, colorB: g.communityB.color };
-      });
-    },
-    [gaps, gapsOpen, controller.state.layout],
-  );
-
-  // Ids da comunidade em hover para destacar no renderer
-  const highlightedCommunityNodeIds = useMemo<Set<string> | null>(() => {
-    if (highlightedCommunityId) {
-      const c = communities.find(c => c.id === highlightedCommunityId);
-      return c ? new Set(c.nodes.map(n => n.id)) : null;
-    }
-    if (highlightedGap) {
-      return new Set([
-        ...highlightedGap.communityA.nodes.map(n => n.id),
-        ...highlightedGap.communityB.nodes.map(n => n.id),
-      ]);
-    }
-    return null;
-  }, [highlightedCommunityId, highlightedGap, communities]);
 
   // P4 — BFS a partir do nó selecionado para coletar IDs de FLASHCARDs vizinhos
-  const getNeighborhoodFlashcardIds = (nodeId: string, depth: number): string[] => {
-    const adj = new Map<string, string[]>();
-    for (const e of controller.state.edges) {
-      (adj.get(e.source) ?? (adj.set(e.source, []), adj.get(e.source)!)).push(e.target);
-      (adj.get(e.target) ?? (adj.set(e.target, []), adj.get(e.target)!)).push(e.source);
-    }
-    const dist = new Map<string, number>([[nodeId, 0]]);
-    const queue: string[] = [nodeId];
-    let head = 0;
-    while (head < queue.length) {
-      const cur = queue[head++];
-      const d = dist.get(cur)!;
-      if (d >= depth) continue;
-      for (const nb of adj.get(cur) ?? []) {
-        if (!dist.has(nb)) { dist.set(nb, d + 1); queue.push(nb); }
-      }
-    }
-    const nodeMap = new Map(controller.state.layout.map(n => [n.id, n]));
-    return [...dist.keys()].filter(id => nodeMap.get(id)?.group === "FLASHCARD");
-  };
+  const getNeighborhoodFlashcardIds = (nodeId: string, depth: number): string[] =>
+    neighborhoodFlashcardIds(nodeId, depth, controller.state.layout, controller.state.edges);
 
   const combinedMatchedIds = useMemo(() => {
     const a = dashFilterIds;
@@ -247,7 +166,7 @@ export default function GraphPage() {
   const [isExtractSubgrafoOpen, setIsExtractSubgrafoOpen] = useState(false);
 
   useEffect(() => {
-    getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
+    graphHttp.getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
   }, [graphId]);
 
   const closeToolbarModals = () => {
@@ -299,7 +218,7 @@ export default function GraphPage() {
       let done = 0;
       for (const baralho of baralhos) {
         const flashcardIds = contemByBaralho.get(baralho.id) ?? [];
-        await extractNodesToSubgrafo(graphId, {
+        await graphHttp.extractNodesToSubgrafo(graphId, {
           nodeIds: [baralho.id, ...flashcardIds],
           nome: baralho.label,
           tipoRelacao: "CONTEM",
@@ -309,7 +228,7 @@ export default function GraphPage() {
       }
 
       toast.success(`${baralhos.length} baralho(s) divididos com sucesso!`, { id: toastId });
-      const result = await getGraphNodes(graphId);
+      const result = await graphHttp.getGraphNodes(graphId);
       controller.actions.setRawNodes(result.nodes);
       controller.actions.setRawEdges(result.edges);
     } catch {
@@ -326,7 +245,7 @@ export default function GraphPage() {
 
   const loadEdges = async () => {
     try {
-      setGraphEdges(await getGraphEdges(graphId));
+      setGraphEdges(await graphHttp.getGraphEdges(graphId));
     } catch {
       toast.error("Erro ao carregar relações");
     }
@@ -370,10 +289,7 @@ export default function GraphPage() {
     );
   }
   // contagem de nós por tipo (painel de camadas/filtro)
-  const nodeStats: Record<string, number> = {};
-  for (const n of controller.state.layout) {
-    nodeStats[n.group] = (nodeStats[n.group] || 0) + 1;
-  }
+  const nodeStats = countNodesByType(controller.state.layout);
 
   // ======================
   // ZOOM BUTTONS (zoom around SVG center)
@@ -415,7 +331,7 @@ export default function GraphPage() {
   // GRAPH REFRESH
   // ======================
   const refreshGraph = async () => {
-    const result = await getGraphNodes(graphId);
+    const result = await graphHttp.getGraphNodes(graphId);
 
     // o controller mescla os nós novos preservando as posições dos existentes
     controller.actions.setRawNodes(result.nodes);
@@ -450,7 +366,7 @@ export default function GraphPage() {
   const handleDeleteEdge = async (edge: any) => {
     if (!confirm("Excluir esta relação?")) return;
     try {
-      await deleteEdge(edge.id, graphId);
+      await graphHttp.deleteEdge(edge.id, graphId);
       toast.success("Relação excluída");
       await refreshGraph();
     } catch (e) {
@@ -465,7 +381,7 @@ export default function GraphPage() {
     controller.actions.selectNode(null);
     setIsDeletingNode(true);
     try {
-      await deleteGraphNode(node.id, graphId, { deleteConnected });
+      await graphHttp.deleteGraphNode(node.id, graphId, { deleteConnected });
       controller.actions.removeNodeFromLayout(node.id);
       toast.success("Nó excluído do aplicativo");
       await refreshGraph();
@@ -497,7 +413,7 @@ export default function GraphPage() {
 
     setIsDeletingNode(true);
     try {
-      await removeNodeFromGraph(node.id, graphId);
+      await graphHttp.removeNodeFromGraph(node.id, graphId);
       toast.success("Removido do grafo");
       await refreshGraph();
     } catch {
@@ -527,7 +443,7 @@ export default function GraphPage() {
     const { flashcardIds } = generateDeckConfirm;
     setIsGeneratingDeck(true);
     try {
-      await createBaralhoNode(graphId, titulo, flashcardIds);
+      await graphHttp.createBaralhoNode(graphId, titulo, flashcardIds);
       setGenerateDeckConfirm(null);
       toast.success("Baralho criado com sucesso");
       await refreshGraph();
@@ -1047,7 +963,7 @@ export default function GraphPage() {
         onCreateDeck={async (community) => {
           const ids = community.nodes.filter(n => n.group === "FLASHCARD").map(n => n.id);
           try {
-            await createBaralhoNode(graphId, `Baralho — ${community.label}`, ids);
+            await graphHttp.createBaralhoNode(graphId, `Baralho — ${community.label}`, ids);
             await refreshGraph();
             toast.success("Baralho criado!");
           } catch { toast.error("Erro ao criar baralho."); }
@@ -1159,7 +1075,7 @@ export default function GraphPage() {
         parentGrafoId={graphId}
         onCreated={async (_grafoId, _nodeId) => {
           await refreshGraph();
-          await getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
+          await graphHttp.getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
         }}
       />
       <ExtractSubgrafoModal
@@ -1173,7 +1089,7 @@ export default function GraphPage() {
         onExtracted={async (_grafoId, _nodeId) => {
           controller.actions.selectNode(null);
           await refreshGraph();
-          await getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
+          await graphHttp.getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
         }}
       />
 
