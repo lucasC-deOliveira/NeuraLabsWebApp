@@ -15,7 +15,6 @@ import reactRefresh from "eslint-plugin-react-refresh";
 // conforme a Fase 1 os refatora. Todo arquivo NOVO em src/modules já nasce sob o gate.
 const STRICT_DEBT = [
   "src/modules/graph/constants/graph-ui.constants.ts",
-  "src/modules/graph/domain/selectors/graph.selectors.ts",
   "src/modules/graph/domain/services/relation-rules.ts",
   "src/modules/graph/domain/services/roadmap.service.ts",
   "src/modules/graph/infra/layout/force-layout.engine.ts",
