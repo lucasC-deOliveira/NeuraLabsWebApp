@@ -25,7 +25,6 @@ const STRICT_DEBT = [
   "src/modules/graph/presentation/hooks/useGraphData.ts",
   "src/modules/graph/presentation/hooks/useGraphInteractions.ts",
   "src/modules/graph/presentation/hooks/useGraphLayout.ts",
-  "src/modules/graph/presentation/hooks/useGraphPhysics.ts",
   "src/modules/graph/presentation/hooks/useGraphSearch.ts",
   "src/modules/graph/presentation/hooks/useVaultWatch.ts",
   "src/modules/graph/presentation/services/graph-physics.service.ts",
