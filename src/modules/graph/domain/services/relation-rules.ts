@@ -2,7 +2,7 @@
 // Cada par (não ordenado) de tipos define quais relações são permitidas;
 // pares fora desta tabela não podem ser relacionados.
 
-const pairKey = (a: string, b: string) => [a, b].sort().join("|");
+const pairKey = (a: string, b: string): string => [a, b].sort().join("|");
 
 // Relações de uma Nota com um Conceito. Um flashcard "solto" (sem nota de
 // origem) pode descrever um conceito com as mesmas relações de uma nota;

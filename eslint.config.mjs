@@ -14,8 +14,6 @@ import reactRefresh from "eslint-plugin-react-refresh";
 // fora do padrão estrito. Ficam ISENTOS (bloco de dívida no fim) e são removidos da lista
 // conforme a Fase 1 os refatora. Todo arquivo NOVO em src/modules já nasce sob o gate.
 const STRICT_DEBT = [
-  "src/modules/graph/constants/graph-ui.constants.ts",
-  "src/modules/graph/domain/services/relation-rules.ts",
   "src/modules/graph/domain/services/roadmap.service.ts",
   "src/modules/graph/infra/layout/force-layout.engine.ts",
   "src/modules/graph/presentation/components/Graph3DRenderer.tsx",
