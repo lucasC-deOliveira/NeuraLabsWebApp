@@ -1,12 +1,11 @@
-import type { GraphNodeType, GraphEdgeType } from "../types/graph.types";
+// Pure selectors over the graph layout/edges. Generic over minimal structural shapes
+// so callers keep their concrete node/edge types (SimNode etc.) without the domain
+// importing infra/presentation types.
 
 /**
  * Esconde os nós cujos tipos o usuário desativou (todos visíveis por padrão).
  */
-export function getFilteredNodes(
-  layout: any[],
-  hiddenTypes: Set<string>
-) {
+export function getFilteredNodes<T extends { group: string }>(layout: T[], hiddenTypes: Set<string>): T[] {
   if (!hiddenTypes || hiddenTypes.size === 0) return layout;
   return layout.filter((n) => !hiddenTypes.has(n.group));
 }
@@ -14,7 +13,7 @@ export function getFilteredNodes(
 /**
  * Retorna nodes visíveis em um conjunto
  */
-export function getVisibleNodeIds(nodes: any[]) {
+export function getVisibleNodeIds<T extends { id: string }>(nodes: T[]): Set<string> {
   return new Set(nodes.map((n) => n.id));
 }
 
@@ -40,36 +39,34 @@ export function getNodesInRect(
  * Coordenadas não são copiadas aqui: o GraphRenderer lê posições
  * diretamente do nodeById Map (nodes atualizados frame a frame).
  */
-export function getFilteredEdges(
-  edges: any[],
+export function getFilteredEdges<T extends { source: string; target: string }>(
+  edges: T[],
   visibleNodeIds: Set<string>
-) {
-  return edges.filter(
-    (e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target)
-  );
+): T[] {
+  return edges.filter((e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target));
 }
 
 /**
  * Calcula estatísticas dos nós por tipo
  */
-export function getNodeStats(rawNodes: any[]) {
+export function getNodeStats<T extends { type: string }>(rawNodes: T[]): Record<string, number> {
   const counts: Record<string, number> = {};
-
   for (const n of rawNodes) {
     counts[n.type] = (counts[n.type] || 0) + 1;
   }
-
   return counts;
 }
 
 /**
- * Nodes conectados (vizinhança do grafo)
+ * Nodes conectados (vizinhança do grafo). `layout` é aceito por compatibilidade
+ * com os chamadores; a vizinhança é derivada apenas das arestas.
  */
-export function getConnectedNodeIds(
-  layout: any[],
-  edges: any[],
+export function getConnectedNodeIds<E extends { source: string; target: string }>(
+  layout: readonly unknown[],
+  edges: E[],
   activeId?: string | null
-) {
+): Set<string> {
+  void layout;
   if (!activeId) return new Set<string>();
 
   const connected = new Set<string>();

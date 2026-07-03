@@ -1,4 +1,4 @@
-import { getNodeShape } from "./graph-style.service";
+import { getNodeShape, type NodeShape } from "./graph-style.service";
 
 export type NodeGeom = {
   x: number;
@@ -8,9 +8,23 @@ export type NodeGeom = {
   group: string;
 };
 
+export type Point = { x: number; y: number };
+
+// Raio (do centro à borda da forma) na direção unitária (ux, uy).
+function boundaryRadius(shape: NodeShape, hw: number, hh: number, ux: number, uy: number): number {
+  // círculo é uma elipse com raios iguais — mesma equação
+  if (shape === "circle" || shape === "ellipse") {
+    return (hw * hh) / (Math.hypot(hh * ux, hw * uy) || 1);
+  }
+  // retângulos: interseção com a borda da caixa
+  const rx = Math.abs(ux) > 1e-6 ? hw / Math.abs(ux) : Infinity;
+  const ry = Math.abs(uy) > 1e-6 ? hh / Math.abs(uy) : Infinity;
+  return Math.min(rx, ry);
+}
+
 // Ponto na borda do nó na direção (dirX, dirY) a partir do centro —
 // faz a aresta partir do contorno da forma, não do centro
-export function boundaryPoint(node: NodeGeom, dirX: number, dirY: number) {
+export function boundaryPoint(node: NodeGeom, dirX: number, dirY: number): Point {
   const hw = node.width / 2;
   const hh = node.height / 2;
   const len = Math.hypot(dirX, dirY) || 1;
@@ -20,33 +34,20 @@ export function boundaryPoint(node: NodeGeom, dirX: number, dirY: number) {
   // direção nula (nós sobrepostos): devolve o centro em vez de NaN
   if (ux === 0 && uy === 0) return { x: node.x, y: node.y };
 
-  let r: number;
-  switch (getNodeShape(node.group)) {
-    // círculo é uma elipse com raios iguais — mesma equação
-    case "circle":
-    case "ellipse":
-      r = (hw * hh) / (Math.hypot(hh * ux, hw * uy) || 1);
-      break;
-    default: {
-      // retângulos: interseção com a borda da caixa
-      const rx = Math.abs(ux) > 1e-6 ? hw / Math.abs(ux) : Infinity;
-      const ry = Math.abs(uy) > 1e-6 ? hh / Math.abs(uy) : Infinity;
-      r = Math.min(rx, ry);
-    }
-  }
+  const r = boundaryRadius(getNodeShape(node.group), hw, hh, ux, uy);
   return { x: node.x + ux * r, y: node.y + uy * r };
 }
 
 export type EdgeCurve = {
-  p0: { x: number; y: number };
-  p2: { x: number; y: number };
+  p0: Point;
+  p2: Point;
   cx: number;
   cy: number;
   qx: number;
   qy: number;
   angle: number;
   // tangente unitária no fim da curva (direção da seta no nó de destino)
-  endTangent: { x: number; y: number };
+  endTangent: Point;
 };
 
 // Curva quadrática entre dois nós: pontas na borda das formas, ponto de

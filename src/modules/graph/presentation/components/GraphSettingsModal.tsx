@@ -75,6 +75,28 @@ function PhysicsSlider({
   );
 }
 
+function PhysicsModeButton({
+  active,
+  onClick,
+  title,
+  subtitle,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors text-left ${active ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
+    >
+      <div className="font-semibold">{title}</div>
+      <div className="text-xs opacity-70">{subtitle}</div>
+    </button>
+  );
+}
+
 export function GraphSettingsModal({
   open,
   onOpenChange,
@@ -107,20 +129,18 @@ export function GraphSettingsModal({
           <div className="space-y-2">
             <Label>Modo de física</Label>
             <div className="grid grid-cols-2 gap-2">
-              <button
+              <PhysicsModeButton
+                active={physicsMode === "default"}
                 onClick={() => switchMode("default")}
-                className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors text-left ${physicsMode === "default" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
-              >
-                <div className="font-semibold">Padrão</div>
-                <div className="text-xs opacity-70">Hierárquico · assunto no centro</div>
-              </button>
-              <button
+                title="Padrão"
+                subtitle="Hierárquico · assunto no centro"
+              />
+              <PhysicsModeButton
+                active={physicsMode === "cluster"}
                 onClick={() => switchMode("cluster")}
-                className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors text-left ${physicsMode === "cluster" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
-              >
-                <div className="font-semibold">Clusters</div>
-                <div className="text-xs opacity-70">Agrupa por tipo de nó</div>
-              </button>
+                title="Clusters"
+                subtitle="Agrupa por tipo de nó"
+              />
             </div>
           </div>
 
