@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import { getNodeDetails, updateGraphNode } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
 import type { SimNode } from "@/modules/graph/infra/layout/force-layout.engine";
 
 // ── Constantes de layout ───────────────────────────────────────────────
@@ -157,7 +157,7 @@ export function VREditPanel3D({
   useEffect(() => {
     let alive = true;
     setLoading(true); setError(null); setSavedOk(false); setKbField(null);
-    getNodeDetails(tipo, node.id)
+    graphHttp.getNodeDetails(tipo, node.id)
       .then(d => {
         if (!alive) return;
         if (!d) { setError("Nó não encontrado"); return; }
@@ -233,13 +233,13 @@ export function VREditPanel3D({
     try {
       const v = vals;
       if (tipo === "FLASHCARD") {
-        await updateGraphNode("FLASHCARD", node.id, { pergunta: v.pergunta?.trim(), resposta: v.resposta?.trim() }, grafoId);
+        await graphHttp.updateGraphNode("FLASHCARD", node.id, { pergunta: v.pergunta?.trim(), resposta: v.resposta?.trim() }, grafoId);
       } else if (tipo === "NOTA") {
-        await updateGraphNode("NOTA", node.id, { titulo: v.titulo?.trim(), tipoNota: v.tipoNota, subtipo: v.subtipo || undefined, conteudo: v.conteudo?.trim() }, grafoId);
+        await graphHttp.updateGraphNode("NOTA", node.id, { titulo: v.titulo?.trim(), tipoNota: v.tipoNota, subtipo: v.subtipo || undefined, conteudo: v.conteudo?.trim() }, grafoId);
       } else if (tipo === "TEXTO_BRUTO") {
-        await updateGraphNode("TEXTO_BRUTO", node.id, { titulo: v.titulo?.trim(), texto: v.texto?.trim() }, grafoId);
+        await graphHttp.updateGraphNode("TEXTO_BRUTO", node.id, { titulo: v.titulo?.trim(), texto: v.texto?.trim() }, grafoId);
       } else {
-        await updateGraphNode(tipo, node.id, { nome: v.nome?.trim(), descricao: v.descricao?.trim() || null }, grafoId);
+        await graphHttp.updateGraphNode(tipo, node.id, { nome: v.nome?.trim(), descricao: v.descricao?.trim() || null }, grafoId);
       }
       setKbField(null);
       setSavedOk(true);

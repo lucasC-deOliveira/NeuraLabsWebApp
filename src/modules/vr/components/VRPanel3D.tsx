@@ -6,10 +6,8 @@ import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { NODE_TYPE_COLORS, RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { getRelationColor } from "@/modules/graph/presentation/services/graph-style.service";
-import {
-  getNodeDetails, getGraphEdges, createEdge, updateEdge, deleteEdge,
-} from "@/lib/graph-api";
-import type { EdgeView } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
+import type { EdgeView } from "@/modules/graph/domain/types/graph.types";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { readAllVaultNodes, graphVaultDir } from "@/lib/vault-sync";
 import { readSrsLog } from "@/lib/srs-local";
@@ -93,7 +91,7 @@ export function VRPanel3D({
   const [mutating,  setMutating]  = useState(false);
 
   const loadEdgeViews = useCallback(() => {
-    getGraphEdges(grafoId).then(setEdgeViews).catch(() => {});
+    graphHttp.getGraphEdges(grafoId).then(setEdgeViews).catch(() => {});
   }, [grafoId]);
 
   useEffect(() => {
@@ -102,7 +100,7 @@ export function VRPanel3D({
     loadEdgeViews();
 
     if (node.tipoReal === "NOTA") {
-      getNodeDetails("NOTA", node.id).then(setNotaMeta).catch(() => {});
+      graphHttp.getNodeDetails("NOTA", node.id).then(setNotaMeta).catch(() => {});
     }
 
     if (node.tipoReal === "BARALHO") {
@@ -164,7 +162,7 @@ export function VRPanel3D({
     const ev = findView(ed);
     if (!ev || mutating) return;
     setMutating(true);
-    try { await deleteEdge(ev.id, grafoId); loadEdgeViews(); onEdgesChanged(); } catch { /**/ }
+    try { await graphHttp.deleteEdge(ev.id, grafoId); loadEdgeViews(); onEdgesChanged(); } catch { /**/ }
     setMutating(false);
   };
 
@@ -180,7 +178,7 @@ export function VRPanel3D({
     if (!ev || mutating) return;
     setMutating(true);
     try {
-      await updateEdge(ev.id, grafoId, { tipoRelacao: editType, peso: editPeso });
+      await graphHttp.updateEdge(ev.id, grafoId, { tipoRelacao: editType, peso: editPeso });
       setEditKey(null);
       loadEdgeViews();
       onEdgesChanged();
@@ -192,7 +190,7 @@ export function VRPanel3D({
     if (!addTargetId || mutating) return;
     setMutating(true);
     try {
-      await createEdge(grafoId, {
+      await graphHttp.createEdge(grafoId, {
         sourceNodeId: node.id,
         targetNodeId: addTargetId,
         tipoRelacao: RELATION_TYPES[addTypeIdx],
