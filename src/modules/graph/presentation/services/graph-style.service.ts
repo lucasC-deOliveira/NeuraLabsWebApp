@@ -40,7 +40,9 @@ export function truncateLabel(label: string, type: string, nodeWidth: number): s
 }
 
 // Node colors
-export function getNodeColors(type: string, isDark: boolean) {
+export type NodeColorSet = { bg: string; border: string; text: string };
+
+export function getNodeColors(type: string, isDark: boolean): NodeColorSet {
   const entry = NODE_TYPE_COLORS[type as keyof typeof NODE_TYPE_COLORS];
 
   if (!entry) {
