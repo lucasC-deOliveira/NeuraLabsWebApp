@@ -1,16 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { saveManualFlashcard, type ManualFlashcardDraft } from "./save-manual-flashcard";
-import type { ContentPort } from "@/modules/content/application/ports/content.port";
-import type { ConceitoArvore } from "@/modules/content/domain/concept-tree.types";
+import { FakeContentPort } from "@/modules/content/testing/fake-content-port";
 import type { FlashcardsPort, CreateFlashcardInput } from "../ports/flashcards.port";
-
-class FakeContentPort implements ContentPort {
-  private seq = 0;
-  async getHierarquiaConceitos(): Promise<ConceitoArvore[]> { return []; }
-  async createAssunto(nome: string) { return { id: `a-${++this.seq}`, nome }; }
-  async createTopico(nome: string) { return { id: `t-${++this.seq}`, nome }; }
-  async createFullConcept(input: { nome: string }) { return { id: `c-${++this.seq}`, nome: input.nome }; }
-}
 
 class FakeFlashcardsPort implements FlashcardsPort {
   public lastInput: CreateFlashcardInput | null = null;

@@ -1,23 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { saveManualNota, type ManualNotaDraft } from "./save-manual-nota";
-import type { ContentPort } from "@/modules/content/application/ports/content.port";
+import { FakeContentPort } from "@/modules/content/testing/fake-content-port";
 import type { NotesPort, CreateNotaManualInput } from "../ports/notes.port";
-import type { ConceitoArvore } from "@/modules/content/domain/concept-tree.types";
-
-class FakeContentPort implements ContentPort {
-  public created: string[] = [];
-  private seq = 0;
-  async getHierarquiaConceitos(): Promise<ConceitoArvore[]> { return []; }
-  async createAssunto(nome: string): Promise<{ id: string; nome: string }> {
-    this.created.push(`assunto:${nome}`); return { id: `a-${++this.seq}`, nome };
-  }
-  async createTopico(nome: string, assuntoId: string): Promise<{ id: string; nome: string }> {
-    this.created.push(`topico:${nome}@${assuntoId}`); return { id: `t-${++this.seq}`, nome };
-  }
-  async createFullConcept(input: { nome: string; assuntoId: string; topicoId: string }): Promise<{ id: string; nome: string }> {
-    this.created.push(`concept:${input.nome}@${input.assuntoId}/${input.topicoId}`); return { id: `c-${++this.seq}`, nome: input.nome };
-  }
-}
 
 class FakeNotesPort implements NotesPort {
   public lastInput: CreateNotaManualInput | null = null;
