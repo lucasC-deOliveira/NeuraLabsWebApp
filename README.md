@@ -123,18 +123,22 @@ O app desktop expõe um IPC para ler e gravar arquivos `.md` na pasta de vault e
 ## Estrutura do projeto
 
 Ambos os lados seguem **arquitetura hexagonal / DDD** por bounded context, em
-`src/modules/<contexto>/`. No backend a migração está **completa** (todos os contextos);
-no frontend ela começou pelo `graph` e está em andamento (ver _Qualidade e testes_).
+`src/modules/<contexto>/`. A migração está **completa nos dois lados**: no backend
+todos os contextos; no frontend todos os features. Nenhuma página em `src/app`
+importa a borda HTTP (`@/lib/*-api`) diretamente — tudo passa por *ports* de módulo.
 
 ```
 flashcard-app/
   src/                         ← Frontend React 19 + Vite + TypeScript
-    app/                       ← Páginas (dashboard, flashcards, notas, estudo, grafo, settings)
-    components/                ← UI (shadcn/ui, flashcard, grafo, sidebar) — legado a migrar
-    lib/                       ← Clientes HTTP (*-api.ts), vault bridge, utilitários
+    app/                       ← Páginas finas (só re-export do módulo correspondente)
+    components/                ← UI compartilhada (shadcn/ui, flashcard, sidebar, shell)
+    lib/                       ← Borda HTTP (*-api.ts), vault bridge, utilitários
     modules/                   ← Código hexagonal (domain/application/infra/presentation)
-      graph/                   ←   Grafo: render, hooks, controller, serviços, layout
-      vr/                      ←   Visualização XR (Three.js / react-three-fiber)
+      auth/ settings/ questions/ provas/ study/ notes/ flashcards/  ← features
+      content/               ←   Shared kernel: hierarquia de conceitos + staging (notes+flashcards)
+      dashboard/             ←   Home: KPIs, matérias, atividade recente
+      graph/                 ←   Grafo: render, hooks, controller, serviços, layout
+      vr/                    ←   Visualização XR (Three.js / react-three-fiber)
   test/                        ← Setup jsdom + visual regression (Playwright)
   electron/
     main.js                    ← Processo principal: janela, IPC, vault, config
@@ -184,8 +188,9 @@ cd backend && npm run lint:strict && npm run arch:check
 → regressão visual (Playwright/Chromium, fora do `npm test`).
 
 **Gates estritos** (`lint:strict` + `arch:check`) valem em `src/modules/**` (código
-hexagonal); o legado em `src/{app,components,lib}` é report-only e migra de forma
-incremental. As regras e suas diferenças backend × frontend estão no [`AGENTS.md`](AGENTS.md).
+hexagonal). O que fica em `src/{app,components,lib}` é infra compartilhada (páginas
+finas, primitivas de UI, clientes HTTP) — report-only por design, não feature a migrar.
+As regras e suas diferenças backend × frontend estão no [`AGENTS.md`](AGENTS.md).
 
 **Mutação** (verifica a _eficácia_ dos testes, não só a cobertura) mira a lógica pura.
 Frontend: `vault-format`, `graph-communities`, `graph-metrics`, `srs-local`,
