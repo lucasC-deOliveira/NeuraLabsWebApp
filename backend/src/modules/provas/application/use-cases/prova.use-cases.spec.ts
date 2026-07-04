@@ -153,4 +153,16 @@ describe('provas use-cases', () => {
     expect(llm.lastRequest?.messages[0].content).toContain('text:prova.txt');
     expect(llm.lastRequest?.messages[0].content).toContain('text:gab.txt');
   });
+
+  it('parses an upload without a gabarito: only the prova is sent, gabaritos stay "?"', async () => {
+    const llm = new FakeExamLlm(
+      JSON.stringify({ questoes: [{ enunciado: 'E', tipo: 'MULTIPLA_ESCOLHA', alternativas: [{ letra: 'A', texto: 'a' }], gabarito: '?' }] }),
+    );
+    const useCase = new ParseExamUploadUseCase(new FakeTextExtractor(), llm);
+    const result = await useCase.execute('u1', file('prova.txt'));
+    expect(result.questoes[0].gabarito).toBe('?');
+    const content = llm.lastRequest?.messages[0].content ?? '';
+    expect(content).toContain('text:prova.txt');
+    expect(content).not.toContain('=== GABARITO ===');
+  });
 });

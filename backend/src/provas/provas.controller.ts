@@ -67,8 +67,9 @@ export class ProvasController {
     const provaFile = files?.prova?.[0];
     const gabaritoFile = files?.gabarito?.[0];
     if (!provaFile) throw new BadRequestException('Arquivo da prova é obrigatório.');
-    if (!gabaritoFile) throw new BadRequestException('Arquivo do gabarito é obrigatório.');
 
+    // Gabarito is optional: without it, every question comes back with gabarito "?"
+    // for the user to fill in manually.
     return this.parseExamUpload.execute(userId, provaFile, gabaritoFile);
   }
 
