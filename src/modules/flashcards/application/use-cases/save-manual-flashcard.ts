@@ -1,7 +1,6 @@
 // Creates any staged concepts (shared content use-case), resolves the selected
 // concept id, then creates the flashcard. Ports only.
-import type { ContentPort } from "@/modules/content/application/ports/content.port";
-import { persistStagedConcepts, type StagedConcepts } from "@/modules/content/application/use-cases/persist-staged-concepts";
+import { persistStagedConcepts, type ContentPort, type StagedConcepts } from "@/modules/content";
 import type { FlashcardsPort } from "../ports/flashcards.port";
 import type { ManualCardType, CardContent } from "../../domain/manual-card";
 

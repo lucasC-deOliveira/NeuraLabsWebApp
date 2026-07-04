@@ -11,4 +11,4 @@ export const flashcardsHttp: FlashcardsPort = new HttpFlashcardsAdapter();
 export const flashcardGenHttp: FlashcardGenPort = new HttpFlashcardGenAdapter();
 
 // Concept hierarchy adapter (shared content module) — used by the manual editor.
-export { contentHttp } from "@/modules/content/infra/http";
+export { contentHttp } from "@/modules/content";

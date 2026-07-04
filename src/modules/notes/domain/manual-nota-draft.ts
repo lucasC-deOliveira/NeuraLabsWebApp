@@ -2,8 +2,8 @@
 // (staging types/builders live in the content module).
 export type {
   StagedRelation, PendingConcept, PendingTopic, PendingAssunto, BuiltConcept,
-} from "@/modules/content/domain/concept-draft";
-export { buildPendingConcept, collectNewTopics } from "@/modules/content/domain/concept-draft";
+} from "@/modules/content";
+export { buildPendingConcept, collectNewTopics } from "@/modules/content";
 
 export interface NotaConceitoRel {
   conceitoId: string;

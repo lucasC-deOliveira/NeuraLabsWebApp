@@ -6,10 +6,12 @@ import type { useRouter } from "@/lib/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, CheckCircle2Icon, EyeIcon, AlertCircleIcon } from "lucide-react";
-import type { ConceitoArvore, FlatConcept } from "@/modules/content/domain/concept-tree.types";
-import { flattenConceptTree } from "@/modules/content/domain/services/concept-tree";
-import type { PendingAssunto, PendingTopic, PendingConcept } from "@/modules/content/domain/concept-draft";
-import { NewConceptCard } from "@/modules/content/presentation/components/NewConceptCard";
+import {
+  flattenConceptTree,
+  type ConceitoArvore, type FlatConcept,
+  type PendingAssunto, type PendingTopic, type PendingConcept,
+} from "@/modules/content";
+import { NewConceptCard } from "@/modules/content/ui";
 import { contentHttp, flashcardsHttp } from "../../infra/http";
 import {
   buildManualCard, validateManualFields, EMPTY_MANUAL_FIELDS,

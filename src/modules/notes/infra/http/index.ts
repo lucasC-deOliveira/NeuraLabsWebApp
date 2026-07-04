@@ -6,7 +6,7 @@ import { HttpNotaAiAdapter } from "./nota-ai-http.adapter";
 import type { NotesPort } from "../../application/ports/notes.port";
 import type { NotaAiPort } from "../../application/ports/nota-ai.port";
 
-export { contentHttp } from "@/modules/content/infra/http";
+export { contentHttp } from "@/modules/content";
 
 export const notesHttp: NotesPort = new HttpNotesAdapter();
 export const notaAiHttp: NotaAiPort = new HttpNotaAiAdapter();
