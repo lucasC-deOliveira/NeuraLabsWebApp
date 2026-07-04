@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2Icon, CheckCircle2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { graphHttp } from "@/modules/graph/infra/http";
+import { ProvaFigura } from "./ProvaFigura";
 import type { ProvaDetailView, ProvaQuestaoView } from "@/modules/graph/application/ports/graph-prova.port";
 
 interface ViewProvaModalProps {
@@ -58,6 +59,11 @@ function ProvaQuestaoCard({ questao, numero }: { questao: ProvaQuestaoView; nume
             {questao.conceitoNome && <Badge variant="outline" className="text-[10px] text-zinc-500">{questao.conceitoNome}</Badge>}
           </div>
           <p className="text-sm font-medium leading-snug">{questao.enunciado}</p>
+          {questao.imagens.length > 0 && (
+            <div className="mt-2 space-y-2">
+              {questao.imagens.map((img) => <ProvaFigura key={img.id} imagemId={img.id} />)}
+            </div>
+          )}
         </div>
       </div>
       <div className="ml-8">{isVF ? <VerdadeiroFalso gabarito={questao.gabarito} /> : <Alternativas questao={questao} />}</div>

@@ -9,6 +9,12 @@ export interface ProvaListItem {
   dataCriacao: string;
 }
 
+export interface ProvaImagemRef {
+  id: string;
+  ordem: number;
+  mimetype: string;
+}
+
 export interface ProvaQuestaoItem {
   ordem: number;
   id: string;
@@ -18,6 +24,7 @@ export interface ProvaQuestaoItem {
   gabarito: string;
   explicacao: string | null;
   conceitoNome: string | null;
+  imagens: ProvaImagemRef[];
 }
 
 export interface ProvaDetail {
@@ -54,6 +61,11 @@ export function deleteProva(id: string): Promise<{ success: boolean }> {
   return apiFetch(`/provas/${id}`, { method: "DELETE" });
 }
 
+export interface ParsedImagemPreview {
+  mimetype: string;
+  base64: string;
+}
+
 export interface ParsedQuestaoPreview {
   numero: number;
   enunciado: string;
@@ -61,6 +73,7 @@ export interface ParsedQuestaoPreview {
   alternativas: AlternativaMultipla[] | null;
   gabarito: string;
   explicacao: string | null;
+  imagens?: ParsedImagemPreview[];
 }
 
 export interface ParseUploadResult {
@@ -89,6 +102,19 @@ export async function parseProvaUpload(
     throw new Error(err.message ?? "Erro ao processar arquivos");
   }
   return res.json();
+}
+
+// The figure endpoint is JWT-guarded, so an <img src> (no Authorization header)
+// can't load it. Fetch the bytes with the Bearer token and hand back a Blob the
+// caller can turn into an object URL.
+export async function fetchProvaImagem(imagemId: string): Promise<Blob> {
+  const base = (await import("./api")).resolveApiUrl();
+  const token = getToken();
+  const res = await fetch(`${base}/provas/imagens/${imagemId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error("Erro ao carregar imagem da questão");
+  return res.blob();
 }
 
 export interface CreateFromParsedInput {

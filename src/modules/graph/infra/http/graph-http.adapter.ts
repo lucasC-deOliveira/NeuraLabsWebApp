@@ -51,7 +51,7 @@ import {
   populateGraphFromBaralho,
   expandNode,
 } from "@/lib/ai-api";
-import { parseProvaUpload, createProvaFromParsed, getProva } from "@/lib/provas-api";
+import { parseProvaUpload, createProvaFromParsed, getProva, fetchProvaImagem } from "@/lib/provas-api";
 import {
   startSingleCardStudy,
   startDeckStudy,
@@ -346,6 +346,10 @@ export class HttpGraphAdapter
 
   getProva(provaId: string): Promise<ProvaDetailView | null> {
     return getProva(provaId);
+  }
+
+  fetchProvaImagem(imagemId: string): Promise<Blob> {
+    return fetchProvaImagem(imagemId);
   }
 
   createProvaFromParsed(input: { titulo: string; questoes: ParsedQuestao[] }): Promise<{ provaId: string }> {

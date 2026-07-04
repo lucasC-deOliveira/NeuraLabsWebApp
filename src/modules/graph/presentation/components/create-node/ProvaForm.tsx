@@ -182,6 +182,18 @@ function ProvaQuestaoRow({ questao, onSetGabarito }: { questao: ParsedQuestao; o
         <span className="shrink-0 text-xs font-mono text-muted-foreground w-6">{questao.numero}.</span>
         <div className="min-w-0 flex-1 space-y-1.5">
           <p className="text-xs">{questao.enunciado}</p>
+          {questao.imagens && questao.imagens.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {questao.imagens.map((img, k) => (
+                <img
+                  key={k}
+                  src={`data:${img.mimetype};base64,${img.base64}`}
+                  alt="Figura da questão"
+                  className="max-h-32 max-w-full rounded border bg-white object-contain"
+                />
+              ))}
+            </div>
+          )}
           <Badge variant="outline" className="text-[10px]">{isVF ? "V/F" : "Múltipla escolha"}</Badge>
           {isVF ? (
             <VerdadeiroFalsoPicker value={questao.gabarito} onPick={onSetGabarito} />
