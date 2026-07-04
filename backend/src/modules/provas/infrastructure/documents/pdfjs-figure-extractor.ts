@@ -8,6 +8,7 @@ import type {
   ExamPageLayout,
 } from '../../domain/ports/exam-figure-source';
 import {
+  collectAlternativeMarkers,
   collectMarkers,
   imageToPng,
   isTextItem,
@@ -132,6 +133,12 @@ export class PdfjsFigureExtractor implements ExamFigureSource {
     const ops = await page.getOperatorList();
     const items = text.items.filter(isTextItem) as TextItem[];
     const figures = await encodeFigures(page.objs, scanImageBoxes(ops, pdfjs.OPS, this.minSidePt));
-    return { width, height, markers: collectMarkers(items, width), figures };
+    return {
+      width,
+      height,
+      markers: collectMarkers(items, width),
+      alternativeMarkers: collectAlternativeMarkers(items, width),
+      figures,
+    };
   }
 }

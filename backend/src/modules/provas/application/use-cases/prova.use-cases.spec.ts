@@ -97,6 +97,7 @@ class FakeFigureSource implements ExamFigureSource {
           width: 602,
           height: 814,
           markers: [{ numero: 91, x: 65, y: 692 }],
+          alternativeMarkers: [],
           figures: [
             { bbox: { x: 67, y: 503, width: 200, height: 80 }, mimetype: 'image/png', bytes: Buffer.from('PNG') },
           ],
@@ -236,6 +237,7 @@ describe('provas use-cases', () => {
     const q91 = result.questoes.find((q) => q.numero === 91);
     expect(q91?.imagens).toHaveLength(1);
     expect(q91?.imagens?.[0].base64).toBe(Buffer.from('PNG').toString('base64'));
+    expect(q91?.imagens?.[0].alternativa).toBeNull();
     expect(result.questoes.find((q) => q.numero === 92)?.imagens).toBeUndefined();
   });
 

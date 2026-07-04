@@ -15,6 +15,14 @@ export interface QuestionMarker {
   y: number;
 }
 
+// An alternative letter marker (A–E) located on the page, so a figure sitting
+// under a letter can be attributed to that answer (image alternatives).
+export interface AlternativeMarker {
+  letra: string;
+  x: number;
+  y: number;
+}
+
 // A raster figure extracted from the PDF, already encoded for storage/display.
 export interface ExamFigure {
   bbox: FigureBox;
@@ -26,6 +34,7 @@ export interface ExamPageLayout {
   width: number;
   height: number;
   markers: QuestionMarker[];
+  alternativeMarkers: AlternativeMarker[];
   figures: ExamFigure[];
 }
 

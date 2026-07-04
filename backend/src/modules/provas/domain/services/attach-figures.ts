@@ -8,9 +8,9 @@ import { associateFigures } from './associate-figures';
 
 function groupByNumero(pages: ExamPageLayout[]): Map<number, ParsedImagem[]> {
   const byNumero = new Map<number, ParsedImagem[]>();
-  for (const { numero, figure } of associateFigures(pages)) {
+  for (const { numero, alternativa, figure } of associateFigures(pages)) {
     const list = byNumero.get(numero) ?? [];
-    list.push({ mimetype: figure.mimetype, base64: figure.bytes.toString('base64') });
+    list.push({ mimetype: figure.mimetype, base64: figure.bytes.toString('base64'), alternativa });
     byNumero.set(numero, list);
   }
   return byNumero;

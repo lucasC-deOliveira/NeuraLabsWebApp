@@ -1,5 +1,9 @@
 import { PNG } from 'pngjs';
-import type { FigureBox, QuestionMarker } from '../../domain/ports/exam-figure-source';
+import type {
+  AlternativeMarker,
+  FigureBox,
+  QuestionMarker,
+} from '../../domain/ports/exam-figure-source';
 
 // Low-level helpers over pdfjs output: track the CTM through the operator list to
 // locate raster images, cluster text items into "QUESTÃO N" markers, and encode
@@ -38,6 +42,9 @@ const IDENTITY: number[] = [1, 0, 0, 1, 0, 0];
 const RGB_24BPP = 2;
 const RGBA_32BPP = 3;
 const MARKER = /QUEST[ÃAã]O\s*(\d+)/i;
+// A lone alternative letter (image alternatives): "A", "A)", "A." — but not "A"
+// followed by more letters (that would be a text alternative or the stem).
+const ALT_MARKER = /^([A-E])(?![\p{L}])/u;
 
 function mul(a: number[], b: number[]): number[] {
   return [
@@ -137,6 +144,20 @@ export function collectMarkers(items: TextItem[], width: number): QuestionMarker
   return [...groupLines(items, width).values()]
     .map(markerFromLine)
     .filter((m): m is QuestionMarker => m !== null);
+}
+
+function altFromLine(items: TextItem[]): AlternativeMarker | null {
+  const sorted = [...items].sort((a, b) => a.transform[4] - b.transform[4]);
+  const match = ALT_MARKER.exec(sorted.map((i) => i.str).join('').trim());
+  if (!match) return null;
+  return { letra: match[1], x: sorted[0].transform[4], y: sorted[0].transform[5] };
+}
+
+/** Extracts lone alternative-letter markers (A–E) with their position. */
+export function collectAlternativeMarkers(items: TextItem[], width: number): AlternativeMarker[] {
+  return [...groupLines(items, width).values()]
+    .map(altFromLine)
+    .filter((m): m is AlternativeMarker => m !== null);
 }
 
 function rgbToRgba(img: PdfImage): Buffer {

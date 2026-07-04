@@ -23,7 +23,10 @@ const QUESTAO_SELECT = {
   gabarito: true,
   explicacao: true,
   conceito: { select: { id: true, nome: true } },
-  imagens: { select: { id: true, ordem: true, mimetype: true }, orderBy: { ordem: 'asc' } },
+  imagens: {
+    select: { id: true, ordem: true, mimetype: true, alternativa: true },
+    orderBy: { ordem: 'asc' },
+  },
 } as const;
 
 const asAlternativas = (v: Prisma.JsonValue | null): ParsedAlternativa[] | null =>
@@ -144,7 +147,12 @@ function toDetailQuestao(pq: QuestaoRow): ProvaDetailQuestao {
     gabarito: pq.questao.gabarito,
     explicacao: pq.questao.explicacao ?? null,
     conceitoNome: pq.questao.conceito?.nome ?? null,
-    imagens: pq.questao.imagens.map((img) => ({ id: img.id, ordem: img.ordem, mimetype: img.mimetype })),
+    imagens: pq.questao.imagens.map((img) => ({
+      id: img.id,
+      ordem: img.ordem,
+      mimetype: img.mimetype,
+      alternativa: img.alternativa ?? null,
+    })),
   };
 }
 
@@ -190,6 +198,7 @@ function imagensCreate(imagens: ParsedImagem[] | undefined): Prisma.QuestaoImage
       ordem,
       mimetype: img.mimetype,
       dados: Buffer.from(img.base64, 'base64'),
+      alternativa: img.alternativa,
     })),
   };
 }

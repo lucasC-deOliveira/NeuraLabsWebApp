@@ -7,9 +7,12 @@ export interface ParsedAlternativa {
 
 // A figure extracted from the exam PDF, carried base64-encoded so it round-trips
 // through the parse → review → create flow as JSON. Persisted as bytes on create.
+// `alternativa` is the answer letter (A–E) when the figure belongs to an image
+// alternative, or null when it belongs to the question stem/enunciado.
 export interface ParsedImagem {
   mimetype: string;
   base64: string;
+  alternativa: string | null;
 }
 
 // A question extracted from an uploaded exam document by the LLM.
@@ -51,10 +54,12 @@ export interface ProvaSummary {
 }
 
 // A reference to a stored question figure; the bytes are fetched from an endpoint.
+// `alternativa` is the answer letter (A–E) for image alternatives, else null.
 export interface ProvaImagemRef {
   id: string;
   ordem: number;
   mimetype: string;
+  alternativa: string | null;
 }
 
 // A stored figure with its owner, so the endpoint can assert access before
