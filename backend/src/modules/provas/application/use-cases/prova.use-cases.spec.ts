@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { CreateProvaUseCase } from './create-prova.use-case';
 import { CreateProvaFromParsedUseCase } from './create-prova-from-parsed.use-case';
 import { ListProvasUseCase } from './list-provas.use-case';
@@ -58,6 +60,13 @@ class FakeProvaRepository implements ProvaRepository {
 class FakeTextExtractor implements DocumentTextExtractor {
   async extract(document: UploadedDocument): Promise<string> {
     return `text:${document.originalname}`;
+  }
+}
+
+class StubExtractor implements DocumentTextExtractor {
+  constructor(private readonly text: string) {}
+  async extract(): Promise<string> {
+    return this.text;
   }
 }
 
@@ -152,6 +161,19 @@ describe('provas use-cases', () => {
     expect(llm.lastRequest?.temperature).toBe(0.1);
     expect(llm.lastRequest?.messages[0].content).toContain('text:prova.txt');
     expect(llm.lastRequest?.messages[0].content).toContain('text:gab.txt');
+  });
+
+  it('parses a structured MC exam (ENEM) deterministically, without calling the LLM', async () => {
+    const enem = readFileSync(
+      join(__dirname, '../../domain/services/__fixtures__/enem-4pages.txt'),
+      'utf8',
+    );
+    const llm = new FakeExamLlm('{}');
+    const useCase = new ParseExamUploadUseCase(new StubExtractor(enem), llm);
+    const result = await useCase.execute('u1', file('prova.pdf'));
+    expect(result.questoes[0].numero).toBe(91);
+    expect(result.questoes.every((q) => q.gabarito === '?')).toBe(true);
+    expect(llm.lastRequest).toBeNull(); // 0 tokens de IA
   });
 
   it('parses an upload without a gabarito: only the prova is sent, gabaritos stay "?"', async () => {
