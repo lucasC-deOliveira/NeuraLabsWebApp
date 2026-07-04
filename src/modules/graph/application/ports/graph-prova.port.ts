@@ -24,6 +24,8 @@ export interface ProvaParseResult {
 }
 
 export interface GraphProvaPort {
-  parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult>;
+  // gabaritoFile é opcional: sem ele, cada questão volta com gabarito "?" para o
+  // usuário informar a alternativa correta manualmente.
+  parseProvaUpload(provaFile: File, gabaritoFile?: File | null): Promise<ProvaParseResult>;
   createProvaFromParsed(input: { titulo: string; questoes: ParsedQuestao[] }): Promise<{ provaId: string }>;
 }

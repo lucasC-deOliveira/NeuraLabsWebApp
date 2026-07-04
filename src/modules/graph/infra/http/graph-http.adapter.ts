@@ -340,7 +340,7 @@ export class HttpGraphAdapter
     return populateGraphFromBaralho(grafoId, baralhoId);
   }
 
-  parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult> {
+  parseProvaUpload(provaFile: File, gabaritoFile?: File | null): Promise<ProvaParseResult> {
     return parseProvaUpload(provaFile, gabaritoFile);
   }
 

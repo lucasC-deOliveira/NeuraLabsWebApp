@@ -96,6 +96,7 @@ export interface CreateNodeVm {
     parsedTitulo: string;
     setParsedTitulo: (title: string) => void;
     parsedQuestoes: ParsedQuestao[];
+    setParsedQuestaoGabarito: (index: number, value: string) => void;
   };
 }
 
@@ -268,6 +269,7 @@ function CreateTabBody({ vm, parents }: { vm: CreateNodeVm; parents: CreateNodeP
           parsedTitulo={vm.prova.parsedTitulo}
           onParsedTitulo={vm.prova.setParsedTitulo}
           parsedQuestoes={vm.prova.parsedQuestoes}
+          onSetGabarito={vm.prova.setParsedQuestaoGabarito}
         />
       )}
       {vm.selectedType === "ASSUNTO" && (

@@ -70,11 +70,12 @@ export interface ParseUploadResult {
 
 export async function parseProvaUpload(
   provaFile: File,
-  gabaritoFile: File,
+  gabaritoFile?: File | null,
 ): Promise<ParseUploadResult> {
   const formData = new FormData();
   formData.append("prova", provaFile);
-  formData.append("gabarito", gabaritoFile);
+  // Gabarito é opcional: sem ele, o backend devolve gabarito "?" em cada questão.
+  if (gabaritoFile) formData.append("gabarito", gabaritoFile);
 
   const base = (await import("./api")).resolveApiUrl();
   const token = getToken();
