@@ -6,6 +6,7 @@ import type { ExamLlmPort } from '../../domain/ports/exam-llm';
 import type { ParsedUpload } from '../../domain/prova';
 import { buildExamParsePrompt } from '../../domain/services/exam-parse-prompt';
 import { parseExamResponse } from '../../domain/services/parse-exam-response';
+import { cleanExamText } from '../../domain/services/exam-text-cleaning';
 
 // Low temperature: exam extraction is a faithful transcription task, not creative.
 const PARSE_TEMPERATURE = 0.1;
@@ -28,7 +29,9 @@ export class ParseExamUploadUseCase {
     prova: UploadedDocument,
     gabarito?: UploadedDocument,
   ): Promise<ParsedUpload> {
-    const provaText = await this.extractor.extract(prova);
+    // Pre-clean the exam (drop cover/boilerplate) to cut tokens and fit more
+    // questions inside the prompt's char budget.
+    const provaText = cleanExamText(await this.extractor.extract(prova));
     const gabaritoText = gabarito ? await this.extractor.extract(gabarito) : undefined;
     const messages = buildExamParsePrompt(provaText, gabaritoText);
     const content = await this.llm.complete({ userId, messages, temperature: PARSE_TEMPERATURE });
