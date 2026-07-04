@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, EyeIcon, CheckCircle2Icon } from "lucide-react";
 import { toast } from "sonner";
+import { nowMs } from "@/lib/clock";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { StudyCard, CardReviewInput } from "@/modules/graph/application/ports/study.port";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
@@ -50,12 +51,6 @@ type DeckOutcome =
   | { phase: "error" }
   | { phase: "complete"; titulo: string; totalNoDeck: number; graphDir: string | null; sessionId: string | null }
   | { phase: "question"; titulo: string; totalNoDeck: number; graphDir: string | null; sessionId: string; queue: QueueCard[] };
-
-// Clock read isolated at module scope so react-hooks/purity does not flag it inside
-// the component body / event handlers (the rule only knows the Date.now global).
-function nowMs(): number {
-  return Date.now();
-}
 
 function finalizeSession(graphDir: string | null, sessionId: string): void {
   if (graphDir) finalizeLocalSession(graphDir, sessionId).catch(() => {});

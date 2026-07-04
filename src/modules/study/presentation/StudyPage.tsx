@@ -8,7 +8,7 @@ import type { FlashcardData } from "@/types";
 import { studySessionHttp } from "../infra/http";
 import { computeGrade, isMetacognitiveGap } from "../domain/study-grade";
 import type { SessionStats } from "../domain/study-stats";
-import { nowMs, nowDate } from "./study-clock";
+import { nowMs, nowDate } from "@/lib/clock";
 import type { Phase, LastResult } from "./study-phase";
 import { StudyCompleteScreen } from "./components/StudyCompleteScreen";
 import { ActiveSession } from "./components/ActiveSession";

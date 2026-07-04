@@ -12,7 +12,7 @@ import { getTopicosForAssunto, findTopicName } from "../../domain/services/conce
 import {
   buildPendingConcept, type StagedRelation, type PendingConcept, type PendingTopic, type PendingAssunto,
 } from "../../domain/concept-draft";
-import { nextTempId } from "../temp-id";
+import { nextTempId } from "@/lib/id";
 import { ExistingTopicPicker, type SelectedTopic } from "./ExistingTopicPicker";
 import { NewTopicPicker, type SelectedAssunto } from "./NewTopicPicker";
 

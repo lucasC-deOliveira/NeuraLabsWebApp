@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeftIcon, CheckCircle2Icon, XCircleIcon, ClockIcon } from "lucide-react";
 import type { SessionStats } from "../../domain/study-stats";
 import { formatDuration, computeAccuracy } from "../../domain/study-stats";
-import { nowMs } from "../study-clock";
+import { nowMs } from "@/lib/clock";
 
 function PerformanceBadge({ accuracy }: { accuracy: number }) {
   if (accuracy >= 80) {
