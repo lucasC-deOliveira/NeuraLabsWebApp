@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, EyeIcon, CheckCircle2Icon, ClockIcon } from "lucide-react";
 import { toast } from "sonner";
+import { nowMs } from "@/lib/clock";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { StudyCard } from "@/modules/graph/application/ports/study.port";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
@@ -52,12 +53,6 @@ function formatProxima(iso: string): string {
   const data = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
   if (dias === 1) return `amanhã (${data})`;
   return `em ${dias} dias (${data})`;
-}
-
-// Clock read isolated at module scope so react-hooks/purity does not flag it inside
-// the component body / event handlers (the rule only knows the Date.now global).
-function nowMs(): number {
-  return Date.now();
 }
 
 function finalizeSession(graphDir: string | null, sessionId: string): void {
