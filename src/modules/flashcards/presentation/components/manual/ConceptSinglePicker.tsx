@@ -4,9 +4,8 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SearchIcon, CheckCircle2Icon, Loader2Icon } from "lucide-react";
-import type { ConceitoArvore, FlatConcept } from "@/modules/content/domain/concept-tree.types";
-import { filterFlatConcepts } from "@/modules/content/domain/services/concept-tree";
-import { AssuntoNode, type ExpandKind, type TreeCtx } from "@/modules/content/presentation/components/ConceptTree";
+import { filterFlatConcepts, type ConceitoArvore, type FlatConcept } from "@/modules/content";
+import { AssuntoNode, type ExpandKind, type TreeCtx } from "@/modules/content/ui";
 
 interface ConceptSinglePickerProps {
   arvore: ConceitoArvore[];

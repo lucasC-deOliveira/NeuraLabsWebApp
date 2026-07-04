@@ -1,9 +1,13 @@
 // Orchestrates the manual-note save: create the staged concept graph (shared
 // content use-case), then the note itself. Depends only on ports.
-import type { ContentPort } from "@/modules/content/application/ports/content.port";
-import { persistStagedConcepts } from "@/modules/content/application/use-cases/persist-staged-concepts";
-import type { ConceitoArvore } from "@/modules/content/domain/concept-tree.types";
-import type { PendingAssunto, PendingTopic, PendingConcept } from "@/modules/content/domain/concept-draft";
+import {
+  persistStagedConcepts,
+  type ContentPort,
+  type ConceitoArvore,
+  type PendingAssunto,
+  type PendingTopic,
+  type PendingConcept,
+} from "@/modules/content";
 import type { NotesPort } from "../ports/notes.port";
 import type { NotaConceitoRel, ConceitoConceitoRel } from "../../domain/manual-nota-draft";
 import type { SubtipoNota } from "../../domain/nota.types";

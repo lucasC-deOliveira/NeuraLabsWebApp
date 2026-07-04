@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { useRouter } from "@/lib/navigation";
 import { contentHttp, notesHttp } from "../../infra/http";
-import type { ConceitoArvore, ConceptContext, FlatConcept } from "@/modules/content/domain/concept-tree.types";
-import { flattenConceptTree, findTopicName } from "@/modules/content/domain/services/concept-tree";
+import {
+  flattenConceptTree, findTopicName,
+  type ConceitoArvore, type ConceptContext, type FlatConcept,
+} from "@/modules/content";
 import {
   syncNotaConceitoRels,
   type NotaConceitoRel, type ConceitoConceitoRel,
@@ -16,10 +18,10 @@ import { saveManualNota } from "../../application/use-cases/save-manual-nota";
 import type { SubtipoConfigEntry } from "../constants/subtipo-config";
 import { SubtipoSelector } from "./manual/SubtipoSelector";
 import { NotaDataFields } from "./manual/NotaDataFields";
-import { ConceptSelector } from "@/modules/content/presentation/components/ConceptSelector";
+import { ConceptSelector } from "@/modules/content/ui";
 import { NotaConceptRelationsCard } from "./manual/NotaConceptRelationsCard";
 import { ConceptConceptRelationsCard } from "./manual/ConceptConceptRelationsCard";
-import { NewConceptCard } from "@/modules/content/presentation/components/NewConceptCard";
+import { NewConceptCard } from "@/modules/content/ui";
 import { PendingConceptsQueue } from "./manual/PendingConceptsQueue";
 import { SaveNotaBar } from "./manual/SaveNotaBar";
 
