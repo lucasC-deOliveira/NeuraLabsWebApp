@@ -25,6 +25,9 @@ import {
   createEdge,
   updateEdge,
   deleteEdge,
+  listUserGraphs,
+  createGrafo,
+  deleteGrafo,
 } from "@/lib/graph-api";
 import {
   generateLearningPath,
@@ -46,6 +49,7 @@ import {
   buildGraphFromPlan,
   listBaralhosInGrafo,
   populateGraphFromBaralho,
+  expandNode,
 } from "@/lib/ai-api";
 import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
 import {
@@ -97,10 +101,12 @@ import type {
 } from "../../application/ports/study.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
 import type { GraphProvaPort, ProvaParseResult, ParsedQuestao } from "../../application/ports/graph-prova.port";
+import type { GraphListPort } from "../../application/ports/graph-list.port";
 import type {
   GraphNodeType,
   GraphEdgeType,
   EdgeView,
+  GrafoInfo,
   GrafoInfoDetail,
   GraphVisualState,
 } from "../../domain/types/graph.types";
@@ -115,8 +121,25 @@ export class HttpGraphAdapter
     GraphSubgrafoPort,
     GraphImportPort,
     GraphEdgesPort,
-    GraphProvaPort
+    GraphProvaPort,
+    GraphListPort
 {
+  expandNode(grafoId: string, nodeId: string): Promise<{ topicos: number; conceitos: number; notas: number; flashcards: number }> {
+    return expandNode(grafoId, nodeId);
+  }
+
+  listUserGraphs(): Promise<GrafoInfo[]> {
+    return listUserGraphs();
+  }
+
+  createGrafo(nome: string, descricao?: string): Promise<{ id: string }> {
+    return createGrafo(nome, descricao);
+  }
+
+  deleteGrafo(grafoId: string, options?: { keepTypes?: string[] }): Promise<void> {
+    return deleteGrafo(grafoId, options);
+  }
+
   getGraphNodes(grafoId?: string): Promise<{ nodes: GraphNodeType[]; edges: GraphEdgeType[] }> {
     return getGraphNodes(grafoId);
   }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "@/lib/navigation";
-import { listUserGraphs, createGrafo, deleteGrafo } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeftIcon, PlusIcon, Trash2Icon, Loader2Icon, FolderIcon } from "lucide-react";
@@ -31,7 +31,7 @@ export default function GraphListPage() {
   useEffect(() => {
     async function load() {
       try {
-        const list = await listUserGraphs();
+        const list = await graphHttp.listUserGraphs();
         setGraphs(list);
       } catch (e) {
         toast.error("Erro ao carregar grafos");
@@ -46,7 +46,7 @@ export default function GraphListPage() {
     if (!newGrafoName.trim()) return;
     setCreatingGrafo(true);
     try {
-      const { id } = await createGrafo(newGrafoName.trim());
+      const { id } = await graphHttp.createGrafo(newGrafoName.trim());
 
       if (isDesktop()) {
         try {
@@ -80,7 +80,7 @@ export default function GraphListPage() {
     const { id, nome } = deleteTarget;
     setDeletingGrafo(true);
     try {
-      await deleteGrafo(id, { keepTypes });
+      await graphHttp.deleteGrafo(id, { keepTypes });
       setGraphs((prev) => prev.filter((g) => g.id !== id));
       toast.success(`Grafo "${nome}" removido`);
       setDeleteTarget(null);

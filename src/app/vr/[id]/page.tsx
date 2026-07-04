@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "@/lib/navigation";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useState } from "react";
-import { getGraphNodes } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, GlobeIcon, BoxIcon, Loader2Icon } from "lucide-react";
 import { VRScene } from "@/modules/vr/components/VRScene";
@@ -44,14 +44,14 @@ export default function VRPage() {
 
   const handleEdgesChanged = useCallback(async () => {
     try {
-      const result = await getGraphNodes(graphId);
+      const result = await graphHttp.getGraphNodes(graphId);
       controller.actions.setRawEdges(result.edges);
     } catch { /**/ }
   }, [graphId, controller.actions]);
 
   const handleGraphChanged = useCallback(async () => {
     try {
-      const result = await getGraphNodes(graphId);
+      const result = await graphHttp.getGraphNodes(graphId);
       controller.actions.setRawNodes(result.nodes);
       controller.actions.setRawEdges(result.edges);
     } catch { /**/ }

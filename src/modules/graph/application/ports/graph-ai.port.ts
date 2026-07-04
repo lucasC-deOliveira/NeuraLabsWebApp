@@ -148,4 +148,5 @@ export interface GraphAiPort {
   ): Promise<GenerateGraphResult>;
   listBaralhosInGrafo(grafoId: string): Promise<BaralhoItem[]>;
   populateGraphFromBaralho(grafoId: string, baralhoId: string): Promise<PopulateFromBaralhoResult>;
+  expandNode(grafoId: string, nodeId: string): Promise<{ topicos: number; conceitos: number; notas: number; flashcards: number }>;
 }
