@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
+  StreamableFile,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -19,6 +20,7 @@ import { CreateProvaUseCase } from '../modules/provas/application/use-cases/crea
 import { CreateProvaFromParsedUseCase } from '../modules/provas/application/use-cases/create-prova-from-parsed.use-case';
 import { ListProvasUseCase } from '../modules/provas/application/use-cases/list-provas.use-case';
 import { GetProvaUseCase } from '../modules/provas/application/use-cases/get-prova.use-case';
+import { GetProvaImagemUseCase } from '../modules/provas/application/use-cases/get-prova-imagem.use-case';
 import { UpdateProvaUseCase } from '../modules/provas/application/use-cases/update-prova.use-case';
 import { RemoveProvaUseCase } from '../modules/provas/application/use-cases/remove-prova.use-case';
 import { ParseExamUploadUseCase } from '../modules/provas/application/use-cases/parse-exam-upload.use-case';
@@ -38,6 +40,7 @@ export class ProvasController {
     private readonly createProvaFromParsed: CreateProvaFromParsedUseCase,
     private readonly listProvas: ListProvasUseCase,
     private readonly getProva: GetProvaUseCase,
+    private readonly getProvaImagem: GetProvaImagemUseCase,
     private readonly updateProva: UpdateProvaUseCase,
     private readonly removeProva: RemoveProvaUseCase,
     private readonly parseExamUpload: ParseExamUploadUseCase,
@@ -81,6 +84,16 @@ export class ProvasController {
   @Get()
   findAll(@CurrentUser() userId: string) {
     return this.listProvas.execute(userId);
+  }
+
+  // Declared before ':id' so "imagens" is not captured as a prova id.
+  @Get('imagens/:id')
+  async findImagem(
+    @CurrentUser() userId: string,
+    @Param('id') id: string,
+  ): Promise<StreamableFile> {
+    const { mimetype, dados } = await this.getProvaImagem.execute(userId, id);
+    return new StreamableFile(dados, { type: mimetype });
   }
 
   @Get(':id')

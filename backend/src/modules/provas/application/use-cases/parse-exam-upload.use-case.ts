@@ -3,11 +3,13 @@ import type {
   UploadedDocument,
 } from '../../domain/ports/document-text-extractor';
 import type { ExamLlmPort } from '../../domain/ports/exam-llm';
+import type { ExamFigureSource } from '../../domain/ports/exam-figure-source';
 import type { ParsedUpload } from '../../domain/prova';
 import { buildExamParsePrompt } from '../../domain/services/exam-parse-prompt';
 import { parseExamResponse } from '../../domain/services/parse-exam-response';
 import { cleanExamText } from '../../domain/services/exam-text-cleaning';
 import { extractExamQuestions, countExamQuestions } from '../../domain/services/extract-exam-questions';
+import { attachFiguresToQuestoes } from '../../domain/services/attach-figures';
 
 // Low temperature: exam extraction is a faithful transcription task, not creative.
 const PARSE_TEMPERATURE = 0.1;
@@ -26,6 +28,7 @@ export class ParseExamUploadUseCase {
   constructor(
     private readonly extractor: DocumentTextExtractor,
     private readonly llm: ExamLlmPort,
+    private readonly figures?: ExamFigureSource,
   ) {}
 
   async execute(
@@ -36,8 +39,19 @@ export class ParseExamUploadUseCase {
     // Pre-clean (drop cover/boilerplate) to cut tokens and improve coverage.
     const provaText = cleanExamText(await this.extractor.extract(prova));
     const deterministic = gabarito ? null : tryDeterministic(provaText);
-    if (deterministic) return deterministic;
-    return this.parseWithLlm(userId, provaText, gabarito);
+    const upload = deterministic ?? (await this.parseWithLlm(userId, provaText, gabarito));
+    return this.withFigures(prova, upload);
+  }
+
+  // Figures are best-effort: an extraction failure never breaks the parse.
+  private async withFigures(prova: UploadedDocument, upload: ParsedUpload): Promise<ParsedUpload> {
+    if (!this.figures) return upload;
+    try {
+      const layout = await this.figures.extractLayout(prova);
+      return { ...upload, questoes: attachFiguresToQuestoes(upload.questoes, layout.pages) };
+    } catch {
+      return upload;
+    }
   }
 
   private async parseWithLlm(userId: string, provaText: string, gabarito?: UploadedDocument): Promise<ParsedUpload> {

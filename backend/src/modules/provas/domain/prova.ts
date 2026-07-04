@@ -5,6 +5,13 @@ export interface ParsedAlternativa {
   texto: string;
 }
 
+// A figure extracted from the exam PDF, carried base64-encoded so it round-trips
+// through the parse → review → create flow as JSON. Persisted as bytes on create.
+export interface ParsedImagem {
+  mimetype: string;
+  base64: string;
+}
+
 // A question extracted from an uploaded exam document by the LLM.
 export interface ParsedQuestao {
   numero: number;
@@ -13,6 +20,7 @@ export interface ParsedQuestao {
   alternativas: ParsedAlternativa[] | null;
   gabarito: string;
   explicacao: string | null;
+  imagens?: ParsedImagem[];
 }
 
 export interface ParsedUpload {
@@ -42,6 +50,21 @@ export interface ProvaSummary {
   dataCriacao: Date;
 }
 
+// A reference to a stored question figure; the bytes are fetched from an endpoint.
+export interface ProvaImagemRef {
+  id: string;
+  ordem: number;
+  mimetype: string;
+}
+
+// A stored figure with its owner, so the endpoint can assert access before
+// streaming the bytes.
+export interface StoredQuestaoImagem {
+  usuarioId: string;
+  mimetype: string;
+  dados: Buffer;
+}
+
 export interface ProvaDetailQuestao {
   ordem: number;
   id: string;
@@ -51,6 +74,7 @@ export interface ProvaDetailQuestao {
   gabarito: string;
   explicacao: string | null;
   conceitoNome: string | null;
+  imagens: ProvaImagemRef[];
 }
 
 export interface ProvaDetail {
