@@ -36,7 +36,11 @@ import { ParseExamUploadUseCase } from '../modules/provas/application/use-cases/
   controllers: [ProvasController],
   providers: [
     { provide: PROVA_REPOSITORY, useClass: PrismaProvaRepository },
-    { provide: DOCUMENT_TEXT_EXTRACTOR, useClass: MultiFormatTextExtractor },
+    {
+      // PROVA_MAX_PAGES limita quantas páginas de PDF são lidas (0/ausente = todas).
+      provide: DOCUMENT_TEXT_EXTRACTOR,
+      useFactory: () => new MultiFormatTextExtractor(Number(process.env.PROVA_MAX_PAGES) || 0),
+    },
     {
       provide: EXAM_LLM_PORT,
       useFactory: (resolve: ResolveAiConfigUseCase) => new OpenAiExamLlmAdapter(resolve),
