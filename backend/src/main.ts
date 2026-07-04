@@ -1,10 +1,15 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // As figuras extraídas das provas viajam base64 no JSON de criação (from-parsed),
+  // então o corpo pode passar do padrão de 100kb.
+  app.useBodyParser('json', { limit: '30mb' });
 
   // todas as rotas sob /api
   app.setGlobalPrefix('api');
