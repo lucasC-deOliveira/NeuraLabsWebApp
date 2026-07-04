@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2Icon } from "lucide-react";
-import { getNodeDetails, updateGraphNode } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
 import type { SimNode } from "@/modules/graph/infra/layout/force-layout.engine";
 
 const SUBTIPO_OPTIONS = [
@@ -30,60 +30,157 @@ const inp = [
 ].join(" ");
 const lbl = "block text-sm font-medium text-zinc-300 mb-1.5";
 
+type Fields = Record<string, string>;
+interface FieldSectionProps {
+  fields: Fields;
+  set: (k: string, v: string) => void;
+}
+
+function validateFlashcard(f: Fields): string | null {
+  if (!f.pergunta?.trim()) return "Pergunta obrigatória";
+  return f.resposta?.trim() ? null : "Resposta obrigatória";
+}
+
+function validateNota(f: Fields): string | null {
+  if (!f.titulo?.trim()) return "Título obrigatório";
+  if (!f.subtipo) return "Selecione o subtipo";
+  return f.conteudo?.trim() ? null : "Texto obrigatório";
+}
+
+// Valida os campos obrigatórios por tipo de nó; devolve a mensagem de erro ou null.
+function validateFields(tipo: string, f: Fields): string | null {
+  if (tipo === "FLASHCARD") return validateFlashcard(f);
+  if (tipo === "NOTA") return validateNota(f);
+  if (tipo === "TEXTO_BRUTO") return f.titulo?.trim() ? null : "Título obrigatório";
+  return f.nome?.trim() ? null : "Nome obrigatório";
+}
+
+function buildUpdatePayload(f: Fields): Record<string, unknown> {
+  return {
+    nome: f.nome?.trim(),
+    descricao: f.descricao?.trim() || null,
+    titulo: f.titulo?.trim(),
+    texto: f.texto?.trim(),
+    pergunta: f.pergunta?.trim(),
+    resposta: f.resposta?.trim(),
+    conteudo: f.conteudo?.trim(),
+    tipoNota: f.tipoNota,
+    subtipo: f.subtipo || undefined,
+    fonte: f.fonte?.trim() || null,
+  };
+}
+
+function Field({ label, value, onChange, multiline, rows }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean; rows?: number }) {
+  return (
+    <div>
+      <label className={lbl}>{label}</label>
+      {multiline
+        ? <textarea className={inp} rows={rows ?? 3} value={value} onChange={(e) => onChange(e.target.value)} />
+        : <input className={inp} value={value} onChange={(e) => onChange(e.target.value)} autoComplete="off" />}
+    </div>
+  );
+}
+
+function StructuralFields({ fields, set }: FieldSectionProps) {
+  return (
+    <>
+      <Field label="Nome" value={fields.nome ?? ""} onChange={(v) => set("nome", v)} />
+      <Field label="Descrição (opcional)" value={fields.descricao ?? ""} onChange={(v) => set("descricao", v)} multiline rows={3} />
+    </>
+  );
+}
+
+function TextoBrutoFields({ fields, set }: FieldSectionProps) {
+  return (
+    <>
+      <Field label="Título" value={fields.titulo ?? ""} onChange={(v) => set("titulo", v)} />
+      <Field label="Texto" value={fields.texto ?? ""} onChange={(v) => set("texto", v)} multiline rows={8} />
+    </>
+  );
+}
+
+function FlashcardFields({ fields, set }: FieldSectionProps) {
+  return (
+    <>
+      <Field label="Pergunta" value={fields.pergunta ?? ""} onChange={(v) => set("pergunta", v)} multiline rows={3} />
+      <Field label="Resposta" value={fields.resposta ?? ""} onChange={(v) => set("resposta", v)} multiline rows={3} />
+    </>
+  );
+}
+
+function NotaFields({ fields, set }: FieldSectionProps) {
+  return (
+    <>
+      <Field label="Título" value={fields.titulo ?? ""} onChange={(v) => set("titulo", v)} />
+      <div>
+        <label className={lbl}>Tipo de nota</label>
+        <select className={inp} value={fields.tipoNota || "PERMANENTE"} onChange={(e) => set("tipoNota", e.target.value)}>
+          <option value="LITERATURA">Nota de referência</option>
+          <option value="PERMANENTE">Nota permanente</option>
+          <option value="ESTRUTURA">Nota de estrutura</option>
+        </select>
+      </div>
+      <div>
+        <label className={lbl}>Subtipo</label>
+        <select className={inp} value={fields.subtipo || ""} onChange={(e) => set("subtipo", e.target.value)}>
+          <option value="">Selecione…</option>
+          {SUBTIPO_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+      {fields.tipoNota === "LITERATURA" && (
+        <Field label="Fonte" value={fields.fonte ?? ""} onChange={(v) => set("fonte", v)} />
+      )}
+      <Field label="Texto (Markdown)" value={fields.conteudo ?? ""} onChange={(v) => set("conteudo", v)} multiline rows={6} />
+    </>
+  );
+}
+
+function EditFields({ tipo, fields, set }: { tipo: string } & FieldSectionProps) {
+  if (tipo === "FLASHCARD") return <FlashcardFields fields={fields} set={set} />;
+  if (tipo === "NOTA") return <NotaFields fields={fields} set={set} />;
+  if (tipo === "TEXTO_BRUTO") return <TextoBrutoFields fields={fields} set={set} />;
+  return <StructuralFields fields={fields} set={set} />;
+}
+
 export function VREditForm({ node, grafoId, onSuccess, onCancel }: VREditFormProps) {
   const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
-  const [fields,  setFields]  = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fields, setFields] = useState<Fields>({});
+  const [prevKey, setPrevKey] = useState("");
 
-  const tipo       = node.group;
-  const isFlashcard = tipo === "FLASHCARD";
-  const isNota      = tipo === "NOTA";
-  const isTexto     = tipo === "TEXTO_BRUTO";
+  const tipo = node.group;
+  const nodeKey = `${node.id}:${tipo}`;
 
-  useEffect(() => {
+  // Reset ao trocar de nó — durante render (react-hooks v7 proíbe setState síncrono no effect).
+  if (nodeKey !== prevKey) {
+    setPrevKey(nodeKey);
     setLoading(true);
     setError(null);
-    getNodeDetails(tipo, node.id)
-      .then(d => {
+  }
+
+  useEffect(() => {
+    let ok = true;
+    graphHttp.getNodeDetails(tipo, node.id)
+      .then((d) => {
+        if (!ok) return;
         if (d) setFields(Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v ?? ""])));
         else setError("Nó não encontrado");
       })
-      .catch(() => setError("Erro ao carregar dados"))
-      .finally(() => setLoading(false));
+      .catch(() => { if (ok) setError("Erro ao carregar dados"); })
+      .finally(() => { if (ok) setLoading(false); });
+    return () => { ok = false; };
   }, [node.id, tipo]);
 
-  const set = (k: string, v: string) => setFields(f => ({ ...f, [k]: v }));
+  const set = (k: string, v: string): void => setFields((f) => ({ ...f, [k]: v }));
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
+    const err = validateFields(tipo, fields);
+    if (err) { setError(err); return; }
     setError(null);
-    if (isFlashcard) {
-      if (!fields.pergunta?.trim()) { setError("Pergunta obrigatória"); return; }
-      if (!fields.resposta?.trim()) { setError("Resposta obrigatória"); return; }
-    } else if (isNota) {
-      if (!fields.titulo?.trim())   { setError("Título obrigatório"); return; }
-      if (!fields.subtipo)          { setError("Selecione o subtipo"); return; }
-      if (!fields.conteudo?.trim()) { setError("Texto obrigatório"); return; }
-    } else if (isTexto) {
-      if (!fields.titulo?.trim())   { setError("Título obrigatório"); return; }
-    } else if (!fields.nome?.trim()) {
-      setError("Nome obrigatório"); return;
-    }
-
     setSaving(true);
     try {
-      await updateGraphNode(tipo, node.id, {
-        nome:      fields.nome?.trim(),
-        descricao: fields.descricao?.trim() || null,
-        titulo:    fields.titulo?.trim(),
-        texto:     fields.texto?.trim(),
-        pergunta:  fields.pergunta?.trim(),
-        resposta:  fields.resposta?.trim(),
-        conteudo:  fields.conteudo?.trim(),
-        tipoNota:  fields.tipoNota,
-        subtipo:   fields.subtipo || undefined,
-        fonte:     fields.fonte?.trim() || null,
-      }, grafoId);
+      await graphHttp.updateGraphNode(tipo, node.id, buildUpdatePayload(fields), grafoId);
       onSuccess();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao salvar");
@@ -117,82 +214,7 @@ export function VREditForm({ node, grafoId, onSuccess, onCancel }: VREditFormPro
             <p className="rounded-lg bg-red-900/50 border border-red-700 text-red-300 text-sm px-4 py-3">{error}</p>
           )}
 
-          {/* ASSUNTO / TOPICO / CONCEITO / BARALHO */}
-          {!isFlashcard && !isNota && !isTexto && (
-            <>
-              <div>
-                <label className={lbl}>Nome</label>
-                <input className={inp} value={fields.nome ?? ""} onChange={e => set("nome", e.target.value)} autoComplete="off" />
-              </div>
-              <div>
-                <label className={lbl}>Descrição (opcional)</label>
-                <textarea className={inp} rows={3} value={fields.descricao ?? ""} onChange={e => set("descricao", e.target.value)} />
-              </div>
-            </>
-          )}
-
-          {/* TEXTO_BRUTO */}
-          {isTexto && (
-            <>
-              <div>
-                <label className={lbl}>Título</label>
-                <input className={inp} value={fields.titulo ?? ""} onChange={e => set("titulo", e.target.value)} autoComplete="off" />
-              </div>
-              <div>
-                <label className={lbl}>Texto</label>
-                <textarea className={inp} rows={8} value={fields.texto ?? ""} onChange={e => set("texto", e.target.value)} />
-              </div>
-            </>
-          )}
-
-          {/* FLASHCARD */}
-          {isFlashcard && (
-            <>
-              <div>
-                <label className={lbl}>Pergunta</label>
-                <textarea className={inp} rows={3} value={fields.pergunta ?? ""} onChange={e => set("pergunta", e.target.value)} />
-              </div>
-              <div>
-                <label className={lbl}>Resposta</label>
-                <textarea className={inp} rows={3} value={fields.resposta ?? ""} onChange={e => set("resposta", e.target.value)} />
-              </div>
-            </>
-          )}
-
-          {/* NOTA */}
-          {isNota && (
-            <>
-              <div>
-                <label className={lbl}>Título</label>
-                <input className={inp} value={fields.titulo ?? ""} onChange={e => set("titulo", e.target.value)} autoComplete="off" />
-              </div>
-              <div>
-                <label className={lbl}>Tipo de nota</label>
-                <select className={inp} value={fields.tipoNota || "PERMANENTE"} onChange={e => set("tipoNota", e.target.value)}>
-                  <option value="LITERATURA">Nota de referência</option>
-                  <option value="PERMANENTE">Nota permanente</option>
-                  <option value="ESTRUTURA">Nota de estrutura</option>
-                </select>
-              </div>
-              <div>
-                <label className={lbl}>Subtipo</label>
-                <select className={inp} value={fields.subtipo || ""} onChange={e => set("subtipo", e.target.value)}>
-                  <option value="">Selecione…</option>
-                  {SUBTIPO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-              {fields.tipoNota === "LITERATURA" && (
-                <div>
-                  <label className={lbl}>Fonte</label>
-                  <input className={inp} value={fields.fonte ?? ""} onChange={e => set("fonte", e.target.value)} autoComplete="off" />
-                </div>
-              )}
-              <div>
-                <label className={lbl}>Texto (Markdown)</label>
-                <textarea className={inp} rows={6} value={fields.conteudo ?? ""} onChange={e => set("conteudo", e.target.value)} />
-              </div>
-            </>
-          )}
+          <EditFields tipo={tipo} fields={fields} set={set} />
 
           <div className="flex gap-3 pt-2 pb-1">
             <button onClick={onCancel} className="flex-1 py-4 rounded-xl border border-zinc-600 text-zinc-200 text-base font-medium hover:bg-zinc-800 active:bg-zinc-700">

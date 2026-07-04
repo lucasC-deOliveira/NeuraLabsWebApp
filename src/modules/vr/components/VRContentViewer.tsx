@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2Icon } from "lucide-react";
-import { getNodeDetails, getDeckForStudy } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
 import type { SimNode } from "@/modules/graph/infra/layout/force-layout.engine";
 
 const cls = {
@@ -40,7 +40,7 @@ function BaralhoContent({ node, onClose }: { node: SimNode; onClose: () => void 
 
   useEffect(() => {
     let ok = true;
-    getDeckForStudy(node.id)
+    graphHttp.getDeckForStudy(node.id)
       .then(d => { if (ok) { setTitulo(d?.titulo ?? ""); setCards(d?.cards ?? []); } })
       .catch(() => { if (ok) setError("Erro ao carregar o baralho"); })
       .finally(() => { if (ok) setLoading(false); });
@@ -48,7 +48,7 @@ function BaralhoContent({ node, onClose }: { node: SimNode; onClose: () => void 
   }, [node.id]);
 
   const toggle = (id: string) =>
-    setExpanded(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setExpanded(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   return (
     <div className={cls.wrap}>
@@ -99,6 +99,16 @@ function BaralhoContent({ node, onClose }: { node: SimNode; onClose: () => void 
 
 // ── NOTA ─────────────────────────────────────────────────────────────
 
+function NotaBadges({ data }: { data: Record<string, string | null> }) {
+  return (
+    <div className="flex flex-wrap gap-2 mb-4">
+      {data.tipoNota && <span className={cls.badge}>{TIPO_NOTA_MAP[data.tipoNota] ?? data.tipoNota}</span>}
+      {data.subtipo && <span className={cls.badgeSm}>{SUBTIPO_MAP[data.subtipo] ?? data.subtipo}</span>}
+      {data.fonte && <span className="text-xs text-zinc-500">Fonte: {data.fonte}</span>}
+    </div>
+  );
+}
+
 function NotaContent({ node, onClose }: { node: SimNode; onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [data, setData]       = useState<Record<string, string | null> | null>(null);
@@ -106,7 +116,7 @@ function NotaContent({ node, onClose }: { node: SimNode; onClose: () => void }) 
 
   useEffect(() => {
     let ok = true;
-    getNodeDetails("NOTA", node.id)
+    graphHttp.getNodeDetails("NOTA", node.id)
       .then(d => { if (ok) setData(d); })
       .catch(() => { if (ok) setError("Erro ao carregar a nota"); })
       .finally(() => { if (ok) setLoading(false); });
@@ -119,13 +129,7 @@ function NotaContent({ node, onClose }: { node: SimNode; onClose: () => void }) 
         <h2 className={cls.title}>{data?.titulo || node.label}</h2>
         <button onClick={onClose} className={cls.close}>✕</button>
       </div>
-      {data && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {data.tipoNota && <span className={cls.badge}>{TIPO_NOTA_MAP[data.tipoNota] ?? data.tipoNota}</span>}
-          {data.subtipo  && <span className={cls.badgeSm}>{SUBTIPO_MAP[data.subtipo] ?? data.subtipo}</span>}
-          {data.fonte    && <span className="text-xs text-zinc-500">Fonte: {data.fonte}</span>}
-        </div>
-      )}
+      {data && <NotaBadges data={data} />}
       {loading ? (
         <div className={cls.loader}><Loader2Icon className="animate-spin text-zinc-400" size={32} /></div>
       ) : error ? (
@@ -152,7 +156,7 @@ function TextoBrutoContent({ node, onClose }: { node: SimNode; onClose: () => vo
 
   useEffect(() => {
     let ok = true;
-    getNodeDetails("TEXTO_BRUTO", node.id)
+    graphHttp.getNodeDetails("TEXTO_BRUTO", node.id)
       .then(d => { if (!ok) return; setTitulo(d?.titulo ?? d?.nome ?? "Texto bruto"); setTexto(d?.texto ?? ""); })
       .catch(() => { if (ok) setError("Erro ao carregar o texto"); })
       .finally(() => { if (ok) setLoading(false); });
@@ -191,7 +195,7 @@ function FlashcardContent({ node, onClose }: { node: SimNode; onClose: () => voi
 
   useEffect(() => {
     let ok = true;
-    getNodeDetails("FLASHCARD", node.id)
+    graphHttp.getNodeDetails("FLASHCARD", node.id)
       .then(d => { if (!ok) return; setPergunta(d?.pergunta ?? ""); setResposta(d?.resposta ?? ""); })
       .catch(() => { if (ok) setError("Erro ao carregar o flashcard"); })
       .finally(() => { if (ok) setLoading(false); });

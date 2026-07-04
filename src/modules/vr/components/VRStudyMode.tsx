@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2Icon } from "lucide-react";
-import { getNodeDetails, getDeckForStudy } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
 import type { SimNode } from "@/modules/graph/infra/layout/force-layout.engine";
 
 type Card = { id: string; pergunta: string; resposta: string };
@@ -20,22 +20,26 @@ export function VRStudyMode({ node, onClose }: VRStudyModeProps) {
   const [cardIdx, setCardIdx]   = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [prevKey, setPrevKey]   = useState("");
+
+  // Reset ao trocar de nó — durante render (react-hooks v7 proíbe setState síncrono no effect).
+  const nodeKey = `${node.id}:${node.group}`;
+  if (nodeKey !== prevKey) {
+    setPrevKey(nodeKey);
+    setLoading(true); setCardIdx(0); setRevealed(false);
+  }
 
   useEffect(() => {
     let ok = true;
-    setLoading(true);
-    setCardIdx(0);
-    setRevealed(false);
-
     async function load() {
       if (node.group === "FLASHCARD") {
-        const d = await getNodeDetails("FLASHCARD", node.id);
+        const d = await graphHttp.getNodeDetails("FLASHCARD", node.id);
         if (ok) {
           if (d) setCards([{ id: node.id, pergunta: d.pergunta ?? "", resposta: d.resposta ?? "" }]);
           else setError("Flashcard não encontrado");
         }
       } else {
-        const deck = await getDeckForStudy(node.id);
+        const deck = await graphHttp.getDeckForStudy(node.id);
         if (ok) {
           const list = deck?.cards ?? [];
           setCards(list);

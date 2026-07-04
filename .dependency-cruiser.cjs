@@ -3,37 +3,43 @@
 //
 // FASE 0 (fundação): regras globais que JÁ passam em todo src/modules (graph/vr) —
 // sem ciclos, domain não importa outras camadas, sem cruzar domínio de outro módulo.
-// FASE 1a endurece o módulo `graph` (ratchet — os demais módulos aderem ao serem
-// refatorados): domain/application puros (sem React nem @/lib/*-api) e @/lib/*-api
-// só acessível pela camada infra/ (ACL HTTP). Ver o plano.
+// FASE 1a endureceu o módulo `graph`; FASE 3 GENERALIZA as regras hexagonais a
+// TODOS os módulos (ratchet concluído): domain/application puros (sem React nem
+// @/lib/*-api) e @/lib/*-api só acessível pela camada infra/ (ACL HTTP).
+//
+// Exceções documentadas de cross-context (composição/rendering deliberados, não
+// acoplamento acidental): `vr` é um renderizador 3D alternativo do domínio `graph`;
+// `provas` é um agregado composto de `questions` (uma prova contém questões).
+// Ambos consomem só a superfície pública do parceiro (infra/http port + domain
+// types). Ver `vr-so-consome-graph` e `provas-so-consome-questions` abaixo.
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
     {
-      name: "graph-api-so-via-infra",
+      name: "api-so-via-infra",
       severity: "error",
       comment:
-        "graph: a borda HTTP (@/lib/*-api) só pode ser importada pela camada infra/ " +
-        "(testes podem mockar a borda diretamente)",
+        "a borda HTTP (@/lib/*-api) só pode ser importada pela camada infra/ de um " +
+        "módulo (ACL HTTP; testes podem mockar a borda diretamente)",
       from: {
-        path: "src/modules/graph/",
-        pathNot: ["src/modules/graph/infra/", "\\.(test|spec)\\.(ts|tsx)$"],
+        path: "src/modules/[^/]+/",
+        pathNot: ["src/modules/[^/]+/infra/", "\\.(test|spec)\\.(ts|tsx)$"],
       },
       to: { path: "src/lib/[^/]+-api\\.(ts|tsx)$" },
     },
     {
-      name: "graph-domain-application-sem-react",
+      name: "domain-application-sem-react",
       severity: "error",
-      comment: "graph: domain/ e application/ são puros — não importam React",
-      from: { path: "src/modules/graph/(domain|application)/" },
+      comment: "domain/ e application/ são puros — não importam React",
+      from: { path: "src/modules/[^/]+/(domain|application)/" },
       to: { path: "node_modules/react(-dom)?/" },
     },
     {
-      name: "graph-application-sem-infra-presentation",
+      name: "application-sem-infra-presentation",
       severity: "error",
-      comment: "graph: application/ depende só de domain e ports, não de infra/presentation",
-      from: { path: "src/modules/graph/application/" },
-      to: { path: "src/modules/graph/(infra|presentation)/" },
+      comment: "application/ depende só de domain e ports, não de infra/presentation",
+      from: { path: "src/modules/([^/]+)/application/" },
+      to: { path: "src/modules/$1/(infra|presentation)/" },
     },
     {
       name: "domain-sem-camadas",
@@ -45,11 +51,38 @@ module.exports = {
     {
       name: "sem-cruzar-contexto",
       severity: "error",
-      comment: "um módulo não importa o domínio de outro módulo",
-      from: { path: "src/modules/([^/]+)/" },
+      comment:
+        "um módulo não importa o domínio de outro módulo. Exceções: vr → graph, " +
+        "provas → questions (composição/rendering deliberados); `content` é um " +
+        "shared kernel (hierarquia de conceitos) que qualquer módulo pode consumir",
+      from: { path: "src/modules/([^/]+)/", pathNot: ["src/modules/(vr|provas)/"] },
       to: {
         path: "src/modules/([^/]+)/domain/",
-        pathNot: ["src/modules/$1/"],
+        pathNot: ["src/modules/$1/", "src/modules/content/"],
+      },
+    },
+    {
+      name: "vr-so-consome-graph",
+      severity: "error",
+      comment:
+        "vr só pode cruzar contexto para o graph (do qual é um renderizador 3D); " +
+        "nenhum outro módulo externo",
+      from: { path: "src/modules/vr/" },
+      to: {
+        path: "src/modules/([^/]+)/(domain|application|infra|presentation)/",
+        pathNot: ["src/modules/(vr|graph)/"],
+      },
+    },
+    {
+      name: "provas-so-consome-questions",
+      severity: "error",
+      comment:
+        "provas só pode cruzar contexto para questions (uma prova é composta de " +
+        "questões); nenhum outro módulo externo",
+      from: { path: "src/modules/provas/" },
+      to: {
+        path: "src/modules/([^/]+)/(domain|application|infra|presentation)/",
+        pathNot: ["src/modules/(provas|questions)/"],
       },
     },
     {

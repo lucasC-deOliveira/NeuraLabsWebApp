@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import { getNodeDetails, getDeckForStudy } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
 import type { SimNode } from "@/modules/graph/infra/layout/force-layout.engine";
 
 const W    = 0.60;
@@ -78,10 +78,10 @@ export function VRContentPanel3D({
     (async () => {
       const g = node.group;
       if (g === "BARALHO") {
-        const deck = await getDeckForStudy(node.id);
+        const deck = await graphHttp.getDeckForStudy(node.id);
         if (ok) setCards(deck?.cards ?? []);
       } else if (g === "NOTA") {
-        const d = await getNodeDetails("NOTA", node.id);
+        const d = await graphHttp.getNodeDetails("NOTA", node.id);
         if (ok && d) {
           setTitle(d.titulo ?? node.label);
           const tipo = TIPO_NOTA_MAP[d.tipoNota ?? ""] ?? d.tipoNota ?? "";
@@ -90,10 +90,10 @@ export function VRContentPanel3D({
           setBody(d.conteudo ?? "");
         }
       } else if (g === "FLASHCARD") {
-        const d = await getNodeDetails("FLASHCARD", node.id);
+        const d = await graphHttp.getNodeDetails("FLASHCARD", node.id);
         if (ok && d) { setTitle(node.label); setBody(d.pergunta ?? ""); setBody2(d.resposta ?? ""); }
       } else if (g === "TEXTO_BRUTO") {
-        const d = await getNodeDetails("TEXTO_BRUTO", node.id);
+        const d = await graphHttp.getNodeDetails("TEXTO_BRUTO", node.id);
         if (ok && d) { setTitle(d.titulo ?? node.label); setBody(d.texto ?? ""); }
       }
     })().catch(() => { if (ok) setError("Erro ao carregar"); }).finally(() => { if (ok) setLoading(false); });

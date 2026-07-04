@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import { getNodeDetails, getDeckForStudy } from "@/lib/graph-api";
+import { graphHttp } from "@/modules/graph/infra/http";
 import type { SimNode } from "@/modules/graph/infra/layout/force-layout.engine";
 
 const W    = 0.60;
@@ -61,11 +61,11 @@ export function VRStudyPanel3D({
     setLoading(true); setIdx(0); setRevealed(false); setError(null);
     (async () => {
       if (node.group === "FLASHCARD") {
-        const d = await getNodeDetails("FLASHCARD", node.id);
+        const d = await graphHttp.getNodeDetails("FLASHCARD", node.id);
         if (ok) d ? setCards([{ id: node.id, pergunta: d.pergunta ?? "", resposta: d.resposta ?? "" }])
                   : setError("Flashcard não encontrado");
       } else {
-        const deck = await getDeckForStudy(node.id);
+        const deck = await graphHttp.getDeckForStudy(node.id);
         if (ok) { const c = deck?.cards ?? []; setCards(c); if (!c.length) setError("Baralho vazio"); }
       }
     })().catch(() => { if (ok) setError("Erro ao carregar"); }).finally(() => { if (ok) setLoading(false); });

@@ -26,6 +26,15 @@ export const SUBTIPO_LABELS: Record<string, string> = {
   ERRO_COMUM: "Erro comum", APLICACAO: "Aplicação",
 };
 
+function noteDateLines(notaMeta: Record<string, string | null>): string[] {
+  const criada = formatDate(notaMeta.dataCriacao);
+  const mod = formatDate(notaMeta.dataAtualizacao);
+  const out: string[] = [];
+  if (criada) out.push(`Criada: ${criada}`);
+  if (mod && mod !== criada) out.push(`Modif.: ${mod}`);
+  return out;
+}
+
 export function buildNotaLines(
   notaMeta: Record<string, string | null> | null,
 ): string[] {
@@ -35,10 +44,7 @@ export function buildNotaLines(
   if (notaMeta.subtipo)  lines.push(SUBTIPO_LABELS[notaMeta.subtipo] ?? notaMeta.subtipo);
   if (notaMeta.fonte)    lines.push(`Fonte: ${notaMeta.fonte}`);
   if (notaMeta.slug)     lines.push(notaMeta.slug);
-  const criada = formatDate(notaMeta.dataCriacao);
-  if (criada) lines.push(`Criada: ${criada}`);
-  const mod = formatDate(notaMeta.dataAtualizacao);
-  if (mod && mod !== criada) lines.push(`Modif.: ${mod}`);
+  lines.push(...noteDateLines(notaMeta));
   return lines;
 }
 

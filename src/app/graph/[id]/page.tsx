@@ -758,10 +758,9 @@ export default function GraphPage() {
           onExpandNode={async () => {
             const node = controller.state.selectedNode;
             if (!node) return;
-            const { expandNode } = await import("@/lib/ai-api");
             const tid = toast.loading("Expandindo nó com IA...");
             try {
-              const r = await expandNode(graphId, node.id);
+              const r = await graphHttp.expandNode(graphId, node.id);
               const parts = [r.topicos && `${r.topicos} tópico(s)`, r.conceitos && `${r.conceitos} conceito(s)`, r.notas && `${r.notas} nota(s)`, r.flashcards && `${r.flashcards} flashcard(s)`].filter(Boolean);
               toast.success(`Criados: ${parts.join(", ") || "nenhum"}`, { id: tid });
               await refreshGraph();
