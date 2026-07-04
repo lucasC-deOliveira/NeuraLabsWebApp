@@ -10,9 +10,11 @@ export interface QuestaoAlternativa {
 }
 
 // Figura extraída do PDF, base64, para preview durante a revisão (parse → criar).
+// `alternativa` = letra A–E quando a figura é de uma alternativa-imagem, senão null.
 export interface ParsedImagemView {
   mimetype: string;
   base64: string;
+  alternativa: string | null;
 }
 
 export interface ParsedQuestao {
@@ -31,10 +33,12 @@ export interface ProvaParseResult {
 }
 
 // Referência a uma figura salva; os bytes vêm por fetch autenticado (blob).
+// `alternativa` = letra A–E quando a figura é de uma alternativa-imagem, senão null.
 export interface ProvaImagemRefView {
   id: string;
   ordem: number;
   mimetype: string;
+  alternativa: string | null;
 }
 
 export interface ProvaQuestaoView {

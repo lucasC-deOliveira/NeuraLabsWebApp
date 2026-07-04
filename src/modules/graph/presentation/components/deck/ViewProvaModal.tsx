@@ -33,16 +33,31 @@ function Alternativas({ questao }: { questao: ProvaQuestaoView }) {
     <div className="space-y-1">
       {(questao.alternativas ?? []).map((alt) => {
         const correta = alt.letra === questao.gabarito;
+        const imgs = questao.imagens.filter((i) => i.alternativa === alt.letra);
         return (
           <div key={alt.letra} className={`flex items-start gap-2 rounded px-2.5 py-1.5 text-sm ${correta
             ? "bg-green-50 font-medium text-green-700 dark:bg-green-950/30 dark:text-green-400"
             : "text-muted-foreground"}`}>
             {correta ? <CheckCircle2Icon className="mt-0.5 size-3.5 shrink-0" /> : <span className="w-3.5 shrink-0" />}
             <span className="font-mono text-xs opacity-70">{alt.letra}.</span>
-            <span className="min-w-0 flex-1">{alt.texto}</span>
+            <div className="min-w-0 flex-1 space-y-1">
+              {alt.texto && <span>{alt.texto}</span>}
+              {imgs.map((img) => <ProvaFigura key={img.id} imagemId={img.id} />)}
+            </div>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Stem figures (alternativa null); answer figures render inside Alternativas.
+function EnunciadoFiguras({ imagens }: { imagens: ProvaQuestaoView["imagens"] }) {
+  const stem = imagens.filter((i) => i.alternativa === null);
+  if (stem.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-2">
+      {stem.map((img) => <ProvaFigura key={img.id} imagemId={img.id} />)}
     </div>
   );
 }
@@ -59,11 +74,7 @@ function ProvaQuestaoCard({ questao, numero }: { questao: ProvaQuestaoView; nume
             {questao.conceitoNome && <Badge variant="outline" className="text-[10px] text-zinc-500">{questao.conceitoNome}</Badge>}
           </div>
           <p className="text-sm font-medium leading-snug">{questao.enunciado}</p>
-          {questao.imagens.length > 0 && (
-            <div className="mt-2 space-y-2">
-              {questao.imagens.map((img) => <ProvaFigura key={img.id} imagemId={img.id} />)}
-            </div>
-          )}
+          <EnunciadoFiguras imagens={questao.imagens} />
         </div>
       </div>
       <div className="ml-8">{isVF ? <VerdadeiroFalso gabarito={questao.gabarito} /> : <Alternativas questao={questao} />}</div>

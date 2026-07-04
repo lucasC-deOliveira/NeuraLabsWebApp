@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2Icon, SearchIcon } from "lucide-react";
 import type { AvailableItem } from "@/modules/graph/application/ports/graph-data.port";
-import type { ParsedQuestao } from "@/modules/graph/application/ports/graph-prova.port";
+import type { ParsedQuestao, ParsedImagemView } from "@/modules/graph/application/ports/graph-prova.port";
 
 export type ProvaSubMode = "existing" | "upload";
 export type ProvaUploadStep = "files" | "reviewing" | "review";
@@ -182,23 +182,17 @@ function ProvaQuestaoRow({ questao, onSetGabarito }: { questao: ParsedQuestao; o
         <span className="shrink-0 text-xs font-mono text-muted-foreground w-6">{questao.numero}.</span>
         <div className="min-w-0 flex-1 space-y-1.5">
           <p className="text-xs">{questao.enunciado}</p>
-          {questao.imagens && questao.imagens.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {questao.imagens.map((img, k) => (
-                <img
-                  key={k}
-                  src={`data:${img.mimetype};base64,${img.base64}`}
-                  alt="Figura da questão"
-                  className="max-h-32 max-w-full rounded border bg-white object-contain"
-                />
-              ))}
-            </div>
-          )}
+          <FiguraPreviewList imagens={(questao.imagens ?? []).filter((i) => i.alternativa === null)} />
           <Badge variant="outline" className="text-[10px]">{isVF ? "V/F" : "Múltipla escolha"}</Badge>
           {isVF ? (
             <VerdadeiroFalsoPicker value={questao.gabarito} onPick={onSetGabarito} />
           ) : (
-            <MultiplaEscolhaPicker alternativas={questao.alternativas} value={questao.gabarito} onPick={onSetGabarito} />
+            <MultiplaEscolhaPicker
+              alternativas={questao.alternativas}
+              imagens={questao.imagens ?? []}
+              value={questao.gabarito}
+              onPick={onSetGabarito}
+            />
           )}
         </div>
       </div>
@@ -222,8 +216,25 @@ function VerdadeiroFalsoPicker({ value, onPick }: { value: string; onPick: (v: s
   );
 }
 
-function MultiplaEscolhaPicker({ alternativas, value, onPick }: {
+function FiguraPreviewList({ imagens }: { imagens: ParsedImagemView[] }) {
+  if (imagens.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {imagens.map((img, k) => (
+        <img
+          key={k}
+          src={`data:${img.mimetype};base64,${img.base64}`}
+          alt="Figura da questão"
+          className="max-h-32 max-w-full rounded border bg-white object-contain"
+        />
+      ))}
+    </div>
+  );
+}
+
+function MultiplaEscolhaPicker({ alternativas, imagens, value, onPick }: {
   alternativas: { letra: string; texto: string }[] | null;
+  imagens: ParsedImagemView[];
   value: string;
   onPick: (v: string) => void;
 }) {
@@ -240,7 +251,10 @@ function MultiplaEscolhaPicker({ alternativas, value, onPick }: {
           className={`${PICK_BTN} flex w-full items-start gap-1.5 text-left ${value === alt.letra ? PICK_ON : PICK_OFF}`}
         >
           <span className="font-mono font-semibold">{alt.letra}.</span>
-          <span className="min-w-0 flex-1">{alt.texto}</span>
+          <div className="min-w-0 flex-1 space-y-1">
+            {alt.texto && <span>{alt.texto}</span>}
+            <FiguraPreviewList imagens={imagens.filter((i) => i.alternativa === alt.letra)} />
+          </div>
         </button>
       ))}
     </div>

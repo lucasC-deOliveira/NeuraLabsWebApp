@@ -13,6 +13,7 @@ export interface ProvaImagemRef {
   id: string;
   ordem: number;
   mimetype: string;
+  alternativa: string | null;
 }
 
 export interface ProvaQuestaoItem {
@@ -64,6 +65,7 @@ export function deleteProva(id: string): Promise<{ success: boolean }> {
 export interface ParsedImagemPreview {
   mimetype: string;
   base64: string;
+  alternativa: string | null;
 }
 
 export interface ParsedQuestaoPreview {
