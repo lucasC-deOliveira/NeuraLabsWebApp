@@ -127,6 +127,9 @@ Ambos os lados seguem **arquitetura hexagonal / DDD** por bounded context, em
 todos os contextos; no frontend todos os features. Nenhuma página em `src/app`
 importa a borda HTTP (`@/lib/*-api`) diretamente — tudo passa por *ports* de módulo.
 
+> Mapa de orientação rápida (camadas, regra de dependência, exceções cross-context
+> e padrões recorrentes): **[`ARCHITECTURE.md`](ARCHITECTURE.md)**.
+
 ```
 flashcard-app/
   src/                         ← Frontend React 19 + Vite + TypeScript
