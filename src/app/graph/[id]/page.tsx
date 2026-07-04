@@ -52,6 +52,7 @@ import { ImportJsonModal } from "@/modules/graph/presentation/components/vault/I
 import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeManagerModal";
 import { EditNodeModal } from "@/modules/graph/presentation/components/EditNodeModal";
 import { ViewNotaModal } from "@/modules/graph/presentation/components/deck/ViewNotaModal";
+import { ViewProvaModal } from "@/modules/graph/presentation/components/deck/ViewProvaModal";
 import { ViewTextoBrutoModal } from "@/modules/graph/presentation/components/deck/ViewTextoBrutoModal";
 import { StudyFlashcardModal } from "@/modules/graph/presentation/components/deck/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/modules/graph/presentation/components/deck/ViewFlashcardModal";
@@ -154,6 +155,7 @@ export default function GraphPage() {
   const [nodeMenu, setNodeMenu] = useState<{ node: any; x: number; y: number } | null>(null);
   const [editingNode, setEditingNode] = useState<any>(null);
   const [viewingNotaId, setViewingNotaId] = useState<string | null>(null);
+  const [viewingProvaId, setViewingProvaId] = useState<string | null>(null);
   const [viewingTextoId, setViewingTextoId] = useState<string | null>(null);
   const [studyFlashcardId, setStudyFlashcardId] = useState<string | null>(null);
   const [viewFlashcardId, setViewFlashcardId] = useState<string | null>(null);
@@ -741,6 +743,7 @@ export default function GraphPage() {
           onAddEdge={handleAddEdgeFromPanel}
           onEditNode={() => setEditingNode(controller.state.selectedNode)}
           onViewNota={() => setViewingNotaId(controller.state.selectedNode?.id ?? null)}
+          onViewProva={() => setViewingProvaId(controller.state.selectedNode?.id ?? null)}
           onViewTextoBruto={() => setViewingTextoId(controller.state.selectedNode?.id ?? null)}
           onStudyFlashcard={() => setStudyFlashcardId(controller.state.selectedNode?.id ?? null)}
           onViewFlashcard={() => setViewFlashcardId(controller.state.selectedNode?.id ?? null)}
@@ -900,6 +903,11 @@ export default function GraphPage() {
         notaId={viewingNotaId}
         grafoId={graphId}
         grafoNome={controller.state.grafoNome}
+      />
+      <ViewProvaModal
+        open={!!viewingProvaId}
+        onOpenChange={(open) => !open && setViewingProvaId(null)}
+        provaId={viewingProvaId}
       />
       <ViewTextoBrutoModal
         open={!!viewingTextoId}

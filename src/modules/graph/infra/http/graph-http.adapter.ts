@@ -51,7 +51,7 @@ import {
   populateGraphFromBaralho,
   expandNode,
 } from "@/lib/ai-api";
-import { parseProvaUpload, createProvaFromParsed } from "@/lib/provas-api";
+import { parseProvaUpload, createProvaFromParsed, getProva } from "@/lib/provas-api";
 import {
   startSingleCardStudy,
   startDeckStudy,
@@ -100,7 +100,7 @@ import type {
   CardReviewInput,
 } from "../../application/ports/study.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
-import type { GraphProvaPort, ProvaParseResult, ParsedQuestao } from "../../application/ports/graph-prova.port";
+import type { GraphProvaPort, ProvaParseResult, ParsedQuestao, ProvaDetailView } from "../../application/ports/graph-prova.port";
 import type { GraphListPort } from "../../application/ports/graph-list.port";
 import type {
   GraphNodeType,
@@ -342,6 +342,10 @@ export class HttpGraphAdapter
 
   parseProvaUpload(provaFile: File, gabaritoFile?: File | null): Promise<ProvaParseResult> {
     return parseProvaUpload(provaFile, gabaritoFile);
+  }
+
+  getProva(provaId: string): Promise<ProvaDetailView | null> {
+    return getProva(provaId);
   }
 
   createProvaFromParsed(input: { titulo: string; questoes: ParsedQuestao[] }): Promise<{ provaId: string }> {

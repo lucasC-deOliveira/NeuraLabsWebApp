@@ -23,9 +23,29 @@ export interface ProvaParseResult {
   questoes: ParsedQuestao[];
 }
 
+export interface ProvaQuestaoView {
+  ordem: number;
+  id: string;
+  tipo: QuestaoTipo;
+  enunciado: string;
+  alternativas: QuestaoAlternativa[] | null;
+  gabarito: string;
+  explicacao: string | null;
+  conceitoNome: string | null;
+}
+
+export interface ProvaDetailView {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  dataCriacao: string;
+  questoes: ProvaQuestaoView[];
+}
+
 export interface GraphProvaPort {
   // gabaritoFile é opcional: sem ele, cada questão volta com gabarito "?" para o
   // usuário informar a alternativa correta manualmente.
   parseProvaUpload(provaFile: File, gabaritoFile?: File | null): Promise<ProvaParseResult>;
   createProvaFromParsed(input: { titulo: string; questoes: ParsedQuestao[] }): Promise<{ provaId: string }>;
+  getProva(provaId: string): Promise<ProvaDetailView | null>;
 }
