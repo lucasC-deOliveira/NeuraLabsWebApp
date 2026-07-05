@@ -19,7 +19,10 @@ interface Block {
 }
 
 function splitIntoBlocks(text: string): Block[] {
-  const marks = [...text.matchAll(QUESTION_MARKER)].map((m) => ({ numero: Number(m[1]), start: m.index }));
+  const marks = [...text.matchAll(QUESTION_MARKER)].map((m) => ({
+    numero: Number(m[1]),
+    start: m.index,
+  }));
   return marks.map((m, i) => {
     const end = i + 1 < marks.length ? marks[i + 1].start : text.length;
     return { numero: m.numero, lines: text.slice(m.start, end).split('\n').slice(1) };

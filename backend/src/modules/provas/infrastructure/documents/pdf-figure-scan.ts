@@ -64,7 +64,12 @@ function applyPoint(m: number[], x: number, y: number): [number, number] {
 // An image XObject is painted over the unit square, so its device box is the CTM
 // applied to the corners of [0,1]×[0,1].
 function unitBox(ctm: number[]): FigureBox {
-  const corners = [applyPoint(ctm, 0, 0), applyPoint(ctm, 1, 0), applyPoint(ctm, 1, 1), applyPoint(ctm, 0, 1)];
+  const corners = [
+    applyPoint(ctm, 0, 0),
+    applyPoint(ctm, 1, 0),
+    applyPoint(ctm, 1, 1),
+    applyPoint(ctm, 0, 1),
+  ];
   const xs = corners.map((c) => c[0]);
   const ys = corners.map((c) => c[1]);
   const x = Math.min(...xs);
@@ -72,8 +77,14 @@ function unitBox(ctm: number[]): FigureBox {
   return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
 }
 
-function stepCtm(fn: number, args: unknown, ops: PdfOps, ctm: number[], stack: number[][]): number[] {
-  if (fn === ops.save) return stack.push(ctm), ctm;
+function stepCtm(
+  fn: number,
+  args: unknown,
+  ops: PdfOps,
+  ctm: number[],
+  stack: number[][],
+): number[] {
+  if (fn === ops.save) return (stack.push(ctm), ctm);
   if (fn === ops.restore) return stack.pop() ?? IDENTITY;
   if (fn === ops.transform) return mul(ctm, args as number[]);
   return ctm;
@@ -148,7 +159,12 @@ export function collectMarkers(items: TextItem[], width: number): QuestionMarker
 
 function altFromLine(items: TextItem[]): AlternativeMarker | null {
   const sorted = [...items].sort((a, b) => a.transform[4] - b.transform[4]);
-  const match = ALT_MARKER.exec(sorted.map((i) => i.str).join('').trim());
+  const match = ALT_MARKER.exec(
+    sorted
+      .map((i) => i.str)
+      .join('')
+      .trim(),
+  );
   if (!match) return null;
   return { letra: match[1], x: sorted[0].transform[4], y: sorted[0].transform[5] };
 }

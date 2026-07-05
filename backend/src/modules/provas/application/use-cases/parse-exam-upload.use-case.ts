@@ -8,7 +8,10 @@ import type { ParsedUpload } from '../../domain/prova';
 import { buildExamParsePrompt } from '../../domain/services/exam-parse-prompt';
 import { parseExamResponse } from '../../domain/services/parse-exam-response';
 import { cleanExamText } from '../../domain/services/exam-text-cleaning';
-import { extractExamQuestions, countExamQuestions } from '../../domain/services/extract-exam-questions';
+import {
+  extractExamQuestions,
+  countExamQuestions,
+} from '../../domain/services/extract-exam-questions';
 import { attachFiguresToQuestoes } from '../../domain/services/attach-figures';
 
 // Low temperature: exam extraction is a faithful transcription task, not creative.
@@ -54,7 +57,11 @@ export class ParseExamUploadUseCase {
     }
   }
 
-  private async parseWithLlm(userId: string, provaText: string, gabarito?: UploadedDocument): Promise<ParsedUpload> {
+  private async parseWithLlm(
+    userId: string,
+    provaText: string,
+    gabarito?: UploadedDocument,
+  ): Promise<ParsedUpload> {
     const gabaritoText = gabarito ? await this.extractor.extract(gabarito) : undefined;
     const messages = buildExamParsePrompt(provaText, gabaritoText);
     const content = await this.llm.complete({ userId, messages, temperature: PARSE_TEMPERATURE });

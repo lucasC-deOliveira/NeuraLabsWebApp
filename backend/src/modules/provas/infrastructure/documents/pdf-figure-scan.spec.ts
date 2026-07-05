@@ -54,7 +54,10 @@ describe('scanImageBoxes', () => {
 });
 
 describe('collectMarkers', () => {
-  const at = (str: string, x: number, y: number): TextItem => ({ str, transform: [1, 0, 0, 1, x, y] });
+  const at = (str: string, x: number, y: number): TextItem => ({
+    str,
+    transform: [1, 0, 0, 1, x, y],
+  });
 
   it('reassembles a "QUESTÃO N" marker split across glyph items', () => {
     const items = [
@@ -70,7 +73,11 @@ describe('collectMarkers', () => {
 
   it('separates two markers sharing a baseline across the two columns', () => {
     const items = [at('QUESTÃO 91', 65, 692), at('QUESTÃO 92', 377, 692)];
-    expect(collectMarkers(items, 602).map((m) => m.numero).sort()).toEqual([91, 92]);
+    expect(
+      collectMarkers(items, 602)
+        .map((m) => m.numero)
+        .sort(),
+    ).toEqual([91, 92]);
   });
 
   it('ignores lines without a marker', () => {
@@ -82,7 +89,12 @@ describe('imageToPng', () => {
   const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
   it('encodes a 24bpp RGB image to a PNG', () => {
-    const img: PdfImage = { width: 2, height: 1, kind: 2, data: new Uint8Array([255, 0, 0, 0, 255, 0]) };
+    const img: PdfImage = {
+      width: 2,
+      height: 1,
+      kind: 2,
+      data: new Uint8Array([255, 0, 0, 0, 255, 0]),
+    };
     const png = imageToPng(img);
     expect(png?.subarray(0, 8)).toEqual(PNG_SIGNATURE);
   });

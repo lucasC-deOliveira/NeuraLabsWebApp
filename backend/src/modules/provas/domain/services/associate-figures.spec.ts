@@ -71,10 +71,24 @@ describe('associateFigures', () => {
           { letra: 'D', x: 65, y: 184 },
           { letra: 'E', x: 65, y: 103 },
         ],
-        figures: [fig(70, 502), fig(70, 404), fig(70, 322), fig(70, 241), fig(70, 158), fig(70, 76)],
+        figures: [
+          fig(70, 502),
+          fig(70, 404),
+          fig(70, 322),
+          fig(70, 241),
+          fig(70, 158),
+          fig(70, 76),
+        ],
       }),
     ];
-    expect(associateFigures(pages).map((f) => f.alternativa)).toEqual([null, 'A', 'B', 'C', 'D', 'E']);
+    expect(associateFigures(pages).map((f) => f.alternativa)).toEqual([
+      null,
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+    ]);
   });
 
   it('ignores a stray lone letter that is not part of an A→E run', () => {

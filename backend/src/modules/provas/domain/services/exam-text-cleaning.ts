@@ -14,7 +14,7 @@ function dropCover(raw: string): string {
 
 function isNoiseLine(line: string): boolean {
   const t = line.trim();
-  if (t === "") return false; // blank lines are collapsed later, not dropped here
+  if (t === '') return false; // blank lines are collapsed later, not dropped here
   return BARCODE_LINE.test(t) || GARBLED_LINE.test(t);
 }
 
@@ -25,9 +25,9 @@ function isNoiseLine(line: string): boolean {
  */
 export function cleanExamText(raw: string): string {
   return dropCover(raw)
-    .split("\n")
+    .split('\n')
     .filter((line) => !isNoiseLine(line))
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }

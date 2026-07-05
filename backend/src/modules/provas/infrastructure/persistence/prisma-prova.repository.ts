@@ -191,7 +191,9 @@ async function persistQuestoes(
   return ids;
 }
 
-function imagensCreate(imagens: ParsedImagem[] | undefined): Prisma.QuestaoImagemCreateNestedManyWithoutQuestaoInput | undefined {
+function imagensCreate(
+  imagens: ParsedImagem[] | undefined,
+): Prisma.QuestaoImagemCreateNestedManyWithoutQuestaoInput | undefined {
   if (!imagens || imagens.length === 0) return undefined;
   return {
     create: imagens.map((img, ordem) => ({

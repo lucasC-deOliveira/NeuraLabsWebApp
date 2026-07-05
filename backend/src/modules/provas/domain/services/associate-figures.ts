@@ -133,7 +133,9 @@ export function associateFigures(pages: ExamPageLayout[]): FiguraDaQuestao[] {
       const figRank = figureRank(pageIndex, figure, page);
       const question = questionAtOrBefore(questions, figRank);
       if (!question) return [];
-      return [{ numero: question.numero, alternativa: alternativaFor(alts, question, figRank), figure }];
+      return [
+        { numero: question.numero, alternativa: alternativaFor(alts, question, figRank), figure },
+      ];
     }),
   );
 }

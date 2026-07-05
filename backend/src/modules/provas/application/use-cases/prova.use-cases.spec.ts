@@ -99,7 +99,11 @@ class FakeFigureSource implements ExamFigureSource {
           markers: [{ numero: 91, x: 65, y: 692 }],
           alternativeMarkers: [],
           figures: [
-            { bbox: { x: 67, y: 503, width: 200, height: 80 }, mimetype: 'image/png', bytes: Buffer.from('PNG') },
+            {
+              bbox: { x: 67, y: 503, width: 200, height: 80 },
+              mimetype: 'image/png',
+              bytes: Buffer.from('PNG'),
+            },
           ],
         },
       ],
@@ -158,13 +162,24 @@ describe('provas use-cases', () => {
   });
 
   it('serves a figure to its owner', async () => {
-    const imagem: StoredQuestaoImagem = { usuarioId: 'u1', mimetype: 'image/png', dados: Buffer.from('PNG') };
-    const res = await new GetProvaImagemUseCase(new FakeProvaRepository(null, imagem)).execute('u1', 'img1');
+    const imagem: StoredQuestaoImagem = {
+      usuarioId: 'u1',
+      mimetype: 'image/png',
+      dados: Buffer.from('PNG'),
+    };
+    const res = await new GetProvaImagemUseCase(new FakeProvaRepository(null, imagem)).execute(
+      'u1',
+      'img1',
+    );
     expect(res).toEqual({ mimetype: 'image/png', dados: Buffer.from('PNG') });
   });
 
   it('refuses to serve a figure owned by another user', async () => {
-    const imagem: StoredQuestaoImagem = { usuarioId: 'other', mimetype: 'image/png', dados: Buffer.from('PNG') };
+    const imagem: StoredQuestaoImagem = {
+      usuarioId: 'other',
+      mimetype: 'image/png',
+      dados: Buffer.from('PNG'),
+    };
     await expect(
       new GetProvaImagemUseCase(new FakeProvaRepository(null, imagem)).execute('u1', 'img1'),
     ).rejects.toBeInstanceOf(ProvaForbiddenError);
@@ -243,7 +258,16 @@ describe('provas use-cases', () => {
 
   it('parses an upload without a gabarito: only the prova is sent, gabaritos stay "?"', async () => {
     const llm = new FakeExamLlm(
-      JSON.stringify({ questoes: [{ enunciado: 'E', tipo: 'MULTIPLA_ESCOLHA', alternativas: [{ letra: 'A', texto: 'a' }], gabarito: '?' }] }),
+      JSON.stringify({
+        questoes: [
+          {
+            enunciado: 'E',
+            tipo: 'MULTIPLA_ESCOLHA',
+            alternativas: [{ letra: 'A', texto: 'a' }],
+            gabarito: '?',
+          },
+        ],
+      }),
     );
     const useCase = new ParseExamUploadUseCase(new FakeTextExtractor(), llm);
     const result = await useCase.execute('u1', file('prova.txt'));
