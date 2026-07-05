@@ -16,4 +16,11 @@ describe('buildExamParsePrompt', () => {
     expect(message.content).toContain('g'.repeat(4000));
     expect(message.content).not.toContain('g'.repeat(4001));
   });
+
+  it('omits the gabarito section and asks for "?" when no answer key is given', () => {
+    const [message] = buildExamParsePrompt('CONTEUDO PROVA');
+    expect(message.content).toContain('=== PROVA ===\nCONTEUDO PROVA');
+    expect(message.content).not.toContain('=== GABARITO ===');
+    expect(message.content).toContain('Não há gabarito disponível.');
+  });
 });

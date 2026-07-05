@@ -3,6 +3,7 @@ import type {
   CreateProvaInput,
   OwnedProvaDetail,
   ProvaSummary,
+  StoredQuestaoImagem,
   UpdateProvaPatch,
 } from '../prova';
 
@@ -13,6 +14,7 @@ export interface ProvaRepository {
   listByUser(userId: string): Promise<ProvaSummary[]>;
   findDetail(id: string): Promise<OwnedProvaDetail | null>;
   findOwner(id: string): Promise<{ usuarioId: string } | null>;
+  findImagem(id: string): Promise<StoredQuestaoImagem | null>;
   update(id: string, patch: UpdateProvaPatch): Promise<void>;
   delete(id: string): Promise<void>;
 }

@@ -238,8 +238,14 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     }
   };
 
+  const setParsedQuestaoGabarito = (index: number, value: string): void =>
+    setParsedQuestoes((prev) => prev.map((q, i) => (i === index ? { ...q, gabarito: value } : q)));
+
   const submitProvaSave = async (): Promise<void> => {
     if (!parsedTitulo.trim()) return void toast.error("Informe o título da prova");
+    if (parsedQuestoes.some((q) => !q.gabarito || q.gabarito === "?")) {
+      return void toast.error("Informe a alternativa correta de todas as questões");
+    }
     setLoading(true);
     try {
       const { provaId } = await graphHttp.createProvaFromParsed({ titulo: parsedTitulo.trim(), questoes: parsedQuestoes });
@@ -254,7 +260,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   };
 
   const submitProvaParse = async (): Promise<void> => {
-    if (!provaFile || !gabaritoFile) return void toast.error("Selecione os dois arquivos (prova e gabarito)");
+    if (!provaFile) return void toast.error("Selecione o arquivo da prova");
     setProvaUploadStep("reviewing");
     setLoading(true);
     try {
@@ -411,6 +417,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
       parsedTitulo,
       setParsedTitulo,
       parsedQuestoes,
+      setParsedQuestaoGabarito,
     },
   };
 

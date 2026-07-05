@@ -23,6 +23,7 @@ export interface PropertiesPanelProps {
   onEditNode?: () => void;
   onViewNota?: () => void;
   onViewTextoBruto?: () => void;
+  onViewProva?: () => void;
   onStudyFlashcard?: () => void;
   onViewFlashcard?: () => void;
   onStudyDeck?: () => void;
@@ -128,6 +129,7 @@ function NodeContent({ props, node, notaMeta, deckStats }: NodeContentProps) {
         onEditNode={props.onEditNode}
         onViewNota={props.onViewNota}
         onViewTextoBruto={props.onViewTextoBruto}
+        onViewProva={props.onViewProva}
         onRemoveFromGraph={props.onRemoveFromGraph}
         onDeleteNode={props.onDeleteNode}
       />

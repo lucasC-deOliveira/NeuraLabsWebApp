@@ -9,6 +9,14 @@ export interface QuestaoAlternativa {
   texto: string;
 }
 
+// Figura extraída do PDF, base64, para preview durante a revisão (parse → criar).
+// `alternativa` = letra A–E quando a figura é de uma alternativa-imagem, senão null.
+export interface ParsedImagemView {
+  mimetype: string;
+  base64: string;
+  alternativa: string | null;
+}
+
 export interface ParsedQuestao {
   numero: number;
   enunciado: string;
@@ -16,6 +24,7 @@ export interface ParsedQuestao {
   alternativas: QuestaoAlternativa[] | null;
   gabarito: string;
   explicacao: string | null;
+  imagens?: ParsedImagemView[];
 }
 
 export interface ProvaParseResult {
@@ -23,7 +32,41 @@ export interface ProvaParseResult {
   questoes: ParsedQuestao[];
 }
 
+// Referência a uma figura salva; os bytes vêm por fetch autenticado (blob).
+// `alternativa` = letra A–E quando a figura é de uma alternativa-imagem, senão null.
+export interface ProvaImagemRefView {
+  id: string;
+  ordem: number;
+  mimetype: string;
+  alternativa: string | null;
+}
+
+export interface ProvaQuestaoView {
+  ordem: number;
+  id: string;
+  tipo: QuestaoTipo;
+  enunciado: string;
+  alternativas: QuestaoAlternativa[] | null;
+  gabarito: string;
+  explicacao: string | null;
+  conceitoNome: string | null;
+  imagens: ProvaImagemRefView[];
+}
+
+export interface ProvaDetailView {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  dataCriacao: string;
+  questoes: ProvaQuestaoView[];
+}
+
 export interface GraphProvaPort {
-  parseProvaUpload(provaFile: File, gabaritoFile: File): Promise<ProvaParseResult>;
+  // gabaritoFile é opcional: sem ele, cada questão volta com gabarito "?" para o
+  // usuário informar a alternativa correta manualmente.
+  parseProvaUpload(provaFile: File, gabaritoFile?: File | null): Promise<ProvaParseResult>;
   createProvaFromParsed(input: { titulo: string; questoes: ParsedQuestao[] }): Promise<{ provaId: string }>;
+  getProva(provaId: string): Promise<ProvaDetailView | null>;
+  // Busca os bytes de uma figura salva (endpoint autenticado) como Blob.
+  fetchProvaImagem(imagemId: string): Promise<Blob>;
 }

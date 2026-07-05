@@ -25,6 +25,8 @@ services:
       JWT_SECRET: "${JWT_SECRET:-troque-este-segredo}"
       PORT: "3001"
       FRONTEND_ORIGIN: "${FRONTEND_ORIGIN:-http://localhost:3000}"
+      # Limita quantas páginas de PDF a prova lê (0 = todas). Ex.: 2 para testar barato.
+      PROVA_MAX_PAGES: "${PROVA_MAX_PAGES:-0}"
     ports:
       - "3001:3001"
     depends_on:

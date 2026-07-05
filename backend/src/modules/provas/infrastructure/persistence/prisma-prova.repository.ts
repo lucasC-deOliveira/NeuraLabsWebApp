@@ -7,9 +7,11 @@ import type {
   CreateProvaInput,
   OwnedProvaDetail,
   ParsedAlternativa,
+  ParsedImagem,
   ParsedQuestao,
   ProvaDetailQuestao,
   ProvaSummary,
+  StoredQuestaoImagem,
   UpdateProvaPatch,
 } from '../../domain/prova';
 
@@ -21,6 +23,10 @@ const QUESTAO_SELECT = {
   gabarito: true,
   explicacao: true,
   conceito: { select: { id: true, nome: true } },
+  imagens: {
+    select: { id: true, ordem: true, mimetype: true, alternativa: true },
+    orderBy: { ordem: 'asc' },
+  },
 } as const;
 
 const asAlternativas = (v: Prisma.JsonValue | null): ParsedAlternativa[] | null =>
@@ -76,6 +82,19 @@ export class PrismaProvaRepository implements ProvaRepository {
     return this.prisma.prova.findUnique({ where: { id }, select: { usuarioId: true } });
   }
 
+  async findImagem(id: string): Promise<StoredQuestaoImagem | null> {
+    const imagem = await this.prisma.questaoImagem.findUnique({
+      where: { id },
+      select: { mimetype: true, dados: true, questao: { select: { usuarioId: true } } },
+    });
+    if (!imagem) return null;
+    return {
+      usuarioId: imagem.questao.usuarioId,
+      mimetype: imagem.mimetype,
+      dados: Buffer.from(imagem.dados),
+    };
+  }
+
   async update(id: string, patch: UpdateProvaPatch): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await tx.prova.update({ where: { id }, data: provaUpdateData(patch) });
@@ -128,6 +147,12 @@ function toDetailQuestao(pq: QuestaoRow): ProvaDetailQuestao {
     gabarito: pq.questao.gabarito,
     explicacao: pq.questao.explicacao ?? null,
     conceitoNome: pq.questao.conceito?.nome ?? null,
+    imagens: pq.questao.imagens.map((img) => ({
+      id: img.id,
+      ordem: img.ordem,
+      mimetype: img.mimetype,
+      alternativa: img.alternativa ?? null,
+    })),
   };
 }
 
@@ -166,6 +191,20 @@ async function persistQuestoes(
   return ids;
 }
 
+function imagensCreate(
+  imagens: ParsedImagem[] | undefined,
+): Prisma.QuestaoImagemCreateNestedManyWithoutQuestaoInput | undefined {
+  if (!imagens || imagens.length === 0) return undefined;
+  return {
+    create: imagens.map((img, ordem) => ({
+      ordem,
+      mimetype: img.mimetype,
+      dados: Buffer.from(img.base64, 'base64'),
+      alternativa: img.alternativa,
+    })),
+  };
+}
+
 function questaoData(userId: string, q: ParsedQuestao): Prisma.QuestaoUncheckedCreateInput {
   return {
     usuarioId: userId,
@@ -174,5 +213,6 @@ function questaoData(userId: string, q: ParsedQuestao): Prisma.QuestaoUncheckedC
     alternativas: q.alternativas ? (q.alternativas as unknown as Prisma.InputJsonValue) : undefined,
     gabarito: q.gabarito,
     explicacao: q.explicacao ?? null,
+    imagens: imagensCreate(q.imagens),
   };
 }

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { PencilIcon, BookOpenIcon, EyeIcon, XIcon, Trash2Icon, LayersIcon } from "lucide-react";
+import { PencilIcon, BookOpenIcon, EyeIcon, ClipboardListIcon, XIcon, Trash2Icon, LayersIcon } from "lucide-react";
 import type { PropertiesNode } from "./properties-panel.types";
 
 const DECK_TYPES = ["ASSUNTO", "TOPICO", "CONCEITO"];
@@ -32,6 +32,7 @@ interface NodeActionsProps {
   onEditNode?: () => void;
   onViewNota?: () => void;
   onViewTextoBruto?: () => void;
+  onViewProva?: () => void;
   onRemoveFromGraph: () => void;
   onDeleteNode: () => void;
 }
@@ -56,6 +57,12 @@ export function NodeActions(props: NodeActionsProps) {
         <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={props.onViewTextoBruto}>
           <EyeIcon className="size-4" />
           Ver conteúdo
+        </Button>
+      )}
+      {node.tipoReal === "PROVA" && props.onViewProva && (
+        <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={props.onViewProva}>
+          <ClipboardListIcon className="size-4" />
+          Ver prova
         </Button>
       )}
       <NodeDeletionActions {...props} />

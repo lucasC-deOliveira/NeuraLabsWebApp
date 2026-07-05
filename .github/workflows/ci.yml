@@ -67,6 +67,9 @@ jobs:
   secrets:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks-action lê os commits do PR (/pulls/:n/commits)
     steps:
       - uses: actions/checkout@v4
         with:

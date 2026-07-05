@@ -3,36 +3,78 @@ import type {
   UploadedDocument,
 } from '../../domain/ports/document-text-extractor';
 import type { ExamLlmPort } from '../../domain/ports/exam-llm';
+import type { ExamFigureSource } from '../../domain/ports/exam-figure-source';
 import type { ParsedUpload } from '../../domain/prova';
 import { buildExamParsePrompt } from '../../domain/services/exam-parse-prompt';
 import { parseExamResponse } from '../../domain/services/parse-exam-response';
+import { cleanExamText } from '../../domain/services/exam-text-cleaning';
+import {
+  extractExamQuestions,
+  countExamQuestions,
+} from '../../domain/services/extract-exam-questions';
+import { attachFiguresToQuestoes } from '../../domain/services/attach-figures';
 
 // Low temperature: exam extraction is a faithful transcription task, not creative.
 const PARSE_TEMPERATURE = 0.1;
+// Trust the deterministic parser when it recognizes at least this share of the
+// questions; otherwise the format is unfamiliar and we fall back to the LLM.
+const DETERMINISTIC_CONFIDENCE = 0.7;
 
 /**
- * Parses an uploaded exam + answer-key pair into structured questions: extracts
- * text from both documents, asks the LLM to cross-reference them, and normalizes
- * the result.
+ * Parses an uploaded exam into structured questions. Tier 1 (no answer key):
+ * deterministic parser for well-structured MC exams (ENEM) — no LLM tokens.
+ * Tier 2 (fallback / with answer key): the LLM on the cleaned text.
  * @example parseExamUpload.execute('u1', provaFile, gabaritoFile)
+ * @example parseExamUpload.execute('u1', provaFile) // sem gabarito
  */
 export class ParseExamUploadUseCase {
   constructor(
     private readonly extractor: DocumentTextExtractor,
     private readonly llm: ExamLlmPort,
+    private readonly figures?: ExamFigureSource,
   ) {}
 
   async execute(
     userId: string,
     prova: UploadedDocument,
-    gabarito: UploadedDocument,
+    gabarito?: UploadedDocument,
   ): Promise<ParsedUpload> {
-    const [provaText, gabaritoText] = await Promise.all([
-      this.extractor.extract(prova),
-      this.extractor.extract(gabarito),
-    ]);
+    // Pre-clean (drop cover/boilerplate) to cut tokens and improve coverage.
+    const provaText = cleanExamText(await this.extractor.extract(prova));
+    const deterministic = gabarito ? null : tryDeterministic(provaText);
+    const upload = deterministic ?? (await this.parseWithLlm(userId, provaText, gabarito));
+    return this.withFigures(prova, upload);
+  }
+
+  // Figures are best-effort: an extraction failure never breaks the parse.
+  private async withFigures(prova: UploadedDocument, upload: ParsedUpload): Promise<ParsedUpload> {
+    if (!this.figures) return upload;
+    try {
+      const layout = await this.figures.extractLayout(prova);
+      return { ...upload, questoes: attachFiguresToQuestoes(upload.questoes, layout.pages) };
+    } catch {
+      return upload;
+    }
+  }
+
+  private async parseWithLlm(
+    userId: string,
+    provaText: string,
+    gabarito?: UploadedDocument,
+  ): Promise<ParsedUpload> {
+    const gabaritoText = gabarito ? await this.extractor.extract(gabarito) : undefined;
     const messages = buildExamParsePrompt(provaText, gabaritoText);
     const content = await this.llm.complete({ userId, messages, temperature: PARSE_TEMPERATURE });
     return parseExamResponse(content);
   }
+}
+
+/** Deterministic extraction, used only when it recognizes enough of the exam. */
+function tryDeterministic(provaText: string): ParsedUpload | null {
+  const questoes = extractExamQuestions(provaText);
+  const total = countExamQuestions(provaText);
+  if (questoes.length > 0 && questoes.length >= total * DETERMINISTIC_CONFIDENCE) {
+    return { tituloSugerido: null, questoes };
+  }
+  return null;
 }

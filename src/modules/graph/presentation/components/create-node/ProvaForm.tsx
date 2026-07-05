@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2Icon, SearchIcon } from "lucide-react";
 import type { AvailableItem } from "@/modules/graph/application/ports/graph-data.port";
-import type { ParsedQuestao } from "@/modules/graph/application/ports/graph-prova.port";
+import type { ParsedQuestao, ParsedImagemView } from "@/modules/graph/application/ports/graph-prova.port";
 
 export type ProvaSubMode = "existing" | "upload";
 export type ProvaUploadStep = "files" | "reviewing" | "review";
@@ -24,6 +24,7 @@ interface ProvaFormProps {
   parsedTitulo: string;
   onParsedTitulo: (t: string) => void;
   parsedQuestoes: ParsedQuestao[];
+  onSetGabarito: (index: number, value: string) => void;
 }
 
 const TAB_CLASS = "flex-1 py-1.5 transition-colors";
@@ -109,10 +110,11 @@ function ProvaUploadFiles({ provaFile, onProvaFile, gabaritoFile, onGabaritoFile
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Selecione o arquivo da prova e o gabarito. A IA irá extrair e cruzar as questões automaticamente.
+        Selecione o arquivo da prova. O gabarito é opcional — sem ele, você informa a
+        alternativa correta de cada questão na revisão.
       </p>
       <ProvaFileInput label="Arquivo da prova (PDF, DOCX ou TXT)" file={provaFile} onFile={onProvaFile} />
-      <ProvaFileInput label="Gabarito (PDF, DOCX ou TXT)" file={gabaritoFile} onFile={onGabaritoFile} />
+      <ProvaFileInput label="Gabarito (opcional)" file={gabaritoFile} onFile={onGabaritoFile} />
     </div>
   );
 }
@@ -141,43 +143,120 @@ function ProvaReviewing() {
   );
 }
 
-function ProvaReview({ parsedTitulo, onParsedTitulo, parsedQuestoes }: ProvaFormProps) {
+function ProvaReview({ parsedTitulo, onParsedTitulo, parsedQuestoes, onSetGabarito }: ProvaFormProps) {
+  const pendentes = parsedQuestoes.filter((q) => isGabaritoPendente(q.gabarito)).length;
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
         <Label>Título da prova</Label>
         <Input value={parsedTitulo} onChange={(e) => onParsedTitulo(e.target.value)} placeholder="Título da prova" />
       </div>
-      <div className="space-y-1 max-h-64 overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800 p-2">
-        <p className="text-xs font-medium text-muted-foreground mb-2">{parsedQuestoes.length} questão(ões) encontrada(s)</p>
+      <div className="space-y-2 max-h-64 overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800 p-2">
+        <p className="text-xs font-medium text-muted-foreground">{parsedQuestoes.length} questão(ões) encontrada(s)</p>
         {parsedQuestoes.map((q, i) => (
-          <ProvaQuestaoRow key={i} questao={q} />
+          <ProvaQuestaoRow key={i} questao={q} onSetGabarito={(v) => onSetGabarito(i, v)} />
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Verifique as questões acima. Clique em "Criar prova e adicionar ao grafo" para salvar.
-      </p>
+      {pendentes > 0 ? (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          Informe a alternativa correta de {pendentes} questão(ões) pendente(s) antes de criar.
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Confira o gabarito de cada questão e clique em "Criar prova e adicionar ao grafo".
+        </p>
+      )}
     </div>
   );
 }
 
-function ProvaQuestaoRow({ questao }: { questao: ParsedQuestao }) {
+function isGabaritoPendente(gabarito: string): boolean {
+  return !gabarito || gabarito === "?";
+}
+
+function ProvaQuestaoRow({ questao, onSetGabarito }: { questao: ParsedQuestao; onSetGabarito: (value: string) => void }) {
+  const isVF = questao.tipo === "VERDADEIRO_FALSO";
   return (
     <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-2 last:border-0 last:mb-0 last:pb-0">
       <div className="flex items-start gap-2">
         <span className="shrink-0 text-xs font-mono text-muted-foreground w-6">{questao.numero}.</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs line-clamp-2">{questao.enunciado}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline" className="text-[10px]">
-              {questao.tipo === "VERDADEIRO_FALSO" ? "V/F" : "MC"}
-            </Badge>
-            <span className="text-[10px] text-muted-foreground">
-              Gabarito: <strong>{questao.gabarito}</strong>
-            </span>
-          </div>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <p className="text-xs">{questao.enunciado}</p>
+          <FiguraPreviewList imagens={(questao.imagens ?? []).filter((i) => i.alternativa === null)} />
+          <Badge variant="outline" className="text-[10px]">{isVF ? "V/F" : "Múltipla escolha"}</Badge>
+          {isVF ? (
+            <VerdadeiroFalsoPicker value={questao.gabarito} onPick={onSetGabarito} />
+          ) : (
+            <MultiplaEscolhaPicker
+              alternativas={questao.alternativas}
+              imagens={questao.imagens ?? []}
+              value={questao.gabarito}
+              onPick={onSetGabarito}
+            />
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+const PICK_BTN = "rounded border px-2 py-1 text-[11px] transition-colors";
+const PICK_ON = "border-primary bg-primary/10 text-primary font-medium";
+const PICK_OFF = "border-zinc-200 dark:border-zinc-700 hover:border-primary/40";
+
+function VerdadeiroFalsoPicker({ value, onPick }: { value: string; onPick: (v: string) => void }) {
+  return (
+    <div className="flex gap-1.5">
+      {(["V", "F"] as const).map((v) => (
+        <button key={v} type="button" onClick={() => onPick(v)} className={`${PICK_BTN} flex-1 ${value === v ? PICK_ON : PICK_OFF}`}>
+          {v === "V" ? "Verdadeiro" : "Falso"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FiguraPreviewList({ imagens }: { imagens: ParsedImagemView[] }) {
+  if (imagens.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {imagens.map((img, k) => (
+        <img
+          key={k}
+          src={`data:${img.mimetype};base64,${img.base64}`}
+          alt="Figura da questão"
+          className="max-h-32 max-w-full rounded border bg-white object-contain"
+        />
+      ))}
+    </div>
+  );
+}
+
+function MultiplaEscolhaPicker({ alternativas, imagens, value, onPick }: {
+  alternativas: { letra: string; texto: string }[] | null;
+  imagens: ParsedImagemView[];
+  value: string;
+  onPick: (v: string) => void;
+}) {
+  if (!alternativas || alternativas.length === 0) {
+    return <p className="text-[10px] text-amber-600 dark:text-amber-400">Sem alternativas extraídas.</p>;
+  }
+  return (
+    <div className="space-y-1">
+      {alternativas.map((alt) => (
+        <button
+          key={alt.letra}
+          type="button"
+          onClick={() => onPick(alt.letra)}
+          className={`${PICK_BTN} flex w-full items-start gap-1.5 text-left ${value === alt.letra ? PICK_ON : PICK_OFF}`}
+        >
+          <span className="font-mono font-semibold">{alt.letra}.</span>
+          <div className="min-w-0 flex-1 space-y-1">
+            {alt.texto && <span>{alt.texto}</span>}
+            <FiguraPreviewList imagens={imagens.filter((i) => i.alternativa === alt.letra)} />
+          </div>
+        </button>
+      ))}
     </div>
   );
 }

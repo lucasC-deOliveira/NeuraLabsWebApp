@@ -95,8 +95,25 @@ model Questao {
   usuario       Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   conceito      Conceito?      @relation(fields: [conceitoId], references: [id], onDelete: SetNull)
   provasQuestao ProvaQuestao[]
+  imagens       QuestaoImagem[]
 
   @@map("questoes")
+}
+
+// Figuras extraídas do PDF da prova (ex.: esquemas, diagramas), exibidas junto
+// ao enunciado. Os bytes ficam no Postgres (bytea) e são servidos por um endpoint.
+model QuestaoImagem {
+  id         String  @id @default(cuid())
+  questaoId  String  @map("id_questao")
+  ordem      Int     @default(0)
+  mimetype   String
+  dados      Bytes
+  alternativa String? // letra A–E quando a figura é de uma alternativa-imagem; null = enunciado
+
+  questao Questao @relation(fields: [questaoId], references: [id], onDelete: Cascade)
+
+  @@index([questaoId])
+  @@map("questoes_imagens")
 }
 
 model Prova {

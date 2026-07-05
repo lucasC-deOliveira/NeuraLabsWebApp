@@ -8,18 +8,25 @@ import type {
 
 // pdf-parse is a CJS module; require() avoids the "not callable" TS error with import *
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
+const pdfParse = require('pdf-parse') as (
+  buf: Buffer,
+  options?: { max?: number },
+) => Promise<{ text: string }>;
 
 // ACL over the document parsing libraries (pdf-parse, mammoth). The only place
 // that imports them; the core depends solely on the DocumentTextExtractor port.
+// `maxPdfPages` caps how many PDF pages are read (0 = all) — useful to bound
+// cost/latency, e.g. PROVA_MAX_PAGES=2 while testing.
 @Injectable()
 export class MultiFormatTextExtractor implements DocumentTextExtractor {
+  constructor(private readonly maxPdfPages = 0) {}
+
   async extract(document: UploadedDocument): Promise<string> {
     const { buffer, mimetype, originalname } = document;
     const ext = originalname.split('.').pop()?.toLowerCase() ?? '';
 
     if (ext === 'pdf' || mimetype === 'application/pdf') {
-      return (await pdfParse(buffer)).text;
+      return (await pdfParse(buffer, { max: this.maxPdfPages })).text;
     }
     if (ext === 'docx' || mimetype === DOCX_MIME) {
       return (await mammoth.extractRawText({ buffer })).value;
