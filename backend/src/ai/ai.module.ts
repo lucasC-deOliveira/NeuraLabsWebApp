@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
+import { MulterModule } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { AuthModule } from '../auth/auth.module';
 import { SettingsModule } from '../settings/settings.module';
 import { GraphModule } from '../graph/graph.module';
+import { TokenUsageModule } from '../token-usage/token-usage.module';
 import { AiController } from './ai.controller';
 import { LLM_PORT, type LlmPort } from '../modules/ai/domain/ports/llm-port';
 import { OpenAiLlmAdapter } from '../modules/ai/infrastructure/llm/openai-llm.adapter';
@@ -160,6 +163,31 @@ import {
 } from '../modules/ai/domain/ports/baralho-population-repository';
 import { PrismaBaralhoPopulationRepository } from '../modules/ai/infrastructure/persistence/prisma-baralho-population.repository';
 import { PopulateGraphFromBaralhoUseCase } from '../modules/ai/application/use-cases/populate-graph-from-baralho.use-case';
+import { PlanGraphFromEditalUseCase } from '../modules/ai/application/use-cases/plan-graph-from-edital.use-case';
+import { BuildGraphFromEditalUseCase } from '../modules/ai/application/use-cases/build-graph-from-edital.use-case';
+import {
+  EDITAL_TEXT_EXTRACTOR,
+  type EditalTextExtractor,
+} from '../modules/ai/domain/ports/edital-text-extractor';
+import { PdfEditalTextExtractor } from '../modules/ai/infrastructure/documents/pdf-edital-text-extractor';
+import { RankGraphImportanceUseCase } from '../modules/ai/application/use-cases/rank-graph-importance.use-case';
+import {
+  CONCEITO_IMPORTANCE_SOURCE,
+  type ConceitoImportanceSource,
+} from '../modules/ai/domain/ports/conceito-importance-source';
+import { PrismaConceitoImportanceRepository } from '../modules/ai/infrastructure/persistence/prisma-conceito-importance.repository';
+import { BuildRoadmapUseCase } from '../modules/ai/application/use-cases/build-roadmap.use-case';
+import {
+  ROADMAP_TRILHA_REPOSITORY,
+  type RoadmapTrilhaRepository,
+} from '../modules/ai/domain/ports/roadmap-trilha-repository';
+import { PrismaRoadmapTrilhaRepository } from '../modules/ai/infrastructure/persistence/prisma-roadmap-trilha.repository';
+import {
+  EDITAL_COVERAGE_SOURCE,
+  type EditalCoverageSource,
+} from '../modules/ai/domain/ports/edital-coverage-source';
+import { PrismaEditalCoverageRepository } from '../modules/ai/infrastructure/persistence/prisma-edital-coverage.repository';
+import { BuildAiRoadmapUseCase } from '../modules/ai/application/use-cases/build-ai-roadmap.use-case';
 
 // Binds the AI context's GraphDeckWriter to the graph context's CreateDeck use-case.
 const graphDeckWriter = (createDeck: CreateDeckUseCase): GraphDeckWriter => ({
@@ -206,7 +234,13 @@ const graphRelationRules: RelationRulesPort = {
 };
 
 @Module({
-  imports: [AuthModule, SettingsModule, GraphModule],
+  imports: [
+    AuthModule,
+    SettingsModule,
+    GraphModule,
+    TokenUsageModule,
+    MulterModule.register({ storage: memoryStorage() }),
+  ],
   controllers: [AiController],
   providers: [
     { provide: LLM_PORT, useClass: OpenAiLlmAdapter },
@@ -260,9 +294,12 @@ const graphRelationRules: RelationRulesPort = {
     },
     {
       provide: GenerateLearningPathUseCase,
-      useFactory: (graph: LearningGraphRepository, llm: LlmPort) =>
-        new GenerateLearningPathUseCase(graph, llm),
-      inject: [LEARNING_GRAPH_REPOSITORY, LLM_PORT],
+      useFactory: (
+        graph: LearningGraphRepository,
+        llm: LlmPort,
+        importance: ConceitoImportanceSource,
+      ) => new GenerateLearningPathUseCase(graph, llm, importance),
+      inject: [LEARNING_GRAPH_REPOSITORY, LLM_PORT, CONCEITO_IMPORTANCE_SOURCE],
     },
     {
       provide: GenerateNodeInsightsUseCase,
@@ -441,6 +478,62 @@ const graphRelationRules: RelationRulesPort = {
         builder: BuildGraphFromPlanUseCase,
       ) => new GenerateGraphFromTextUseCase(names, llm, builder),
       inject: [GRAPH_NAME_INDEX_REPOSITORY, LLM_PORT, BuildGraphFromPlanUseCase],
+    },
+    { provide: EDITAL_TEXT_EXTRACTOR, useClass: PdfEditalTextExtractor },
+    {
+      provide: PlanGraphFromEditalUseCase,
+      useFactory: (names: GraphNameIndexRepository, llm: LlmPort) =>
+        new PlanGraphFromEditalUseCase(names, llm),
+      inject: [GRAPH_NAME_INDEX_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: BuildGraphFromEditalUseCase,
+      useFactory: (
+        names: GraphNameIndexRepository,
+        nodeWriter: GraphNodeWriter,
+        edgeWriter: GraphEdgeWriter,
+      ) => new BuildGraphFromEditalUseCase(names, nodeWriter, edgeWriter),
+      inject: [GRAPH_NAME_INDEX_REPOSITORY, GRAPH_NODE_WRITER, GRAPH_EDGE_WRITER],
+    },
+    { provide: CONCEITO_IMPORTANCE_SOURCE, useClass: PrismaConceitoImportanceRepository },
+    {
+      provide: RankGraphImportanceUseCase,
+      useFactory: (source: ConceitoImportanceSource) => new RankGraphImportanceUseCase(source),
+      inject: [CONCEITO_IMPORTANCE_SOURCE],
+    },
+    { provide: ROADMAP_TRILHA_REPOSITORY, useClass: PrismaRoadmapTrilhaRepository },
+    { provide: EDITAL_COVERAGE_SOURCE, useClass: PrismaEditalCoverageRepository },
+    {
+      provide: BuildAiRoadmapUseCase,
+      useFactory: (
+        generate: GenerateLearningPathUseCase,
+        graph: LearningGraphRepository,
+        trilhas: RoadmapTrilhaRepository,
+        llm: LlmPort,
+      ) => new BuildAiRoadmapUseCase(generate, graph, trilhas, llm),
+      inject: [
+        GenerateLearningPathUseCase,
+        LEARNING_GRAPH_REPOSITORY,
+        ROADMAP_TRILHA_REPOSITORY,
+        LLM_PORT,
+      ],
+    },
+    {
+      provide: BuildRoadmapUseCase,
+      useFactory: (
+        graph: LearningGraphRepository,
+        importance: ConceitoImportanceSource,
+        coverage: EditalCoverageSource,
+        trilhas: RoadmapTrilhaRepository,
+        aiBuilder: BuildAiRoadmapUseCase,
+      ) => new BuildRoadmapUseCase(graph, importance, coverage, trilhas, aiBuilder),
+      inject: [
+        LEARNING_GRAPH_REPOSITORY,
+        CONCEITO_IMPORTANCE_SOURCE,
+        EDITAL_COVERAGE_SOURCE,
+        ROADMAP_TRILHA_REPOSITORY,
+        BuildAiRoadmapUseCase,
+      ],
     },
   ],
 })

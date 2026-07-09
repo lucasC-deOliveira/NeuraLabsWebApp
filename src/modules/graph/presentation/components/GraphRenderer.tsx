@@ -57,11 +57,18 @@ function rrect(ctx: CanvasRenderingContext2D, x:number,y:number,w:number,h:numbe
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
 }
 
+// Diamond (losango) centered at origin, spanning the node's bounding box.
+function diamond(ctx: CanvasRenderingContext2D, hw:number, hh:number) {
+  ctx.beginPath();
+  ctx.moveTo(0,-hh); ctx.lineTo(hw,0); ctx.lineTo(0,hh); ctx.lineTo(-hw,0); ctx.closePath();
+}
+
 function isHit(n: any, gx: number, gy: number) {
   const shape = getNodeShape(n.group);
   const dx = gx-n.x, dy = gy-n.y, hw = n.width/2, hh = n.height/2;
   if (shape === "circle")  return dx*dx + dy*dy <= hw*hw;
   if (shape === "ellipse") return (dx*dx)/(hw*hw) + (dy*dy)/(hh*hh) <= 1;
+  if (shape === "diamond") return Math.abs(dx)/hw + Math.abs(dy)/hh <= 1;
   return Math.abs(dx) <= hw && Math.abs(dy) <= hh;
 }
 
@@ -110,6 +117,7 @@ function drawFull(ctx: CanvasRenderingContext2D, n: any, sel: boolean, hov: bool
     case "ellipse":       ctx.beginPath(); ctx.ellipse(0,0,hw,hh,0,0,Math.PI*2); break;
     case "square":        rrect(ctx,-hw,-hh,hw*2,hh*2,14); break;
     case "rect-vertical": rrect(ctx,-hw,-hh,hw*2,hh*2,6);  break;
+    case "diamond":       diamond(ctx, hw, hh); break;
     default:              rrect(ctx,-hw,-hh,hw*2,hh*2,8);
   }
   // Drop-shadow: glow using border colour in dark/HC mode; elevation shadow in light mode.

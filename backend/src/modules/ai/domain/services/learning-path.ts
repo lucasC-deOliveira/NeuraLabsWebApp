@@ -19,6 +19,9 @@ export interface PathStep {
   nome: string;
   tipo: string;
   motivo: string;
+  // How many past-exam questions test this concept (TESTA edges) — shown as a
+  // priority badge; set during the importance re-rank.
+  provaFreq?: number;
 }
 
 export function selectLearningPath(raw: RawStep[], allNodes: PathNode[]): PathStep[] {

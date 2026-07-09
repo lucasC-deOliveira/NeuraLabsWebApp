@@ -2,6 +2,7 @@ import {
   ArgumentsHost,
   BadRequestException,
   Catch,
+  ConflictException,
   ExceptionFilter,
   ForbiddenException,
   HttpException,
@@ -9,7 +10,9 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import {
+  EditalAlreadyLinkedError,
   InvalidExamJsonError,
+  ProvaAlreadyHasEditalError,
   ProvaForbiddenError,
   ProvaNotFoundError,
   UnsupportedDocumentFormatError,
@@ -19,7 +22,9 @@ type ProvaError =
   | ProvaNotFoundError
   | ProvaForbiddenError
   | UnsupportedDocumentFormatError
-  | InvalidExamJsonError;
+  | InvalidExamJsonError
+  | ProvaAlreadyHasEditalError
+  | EditalAlreadyLinkedError;
 
 // Maps provas domain errors to HTTP responses (Portuguese, user-facing).
 @Catch(
@@ -27,6 +32,8 @@ type ProvaError =
   ProvaForbiddenError,
   UnsupportedDocumentFormatError,
   InvalidExamJsonError,
+  ProvaAlreadyHasEditalError,
+  EditalAlreadyLinkedError,
 )
 export class ProvasExceptionFilter implements ExceptionFilter {
   catch(error: ProvaError, host: ArgumentsHost): void {
@@ -41,5 +48,9 @@ function toHttpError(error: ProvaError): HttpException {
   if (error instanceof ProvaForbiddenError) return new ForbiddenException();
   if (error instanceof UnsupportedDocumentFormatError)
     return new BadRequestException(`Formato não suportado: ${error.ext}. Use PDF, DOCX ou TXT.`);
+  if (error instanceof ProvaAlreadyHasEditalError)
+    return new ConflictException('Esta prova já tem um edital vinculado.');
+  if (error instanceof EditalAlreadyLinkedError)
+    return new ConflictException('Este edital já está vinculado a uma prova.');
   return new BadRequestException('IA retornou formato inválido.');
 }

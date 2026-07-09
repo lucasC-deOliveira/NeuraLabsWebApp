@@ -46,6 +46,9 @@ function LegendSwatch({
       {shape === "square" && (
         <rect x={5} y={3} width={12} height={12} rx={3} fill={colors.bg} stroke={colors.border} strokeWidth={1.5} />
       )}
+      {shape === "diamond" && (
+        <polygon points="11,1 20,9 11,17 2,9" fill={colors.bg} stroke={colors.border} strokeWidth={1.5} strokeLinejoin="round" />
+      )}
     </svg>
   );
 }

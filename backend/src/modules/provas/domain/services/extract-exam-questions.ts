@@ -1,4 +1,5 @@
 import type { ParsedQuestao, ParsedAlternativa } from '../prova';
+import { joinPdfLines } from './join-pdf-lines';
 
 // Deterministic extractor for well-structured multiple-choice exams (e.g. ENEM):
 // questions marked "QUESTÃO N" with five alternatives A–E. Parses them without
@@ -18,15 +19,43 @@ interface Block {
   lines: string[];
 }
 
-function splitIntoBlocks(text: string): Block[] {
+interface BlockBounds {
+  numero: number;
+  start: number;
+  end: number;
+}
+
+function blockBounds(text: string): BlockBounds[] {
   const marks = [...text.matchAll(QUESTION_MARKER)].map((m) => ({
     numero: Number(m[1]),
     start: m.index,
   }));
-  return marks.map((m, i) => {
-    const end = i + 1 < marks.length ? marks[i + 1].start : text.length;
-    return { numero: m.numero, lines: text.slice(m.start, end).split('\n').slice(1) };
-  });
+  return marks.map((m, i) => ({
+    numero: m.numero,
+    start: m.start,
+    end: i + 1 < marks.length ? marks[i + 1].start : text.length,
+  }));
+}
+
+function splitIntoBlocks(text: string): Block[] {
+  return blockBounds(text).map((b) => ({
+    numero: b.numero,
+    lines: text.slice(b.start, b.end).split('\n').slice(1),
+  }));
+}
+
+/**
+ * Full raw text of every "QUESTÃO N" block (marker included), keyed by number.
+ * Feeds the surgical LLM fallback: only the blocks the deterministic parser can't
+ * read are re-sent, instead of the whole exam.
+ * @example examBlocksByNumero(cleanExamText(pdfText)).get(94)
+ */
+export function examBlocksByNumero(text: string): Map<number, string> {
+  const blocks = new Map<number, string>();
+  for (const b of blockBounds(text)) {
+    if (!blocks.has(b.numero)) blocks.set(b.numero, text.slice(b.start, b.end).trim());
+  }
+  return blocks;
 }
 
 /** The letter if this line opens an alternative (e.g. "A ...", "B", "C) ..."). */
@@ -48,24 +77,18 @@ function findAlternativeRun(lines: string[]): number[] | null {
   return null;
 }
 
-// pdf-parse keeps a trailing space at word wraps and omits it at mid-word breaks,
-// so concatenating lines (no separator) rejoins "fe"+"nilação." → "fenilação".
-function joinLines(lines: string[]): string {
-  return lines.join('').replace(/\s+/g, ' ').trim();
-}
-
 function alternativeTexts(lines: string[], run: number[]): ParsedAlternativa[] {
   return run.map((idx, k) => {
     const end = k + 1 < run.length ? run[k + 1] : lines.length;
     const head = lines[idx].replace(/^\s*[A-E][\s).]?/, '');
-    return { letra: ALT_LETTERS[k], texto: joinLines([head, ...lines.slice(idx + 1, end)]) };
+    return { letra: ALT_LETTERS[k], texto: joinPdfLines([head, ...lines.slice(idx + 1, end)]) };
   });
 }
 
 function toQuestao(block: Block): ParsedQuestao | null {
   const run = findAlternativeRun(block.lines);
   if (!run) return null;
-  const enunciado = joinLines(block.lines.slice(0, run[0]));
+  const enunciado = joinPdfLines(block.lines.slice(0, run[0]));
   if (!enunciado) return null;
   return {
     numero: block.numero,

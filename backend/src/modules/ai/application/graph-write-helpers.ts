@@ -19,6 +19,24 @@ export async function createNodeSafe(
   }
 }
 
+/** Reuses an existing structural node by name (via the index) or creates it. */
+export async function findOrCreateNode(
+  writer: GraphNodeWriter,
+  nameIndex: Map<string, string>,
+  userId: string,
+  grafoId: string,
+  tipoNode: string,
+  nome: string,
+  descricao = '',
+): Promise<{ nodeId: string; created: boolean }> {
+  const key = `${tipoNode}|${nome.toLowerCase()}`;
+  const existing = nameIndex.get(key);
+  if (existing) return { nodeId: existing, created: false };
+  const { nodeId } = await writer.createNode(userId, grafoId, { tipoNode, nome, descricao });
+  nameIndex.set(key, nodeId);
+  return { nodeId, created: true };
+}
+
 /** Creates an edge, silently skipping duplicates/invalid relations. */
 export async function tryCreateEdge(
   writer: GraphEdgeWriter,

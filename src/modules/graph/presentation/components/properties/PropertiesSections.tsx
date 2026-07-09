@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { SparklesIcon, WandSparklesIcon, BookOpenIcon, EyeIcon } from "lucide-react";
+import { SparklesIcon, WandSparklesIcon, BookOpenIcon, EyeIcon, GraduationCapIcon } from "lucide-react";
 import type { PropertiesNode, DeckStats } from "./properties-panel.types";
 import type { NotaMeta } from "../../hooks/useNotaMeta";
 import { SUBTIPO_LABELS, TIPO_NOTA_LABELS, formatPanelDate, domainColor } from "./properties-panel.labels";
@@ -100,6 +100,8 @@ interface StudyProps {
   onViewFlashcard?: () => void;
   onStudyDeck?: () => void;
   onViewDeck?: () => void;
+  onStudyProva?: () => void;
+  onStudyQuestao?: () => void;
 }
 
 export function NodeStudySection(props: StudyProps) {
@@ -108,6 +110,28 @@ export function NodeStudySection(props: StudyProps) {
       <NeighborhoodAction node={props.node} onStudyNeighborhood={props.onStudyNeighborhood} />
       <FlashcardActions node={props.node} onStudy={props.onStudyFlashcard} onView={props.onViewFlashcard} />
       <DeckActions node={props.node} onStudy={props.onStudyDeck} onView={props.onViewDeck} />
+      <QuizStudyAction node={props.node} onStudyProva={props.onStudyProva} onStudyQuestao={props.onStudyQuestao} />
+    </>
+  );
+}
+
+// Quiz/simulado para PROVA (a prova toda) e QUESTION (uma questão).
+function QuizStudyAction({ node, onStudyProva, onStudyQuestao }: {
+  node: PropertiesNode;
+  onStudyProva?: () => void;
+  onStudyQuestao?: () => void;
+}) {
+  const isProva = node.tipoReal === "PROVA";
+  const isQuestao = node.tipoReal === "QUESTION";
+  const onStudy = isProva ? onStudyProva : isQuestao ? onStudyQuestao : undefined;
+  if (!onStudy) return null;
+  return (
+    <>
+      <Button size="sm" className="w-full gap-2" onClick={onStudy}>
+        <GraduationCapIcon className="size-4" />
+        Estudar {isProva ? "prova" : "questão"}
+      </Button>
+      <Separator />
     </>
   );
 }

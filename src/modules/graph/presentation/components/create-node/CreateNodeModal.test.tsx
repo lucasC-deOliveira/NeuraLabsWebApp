@@ -18,10 +18,11 @@ vi.mock("@/lib/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh:
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 describe("CreateNodeModal (smoke)", () => {
-  it("mounts the add-node dialog with its tabs", () => {
+  it("mounts the add-node dialog with its actions", () => {
     render(<CreateNodeModal open onOpenChange={vi.fn()} grafoId="g1" onSuccess={vi.fn()} />);
-    expect(screen.getByText("Adicionar nós ao grafo")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Criar novo" })).toBeInTheDocument();
+    expect(screen.getByText("Adicionar ao grafo")).toBeInTheDocument();
+    // Tabs só aparecem para FLASHCARD/NOTA; sem tipo selecionado, o footer age.
+    expect(screen.getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
     expect(screen.getAllByRole("button").length).toBeGreaterThan(0);
   });
 });

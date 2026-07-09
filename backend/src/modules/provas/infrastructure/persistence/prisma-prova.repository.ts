@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
-import type { ProvaRepository } from '../../domain/ports/prova-repository';
+import type { CreatedProva, ProvaRepository } from '../../domain/ports/prova-repository';
 import type {
   CreateProvaFromParsedInput,
   CreateProvaInput,
@@ -44,14 +44,14 @@ export class PrismaProvaRepository implements ProvaRepository {
     return prova.id;
   }
 
-  async createFromParsed(userId: string, input: CreateProvaFromParsedInput): Promise<string> {
+  async createFromParsed(userId: string, input: CreateProvaFromParsedInput): Promise<CreatedProva> {
     return this.prisma.$transaction(async (tx) => {
       const questaoIds = await persistQuestoes(tx, userId, input.questoes);
       const prova = await tx.prova.create({
         data: provaData(userId, input.titulo, input.descricao, questaoIds),
         select: { id: true },
       });
-      return prova.id;
+      return { provaId: prova.id, questaoIds };
     });
   }
 

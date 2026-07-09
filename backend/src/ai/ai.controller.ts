@@ -1,4 +1,16 @@
-import { Body, Controller, Param, Post, UseFilters, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  Post,
+  UseFilters,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
@@ -25,6 +37,15 @@ import { PopulateGraphFromBaralhoUseCase } from '../modules/ai/application/use-c
 import { PlanGraphFromTextUseCase } from '../modules/ai/application/use-cases/plan-graph-from-text.use-case';
 import { BuildGraphFromPlanUseCase } from '../modules/ai/application/use-cases/build-graph-from-plan.use-case';
 import { GenerateGraphFromTextUseCase } from '../modules/ai/application/use-cases/generate-graph-from-text.use-case';
+import { PlanGraphFromEditalUseCase } from '../modules/ai/application/use-cases/plan-graph-from-edital.use-case';
+import { BuildGraphFromEditalUseCase } from '../modules/ai/application/use-cases/build-graph-from-edital.use-case';
+import { RankGraphImportanceUseCase } from '../modules/ai/application/use-cases/rank-graph-importance.use-case';
+import { BuildRoadmapUseCase } from '../modules/ai/application/use-cases/build-roadmap.use-case';
+import { isRoadmapMode } from '../modules/ai/domain/services/roadmap-score';
+import {
+  EDITAL_TEXT_EXTRACTOR,
+  type EditalTextExtractor,
+} from '../modules/ai/domain/ports/edital-text-extractor';
 import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -56,6 +77,11 @@ export class AiController {
     private readonly planGraphFromTextUseCase: PlanGraphFromTextUseCase,
     private readonly buildGraphFromPlanUseCase: BuildGraphFromPlanUseCase,
     private readonly generateGraphFromTextUseCase: GenerateGraphFromTextUseCase,
+    private readonly planGraphFromEditalUseCase: PlanGraphFromEditalUseCase,
+    private readonly buildGraphFromEditalUseCase: BuildGraphFromEditalUseCase,
+    private readonly rankGraphImportanceUseCase: RankGraphImportanceUseCase,
+    private readonly buildRoadmapUseCase: BuildRoadmapUseCase,
+    @Inject(EDITAL_TEXT_EXTRACTOR) private readonly editalExtractor: EditalTextExtractor,
   ) {}
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights')
@@ -145,6 +171,43 @@ export class AiController {
     );
   }
 
+  // Edital-driven graph completion: upload the notice PDF → plan mirroring its
+  // hierarchy (reusing existing nodes); then build persists the missing ones.
+  @Post('graphs/:grafoId/edital/plan')
+  @UseInterceptors(FileInterceptor('edital', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  async planEdital(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @UploadedFile() edital?: Express.Multer.File,
+  ) {
+    if (!edital) throw new BadRequestException('Arquivo do edital é obrigatório.');
+    const text = await this.editalExtractor.extract({
+      buffer: edital.buffer,
+      originalname: edital.originalname,
+    });
+    return this.planGraphFromEditalUseCase.execute(userId, grafoId, text);
+  }
+
+  @Post('graphs/:grafoId/edital/build')
+  buildEdital(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { plan: unknown },
+  ) {
+    return this.buildGraphFromEditalUseCase.execute(userId, grafoId, body.plan);
+  }
+
+  // Ranks the graph's concepts by study importance (past-exam frequency balanced
+  // with edital emphasis). provaWeight (0..1) tunes the balance.
+  @Post('graphs/:grafoId/importance')
+  rankImportance(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { provaWeight?: number },
+  ) {
+    return this.rankGraphImportanceUseCase.execute(userId, grafoId, body.provaWeight);
+  }
+
   @Post('graphs/:grafoId/gap-suggestions')
   gapSuggestions(
     @CurrentUser() userId: string,
@@ -214,6 +277,25 @@ export class AiController {
   @Post('graphs/:grafoId/learning-path')
   learningPath(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
     return this.generateLearningPathUseCase.execute(userId, grafoId);
+  }
+
+  // Builds/persists the study roadmap for a mode, recomputing only the delta.
+  @Post('graphs/:grafoId/roadmap')
+  roadmap(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { modo: string; regenerate?: boolean; provaId?: string; editalId?: string },
+  ) {
+    if (!isRoadmapMode(body.modo)) {
+      throw new BadRequestException(
+        `invalid roadmap mode: "${body.modo}". Expected: ai|prova|edital|prova_edital`,
+      );
+    }
+    return this.buildRoadmapUseCase.execute(userId, grafoId, body.modo, {
+      regenerate: body.regenerate,
+      provaId: body.provaId,
+      editalId: body.editalId,
+    });
   }
 
   @Post('graphs/:grafoId/chat')

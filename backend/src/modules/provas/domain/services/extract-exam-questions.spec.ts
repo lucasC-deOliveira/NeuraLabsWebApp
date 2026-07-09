@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { extractExamQuestions, countExamQuestions } from './extract-exam-questions';
+import {
+  extractExamQuestions,
+  countExamQuestions,
+  examBlocksByNumero,
+} from './extract-exam-questions';
 import { cleanExamText } from './exam-text-cleaning';
 
 const enem = cleanExamText(readFileSync(join(__dirname, '__fixtures__/enem-4pages.txt'), 'utf8'));
@@ -34,11 +38,33 @@ describe('extractExamQuestions (ENEM real)', () => {
     expect(q92.enunciado).toContain('química nuclear');
     expect(q92.alternativas?.[0].texto).toContain('2,00');
   });
+
+  // Regression: the last alternative of a page used to absorb the InDesign footer
+  // and running header that fall right after it (e.g. Q94/Q96 alt E).
+  it('does not leak page footers/headers into any alternative', () => {
+    for (const q of questoes) {
+      for (const alt of q.alternativas ?? []) {
+        expect(alt.texto).not.toMatch(/\.ind[bd]/);
+        expect(alt.texto).not.toContain('CADERNO');
+      }
+    }
+  });
 });
 
 describe('countExamQuestions', () => {
   it('counts the question markers', () => {
     expect(countExamQuestions('QUESTÃO 1 ...\nQUESTÃO 2 ...')).toBe(2);
     expect(countExamQuestions('sem marcadores')).toBe(0);
+  });
+});
+
+describe('examBlocksByNumero', () => {
+  it('maps each question number to its full block text, marker included', () => {
+    const blocks = examBlocksByNumero(enem);
+    expect(blocks.get(91)).toMatch(/^QUEST[ÃA]O\s*91/i);
+    expect(blocks.get(91)).toContain('cajueiro');
+    // The block stops before the next marker (raw block text keeps pdf spacing).
+    expect(blocks.get(91)).not.toContain('cobalto-60');
+    expect(blocks.get(92)).toContain('cobalto-60');
   });
 });

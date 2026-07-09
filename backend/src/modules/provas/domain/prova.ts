@@ -24,11 +24,43 @@ export interface ParsedQuestao {
   gabarito: string;
   explicacao: string | null;
   imagens?: ParsedImagem[];
+  // Concepts the user confirmed in the review; when set with a target grafo, the
+  // question is linked into the knowledge graph (QUESTION node → TESTA edges).
+  conceitos?: ConceitoSugerido[];
 }
 
 export interface ParsedUpload {
   tituloSugerido: string | null;
   questoes: ParsedQuestao[];
+}
+
+// A concept node the user's graph already has, offered to the classifier so it
+// reuses the exact name instead of duplicating (name-index pattern).
+export interface ConceitoConhecido {
+  id: string;
+  nome: string;
+}
+
+// The user's existing knowledge-graph nodes, by level, used to ground the
+// question→concept classification and resolve names back to ids.
+export interface CatalogoConceitos {
+  assuntos: ConceitoConhecido[];
+  topicos: ConceitoConhecido[];
+  conceitos: ConceitoConhecido[];
+}
+
+// A concept a question tests. `conceitoId` is the existing node's id when the
+// name matches the catalog, or null when the classifier proposed a new concept.
+export interface ConceitoSugerido {
+  nome: string;
+  conceitoId: string | null;
+}
+
+// The concepts suggested for one question — more than one means it is
+// multidisciplinary (modeled later as several TESTA edges from the QUESTION node).
+export interface QuestaoConceitos {
+  numero: number;
+  conceitos: ConceitoSugerido[];
 }
 
 export interface CreateProvaInput {
@@ -41,6 +73,32 @@ export interface CreateProvaFromParsedInput {
   titulo: string;
   descricao?: string;
   questoes: ParsedQuestao[];
+  // When set, the questions are also linked into this knowledge graph using each
+  // question's confirmed `conceitos` (chosen in the review).
+  grafoId?: string;
+}
+
+// A persisted question paired with the concepts to connect it to in the graph.
+export interface QuestaoConceitoLink {
+  questaoId: string;
+  conceitos: ConceitoSugerido[];
+}
+
+// An edital (a public-tender notice's content program) that becomes an EDITAL
+// node linked 1:1 to a prova (REGE edge). programa is the syllabus text.
+export interface Edital {
+  id: string;
+  titulo: string;
+  provaId: string | null;
+}
+
+export interface CreateEditalInput {
+  titulo: string;
+  programa: string;
+  grafoId: string;
+  provaId?: string; // optional 1:1 link at creation time
+  // Concept node ids the edital covers — the EDITAL node links to each (COBRE edge).
+  conceitoNodeIds?: string[];
 }
 
 export type UpdateProvaPatch = Partial<CreateProvaInput>;

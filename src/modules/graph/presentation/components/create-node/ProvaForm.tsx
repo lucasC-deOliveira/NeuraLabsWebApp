@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2Icon, SearchIcon } from "lucide-react";
 import type { AvailableItem } from "@/modules/graph/application/ports/graph-data.port";
 import type { ParsedQuestao, ParsedImagemView } from "@/modules/graph/application/ports/graph-prova.port";
+import type { ConceitoPickerEntry } from "@/modules/graph/domain/services/prova-conceitos";
+import { ProvaConceitosPicker } from "./ProvaConceitosPicker";
 
 export type ProvaSubMode = "existing" | "upload";
 export type ProvaUploadStep = "files" | "reviewing" | "review";
@@ -21,10 +23,16 @@ interface ProvaFormProps {
   onProvaFile: (f: File | null) => void;
   gabaritoFile: File | null;
   onGabaritoFile: (f: File | null) => void;
+  editalFile: File | null;
+  onEditalFile: (f: File | null) => void;
   parsedTitulo: string;
   onParsedTitulo: (t: string) => void;
   parsedQuestoes: ParsedQuestao[];
   onSetGabarito: (index: number, value: string) => void;
+  conceitosByQuestao: Record<number, ConceitoPickerEntry[]>;
+  conceitosLoading: boolean;
+  onToggleConceito: (numero: number, nome: string) => void;
+  onAddConceito: (numero: number, nome: string) => void;
 }
 
 const TAB_CLASS = "flex-1 py-1.5 transition-colors";
@@ -106,7 +114,7 @@ function ProvaOption({ prova, selected, onSelect }: { prova: AvailableItem; sele
   );
 }
 
-function ProvaUploadFiles({ provaFile, onProvaFile, gabaritoFile, onGabaritoFile }: ProvaFormProps) {
+function ProvaUploadFiles({ provaFile, onProvaFile, gabaritoFile, onGabaritoFile, editalFile, onEditalFile }: ProvaFormProps) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
@@ -115,6 +123,10 @@ function ProvaUploadFiles({ provaFile, onProvaFile, gabaritoFile, onGabaritoFile
       </p>
       <ProvaFileInput label="Arquivo da prova (PDF, DOCX ou TXT)" file={provaFile} onFile={onProvaFile} />
       <ProvaFileInput label="Gabarito (opcional)" file={gabaritoFile} onFile={onGabaritoFile} />
+      <ProvaFileInput label="Edital (opcional)" file={editalFile} onFile={onEditalFile} />
+      <p className="text-[11px] text-muted-foreground">
+        Com o edital, o grafo é completado pelos objetos de avaliação e o edital fica vinculado a esta prova.
+      </p>
     </div>
   );
 }
@@ -143,7 +155,8 @@ function ProvaReviewing() {
   );
 }
 
-function ProvaReview({ parsedTitulo, onParsedTitulo, parsedQuestoes, onSetGabarito }: ProvaFormProps) {
+function ProvaReview(props: ProvaFormProps) {
+  const { parsedTitulo, onParsedTitulo, parsedQuestoes, onSetGabarito } = props;
   const pendentes = parsedQuestoes.filter((q) => isGabaritoPendente(q.gabarito)).length;
   return (
     <div className="space-y-3">
@@ -151,10 +164,18 @@ function ProvaReview({ parsedTitulo, onParsedTitulo, parsedQuestoes, onSetGabari
         <Label>Título da prova</Label>
         <Input value={parsedTitulo} onChange={(e) => onParsedTitulo(e.target.value)} placeholder="Título da prova" />
       </div>
-      <div className="space-y-2 max-h-64 overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800 p-2">
-        <p className="text-xs font-medium text-muted-foreground">{parsedQuestoes.length} questão(ões) encontrada(s)</p>
+      <p className="text-xs font-medium text-muted-foreground">{parsedQuestoes.length} questão(ões) encontrada(s)</p>
+      <div className="grid max-h-[58vh] grid-cols-1 items-start gap-2 overflow-y-auto rounded-md border border-zinc-200 p-2 md:grid-cols-2 xl:grid-cols-3 dark:border-zinc-800">
         {parsedQuestoes.map((q, i) => (
-          <ProvaQuestaoRow key={i} questao={q} onSetGabarito={(v) => onSetGabarito(i, v)} />
+          <ProvaQuestaoRow
+            key={i}
+            questao={q}
+            onSetGabarito={(v) => onSetGabarito(i, v)}
+            conceitos={props.conceitosByQuestao[q.numero] ?? []}
+            conceitosLoading={props.conceitosLoading}
+            onToggleConceito={(nome) => props.onToggleConceito(q.numero, nome)}
+            onAddConceito={(nome) => props.onAddConceito(q.numero, nome)}
+          />
         ))}
       </div>
       {pendentes > 0 ? (
@@ -174,17 +195,33 @@ function isGabaritoPendente(gabarito: string): boolean {
   return !gabarito || gabarito === "?";
 }
 
-function ProvaQuestaoRow({ questao, onSetGabarito }: { questao: ParsedQuestao; onSetGabarito: (value: string) => void }) {
+interface ProvaQuestaoRowProps {
+  questao: ParsedQuestao;
+  onSetGabarito: (value: string) => void;
+  conceitos: ConceitoPickerEntry[];
+  conceitosLoading: boolean;
+  onToggleConceito: (nome: string) => void;
+  onAddConceito: (nome: string) => void;
+}
+
+const GABARITO_ANULADA = "ANULADA";
+
+function ProvaQuestaoRow({ questao, onSetGabarito, conceitos, conceitosLoading, onToggleConceito, onAddConceito }: ProvaQuestaoRowProps) {
   const isVF = questao.tipo === "VERDADEIRO_FALSO";
+  const anulada = questao.gabarito === GABARITO_ANULADA;
   return (
-    <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2 mb-2 last:border-0 last:mb-0 last:pb-0">
+    <div className="rounded-lg border border-zinc-200 bg-card p-2.5 dark:border-zinc-800">
       <div className="flex items-start gap-2">
         <span className="shrink-0 text-xs font-mono text-muted-foreground w-6">{questao.numero}.</span>
         <div className="min-w-0 flex-1 space-y-1.5">
-          <p className="text-xs">{questao.enunciado}</p>
+          <p className="max-h-28 overflow-y-auto text-xs leading-snug">{questao.enunciado}</p>
           <FiguraPreviewList imagens={(questao.imagens ?? []).filter((i) => i.alternativa === null)} />
           <Badge variant="outline" className="text-[10px]">{isVF ? "V/F" : "Múltipla escolha"}</Badge>
-          {isVF ? (
+          {anulada ? (
+            <span className="inline-block rounded bg-amber-500/12 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+              Questão anulada — sem gabarito
+            </span>
+          ) : isVF ? (
             <VerdadeiroFalsoPicker value={questao.gabarito} onPick={onSetGabarito} />
           ) : (
             <MultiplaEscolhaPicker
@@ -194,6 +231,12 @@ function ProvaQuestaoRow({ questao, onSetGabarito }: { questao: ParsedQuestao; o
               onPick={onSetGabarito}
             />
           )}
+          <ProvaConceitosPicker
+            entries={conceitos}
+            loading={conceitosLoading}
+            onToggle={onToggleConceito}
+            onAdd={onAddConceito}
+          />
         </div>
       </div>
     </div>

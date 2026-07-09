@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { PencilIcon, BookOpenIcon, EyeIcon, ClipboardListIcon, XIcon, Trash2Icon, LayersIcon } from "lucide-react";
+import { PencilIcon, BookOpenIcon, EyeIcon, ClipboardListIcon, XIcon, Trash2Icon, LayersIcon, LinkIcon } from "lucide-react";
 import type { PropertiesNode } from "./properties-panel.types";
 
 const DECK_TYPES = ["ASSUNTO", "TOPICO", "CONCEITO"];
@@ -33,9 +33,12 @@ interface NodeActionsProps {
   onViewNota?: () => void;
   onViewTextoBruto?: () => void;
   onViewProva?: () => void;
+  onLinkEdital?: () => void;
   onRemoveFromGraph: () => void;
   onDeleteNode: () => void;
 }
+
+const LINKABLE_TYPES = ["PROVA", "EDITAL"];
 
 export function NodeActions(props: NodeActionsProps) {
   const { node } = props;
@@ -63,6 +66,12 @@ export function NodeActions(props: NodeActionsProps) {
         <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={props.onViewProva}>
           <ClipboardListIcon className="size-4" />
           Ver prova
+        </Button>
+      )}
+      {LINKABLE_TYPES.includes(node.tipoReal) && props.onLinkEdital && (
+        <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={props.onLinkEdital}>
+          <LinkIcon className="size-4" />
+          Vincular edital ↔ prova
         </Button>
       )}
       <NodeDeletionActions {...props} />

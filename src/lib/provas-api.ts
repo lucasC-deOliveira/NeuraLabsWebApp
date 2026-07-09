@@ -68,6 +68,13 @@ export interface ParsedImagemPreview {
   alternativa: string | null;
 }
 
+// Um conceito do grafo que a questão avalia. `conceitoId` é o id do nó existente
+// quando o nome casa com o grafo do usuário, ou null quando é um conceito novo.
+export interface ConceitoSugeridoPreview {
+  nome: string;
+  conceitoId: string | null;
+}
+
 export interface ParsedQuestaoPreview {
   numero: number;
   enunciado: string;
@@ -76,6 +83,12 @@ export interface ParsedQuestaoPreview {
   gabarito: string;
   explicacao: string | null;
   imagens?: ParsedImagemPreview[];
+  conceitos?: ConceitoSugeridoPreview[];
+}
+
+export interface QuestaoConceitosPreview {
+  numero: number;
+  conceitos: ConceitoSugeridoPreview[];
 }
 
 export interface ParseUploadResult {
@@ -123,8 +136,55 @@ export interface CreateFromParsedInput {
   titulo: string;
   descricao?: string;
   questoes: ParsedQuestaoPreview[];
+  // Quando presente, as questões são ligadas a este grafo pelos conceitos de cada
+  // questão (QUESTION node → arestas TESTA).
+  grafoId?: string;
 }
 
 export function createProvaFromParsed(data: CreateFromParsedInput): Promise<{ provaId: string }> {
   return apiFetch("/provas/from-parsed", { method: "POST", body: JSON.stringify(data) });
+}
+
+// Sugere, por questão, os conceitos do grafo que ela avalia (reusa nós existentes,
+// propõe novos), para o usuário confirmar na revisão antes de gravar as ligações.
+export function suggestProvaConceitos(
+  questoes: ParsedQuestaoPreview[],
+): Promise<QuestaoConceitosPreview[]> {
+  return apiFetch("/provas/suggest-conceitos", {
+    method: "POST",
+    body: JSON.stringify({ questoes }),
+  });
+}
+
+// Edital como nó vinculado 1:1 a uma prova (nó EDITAL + aresta REGE).
+export interface CreateEditalInput {
+  titulo: string;
+  programa: string;
+  grafoId: string;
+  provaId?: string;
+  conceitoNodeIds?: string[];
+}
+export interface EditalItem {
+  id: string;
+  titulo: string;
+  provaId: string | null;
+}
+
+export function createEditalNode(data: CreateEditalInput): Promise<{ editalId: string }> {
+  return apiFetch("/provas/editais", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function linkEditalToProva(
+  editalId: string,
+  provaId: string,
+  grafoId: string,
+): Promise<{ success: boolean }> {
+  return apiFetch(`/provas/editais/${editalId}/link`, {
+    method: "POST",
+    body: JSON.stringify({ provaId, grafoId }),
+  });
+}
+
+export function listEditais(): Promise<EditalItem[]> {
+  return apiFetch("/provas/editais");
 }

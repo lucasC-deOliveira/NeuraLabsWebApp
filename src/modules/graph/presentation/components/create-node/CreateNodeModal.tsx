@@ -9,6 +9,13 @@ import {
 import type { NotaRelationSuggestion } from "@/modules/graph/application/ports/graph-ai.port";
 import type { ParsedQuestao } from "@/modules/graph/application/ports/graph-prova.port";
 import type { AvailableItem } from "@/modules/graph/application/ports/graph-data.port";
+import {
+  initialConceitoEntries,
+  toggleConceito,
+  addConceito,
+  confirmedConceitos,
+  type ConceitoPickerEntry,
+} from "@/modules/graph/domain/services/prova-conceitos";
 import { createGraphNode, createDeck } from "@/modules/graph/application/use-cases/create-graph-node";
 import { addExistingItems } from "@/modules/graph/application/use-cases/add-existing-items";
 import { graphHttp } from "@/modules/graph/infra/http";
@@ -81,12 +88,14 @@ interface CreateNodeModalProps {
     textosBrutos: NamedRef[];
     flashcards: NamedRef[];
   };
+  // PROVA nodes in the graph, offered when importing an edital (1:1 link).
+  provas?: { id: string; label: string }[];
   onSuccess?: () => void;
 }
 
 const NO_PARENTS = { assuntos: [], topicos: [], conceitos: [], textosBrutos: [], flashcards: [] };
 
-export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PARENTS, onSuccess }: CreateNodeModalProps) {
+export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PARENTS, provas = [], onSuccess }: CreateNodeModalProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"create" | "existing">("create");
   const [selectedType, setSelectedType] = useState<string>("");
@@ -114,8 +123,12 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   const [provaUploadStep, setProvaUploadStep] = useState<"files" | "reviewing" | "review">("files");
   const [provaFile, setProvaFile] = useState<File | null>(null);
   const [gabaritoFile, setGabaritoFile] = useState<File | null>(null);
+  const [editalFile, setEditalFile] = useState<File | null>(null);
+  const [editalProvaId, setEditalProvaId] = useState<string>("");
   const [parsedQuestoes, setParsedQuestoes] = useState<ParsedQuestao[]>([]);
   const [parsedTitulo, setParsedTitulo] = useState<string>("");
+  const [conceitosByQuestao, setConceitosByQuestao] = useState<Record<number, ConceitoPickerEntry[]>>({});
+  const [conceitosLoading, setConceitosLoading] = useState(false);
   const [formData, setFormData] = useState<CreateNodeFormValues>(EMPTY_FORM);
 
   // Muda o tipo e volta à aba "create" quando o novo tipo não tem aba de existentes.
@@ -184,8 +197,12 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     setProvaUploadStep("files");
     setProvaFile(null);
     setGabaritoFile(null);
+    setEditalFile(null);
+    setEditalProvaId("");
     setParsedQuestoes([]);
     setParsedTitulo("");
+    setConceitosByQuestao({});
+    setConceitosLoading(false);
     setFormData(EMPTY_FORM);
   };
 
@@ -241,6 +258,31 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   const setParsedQuestaoGabarito = (index: number, value: string): void =>
     setParsedQuestoes((prev) => prev.map((q, i) => (i === index ? { ...q, gabarito: value } : q)));
 
+  const toggleConceitoForQuestao = (numero: number, nome: string): void =>
+    setConceitosByQuestao((prev) => ({ ...prev, [numero]: toggleConceito(prev[numero] ?? [], nome) }));
+
+  const addConceitoForQuestao = (numero: number, nome: string): void =>
+    setConceitosByQuestao((prev) => ({ ...prev, [numero]: addConceito(prev[numero] ?? [], nome) }));
+
+  // Concepts confirmed in the review, attached per question for the graph linking.
+  const questoesComConceitos = (): ParsedQuestao[] =>
+    parsedQuestoes.map((q) => ({ ...q, conceitos: confirmedConceitos(conceitosByQuestao[q.numero] ?? []) }));
+
+  // Optional edital attached during prova import: completes the graph from the notice
+  // and links the EDITAL node 1:1 to the freshly-created prova (best-effort).
+  const attachEditalIfAny = async (provaId: string): Promise<void> => {
+    if (!editalFile) return;
+    const { plan, programa } = await graphHttp.planGraphFromEdital(grafoId, editalFile);
+    const built = await graphHttp.buildGraphFromEdital(grafoId, plan);
+    await graphHttp.createEditalNode({
+      titulo: editalFile.name.replace(/\.[^.]+$/, ""),
+      programa,
+      grafoId,
+      provaId,
+      conceitoNodeIds: built.conceitoNodeIds,
+    });
+  };
+
   const submitProvaSave = async (): Promise<void> => {
     if (!parsedTitulo.trim()) return void toast.error("Informe o título da prova");
     if (parsedQuestoes.some((q) => !q.gabarito || q.gabarito === "?")) {
@@ -248,14 +290,28 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     }
     setLoading(true);
     try {
-      const { provaId } = await graphHttp.createProvaFromParsed({ titulo: parsedTitulo.trim(), questoes: parsedQuestoes });
+      const { provaId } = await graphHttp.createProvaFromParsed({ titulo: parsedTitulo.trim(), questoes: questoesComConceitos(), grafoId });
       await graphHttp.addProvaToGraph(grafoId, provaId);
+      await attachEditalIfAny(provaId).catch(() => toast.error("Prova criada, mas falhou ao anexar o edital."));
       toast.success(`Prova criada com ${parsedQuestoes.length} questões e adicionada ao grafo!`);
       finishSubmit();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar prova");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Best-effort: a suggestion failure never blocks the review (user can add manually).
+  const loadConceitoSuggestions = async (questoes: ParsedQuestao[]): Promise<void> => {
+    setConceitosLoading(true);
+    try {
+      const suggestions = await graphHttp.suggestProvaConceitos(questoes);
+      setConceitosByQuestao(initialConceitoEntries(suggestions));
+    } catch {
+      setConceitosByQuestao({});
+    } finally {
+      setConceitosLoading(false);
     }
   };
 
@@ -268,6 +324,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
       setParsedQuestoes(result.questoes);
       setParsedTitulo(result.tituloSugerido ?? "");
       setProvaUploadStep("review");
+      void loadConceitoSuggestions(result.questoes);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao processar arquivos");
       setProvaUploadStep("files");
@@ -280,6 +337,30 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     if (provaSubMode === "existing") return submitProvaExisting();
     if (provaUploadStep === "review") return submitProvaSave();
     return submitProvaParse();
+  };
+
+  // Import an edital as an EDITAL node: complete the graph from the notice, then create
+  // the node (linking it 1:1 to the chosen prova when one is selected).
+  const submitEdital = async (): Promise<void> => {
+    if (!editalFile) return void toast.error("Selecione o arquivo do edital");
+    setLoading(true);
+    try {
+      const { plan, programa } = await graphHttp.planGraphFromEdital(grafoId, editalFile);
+      const built = await graphHttp.buildGraphFromEdital(grafoId, plan);
+      await graphHttp.createEditalNode({
+        titulo: editalFile.name.replace(/\.[^.]+$/, ""),
+        programa,
+        grafoId,
+        provaId: editalProvaId || undefined,
+        conceitoNodeIds: built.conceitoNodeIds,
+      });
+      toast.success(`Edital importado: ${built.assuntos} assuntos, ${built.topicos} tópicos, ${built.conceitos} conceitos.`);
+      finishSubmit();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao processar o edital");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const submitCreateNode = async (): Promise<void> => {
@@ -340,6 +421,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     }
     if (selectedType === "BARALHO") return submitBaralho();
     if (selectedType === "PROVA") return submitProva();
+    if (selectedType === "EDITAL") return submitEdital();
     return submitCreateNode();
   };
 
@@ -414,10 +496,23 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
       setProvaFile,
       gabaritoFile,
       setGabaritoFile,
+      editalFile,
+      setEditalFile,
       parsedTitulo,
       setParsedTitulo,
       parsedQuestoes,
       setParsedQuestaoGabarito,
+      conceitosByQuestao,
+      conceitosLoading,
+      onToggleConceito: toggleConceitoForQuestao,
+      onAddConceito: addConceitoForQuestao,
+    },
+    edital: {
+      file: editalFile,
+      setFile: setEditalFile,
+      provas,
+      provaId: editalProvaId,
+      setProvaId: setEditalProvaId,
     },
   };
 
