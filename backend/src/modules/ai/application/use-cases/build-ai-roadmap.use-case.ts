@@ -1,10 +1,7 @@
 import { parseAiJson } from '../../domain/services/ai-json';
 import { applyPlacements } from '../../domain/services/ai-roadmap-placement';
 import type { PathStep } from '../../domain/services/learning-path';
-import type {
-  AiRoadmapBuilder,
-  RoadmapResult,
-} from '../../domain/ports/ai-roadmap-builder';
+import type { AiRoadmapBuilder, RoadmapResult } from '../../domain/ports/ai-roadmap-builder';
 import type { LearningGraphRepository } from '../../domain/ports/learning-graph-repository';
 import type { RoadmapTrilhaRepository } from '../../domain/ports/roadmap-trilha-repository';
 import type { LlmMessage, LlmPort } from '../../domain/ports/llm-port';
@@ -60,7 +57,11 @@ export class BuildAiRoadmapUseCase implements AiRoadmapBuilder {
   }
 
   // Graph nodes not yet in the persisted trilha, as steps to be placed.
-  private async newSteps(userId: string, grafoId: string, persisted: PathStep[]): Promise<PathStep[]> {
+  private async newSteps(
+    userId: string,
+    grafoId: string,
+    persisted: PathStep[],
+  ): Promise<PathStep[]> {
     const { nodes } = await this.graph.loadLearningGraph(userId, grafoId);
     const seen = new Set(persisted.map((s) => s.nodeId));
     return nodes
@@ -82,8 +83,14 @@ export class BuildAiRoadmapUseCase implements AiRoadmapBuilder {
 }
 
 function placementMessages(existing: PathStep[], news: PathStep[]): LlmMessage[] {
-  const trilha = existing.map((s) => `- ${s.nome}`).join('\n').slice(0, 4000);
-  const novos = news.map((s) => `- ${s.nome}`).join('\n').slice(0, 2000);
+  const trilha = existing
+    .map((s) => `- ${s.nome}`)
+    .join('\n')
+    .slice(0, 4000);
+  const novos = news
+    .map((s) => `- ${s.nome}`)
+    .join('\n')
+    .slice(0, 2000);
   return [
     { role: 'system', content: PLACEMENT_SYSTEM },
     { role: 'user', content: `TRILHA ATUAL (em ordem):\n${trilha}\n\nCONCEITOS NOVOS:\n${novos}` },
@@ -123,4 +130,7 @@ function readPlacements(content: string): RawPlacement[] {
 const byName = (steps: PathStep[]): Map<string, string> =>
   new Map(steps.map((s) => [norm(s.nome), s.nodeId]));
 
-const norm = (v: unknown): string => String(v ?? '').toLowerCase().trim();
+const norm = (v: unknown): string =>
+  String(v ?? '')
+    .toLowerCase()
+    .trim();

@@ -85,7 +85,10 @@ export class BuildRoadmapUseCase {
   ): Promise<RoadmapResult> {
     const persisted = regenerate ? null : await this.trilhas.load(userId, grafoId, mode);
     const { itens, novos } = persisted
-      ? mergeTrilha(persisted.itens.map((i) => i.nodeId), fullOrder)
+      ? mergeTrilha(
+          persisted.itens.map((i) => i.nodeId),
+          fullOrder,
+        )
       : { itens: fullOrder, novos: 0 };
     const dataGeracao = await this.trilhas.save(userId, grafoId, mode, itens);
     return { itens, dataGeracao: dataGeracao.toISOString(), novos };
@@ -102,14 +105,22 @@ function toSignals(rows: ImportanceRow[], covered: Set<string>): ConceitoSignal[
 }
 
 function toStep(s: ScoredConceito): PathStep {
-  return { nodeId: s.refId, nome: s.nome, tipo: 'CONCEITO', motivo: s.motivo, provaFreq: s.provaFreq };
+  return {
+    nodeId: s.refId,
+    nome: s.nome,
+    tipo: 'CONCEITO',
+    motivo: s.motivo,
+    provaFreq: s.provaFreq,
+  };
 }
 
 // A graph may hold several provas and editais, so scoped roadmaps persist separately:
 // the trilha's storage key folds the chosen provaId/editalId into the mode.
 function storageKey(mode: DeterministicMode, opts?: RoadmapScope): string {
   const parts = [mode as string];
-  if ((mode === 'prova' || mode === 'prova_edital') && opts?.provaId) parts.push(`p:${opts.provaId}`);
-  if ((mode === 'edital' || mode === 'prova_edital') && opts?.editalId) parts.push(`e:${opts.editalId}`);
+  if ((mode === 'prova' || mode === 'prova_edital') && opts?.provaId)
+    parts.push(`p:${opts.provaId}`);
+  if ((mode === 'edital' || mode === 'prova_edital') && opts?.editalId)
+    parts.push(`e:${opts.editalId}`);
   return parts.join('|');
 }

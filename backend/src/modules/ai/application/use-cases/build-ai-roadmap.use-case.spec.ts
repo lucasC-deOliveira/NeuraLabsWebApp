@@ -12,7 +12,12 @@ import type {
 import type { LlmPort } from '../../domain/ports/llm-port';
 import type { PathStep } from '../../domain/services/learning-path';
 
-const step = (nodeId: string): PathStep => ({ nodeId, nome: nodeId.toUpperCase(), tipo: 'CONCEITO', motivo: '' });
+const step = (nodeId: string): PathStep => ({
+  nodeId,
+  nome: nodeId.toUpperCase(),
+  tipo: 'CONCEITO',
+  motivo: '',
+});
 
 class FakeGenerate {
   constructor(private readonly steps: PathStep[]) {}

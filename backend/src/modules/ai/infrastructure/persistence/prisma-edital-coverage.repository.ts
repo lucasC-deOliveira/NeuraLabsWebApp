@@ -17,7 +17,8 @@ export class PrismaEditalCoverageRepository implements EditalCoverageSource {
     });
     const covered = new Set<string>();
     for (const e of edges) {
-      if (e.nodeDestino && e.nodeDestino.usuarioId === userId) covered.add(e.nodeDestino.referenciaId);
+      if (e.nodeDestino && e.nodeDestino.usuarioId === userId)
+        covered.add(e.nodeDestino.referenciaId);
     }
     return covered;
   }

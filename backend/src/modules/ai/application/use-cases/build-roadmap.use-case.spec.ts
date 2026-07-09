@@ -26,7 +26,7 @@ class FakeImportance implements ConceitoImportanceSource {
   constructor(private readonly byProva: Record<string, ImportanceRow[]>) {}
   async load(_u: string, _g: string, provaId?: string): Promise<ImportanceRow[]> {
     this.lastProvaId = provaId;
-    return this.byProva[provaId ?? ""] ?? this.byProva[""] ?? [];
+    return this.byProva[provaId ?? ''] ?? this.byProva[''] ?? [];
   }
 }
 
@@ -36,7 +36,7 @@ class FakeEditalCoverage implements EditalCoverageSource {
   constructor(private readonly byEdital: Record<string, string[]> = {}) {}
   async load(_u: string, _g: string, editalId?: string): Promise<Set<string>> {
     this.lastEditalId = editalId;
-    return new Set(this.byEdital[editalId ?? ""] ?? []);
+    return new Set(this.byEdital[editalId ?? ''] ?? []);
   }
 }
 
@@ -68,7 +68,7 @@ describe('BuildRoadmapUseCase', () => {
     const trilhas = new FakeRoadmapTrilha();
     const useCase = new BuildRoadmapUseCase(
       new FakeLearningGraph(),
-      new FakeImportance({ "": [row('a', 1), row('b', 5), row('c', 3)] }),
+      new FakeImportance({ '': [row('a', 1), row('b', 5), row('c', 3)] }),
       new FakeEditalCoverage(),
       trilhas,
     );
@@ -83,8 +83,8 @@ describe('BuildRoadmapUseCase', () => {
   it('edital mode ranks covered concepts first', async () => {
     const useCase = new BuildRoadmapUseCase(
       new FakeLearningGraph(),
-      new FakeImportance({ "": [row('a', 9), row('b', 0)] }),
-      new FakeEditalCoverage({ "": ['b'] }),
+      new FakeImportance({ '': [row('a', 9), row('b', 0)] }),
+      new FakeEditalCoverage({ '': ['b'] }),
       new FakeRoadmapTrilha(),
     );
 
@@ -98,7 +98,7 @@ describe('BuildRoadmapUseCase', () => {
     const trilha = new FakeRoadmapTrilha();
     const useCase = new BuildRoadmapUseCase(
       new FakeLearningGraph(),
-      new FakeImportance({ "": [row('a', 0), row('b', 0)] }),
+      new FakeImportance({ '': [row('a', 0), row('b', 0)] }),
       coverage,
       trilha,
     );
@@ -140,7 +140,7 @@ describe('BuildRoadmapUseCase', () => {
     };
     const useCase = new BuildRoadmapUseCase(
       new FakeLearningGraph(),
-      new FakeImportance({ "": [row('a', 1), row('b', 1), row('c', 9)] }),
+      new FakeImportance({ '': [row('a', 1), row('b', 1), row('c', 9)] }),
       new FakeEditalCoverage(),
       new FakeRoadmapTrilha(seed),
     );
@@ -158,7 +158,7 @@ describe('BuildRoadmapUseCase', () => {
     };
     const useCase = new BuildRoadmapUseCase(
       new FakeLearningGraph(),
-      new FakeImportance({ "": [row('a', 1)] }),
+      new FakeImportance({ '': [row('a', 1)] }),
       new FakeEditalCoverage(),
       new FakeRoadmapTrilha(seed),
     );
@@ -172,7 +172,7 @@ describe('BuildRoadmapUseCase', () => {
   it('throws for ai mode when no ai builder is wired', async () => {
     const useCase = new BuildRoadmapUseCase(
       new FakeLearningGraph(),
-      new FakeImportance({ "": [] }),
+      new FakeImportance({ '': [] }),
       new FakeEditalCoverage(),
       new FakeRoadmapTrilha(),
     );
@@ -189,7 +189,7 @@ describe('BuildRoadmapUseCase', () => {
     };
     const useCase = new BuildRoadmapUseCase(
       new FakeLearningGraph(),
-      new FakeImportance({ "": [] }),
+      new FakeImportance({ '': [] }),
       new FakeEditalCoverage(),
       new FakeRoadmapTrilha(),
       aiBuilder,
