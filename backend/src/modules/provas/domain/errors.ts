@@ -32,6 +32,21 @@ export class InvalidExamJsonError extends Error {
   }
 }
 
+// Raised when linking would break the 1:1 edital↔prova relationship.
+export class ProvaAlreadyHasEditalError extends Error {
+  constructor() {
+    super('The prova is already linked to an edital.');
+    this.name = 'ProvaAlreadyHasEditalError';
+  }
+}
+
+export class EditalAlreadyLinkedError extends Error {
+  constructor() {
+    super('The edital is already linked to a prova.');
+    this.name = 'EditalAlreadyLinkedError';
+  }
+}
+
 // Asserts the loaded prova exists and belongs to the user, else throws.
 export function assertOwner<T extends { usuarioId: string }>(
   prova: T | null,

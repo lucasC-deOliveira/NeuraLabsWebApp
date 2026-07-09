@@ -6,6 +6,7 @@ export interface LearningStep {
   nome: string;
   tipo: string;
   motivo: string;
+  provaFreq?: number; // nº de questões que já testaram o conceito (prioridade)
 }
 
 export interface NotaRelationSuggestion {
@@ -113,6 +114,41 @@ export interface PopulateFromBaralhoResult {
   conceitos: number;
   baralhoNome: string;
 }
+export interface EditalBuildResult {
+  assuntos: number;
+  topicos: number;
+  conceitos: number;
+  conceitoNodeIds: string[];
+}
+export interface RankedConceitoView {
+  conceitoId: string;
+  nome: string;
+  importancia: number;
+  provaFreq: number;
+  editalPeso: number;
+}
+export interface TokenUsageView {
+  prompt: number;
+  completion: number;
+  total: number;
+  calls: number;
+}
+
+// Persisted, incremental study roadmap. Modes: 'ai' (LLM-ordered), and the
+// deterministic 'prova' | 'edital' | 'prova_edital'.
+export type RoadmapMode = "ai" | "prova" | "edital" | "prova_edital";
+export interface RoadmapStep {
+  nodeId: string;
+  nome: string;
+  tipo: string;
+  motivo: string;
+  provaFreq?: number;
+}
+export interface RoadmapBuildResult {
+  itens: RoadmapStep[];
+  dataGeracao: string; // ISO
+  novos: number; // how many new nodes were slotted since the last generation
+}
 
 export interface GraphAiPort {
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }>;
@@ -149,4 +185,19 @@ export interface GraphAiPort {
   listBaralhosInGrafo(grafoId: string): Promise<BaralhoItem[]>;
   populateGraphFromBaralho(grafoId: string, baralhoId: string): Promise<PopulateFromBaralhoResult>;
   expandNode(grafoId: string, nodeId: string): Promise<{ topicos: number; conceitos: number; notas: number; flashcards: number }>;
+  // Edital-driven completion: upload the notice PDF → plan (mirrors its hierarchy,
+  // reuses existing nodes) → build persists the missing ones.
+  planGraphFromEdital(grafoId: string, edital: File): Promise<{ plan: unknown; programa: string }>;
+  buildGraphFromEdital(grafoId: string, plan: unknown): Promise<EditalBuildResult>;
+  rankGraphImportance(grafoId: string, provaWeight?: number): Promise<{ conceitos: RankedConceitoView[] }>;
+  // Builds/persists the study roadmap for a mode, recomputing only the delta. provaId
+  // and editalId scope the prova/edital modes to one of the graph's provas/editais
+  // (persisted per scope), since a graph may have several.
+  buildRoadmap(
+    grafoId: string,
+    modo: RoadmapMode,
+    opts?: { regenerate?: boolean; provaId?: string; editalId?: string },
+  ): Promise<RoadmapBuildResult>;
+  // Total de tokens de IA gastos na sessão (todas as features).
+  getTokenUsage(): Promise<TokenUsageView>;
 }

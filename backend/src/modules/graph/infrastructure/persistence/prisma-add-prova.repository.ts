@@ -22,6 +22,8 @@ export class PrismaAddProvaRepository implements AddProvaRepository {
     return prova !== null;
   }
 
+  // Only creates the PROVA node; the PROVA→QUESTION relationships are derived at
+  // render time from the exam's questions (see buildKnowledgeGraph).
   async linkProva(userId: string, grafoId: string, provaId: string): Promise<string> {
     const existing = await this.prisma.nodeConhecimento.findFirst({
       where: { grafoId, tipoNode: 'PROVA', referenciaId: provaId },

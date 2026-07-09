@@ -10,6 +10,7 @@ import { AiModule } from './ai/ai.module';
 import { NotesModule } from './notes/notes.module';
 import { QuestionsModule } from './questions/questions.module';
 import { ProvasModule } from './provas/provas.module';
+import { TokenUsageModule } from './token-usage/token-usage.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -25,6 +26,7 @@ import { HealthController } from './health.controller';
     NotesModule,
     QuestionsModule,
     ProvasModule,
+    TokenUsageModule,
   ],
   controllers: [HealthController],
 })

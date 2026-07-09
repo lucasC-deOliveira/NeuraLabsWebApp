@@ -22,6 +22,7 @@ import {
 import { CommunitiesPanel } from "@/modules/graph/presentation/components/CommunitiesPanel";
 import { GapDetectionModal } from "@/modules/graph/presentation/components/ai/GapDetectionModal";
 import { GenerateGraphModal } from "@/modules/graph/presentation/components/ai/GenerateGraphModal";
+import { LinkEditalProvaModal } from "@/modules/graph/presentation/components/ai/LinkEditalProvaModal";
 import { GenerateGraphFromBaralhoModal } from "@/modules/graph/presentation/components/ai/GenerateGraphFromBaralhoModal";
 import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLinkModal";
 import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/DuplicatesModal";
@@ -39,6 +40,7 @@ import { Graph3DRenderer, type Graph3DHandle } from "@/modules/graph/presentatio
 import { GraphLegend } from "@/modules/graph/presentation/components/GraphLegend";
 import { GraphToolbar } from "@/modules/graph/presentation/components/GraphToolbar";
 import { GraphSideToolbar } from "@/modules/graph/presentation/components/GraphSideToolbar";
+import { TokenUsageMeter } from "@/modules/graph/presentation/components/TokenUsageMeter";
 import { useGraphSearch } from "@/modules/graph/presentation/hooks/useGraphSearch";
 import { RoadmapPanel } from "@/modules/graph/presentation/components/RoadmapPanel";
 import { GraphSettingsModal, DEFAULT_FOCUS_DEPTH } from "@/modules/graph/presentation/components/GraphSettingsModal";
@@ -53,6 +55,7 @@ import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeMa
 import { EditNodeModal } from "@/modules/graph/presentation/components/EditNodeModal";
 import { ViewNotaModal } from "@/modules/graph/presentation/components/deck/ViewNotaModal";
 import { ViewProvaModal } from "@/modules/graph/presentation/components/deck/ViewProvaModal";
+import { StudyProvaModal } from "@/modules/graph/presentation/components/deck/StudyProvaModal";
 import { ViewTextoBrutoModal } from "@/modules/graph/presentation/components/deck/ViewTextoBrutoModal";
 import { StudyFlashcardModal } from "@/modules/graph/presentation/components/deck/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/modules/graph/presentation/components/deck/ViewFlashcardModal";
@@ -156,6 +159,9 @@ export default function GraphPage() {
   const [editingNode, setEditingNode] = useState<any>(null);
   const [viewingNotaId, setViewingNotaId] = useState<string | null>(null);
   const [viewingProvaId, setViewingProvaId] = useState<string | null>(null);
+  const [studyProvaId, setStudyProvaId] = useState<string | null>(null);
+  const [studyQuestaoId, setStudyQuestaoId] = useState<string | null>(null);
+  const [linkEditalOpen, setLinkEditalOpen] = useState(false);
   const [viewingTextoId, setViewingTextoId] = useState<string | null>(null);
   const [studyFlashcardId, setStudyFlashcardId] = useState<string | null>(null);
   const [viewFlashcardId, setViewFlashcardId] = useState<string | null>(null);
@@ -483,6 +489,8 @@ export default function GraphPage() {
           <span className="font-semibold text-primary truncate">{controller.state.grafoNome}</span>
         </div>
 
+        <div className="mr-1 hidden md:block"><TokenUsageMeter /></div>
+
         <Button variant="ghost" className="text-primary gap-1.5" onClick={() => router.push(`/vr/${graphId}`)} title="Visualizar em AR/VR">
           <GlobeIcon className="size-4" />
         </Button>
@@ -633,6 +641,12 @@ export default function GraphPage() {
             grafoId={graphId}
             nodes={controller.state.layout}
             edges={controller.state.edges}
+            provas={controller.state.layout
+              .filter((n: any) => n.group === "PROVA")
+              .map((n: any) => ({ id: n.id, label: n.label }))}
+            editais={controller.state.layout
+              .filter((n: any) => n.group === "EDITAL")
+              .map((n: any) => ({ id: n.id, label: n.label }))}
             onFocusNode={(n) => {
               const full = controller.state.layout.find((x) => x.id === n.id);
               if (!full) return;
@@ -749,6 +763,9 @@ export default function GraphPage() {
           onViewFlashcard={() => setViewFlashcardId(controller.state.selectedNode?.id ?? null)}
           onStudyDeck={() => setStudyDeckId(controller.state.selectedNode?.id ?? null)}
           onViewDeck={() => setViewDeckId(controller.state.selectedNode?.id ?? null)}
+          onStudyProva={() => setStudyProvaId(controller.state.selectedNode?.id ?? null)}
+          onStudyQuestao={() => setStudyQuestaoId(controller.state.selectedNode?.id ?? null)}
+          onLinkEdital={() => setLinkEditalOpen(true)}
           onGenerateDeck={handleGenerateDeck}
           onStudyNeighborhood={() => {
             const node = controller.state.selectedNode;
@@ -873,6 +890,9 @@ export default function GraphPage() {
         onOpenChange={setIsCreateModalOpen}
         grafoId={graphId}
         parentIds={graphEntities}
+        provas={controller.state.filteredNodes
+          .filter((n: any) => n.group === "PROVA")
+          .map((n: any) => ({ id: n.id, label: n.label }))}
         onSuccess={refreshGraph}
       />
       <ImportJsonModal
@@ -908,6 +928,12 @@ export default function GraphPage() {
         open={!!viewingProvaId}
         onOpenChange={(open) => !open && setViewingProvaId(null)}
         provaId={viewingProvaId}
+      />
+      <StudyProvaModal
+        open={!!(studyProvaId || studyQuestaoId)}
+        onOpenChange={(open) => { if (!open) { setStudyProvaId(null); setStudyQuestaoId(null); } }}
+        provaId={studyProvaId}
+        questaoId={studyQuestaoId}
       />
       <ViewTextoBrutoModal
         open={!!viewingTextoId}
@@ -1003,6 +1029,25 @@ export default function GraphPage() {
         onOpenChange={setGenerateGraphOpen}
         grafoId={graphId}
         onGenerated={refreshGraph}
+      />
+      <LinkEditalProvaModal
+        key={controller.state.selectedNode?.id ?? "none"}
+        open={linkEditalOpen}
+        onOpenChange={setLinkEditalOpen}
+        grafoId={graphId}
+        node={
+          controller.state.selectedNode
+            ? {
+                id: controller.state.selectedNode.id,
+                group: controller.state.selectedNode.tipoReal,
+                label: controller.state.selectedNode.label,
+              }
+            : null
+        }
+        provas={controller.state.filteredNodes
+          .filter((n: any) => n.group === "PROVA")
+          .map((n: any) => ({ id: n.id, label: n.label }))}
+        onLinked={refreshGraph}
       />
       <GenerateGraphFromBaralhoModal
         open={generateFromBaralhoOpen}

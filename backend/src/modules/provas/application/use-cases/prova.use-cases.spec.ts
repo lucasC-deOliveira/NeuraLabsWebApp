@@ -9,8 +9,13 @@ import { UpdateProvaUseCase } from './update-prova.use-case';
 import { RemoveProvaUseCase } from './remove-prova.use-case';
 import { ParseExamUploadUseCase } from './parse-exam-upload.use-case';
 import { GetProvaImagemUseCase } from './get-prova-imagem.use-case';
+import { SuggestQuestaoConceitosUseCase } from './suggest-questao-conceitos.use-case';
+import type { ConceitoCatalogSource } from '../../domain/ports/conceito-catalog-source';
+import type { CatalogoConceitos, ParsedQuestao } from '../../domain/prova';
 import { ProvaForbiddenError, ProvaNotFoundError } from '../../domain/errors';
-import type { ProvaRepository } from '../../domain/ports/prova-repository';
+import type { CreatedProva, ProvaRepository } from '../../domain/ports/prova-repository';
+import type { QuestaoGraphWriter } from '../../domain/ports/questao-graph-writer';
+import type { QuestaoConceitoLink } from '../../domain/prova';
 import type {
   CreateProvaFromParsedInput,
   CreateProvaInput,
@@ -41,8 +46,13 @@ class FakeProvaRepository implements ProvaRepository {
   async create(): Promise<string> {
     return 'new-id';
   }
-  async createFromParsed(): Promise<string> {
-    return 'parsed-id';
+  createFromParsedInput: CreateProvaFromParsedInput | null = null;
+  async createFromParsed(
+    _userId: string,
+    input: CreateProvaFromParsedInput,
+  ): Promise<CreatedProva> {
+    this.createFromParsedInput = input;
+    return { provaId: 'parsed-id', questaoIds: input.questoes.map((_, i) => `q-${i}`) };
   }
   async listByUser(): Promise<ProvaSummary[]> {
     return this.stored
@@ -111,6 +121,33 @@ class FakeFigureSource implements ExamFigureSource {
   }
 }
 
+class FakeConceitoCatalog implements ConceitoCatalogSource {
+  constructor(private readonly catalogo: CatalogoConceitos) {}
+  async loadCatalogo(): Promise<CatalogoConceitos> {
+    return this.catalogo;
+  }
+}
+
+class FakeQuestaoGraphWriter implements QuestaoGraphWriter {
+  calls: Array<{ grafoId: string; links: QuestaoConceitoLink[] }> = [];
+  async linkQuestoesToGrafo(
+    _userId: string,
+    grafoId: string,
+    links: QuestaoConceitoLink[],
+  ): Promise<void> {
+    this.calls.push({ grafoId, links });
+  }
+}
+
+const parsedQuestao = (numero: number, enunciado: string): ParsedQuestao => ({
+  numero,
+  enunciado,
+  tipo: 'MULTIPLA_ESCOLHA',
+  alternativas: null,
+  gabarito: '?',
+  explicacao: null,
+});
+
 const createInput: CreateProvaInput = { titulo: 'T', questaoIds: ['q1'] };
 const fromParsedInput: CreateProvaFromParsedInput = { titulo: 'T', questoes: [] };
 const file = (name: string): UploadedDocument => ({
@@ -133,6 +170,34 @@ describe('provas use-cases', () => {
         fromParsedInput,
       ),
     ).toEqual({ provaId: 'parsed-id' });
+  });
+
+  it('links questions into the target graph using their confirmed concepts', async () => {
+    const repo = new FakeProvaRepository();
+    const writer = new FakeQuestaoGraphWriter();
+    const input: CreateProvaFromParsedInput = {
+      titulo: 'T',
+      grafoId: 'g1',
+      questoes: [
+        { ...parsedQuestao(91, 'E'), conceitos: [{ nome: 'Esterificação', conceitoId: 'c1' }] },
+        parsedQuestao(92, 'E'), // no concepts → not linked
+      ],
+    };
+    await new CreateProvaFromParsedUseCase(repo, writer).execute('u1', input);
+    expect(writer.calls).toHaveLength(1);
+    expect(writer.calls[0].grafoId).toBe('g1');
+    expect(writer.calls[0].links).toEqual([
+      { questaoId: 'q-0', conceitos: [{ nome: 'Esterificação', conceitoId: 'c1' }] },
+    ]);
+  });
+
+  it('does not touch the graph when no target grafoId is given', async () => {
+    const writer = new FakeQuestaoGraphWriter();
+    await new CreateProvaFromParsedUseCase(new FakeProvaRepository(), writer).execute('u1', {
+      titulo: 'T',
+      questoes: [{ ...parsedQuestao(91, 'E'), conceitos: [{ nome: 'X', conceitoId: 'c1' }] }],
+    });
+    expect(writer.calls).toEqual([]);
   });
 
   it('lists the user provas', async () => {
@@ -225,6 +290,56 @@ describe('provas use-cases', () => {
     expect(llm.lastRequest?.messages[0].content).toContain('text:gab.txt');
   });
 
+  it('fills gabaritos from a deterministic answer key without calling the LLM', async () => {
+    const dir = join(__dirname, '../../domain/services/__fixtures__');
+    const enem = readFileSync(join(dir, 'enem-4pages.txt'), 'utf8');
+    const gabarito = readFileSync(join(dir, 'gabarito-enem-d2-cd8.txt'), 'utf8');
+    // Extractor returns the prova for the prova file and the key for the gabarito file.
+    class PairExtractor implements DocumentTextExtractor {
+      async extract(doc: UploadedDocument): Promise<string> {
+        return doc.originalname === 'gab.txt' ? gabarito : enem;
+      }
+    }
+    const llm = new FakeExamLlm('{}');
+    const useCase = new ParseExamUploadUseCase(new PairExtractor(), llm);
+    const result = await useCase.execute('u1', file('prova.txt'), file('gab.txt'));
+    const q91 = result.questoes.find((q) => q.numero === 91);
+    const q93 = result.questoes.find((q) => q.numero === 93);
+    expect(q91?.gabarito).toBe('E');
+    expect(q93?.gabarito).toBe('B');
+    expect(llm.lastRequest).toBeNull(); // 0 tokens de IA
+  });
+
+  it('with a gabarito, surgically parses only missing blocks and never sends the key to the LLM', async () => {
+    const clean = (n: number): string =>
+      `QUESTÃO ${n}\nEnunciado ${n}.\nA a.\nB b.\nC c.\nD d.\nE e.`;
+    const prova = [clean(91), clean(92), clean(93), `QUESTÃO 94\nEnunciado 94.\nA a.\nB b.`].join(
+      '\n',
+    );
+    const gabaritoText = '91A\n92B\n93C\n94D';
+    class PairExtractor implements DocumentTextExtractor {
+      async extract(doc: UploadedDocument): Promise<string> {
+        return doc.originalname === 'gab.txt' ? gabaritoText : prova;
+      }
+    }
+    const llm = new FakeExamLlm(
+      JSON.stringify({
+        questoes: [{ numero: 94, enunciado: 'Enunciado 94.', tipo: 'MULTIPLA_ESCOLHA' }],
+      }),
+    );
+    const result = await new ParseExamUploadUseCase(new PairExtractor(), llm).execute(
+      'u1',
+      file('prova.txt'),
+      file('gab.txt'),
+    );
+    expect(result.questoes.map((q) => q.numero)).toEqual([91, 92, 93, 94]);
+    expect(result.questoes.map((q) => q.gabarito)).toEqual(['A', 'B', 'C', 'D']);
+    const sent = llm.lastRequest?.messages[0].content ?? '';
+    expect(sent).toContain('QUESTÃO 94');
+    expect(sent).not.toContain('QUESTÃO 91');
+    expect(sent).not.toContain('91A'); // the answer key is never sent to the LLM
+  });
+
   it('parses a structured MC exam (ENEM) deterministically, without calling the LLM', async () => {
     const enem = readFileSync(
       join(__dirname, '../../domain/services/__fixtures__/enem-4pages.txt'),
@@ -254,6 +369,84 @@ describe('provas use-cases', () => {
     expect(q91?.imagens?.[0].base64).toBe(Buffer.from('PNG').toString('base64'));
     expect(q91?.imagens?.[0].alternativa).toBeNull();
     expect(result.questoes.find((q) => q.numero === 92)?.imagens).toBeUndefined();
+  });
+
+  it('surgically sends only the blocks it cannot parse to the LLM, then merges', async () => {
+    // Q91–Q93 are clean A–E; Q94 has a broken alternative run the parser skips.
+    const clean = (n: number): string =>
+      `QUESTÃO ${n}\nEnunciado ${n}.\nA a.\nB b.\nC c.\nD d.\nE e.`;
+    const prova = [clean(91), clean(92), clean(93), `QUESTÃO 94\nEnunciado 94.\nA a.\nB b.`].join(
+      '\n',
+    );
+    const llm = new FakeExamLlm(
+      JSON.stringify({
+        questoes: [{ numero: 94, enunciado: 'Enunciado 94.', tipo: 'MULTIPLA_ESCOLHA' }],
+      }),
+    );
+    const result = await new ParseExamUploadUseCase(new StubExtractor(prova), llm).execute(
+      'u1',
+      file('prova.pdf'),
+    );
+    expect(result.questoes.map((q) => q.numero)).toEqual([91, 92, 93, 94]);
+    const sent = llm.lastRequest?.messages[0].content ?? '';
+    expect(sent).toContain('QUESTÃO 94');
+    expect(sent).not.toContain('QUESTÃO 91');
+  });
+
+  it('suggests concepts per question, reusing existing graph nodes and proposing new ones', async () => {
+    const catalogo: CatalogoConceitos = {
+      assuntos: [],
+      topicos: [],
+      conceitos: [{ id: 'c1', nome: 'Esterificação' }],
+    };
+    const llm = new FakeExamLlm(
+      JSON.stringify({
+        questoes: [{ numero: 91, conceitos: ['Esterificação', 'Craqueamento de alcanos'] }],
+      }),
+    );
+    const useCase = new SuggestQuestaoConceitosUseCase(new FakeConceitoCatalog(catalogo), llm);
+    const result = await useCase.execute('u1', [parsedQuestao(91, 'Sobre esterificação')]);
+    expect(result).toEqual([
+      {
+        numero: 91,
+        conceitos: [
+          { nome: 'Esterificação', conceitoId: 'c1' },
+          { nome: 'Craqueamento de alcanos', conceitoId: null },
+        ],
+      },
+    ]);
+    expect(llm.lastRequest?.messages[0].content).toContain('Esterificação');
+  });
+
+  it('does not call the LLM when there are no questions to classify', async () => {
+    const llm = new FakeExamLlm('{}');
+    const useCase = new SuggestQuestaoConceitosUseCase(
+      new FakeConceitoCatalog({ assuntos: [], topicos: [], conceitos: [] }),
+      llm,
+    );
+    expect(await useCase.execute('u1', [])).toEqual([]);
+    expect(llm.lastRequest).toBeNull();
+  });
+
+  it('skips figure extraction for judgment (Certo/Errado) exams', async () => {
+    const cebraspe =
+      '-- PROVAS OBJETIVAS --\nJulgue os itens a seguir.\n1 Primeiro item.\n2 Segundo item.';
+    let figuresCalled = false;
+    const figures: ExamFigureSource = {
+      async extractLayout(): Promise<ExamFigureLayout> {
+        figuresCalled = true;
+        return { pages: [] };
+      },
+    };
+    const useCase = new ParseExamUploadUseCase(
+      new StubExtractor(cebraspe),
+      new FakeExamLlm('{}'),
+      figures,
+    );
+    const result = await useCase.execute('u1', file('prova.pdf'));
+    expect(result.questoes.length).toBeGreaterThan(0);
+    expect(result.questoes.every((q) => q.tipo === 'VERDADEIRO_FALSO')).toBe(true);
+    expect(figuresCalled).toBe(false);
   });
 
   it('parses an upload without a gabarito: only the prova is sent, gabaritos stay "?"', async () => {

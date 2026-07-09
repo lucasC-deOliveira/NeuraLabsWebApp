@@ -1,0 +1,1522 @@
+
+
+SERVIÇO FEDERAL DE PROCESSAMENTO DE DADOS – SERPRO
+CONCURSO PÚBLICO PARA O PREENCHIMENTO DE VAGAS E A FORMAÇÃO DE CADASTRO DE RESERVA
+PARA O CARGO DE ANALISTA – ESPECIALIZAÇÃO: TECNOLOGIA
+EDITAL Nº 1 – SERPRO, DE 18 DE ABRIL DE 2023
+O Superintendente de Gente e Cultura do Serviço Federal de Processamento de Dados
+(SERPRO), em exercício, tendo em vista o disposto na Lei nº 5.615, de 13 de outubro de 1970, e suas
+alterações, na Lei nº 13.303, de 30 de junho de 2016, no Estatuto do SERPRO, publicado no Diário Oficial
+da União de 1º de setembro de 2021 e no art. 37, inciso II, da Constituição Federal, torna pública a
+realização de concurso público para o preenchimento de vagas e a formação de cadastro de reserva para
+o cargo de Analista – Especialização: Tecnologia, mediante as condições estabelecidas neste edital.
+1 DAS DISPOSIÇÕES PRELIMINARES
+1.1 O concurso público será regido por este edital e executado pelo Centro Brasileiro de Pesquisa em
+Avaliação e Seleção e de Promoção de Eventos (Cebraspe).
+1.2 A seleção para o cargo de que trata este edital compreenderá as seguintes fases, ambas de
+responsabilidade do Cebraspe:
+a) provas objetivas, de caráter eliminatório e classificatório;
+b) prova de conhecimentos aplicados, de caráter eliminatório e classificatório.
+1.3 As provas objetivas, a prova de conhecimentos aplicados, a avaliação biopsicossocial dos candidatos
+que solicitarem concorrer às vagas reservadas às pessoas com deficiência e o procedimento de
+heteroidentificação complementar à autodeclaração dos candidatos negros serão realizados nas capitais
+dos 26 estados da Federação e no Distrito Federal.
+1.3.1 Havendo indisponibilidade de locais suficientes ou adequados nas localidades de realização das
+provas, estas poderão ser realizadas em outras localidades.
+1.4 Os candidatos contratados estarão subordinados à Consolidação das Leis do Trabalho (CLT).
+2 DO CARGO DE ANALISTA – ESPECIALIZAÇÃO: TECNOLOGIA
+2.1 REQUISITO: diploma, devidamente registrado, de conclusão de curso de graduação na área de
+Tecnologia, reconhecido e concluído em instituição de nível superior credenciada pelo Ministério da
+Educação (MEC); ou curso de graduação em qualquer área de formação, reconhecido e concluído em
+instituição de nível superior credenciada pelo MEC, acrescido de curso de pós-graduação na área de
+Tecnologia, com carga horária mínima de 360 (trezentas e sessenta) horas, fornecido por instituição
+credenciada pelo MEC.
+2.2 ATRIBUIÇÕES GERAIS: analisar e propor soluções para situações que incluam múltiplas e complexas
+variáveis e requeiram capacidade de julgamento; planejar, desenvolver e coordenar projetos,
+assegurando a sua execução de acordo com padrões de qualidade definidos; analisar, recomendar e
+definir procedimentos sobre assuntos relacionados a sua área de atuação, emitindo pareceres técnicos e
+definindo padrões; coordenar os meios necessários à consecução dos objetivos do seu trabalho; efetuar
+estudos e pesquisas aplicados sobre assunto de interesse da Empresa, referentes a sua área de atuação;
+transmitir os conhecimentos necessários à realização das atividades relativas à sua área; e executar outras
+atividades necessárias à consecução dos serviços.
+2.3 ATRIBUIÇÕES ESPECÍFICAS: analisar as necessidades do mercado, acompanhar, prospectar e
+desenvolver novas tecnologias, identificando oportunidades de negócio e melhorias de processos;
+implementar ações de relacionamento e garantia de satisfação do cliente; planejar, executar, monitorar,
+controlar projetos e definir procedimentos sobre assuntos relacionados a sua área de atuação; negociar,
+elaborar e acompanhar contratos e acordos de níveis de serviços; desenvolver, testar, validar e monitorar
+sistemas e ambientes; coletar, transformar e armazenar dados, transformando-os em inteligência de
+negócio e inovação de processos; avaliar e monitorar serviços, recursos e processos atuando na sua
+sustentação e propondo medidas para a melhoria da segurança, qualidade e produtividade.
+
+2.4 DA REMUNERAÇÃO
+2.4.1 A remuneração inicial do cargo de Analista é R$ 9.025,73, conforme quadro abaixo:
+CARGOJORNADASALÁRIO NOMINAL    GRATIFICAÇÃO (15%)REMUNERAÇÃO INICIAL
+Analista  40 horas semanaisR$ 7.848,46R$ 1.177,27R$ 9.025,73
+2.4.2 Os candidatos que vierem a ser contratados farão jus à remuneração inicial que estiver vigorando à
+época das respectivas contratações.
+2.5 DOS BENEFÍCIOS
+2.5.1 Os candidatos que vierem a ser contratados poderão receber, após sua adesão voluntária, conforme
+previsto no atual acordo coletivo de trabalho, auxílio-alimentação no valor de R$ 1.125,84 (Um mil cento
+e vinte e cinco reais e oitenta e quatro centavos) a ser pago em forma de crédito em cartão eletrônico.
+Tal benefício é oferecido mediante participação dos trabalhadores no custo, em 8% do total pago.
+2.5.1.1 Os candidatos que vierem a ser contratados poderão, ainda, receber os seguintes benefícios e
+vantagens, enquanto o(a) empregado(a) estiver em pleno exercício de suas atividades na Empresa, de
+acordo com os termos da legislação e regulamentações pertinentes, bem como, conforme o acordo
+coletivo vigente:
+a) auxílio-creche, no valor de R$ 453,25 (quatrocentos e cinquenta e três reais e vinte e cinco centavos);
+b) auxílio-transporte, de acordo com a legislação vigente;
+c) auxílio a filho com deficiência, no valor de R$ 1.362,91 (um mil trezentos e sessenta e dois reais e
+noventa e um centavos);
+d) plano de saúde;
+e) plano odontológico;
+f) plano de previdência complementar;
+g) participação nos lucros e resultados;
+h) acesso a ações de Educação Corporativa (cursos e eventos) internas e externas e incentivo a Programas
+de Pós-Graduação e Idiomas;
+i) possibilidade de ascensão e desenvolvimento profissional;
+j) possibilidade de percepção de gratificação de natureza técnica equivalente à complexidade dos projetos
+desenvolvidos.
+3 DOS REQUISITOS BÁSICOS PARA A CONTRATAÇÃO
+3.1 Ser aprovado no concurso público.
+3.2 Ter a nacionalidade brasileira ou portuguesa e, no caso de nacionalidade portuguesa, estar amparado
+pelo Estatuto de Igualdade entre Brasileiros e Portugueses, com reconhecimento do gozo dos direitos
+políticos, nos termos do § 1º do art. 12 da Constituição Federal.
+3.3 Estar em gozo dos direitos políticos.
+3.4 Estar quite com as obrigações militares, em caso de candidato do sexo masculino.
+3.5 Estar quite com as obrigações eleitorais.
+3.6 Possuir os requisitos exigidos para o exercício do cargo, conforme o item 2 deste edital.
+3.7 Ter idade mínima de 18 anos completos na data da posse.
+3.8 Ter aptidão física e mental para o exercício das atribuições do cargo.
+3.9 O candidato deverá declarar, na solicitação de inscrição, que tem ciência e aceita que, caso aprovado,
+deverá entregar os documentos comprobatórios dos requisitos exigidos para o cargo por ocasião
+contratação.
+3.10 Cumprir as determinações deste edital.
+4 DAS VAGAS
+4.1 O concurso público regido por este edital visa ao preenchimento das seguintes vagas e formação de
+cadastro de reserva:
+
+Vagas para ampla
+concorrência
+Vagas reservadas para
+candidatos com
+deficiência
+Vagas reservadas para
+candidatos negros
+Total
+361 + CR121 + CR120 + CR602 + CR
+4.2 DO LOCAL DE PRESTAÇÃO DOS SERVIÇOS
+4.2.1 A prestação dos serviços pelos candidatos aprovados dar-se-á na regional indicada por ele no ato da
+inscrição, conforme disposto no subitem 6.4.1 deste edital, devendo corresponder a uma das seguintes
+localidades: Belo Horizonte, Belém, Brasília, Curitiba, Florianópolis, Fortaleza, Porto Alegre, Recife,
+Salvador, Rio de Janeiro ou São Paulo.
+4.2.2 Aos empregados do SERPRO é ofertada a possibilidade de modalidade de trabalho remoto, desde
+que atendidas as condições estabelecidas nos normativos internos.
+5 DAS RESERVAS DE VAGAS
+5.1 DAS VAGAS DESTINADAS AOS CANDIDATOS COM DEFICIÊNCIA
+5.1.1 Das vagas destinadas ao cargo e das que vierem a ser criadas durante o prazo de validade do
+concurso, 20% serão providas na forma da Lei Federal nº 13.146, de 6 de julho de 2015, e do Decreto
+Federal nº 9.508, de 24 de setembro de 2018.
+5.1.1.1 Caso a aplicação do percentual de que trata o subitem 5.1.1 deste edital resulte em número
+fracionado, este deverá ser elevado até o primeiro número inteiro subsequente, desde que não ultrapasse
+20% das vagas oferecidas por cargo.
+5.1.1.2 As vagas reservadas às pessoas com deficiência poderão ser ocupadas por candidatos sem
+deficiência na hipótese de não haver inscrição ou aprovação de candidatos com deficiência no concurso
+em número suficiente ao preenchimento das vagas.
+5.1.1.3 Serão consideradas pessoas com deficiência aquelas que se enquadrarem no art. 2º da Lei
+nº 13.146/2015; nas categorias discriminadas no art. 4º do Decreto nº 3.298/1999, com as alterações
+introduzidas pelo Decreto nº 5.296/2004; no § 1º do art. 1º da Lei nº 12.764, de 27 de dezembro de 2012
+(Transtorno do Espectro Autista); e na Lei nº 14.126, de 21 de março de 2021, observados os dispositivos
+da Convenção sobre os Direitos da Pessoa com Deficiência e seu Protocolo Facultativo, ratificados pelo
+Decreto Federal nº 6.949/2009.
+5.1.2 Para concorrer a uma das vagas reservadas, o candidato deverá:
+a) no ato da solicitação de inscrição, informar que deseja concorrer às vagas reservadas às pessoas com
+deficiência; e
+b) enviar, via upload, a imagem legível de laudo médico, cuja data de emissão seja, no máximo, nos
+últimos 12 meses anteriores à data de publicação deste edital, ressalvado o disposto no subitem 5.1.2.1
+deste edital. O laudo ou o parecer deverão atestar a espécie e o grau ou o nível de sua deficiência, com
+expressa referência ao código correspondente da CID-10, bem como a provável causa da deficiência.
+Deverão, ainda, conter a assinatura e o carimbo do médico com o número de sua inscrição no CRM, na
+forma do subitem 5.1.2.2 deste edital e conforme modelo disponível no Anexo II deste edital.
+5.1.2.1 No caso dos candidatos cuja deficiência se enquadra no § 1º do art. 1º da Lei nº 12.764/2012
+(Transtorno do Espectro Autista), a validade do laudo médico/parecer de equipe multiprofissional e
+interdisciplinar é indeterminada, não sendo considerada a data de emissão.
+5.1.2.2 O candidato com deficiência deverá enviar, no período de inscrição estabelecido no cronograma
+constante do Anexo I deste edital, via upload, por meio de link específico no endereço eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, imagem legível do laudo médico a que se refere o
+subitem 5.1.2 deste edital. Após esse período, a solicitação será indeferida, salvo nos casos de força maior
+e nos que forem de interesse da Administração.
+5.1.2.2.1 O envio da imagem legível do laudo médico é de responsabilidade exclusiva do candidato. O
+Cebraspe não se responsabiliza por qualquer tipo de problema que impeça a chegada desse documento
+
+a seu destino, seja de ordem técnica dos computadores, seja decorrente de falhas de comunicação, bem
+como por outros fatores que impossibilitem o envio.
+5.1.2.2.1.1 Somnt srãocits imgns qustjm nsxtnsõs “.png”, “.jpg” “.jpg”. O tmnho
+de cada imagem submetida deverá ser de, no máximo, 1 MB.
+5.1.2.3 O candidato deverá manter aos seus cuidados o original ou a cópia autenticada em cartório do
+documento constante do subitem 5.1.2 deste edital. Caso seja solicitado pelo Cebraspe, o candidato
+deverá enviar o referido documento por meio de carta registrada, para a confirmação da veracidade das
+informações.
+5.1.2.4 A imagem do laudo terá validade somente para este concurso público e não será devolvida, assim
+como não serão fornecidas cópias desse documento.
+5.1.3 O candidato com deficiência poderá requerer, na forma do subitem 6.4.9 deste edital, atendimento
+especial, no ato da solicitação de inscrição, para o dia de realização das provas e das demais fases,
+devendo indicar as condições de que necessita para a realização destas, conforme o previsto no inciso III
+do art. 3º e no art. 4º do Decreto nº 9.508/2018.
+5.1.3.1 O candidato que se enquadrar na hipótese prevista no subitem 5.1.3 deste edital poderá solicitar
+atendimento especial unicamente para a condição estabelecida no seu laudo médico enviado conforme
+dispõe o subitem 5.1.2.2 deste edital.
+5.1.3.1.1 Ressalvadas as disposições previstas neste edital, os candidatos com deficiência participarão do
+concurso em igualdade de condições com os demais candidatos, no que tange ao conteúdo de provas, à
+avaliação e aos critérios de aprovação, ao horário e ao local de aplicação das provas, à nota mínima
+exigida para os demais candidatos e a todas as demais normas de regência do concurso.
+5.1.4 O candidato que for considerado pessoa com deficiência, após a avaliação biopsicossocial e que for
+aprovado no concurso, terá seu nome e a respectiva pontuação publicados em lista à parte e figurará
+também na lista de classificação geral.
+5.1.5 A nomeação dos candidatos aprovados deverá obedecer à ordem de classificação, observados os
+critérios de alternância e de proporcionalidade entre a classificação da ampla concorrência e da reserva
+de vagas para as pessoas com deficiência, observado o percentual de reserva fixado no subitem 5.1.1
+deste edital.
+5.1.6 A desclassificação, a desistência ou qualquer outro impedimento de candidato ocupante de vaga
+reservada implicará a sua substituição pelo próximo candidato com deficiência classificado, desde que
+haja candidato classificado nessa condição.
+5.1.7 A relação provisória dos candidatos com a inscrição deferida para concorrer na condição de pessoa
+comdeficiênciaserádivulgadanoendereçoeletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, na data provável estabelecida no cronograma
+constante do Anexo I deste edital.
+5.1.7.1 O candidato que desejar interpor recurso contra a relação provisória dos candidatos com a
+inscrição deferida para concorrer na condição de pessoa com deficiência deverá observar os
+procedimentos disciplinados na respectiva relação provisória.
+5.1.7.2 No período de interposição de recurso, não haverá a possibilidade de envio da documentação
+pendente anexa ao recurso ou complementação desta.
+5.1.8 A inobservância do disposto no subitem 5.1.2.2 deste edital acarretará a perda do direito ao pleito
+das vagas reservadas aos candidatos com deficiência.
+5.1.8.1 O candidato que não informar que deseja concorrer às vagas reservadas às pessoas com
+deficiência no aplicativo de inscrição não terá direito de concorrer às essas vagas. Apenas o envio do laudo
+médico não é suficiente para o deferimento da solicitação do candidato.
+5.1.9 DA AVALIAÇÃO BIOPSICOSSOCIAL
+5.1.9.1 O candidato com a inscrição deferida para concorrer na condição de pessoa com deficiência, não
+eliminado no concurso, e classificado dentre os primeiros 600 candidatos, de acordo com o item 10 deste
+
+edital, será convocado para se submeter à avaliação biopsicossocial, respeitados os empates na última
+posição.
+5.1.9.2 A avaliação biopsicossocial será promovida por equipe multiprofissional e interdisciplinar, de
+responsabilidade do Cebraspe, e formada por três profissionais capacitados atuantes nas áreas das
+deficiências que o candidato possuir, dentre os quais 1 (um) deverá ser médico, e por três profissionais
+da carreira a que o candidato concorrerá. A avaliação analisará a qualificação do candidato como pessoa
+com deficiência, nos termos do § 1º do art. 2º da Lei nº 13.146/2015, e suas alterações, dos arts. 3º e 4º
+do Decreto nº 3.298/1999, do § 1º do art. 1º da Lei nº 12.764/2012, e da Lei nº 14.126/2021, bem como
+do Decreto nº 9.508/2018, e suas alterações.
+5.1.9.2.1 A avaliação deverá ser dividida em dois momentos:
+a) exame presencial do candidato pela equipe médica, com base no laudo por ele apresentado, e
+consequente enquadramento, ou não, desse candidato como pessoa com deficiência;
+b) entrevista conduzida por psicólogo na presença de empregados do SERPRO, da carreira para a qual o
+candidato concorre.
+5.1.9.3 A equipe multiprofissional e interdisciplinar emitirá parecer que observará:
+a) as informações prestadas pelo candidato no ato de inscrição no concurso público;
+b) a natureza das atribuições e das tarefas essenciais ao cargo, do emprego ou da função a desempenhar;
+c) a viabilidade das condições de acessibilidade e as adequações do ambiente de trabalho na execução
+das tarefas;
+d) a possibilidade de uso, pelo candidato, de equipamentos ou de outros meios que utilize de forma
+habitual;
+e) o resultado da avaliação com base no disposto no § 1º do art. 2º da Lei Federal nº 13.146/2015, sem
+prejuízo da adoção de critérios adicionais.
+5.1.9.4 Os candidatos deverão comparecer à avaliação biopsicossocial com uma hora de antecedência,
+munidos de documento de identidade original e de parecer de equipe multiprofissional e interdisciplinar
+(original ou cópia autenticada em cartório) que ateste a espécie e o grau ou o nível de deficiência, com
+expressa referência ao código correspondente da CID-10, bem como a provável causa da deficiência, de
+acordo com o modelo constante do Anexo III deste edital, e, se for o caso, de exames complementares
+específicos que comprovem a deficiência.
+5.1.9.4.1 Por ocasião da avaliação biopsicossocial, o candidato cuja deficiência se enquadra no § 1º do art.
+1º da Lei nº 12.764/2012 (Transtorno do Espectro Autista) deverá apresentar, ainda, relatório
+especializado, emitido por médico psiquiatra, neurologista ou neuropediatra (com Registro em Quadro
+de Especialistas do Conselho Regional de Medicina) ou por psicólogo especializado na área de
+Neuropsicologia (com comprovação de registro no Conselho Federal de Psicologia), explicitando as
+seguintes características, associando-as a dados temporais (com início e duração de alterações e(ou)
+prejuízos):
+a) capacidade de comunicação e interação social;
+b) reciprocidade social;
+c) qualidade das relações interpessoais; e
+d) presença ou ausência de estereotipias verbais, estereotipias motoras, comportamentos repetitivos ou
+interesses específicos, restritos e fixos.
+5.1.9.5 O parecer de equipe multiprofissional e interdisciplinar (original ou cópia autenticada em cartório)
+será retido pelo Cebraspe por ocasião da realização da avaliação biopsicossocial e não será devolvido em
+hipótese alguma.
+5.1.9.6 Quando se tratar de deficiência auditiva, o candidato deverá apresentar, além de parecer de
+equipe multiprofissional e interdisciplinar, exame audiométrico – audiometria (original ou cópia
+autenticada em cartório), realizado no máximo 12 meses antes da data da avaliação biopsicossocial.
+
+5.1.9.7 Quando se tratar de deficiência visual, o parecer de equipe multiprofissional e interdisciplinar
+deverá conter informações expressas sobre a acuidade visual aferida com e sem correção e sobre a
+somatória da medida do campo visual em ambos os olhos.
+5.1.9.8 Quando se tratar de deficiência física, o candidato deverá apresentar laudo médico contendo uma
+descrição detalhada das alterações físicas, que descreva as alterações anatômicas e(ou) funcionais e
+especifique as limitações funcionais para a vida diária e a necessidade do uso de apoios, como por
+exemplo, uso de próteses e/ou órteses.
+5.1.9.9 Perderá o direito de concorrer às vagas reservadas às pessoas com deficiência o candidato que,
+por ocasião da avaliação biopsicossocial:
+a) não apresentar parecer de equipe multiprofissional e interdisciplinar (original ou cópia autenticada em
+cartório);
+b) apresentar parecer de equipe multiprofissional e interdisciplinar em período superior a 12 meses
+anteriores à data de realização da avaliação biopsicossocial, exceto no caso dos candidatos cuja
+deficiência se enquadra no § 1º do art. 1º da Lei nº 12.764/2012 (Transtorno do Espectro Autista);
+c) deixar de cumprir as exigências de que tratam os subitens 5.1.9.5 a 5.1.9.8 deste edital;
+d) deixar de apresentar o relatório especializado de que trata o subitem 5.1.9.4.1 deste edital, se for o
+caso;
+d) não for considerado pessoa com deficiência na avaliação biopsicossocial;
+e) não comparecer à avaliação biopsicossocial;
+f)vdir-s do locl d rlizção dvlição biopsicossocil sm pssr por todos os procdimntos d
+vlição;
+g) não apresentar o documento de identidade original, na forma definida no subitem 13.10 deste edital.
+5.1.9.9.1 O candidato que não for considerado com deficiência na avaliação biopsicossocial, caso tenha
+nota suficiente no concurso, figurará na lista de classificação geral.
+5.1.9.10 As vagas definidas no subitem 5.1.1 deste edital que não forem preenchidas por falta de
+candidatos com deficiência aprovados serão preenchidas pelos demais candidatos, observada a ordem
+geral de classificação.
+5.1.11 O candidato que desejar interpor recurso contra o resultado provisório na avaliação biopsicossocial
+deverá observar os procedimentos disciplinados na respectiva relação provisória.
+5.2 DAS VAGAS DESTINADAS AOS CANDIDATOS NEGROS
+5.2.1 Das vagas destinadas ao cargo e das que vierem a ser criadas durante o prazo de validade do
+concurso, 20% serão providas na forma da Lei nº 12.990, de 9 de junho de 2014, e da Portaria Normativa
+nº 4, de 6 de abril de 2018, alterada pela Portaria SGP/SEDGG/ME nº 14.635, de 14 de dezembro de 2021.
+5.2.1.1 Caso a aplicação do percentual de que trata o subitem 5.2.1 deste edital resulte em número
+fracionado, este será elevado até o primeiro número inteiro subsequente, em caso de fração igual ou
+maior que 0,5, ou diminuído para o número inteiro imediatamente inferior, em caso de fração menor que
+0,5, nos termos do § 2º do art. 1º da Lei nº 12.990/2014.
+5.2.1.2 Para concorrer às vagas reservadas, o candidato deverá, no ato da solicitação de inscrição, optar
+por concorrer às vagas reservadas aos negros e autodeclarar-se negro, conforme quesito cor ou raça
+utilizado pela Fundação Instituto Brasileiro de Geografia e Estatística (IBGE).
+5.2.1.3 A autodeclaração do candidato goza da presunção relativa de veracidade e terá validade somente
+para este concurso público.
+5.2.1.3.1 A autodeclaração do candidato será confirmada mediante procedimento de heteroidentificação.
+5.2.1.4 As informações prestadas no momento de inscrição são de inteira responsabilidade do candidato,
+na forma do art. 2º da Portaria Normativa nº 4/2018.
+5.2.2 DO PROCEDIMENTO DE HETEROIDENTIFICAÇÃO COMPLEMENTAR À AUTODECLARAÇÃO DOS
+CANDIDATOS NEGROS
+
+5.2.2.1 Os candidatos que se autodeclararam negros serão submetidos, imediatamente antes da
+homologação do resultado final no concurso, ao procedimento de heteroidentificação complementar à
+autodeclaração dos candidatos negros.
+5.2.2.2 O candidato que se autodeclarar negro, não eliminado no concurso, e classificado dentre os
+primeiros 600 candidatos, de acordo com o item 10 deste edital, será convocado para participar do
+procedimento de heteroidentificação.
+5.2.2.2.1 Os candidatos serão convocados para participarem do procedimento de heteroidentificação em
+edital específico para essa fase.
+5.2.2.3 Considera-se procedimento de heteroidentificação a identificação por terceiros da condição
+autodeclarada.
+5.2.2.4 Para o procedimento de heteroidentificação, o candidato que se autodeclarou negro deverá se
+apresentar à comissão de heteroidentificação.
+5.2.2.4.1 A comissão de heteroidentificação será composta por cinco integrantes e seus suplentes, que
+não terão seus nomes divulgados, e deverá ter seus integrantes distribuídos por gênero, cor e,
+preferencialmente, naturalidade.
+5.2.2.4.2 Os currículos dos integrantes da comissão de heteroidentificação serão disponibilizados no
+endereço eletrônico http://www.cebraspe.org.br/concursos/serpro_23, no dia de divulgação do edital de
+convocação para essa fase.
+5.2.2.5 O procedimento de heteroidentificação será filmado pelo Cebraspe para fins de registro de
+avaliação para uso da comissão de heteroidentificação.
+5.2.2.5.1 O candidato que se recusar a ser filmado durante o procedimento de heteroidentificação será
+eliminado do concurso público, dispensada a convocação suplementar de candidatos não habilitados.
+5.2.2.6 A comissão de heteroidentificação utilizará exclusivamente o critério fenotípico para aferição da
+condição declarada pelo candidato.
+5.2.2.6.1 Serão consideradas as características fenotípicas do candidato no momento da realização do
+procedimento de heteroidentificação.
+5.2.2.6.2 Não serão considerados, para fins do disposto no subitem 5.2.2.6 deste edital, quaisquer
+registros ou documentos pretéritos eventualmente apresentados, inclusive imagem e certidões
+referentes a confirmação em procedimentos de heteroidentificação realizados em concursos públicos
+federais, estaduais, distritais e municipais.
+5.2.2.7 A comissão de heteroidentificação deliberará pela maioria de seus membros, sob forma de parecer
+motivado.
+5.2.2.7.1 As deliberações da comissão de heteroidentificação terão validade apenas para este concurso.
+5.2.2.7.2 É vedado à comissão de heteroidentificação deliberar na presença dos candidatos.
+5.2.2.7.3 O teor do parecer motivado será de acesso restrito, nos termos do art. 31 da Lei nº 12.527, de
+18 de novembro de 2011.
+5.2.2.8 Será eliminado do concurso o candidato que se recusar a ser filmado ou prestar declaração falsa.
+5.2.2.8.1 O candidato cuja autodeclaração não for confirmada em procedimento de heteroidentificação
+concorrerá somente às vagas destinadas à ampla concorrência, caso tenha nota suficiente para tanto.
+5.2.2.8.2 Caso, por unanimidade, a comissão de heteroidentificação verifique a possibilidade de que o
+candidato tenha prestado declaração falsa, os documentos e informações referentes ao referido
+candidato serão encaminhados às autoridades policiais competentes para apuração, juntamente com o
+parecer emitido pela comissão, que deverá conter a motivação desse encaminhamento, nos termos do
+art. 50 da Lei nº 9.784, de 29 de janeiro de 1999.
+5.2.2.8.2.1 Na hipótese de constatação de declaração falsa pela autoridade policial, o candidato será
+eliminado do concurso e, se houver sido admitido, ficará sujeito à anulação da sua admissão ao serviço
+ou emprego público, após procedimento administrativo em que lhe sejam assegurados o contraditório e
+
+a ampla defesa, sem prejuízo de outras sanções cabíveis, na forma do parágrafo único do art. 2º da Lei
+nº 12.990/2012.
+5.2.2.8.3 As hipóteses de que tratam os subitens 5.2.2.8.1 e 5.2.2.8.2.1 deste edital não ensejam o dever
+de convocar suplementarmente candidatos não convocados para o procedimento de heteroidentificação.
+5.2.2.9 Será eliminado do concurso o candidato que:
+a) se recusar a ser filmado;
+b) prestar declaração falsa;
+c) não comparecer ao procedimento de heteroidentificação.
+5.2.3 Os candidatos negros concorrerão concomitantemente às vagas reservadas e às vagas destinadas à
+ampla concorrência, de acordo com a sua classificação no concurso.
+5.2.4 Os candidatos negros concorrerão concomitantemente às vagas reservadas a pessoas com
+deficiência, se atenderem a essa condição, e às vagas destinadas à ampla concorrência, de acordo com a
+sua classificação no concurso.
+5.2.5 Os candidatos negros aprovados dentro do número de vagas oferecido à ampla concorrência não
+preencherão as vagas reservadas a candidatos negros, sendo, dessa forma, automaticamente excluídos
+da lista de candidatos negros aprovados.
+5.2.5.1 Em cada uma das fases do concurso, não serão computados, para efeito de preenchimento do
+percentual de vagas reservadas a candidatos negros, nos termos da Lei nº 12.990/2014, os candidatos
+autodeclarados negros classificados ou aprovados dentro do número de vagas oferecido a ampla
+concorrência, sendo que esses candidatos constarão tanto da lista dos aprovados dentro do número de
+vagas da ampla concorrência como também da lista dos aprovados para as vagas reservadas aos
+candidatos negros, em todas as fases do concurso.
+5.2.6 Em caso de desistência de candidato negro aprovado em vaga reservada, a vaga será preenchida
+pelo candidato negro posteriormente classificado.
+5.2.7 Na hipótese de não haver candidatos negros aprovados em número suficiente para que sejam
+ocupadas as vagas reservadas, as vagas remanescentes serão revertidas para ampla concorrência e serão
+preenchidas pelos demais candidatos aprovados, observada a ordem de classificação geral.
+5.2.8 A nomeação dos candidatos aprovados respeitará os critérios de alternância e de proporcionalidade,
+que consideram a relação entre o número total de vagas e o número de vagas reservadas a candidatos
+com deficiência e a candidatos negros.
+5.2.9 O edital de resultado provisório no procedimento de heteroidentificação será publicado no
+endereço eletrônico http://www.cebraspe.org.br/concursos/serpro_23 e terá a previsão de comissão
+recursal,  que  será  composta  de  três  integrantes  distintos  dos  membros  da  comissãode
+heteroidentificação, nos termos do respectivo edital.
+5.2.9.1 Os currículos dos integrantes da comissão recursal serão disponibilizados no endereço eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, durante o prazo de interposição de recurso contra o
+resultado provisório no procedimento de heteroidentificação.
+5.2.9.2 Em face de decisão que não confirmar a autodeclaração, terá interesse recursal o candidato por
+ela prejudicado.
+5.2.9.3 Em suas decisões, a comissão recursal deverá considerar a filmagem do procedimento para fins
+de heteroidentificação, o parecer emitido pela comissão e o conteúdo do recurso elaborado pelo
+candidato.
+5.2.9.4 Das decisões da comissão recursal não caberá recurso.
+5.2.10 Demais informações a respeito do procedimento de heteroidentificação constarão de edital
+específico de convocação para essa fase.
+6 DAS INSCRIÇÕES NO CONCURSO PÚBLICO
+6.1 TAXA: R$ 100,00.
+6.2   Será   admitida   a   inscrição   somente   viainternet,   no   endereço   eletrônico
+
+http://www.cebraspe.org.br/concursos/serpro_23, solicitada no período estabelecido no cronograma
+constante do Anexo I deste edital.
+6.2.1 O Cebraspe não se responsabilizará por solicitação de inscrição não recebida por motivos de ordem
+técnica dos computadores, de falhas de comunicação, de congestionamento das linhas de comunicação,
+por erro ou atraso dos bancos ou entidades conveniadas no que se refere ao processamento do
+pagamento da taxa de inscrição, bem como por outros fatores que impossibilitem a transferência de
+dados.
+6.2.1.1 O candidato deverá seguir rigorosamente as instruções contidas no sistema de inscrição.
+6.2.2 O candidato deverá efetuar o pagamento da taxa de inscrição por meio de boleto bancário.
+6.2.3 O candidato poderá imprimir o boleto bancário, que será disponibilizado na página de
+acompanhamentodoconcurso,noendereçoeletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, após efetuado o registro pelo banco.
+6.2.3.1 O candidato poderá reimprimir o boleto bancário pela página de acompanhamento do concurso.
+6.2.4 O boleto bancário pode ser pago em qualquer banco, bem como nas casas lotéricas e nos Correios,
+obedecidos os critérios estabelecidos nesses correspondentes bancários.
+6.2.5 O pagamento da taxa de inscrição deverá ser efetuado até a data estabelecida no cronograma
+constante do Anexo I deste edital.
+6.2.6 As solicitações de inscrições efetuadas somente serão efetivadas após a comprovação de pagamento
+ou o deferimento da solicitação de isenção da taxa de inscrição.
+6.3  O  comprovante  de  inscrição  do  candidato  estará  disponível  no  endereço  eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, por meio da página de acompanhamento, após a
+aceitação da inscrição, sendo de responsabilidade exclusiva do candidato a obtenção desse documento.
+O comprovante de inscrição ficará disponível somente até a data de realização das provas objetivas.
+6.4 DAS DISPOSIÇÕES GERAIS SOBRE A INSCRIÇÃO NO CONCURSO PÚBLICO
+6.4.1 Antes de realizar a solicitação de inscrição, o candidato deverá conhecer o edital e certificar-se de
+que preenche todos os requisitos exigidos para o cargo. Na solicitação de inscrição, o candidato deverá
+optar por uma das seguintes regionais para desempenho de suas atividades: Belo Horizonte, Belém,
+Brasília, Curitiba, Florianópolis, Fortaleza, Porto Alegre, Recife, Salvador, Rio de Janeiro ou São Paulo.
+6.4.1.1 Somente será permitida uma solicitação de inscrição por Cadastro de Pessoa Física (CPF). Não será
+permitido ao candidato realizar mais de uma solicitação de inscrição.
+6.4.1.2 Durante o período de solicitação de inscrição, o candidato poderá realizar alteração de opção de
+atendimento especial/sistema de concorrência.
+6.4.1.2.1 Para o candidato que alterar a sua solicitação de inscrição, nos termos do subitem 6.4.1.2 deste
+edital, será considerada válida somente a última alteração realizada.
+6.4.1.2.2 Encerrado o período de solicitação de inscrição, as inscrições realizadas no sistema de inscrição
+que tenham sido efetivamente pagas ou isentas serão automaticamente efetivadas e não poderão ser
+alteradas em hipótese alguma.
+6.4.1.3 No momento da solicitação de inscrição, o candidato deverá assinalar a concordância com os
+termos que constam neste edital, bem como declarar que aceita que os seus dados pessoais, sensíveis
+e não sensíveis, sejam tratados e processados de forma a possibilitar a efetiva execução do concurso
+público, com a aplicação dos critérios de avaliação e seleção, autorizando expressamente a divulgação
+de seus nomes, números de inscrição e notas, em observância aos princípios da publicidade e da
+transparência que regem a Administração Pública e nos termos da Lei nº 13.709, de 14 de agosto de
+2018.
+6.4.2 É vedada a solicitação de inscrição condicional, a extemporânea, bem como a solicitada via postal,
+via requerimento administrativo ou via correio eletrônico.
+6.4.3 É vedada a transferência do valor pago a título de taxa para terceiros ou para outros concursos.
+
+6.4.4 Para solicitar a inscrição, o candidato deverá informar o número do seu CPF e enviar, via upload,
+fotografia individual, tirada nos últimos seis meses anteriores à data de publicação deste edital, em que
+necessariamente apareça a sua cabeça descoberta e os seus ombros.
+6.4.4.1 O candidato deverá seguir rigorosamente as instruções contidas no sistema de inscrição referentes
+ao procedimento de envio da fotografia.
+6.4.4.1.1 O candidato cuja fotografia, por não obedecer às especificações constantes do subitem 6.4.4
+deste edital, impeça ou dificulte a sua identificação durante a realização das provas, poderá, a critério do
+Cebraspe, ser submetido à identificação especial no dia de realização das provas.
+6.4.4.1.1.1 O candidato que for submetido à identificação especial poderá ser fotografado no dia de
+realização das provas.
+6.4.4.1.2 O envio da fotografia é de responsabilidade exclusiva do candidato. O Cebraspe não se
+responsabiliza por qualquer tipo de problema que impeça a chegada do arquivo a seu destino, seja de
+ordem técnica dos computadores, seja decorrente de falhas de comunicação e outros fatores que
+impossibilitem o envio.
+6.4.4.1.3 Os candidatos deverão verificar, em link específico a ser divulgado na internet, no endereço
+eletrônico http://www.cebraspe.org.br/concursos/serpro_23, no período estabelecido no cronograma
+constante do Anexo I deste edital, se a foto encaminhada obedeceu rigorosamente às instruções contidas
+no sistema de inscrição e, portanto, foi acatada. Caso não tenha sido reconhecida, o candidato poderá
+realizar, no período acima mencionado, novo envio de uma foto que atenda às determinações do sistema.
+6.4.5 As informações prestadas na solicitação de inscrição serão de inteira responsabilidade do candidato,
+dispondo o Cebraspe do direito de excluir do concurso público aquele que não preencher a solicitação de
+forma completa, correta e verdadeira.
+6.4.6 O valor referente ao pagamento da taxa de inscrição não será devolvido em hipótese alguma, salvo
+em caso de cancelamento do certame por conveniência da Administração Pública.
+6.4.7 O comprovante de inscrição ou o comprovante de pagamento da taxa de inscrição deverá ser
+mantido em poder do candidato e apresentado nos locais de realização das provas objetivas.
+6.4.8 DOS PROCEDIMENTOS PARA A SOLICITAÇÃO DE ISENÇÃO DE TAXA DE INSCRIÇÃO
+6.4.8.1 Haverá isenção total do valor da taxa de inscrição somente para os candidatos amparados pelo
+Decreto Federal nº 6.593, de 2 de outubro de 2008, e pelo Decreto Federal nº 11.016, de 29 de março de
+2022, ou pela Lei Federal nº 13.656, de 30 de abril de 2018.
+6.4.8.1.1 É de responsabilidade exclusiva do candidato, sob pena de não concessão, a correta indicação,
+no sistema de inscrição, da possibilidade de isenção que pretenda pleitear, bem como a correta
+apresentação da respectiva documentação.
+6.4.8.2 Para solicitar a isenção de taxa de inscrição, os candidatos amparados na forma do subitem 6.4.8.1
+deste edital deverão, no período estabelecido no cronograma constante do Anexo I deste edital,
+proceder conforme subitem 6.4.8.2.1 ou enviar, via upload, por meio de link específico no endereço
+eletrônico http://www.cebraspe.org.br/concursos/serpro_23, a imagem legível da documentação de que
+trata o subitem 6.4.8.2.2 deste edital, conforme o caso em que se enquadra.
+6.4.8.2.1 1ª POSSIBILIDADE (CadÚnico, conforme o Decreto Federal nº 6.593/2008 e o Decreto Federal
+nº 11.016/2022):
+a) preenchimento do requerimento disponível no aplicativo de inscrição com a indicação do Número de
+Identificação Social (NIS), atribuído pelo CadÚnico;
+b) preenchimento eletrônico de declaração de que é membro de família de baixa renda (declaração de
+hipossuficiência), nos termos do Decreto nº 11.016/2022.
+6.4.8.2.2 2ª POSSIBILIDADE (doador de medula óssea em entidades reconhecidas pelo Ministério da
+Saúde, conforme a Lei nº 13.656/2018): atestado ou laudo emitido por médico de entidade reconhecida
+pelo Ministério da Saúde, inscrito no Conselho Regional de Medicina, que comprove que o candidato
+efetuou a doação de medula óssea, bem como a data da doação.
+
+6.4.8.3 A realização do procedimento constante do subitem 6.4.8.2.1 deste edital ou o envio da
+documentação constante do subitem 6.4.8.2.2 deste edital é de responsabilidade exclusiva do candidato.
+O Cebraspe não se responsabiliza por qualquer tipo de problema que impeça a chegada dessa
+documentação a seu destino, seja de ordem técnica dos computadores, seja decorrente de falhas de
+comunicação, bem como por outros fatores que impossibilitem o envio. Esses documentos, que valerão
+somente para este concurso, não serão devolvidos nem deles serão fornecidas cópias.
+6.4.8.3.1 Somnt srãocits imgns qustjm nsxtnsõs “.png”, “.jpg” “.jpg”. O tmnho
+de cada imagem submetida deverá ser de, no máximo, 1 MB.
+6.4.8.3.2 Não será deferida a solicitação de isenção do candidato que não enviar a imagem legível da
+documentação constante do subitem 6.4.8.2.2 deste edital.
+6.4.8.4 O candidato deverá manter aos seus cuidados a documentação constante do subitem 6.4.8.2.2
+deste edital. Caso seja solicitada pelo Cebraspe, o candidato deverá enviar a referida documentação por
+meio de carta registrada para confirmação da veracidade das informações.
+6.4.8.5 A solicitação realizada após o período constante do subitem 6.4.8.2 deste edital será indeferida.
+6.4.8.6 Durante o período de que trata o subitem 6.4.8.2 deste edital, o candidato poderá desistir de
+solicitar a isenção do pagamento da taxa de inscrição e optar pela impressão do boleto bancário, por meio
+dapáginadeacompanhamento,noendereçoeletrônico
+http://www.cebraspe.org.br/concursos/serpro_23.
+6.4.8.7 A veracidade das informações prestadas no requerimento de isenção será de inteira
+responsabilidade do candidato, podendo este responder, a qualquer momento, no caso de serem
+prestadas informações inverídicas ou de serem utilizados documentos falsos, por crime contra a fé
+pública, o que acarreta sua eliminação do concurso. Aplica-se, ainda, o disposto no parágrafo único do
+art. 10 do Decreto Federal nº 83.936, de 6 de setembro de 1979.
+6.4.8.8 Não será concedida isenção de pagamento de taxa de inscrição ao candidato que:
+a) omitir informações e(ou) torná-las inverídicas;
+b) fraudar e(ou) falsificar documentação;
+c) não observar a forma, o prazo e os horários estabelecidos no subitem 6.4.8.2 deste edital.
+6.4.8.9 Não será aceita solicitação de isenção de taxa de inscrição via postal, via requerimento
+administrativo, via correio eletrônico, ou, ainda, fora do prazo.
+6.4.8.10 Cada solicitação de isenção será analisada e julgada pelo Cebraspe.
+6.4.8.10.1 O Cebraspe consultará o órgão gestor do CadÚnico para confirmar a veracidade das
+informações prestadas pelo candidato.
+6.4.8.11 O candidato deverá verificar se a sua solicitação de isenção de taxa foi deferida no período
+estabelecido  no  cronograma  constante  do  Anexo  I  deste  edital,  no  endereço  eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23.
+6.4.8.11.1 O candidato com a solicitação de isenção do pagamento da taxa de inscrição indeferida poderá,
+no período estabelecido no cronograma constante do Anexo I deste edital, no endereço eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, verificar os motivos do indeferimento de sua
+solicitação e interpor recurso contra o indeferimento por meio do Sistema Eletrônico de Interposição de
+Recurso. Após esse período, não serão aceitos pedidos de revisão.
+6.4.8.11.2 O Cebraspe não arcará com prejuízos advindos de problemas de ordem técnica dos
+computadores, de falhas de comunicação, de congestionamento das linhas de comunicação e de outros
+fatores, de responsabilidade do candidato, que impossibilitem a interposição de recurso.
+6.4.8.11.3 O candidato deverá ser claro, consistente e objetivo em seu pleito. Recurso inconsistente ou
+intempestivo será preliminarmente indeferido.
+6.4.8.11.4 Recurso cujo teor desrespeite a banca será preliminarmente indeferido.
+6.4.8.11.5 Não será aceito recurso via postal, via requerimento administrativo, via correio eletrônico, fora
+do prazo ou em desacordo com este edital.
+
+6.4.8.11.6 No período de interposição de recurso, não haverá possibilidade de envio de documentação
+pendente ou complementação desta.
+6.4.8.11.7 O candidato deverá verificar se a sua solicitação de isenção de taxa foi deferida, após a análise
+dos recursos, a partir da data provável estabelecida no cronograma constante do Anexo I deste edital,
+no endereço eletrônico http://www.cebraspe.org.br/concursos/serpro_23.
+6.4.8.12 O candidato cuja solicitação de isenção for indeferida deverá efetuar o pagamento da taxa de
+inscrição até a data provável estabelecida no cronograma constante do Anexo I deste edital, sob pena
+de ser automaticamente excluído do concurso público.
+6.4.9 DOS PROCEDIMENTOS PARA A SOLICITAÇÃO DE ATENDIMENTO ESPECIAL
+6.4.9.1 O candidato que necessitar de atendimento especial e(ou) adaptação das provas deverá,
+conforme o prazo descrito no subitem 6.4.9.8 deste edital:
+a) assinalar, no sistema eletrônico de inscrição, a(s) opção(ões) correspondente(s) aos recursos especiais
+necessários; e
+b) enviar, via upload, a imagem legível do laudo médico, emitido no máximo 12 meses antes da data de
+publicação deste edital. O laudo deve atestar a espécie e o grau ou nível de sua deficiência, doença ou
+limitação física, com expressa referência ao código correspondente da CID-10, que justifique o
+atendimento especial solicitado, bem como conter a assinatura e o carimbo do médico com o número de
+sua inscrição no CRM.
+6.4.9.1.1 No caso dos candidatos cuja deficiência se enquadra no § 1º do art. 1º da Lei nº 12.764/2012
+(Transtorno do Espectro Autista), a validade do laudo médico é indeterminada, não sendo considerada a
+data de emissão.
+6.4.9.1.2 Caso os recursos especiais de que o candidato necessite para a realização das provas não estejam
+entre aqueles elencados no sistema eletrônico de inscrição, o candidato deverá assinalar o campo
+OUTROS dessa lista de opções e, em seguida, proceder de acordo com o subitem 6.4.9.6 deste edital.
+6.4.9.1.3 Os recursos especiais solicitados pelo candidato para a realização das provas deverão ser
+justificados pelo laudo por ele apresentado:
+a) recursos especiais solicitados que não sejam respaldados pelo laudo serão indeferidos;
+b) eventuais recursos que sejam citados no laudo do candidato, mas que não sejam por ele solicitados no
+sistema eletrônico de inscrição não serão considerados na análise da solicitação de atendimento especial
+do candidato.
+6.4.9.2 O candidato com deficiência que necessitar de tempo adicional para a realização das provas
+deverá, conforme o prazo descrito no subitem 6.4.9.8 deste edital:
+a) assinalar, no sistema eletrônico de inscrição, a opção correspondente à solicitação de tempo adicional
+para realização das provas;
+b) enviar, via upload, a imagem legível de laudo médico, cuja data de emissão seja, no máximo, nos 12
+meses anteriores à data de publicação deste edital. O laudo deve conter a assinatura do médico com o
+carimbo e o número de sua inscrição no CRM, que ateste a espécie e o grau ou o nível da deficiência, com
+expressa referência ao CID-10, bem como a provável causa da deficiência, e parecer que justifique a
+necessidade de tempo adicional.
+6.4.9.2.1 O laudo médico/parecer deve conter a assinatura e o carimbo do médico com o número de sua
+inscrição no CRM, bem como as assinaturas e os carimbos dos demais profissionais especializados com o
+número de suas inscrições nos respectivos conselhos fiscalizadores da profissão, conforme a sua
+especialidade.
+6.4.9.2.2 No caso dos candidatos cuja deficiência se enquadra no § 1º do art. 1º da Lei nº 12.764/2012
+(Transtorno do Espectro Autista), a validade do laudo médico/parecer é indeterminada, não sendo
+considerada a data de emissão.
+
+6.4.9.2.2.1 O candidato com atendimento especial de tempo adicional deferido para a realização de suas
+provas, que não seja considerado deficiente na avaliação biopsicossocial, será eliminado do concurso, por
+descumprir o subitem 13.2 deste edital.
+6.4.9.3 A candidata que for amparada pela Lei nº 13.872, de 17 de setembro de 2019, e necessitar
+amamentar criança de até 6 meses de idade durante a realização das provas deverá, conforme o prazo
+descrito no subitem 6.4.9.8 deste edital:
+a) assinalar, no sistema eletrônico de inscrição, a opção correspondente à necessidade de amamentar
+durante a realização das provas;
+b) enviar, via upload, a imagem legível da certidão de nascimento da criança que comprove que criança
+terá até 6 meses de idade no dia de realização das provas. Caso a criança ainda não tenha nascido, a
+imagem da certidão de nascimento poderá ser substituída por imagem legível do documento emitido pelo
+médico obstetra, com o respectivo CRM, que ateste a data provável do nascimento).
+6.4.9.3.1 A candidata deverá apresentar, no dia de realização das provas, original ou cópia simples da
+certidão de nascimento da criança para comprovar que a criança tem até seis meses de idade no dia de
+realização das provas/fases.
+6.4.9.3.2 A candidata deverá levar, no dia de realização das provas, um acompanhante adulto que ficará
+em sala reservada e será o responsável pela guarda da criança. A candidata que não levar acompanhante
+adulto não poderá permanecer com a criança no local de realização das provas.
+6.4.9.3.2.1 O Cebraspe não disponibilizará acompanhante para a guarda de criança.
+6.4.9.3.2.2 A candidata terá, caso cumpra o disposto nos subitens 6.4.9.3 e 6.4.9.3.1, o direito de proceder
+à amamentação a cada intervalo de duas horas, por até 30 minutos. O tempo despendido pela
+amamentação será compensado durante a realização da prova em igual período, nos termos do parágrafo
+2º do art. 4º da Lei nº 13.872/2019.
+6.4.9.3.2.2.1 Caso a candidata utilize mais de uma hora para amamentar, será concedida, no máximo,
+uma hora de compensação.
+6.4.9.4 O candidato transexual ou travesti que desejar ser tratado pelo nome social, nos termos do
+Decreto Federal nº 8.727, de 28 de abril de 2016, durante a realização das provas deverá, conforme o
+prazo descrito no subitem 6.4.9.8 deste edital, assinalar, no sistema eletrônico de inscrição, a opção
+correspondente à utilização de nome social durante realização das provas, informando o nome e o
+sobrenome pelos quais deseja ser tratado.
+6.4.9.4.1 As publicações referentes aos candidatos transexual ou travesti serão realizadas de acordo com
+o nome e o gênero constantes no registro civil.
+6.4.9.5 O candidato que for amparado pela Lei Federal nº 10.826/2003, e suas alterações, e necessitar
+realizar as provas armado deverá, conforme o prazo descrito no subitem 6.4.9.8 deste edital:
+a) assinalar, no sistema eletrônico de inscrição, a opção correspondente à necessidade de portar arma
+durante realização das provas;
+b) enviar, via upload, a imagem legível do Certificado de Registro de Arma de Fogo e da Autorização de
+Porte, conforme definidos na referida lei.
+6.4.9.5.1 O candidato amparado pela Lei Federal nº 10.826/2003, e suas alterações, que não solicitar o
+atendimento especial conforme descrito no subitem 6.4.9.5 deste edital não poderá portar armas no
+ambiente de provas, e, caso descumpra o estabelecido neste edital, estará automaticamente eliminado e
+não terá classificação alguma no concurso.
+6.4.9.5.2 Os candidatos que não forem amparados pela Lei Federal nº 10.826/2003, e suas alterações, não
+poderão portar armas no ambiente de provas.
+6.4.9.6 O candidato que, por motivo de doença ou por limitação física, necessitar utilizar, durante a
+realização das provas, objetos, dispositivos ou próteses cujo uso não esteja expressamente
+previsto/permitido neste edital nem relacionado nas opções de recursos especiais necessários elencadas
+no sistema eletrônico de inscrição, deverá, conforme o prazo descrito no subitem 6.4.9.8 deste edital:
+
+a) assinalar, no sistema eletrônico de inscrição, a opção correspondente ao campo OUTROS e, em seguida,
+descrever, no espaço destinado para esse fim, no sistema eletrônico de inscrição, os recursos especiais
+necessários para a realização da prova;
+b) enviar, via upload, a imagem legível do respectivo laudo médico que justifique o atendimento
+solicitado.
+6.4.9.7 O candidato que necessitar de atendimento diferenciado por motivos religiosos deverá, conforme
+o prazo descrito no subitem 6.4.9.8 deste edital:
+a) assinalar a opção correspondente na solicitação de inscrição;
+b) enviar, via upload, a imagem legível da declaração da congregação religiosa a que pertence, em que
+conste seu nome, atestando a sua condição de membro da igreja, com a devida assinatura do líder
+religioso.
+6.4.9.8 A documentação citada nos subitens 6.4.9.1 a 6.4.9.7 deste edital deverá ser enviada de forma
+legível no período de inscrição estabelecido no cronograma constante do Anexo I deste edital e
+observado o horário de Brasília/DF, via upload, por meio de link específico no endereço eletrônico
+http://www.cebraspe.org.br/serpro_23. Após esse período, a solicitação será indeferida, salvo nos casos
+de força maior, a critério do Cebraspe, ou decorrente de fatos conhecidos ou ocorridos após o
+encerramento do período de inscrição.
+6.4.9.8.1 O fornecimento da documentação é de responsabilidade exclusiva do candidato.
+6.4.9.8.2 O Cebraspe não se responsabiliza por qualquer tipo de problema que impeça a chegada dessa
+documentação a seu destino, seja de ordem técnica dos computadores, seja decorrente de
+indisponibilização/falhas de comunicação, bem como outros fatores que impossibilitem o envio. Esses
+documentos, que valerão somente para este processo, não serão devolvidos nem deles serão fornecidas
+cópias.
+6.4.9.8.3 O candidato deverá manter aos seus cuidados a documentação a que se refere os subitens
+6.4.9.1 a 6.4.9.7 deste edital. Caso seja solicitado pelo Cebraspe, o candidato deverá enviar a referida
+documentação por meio de carta registrada, para a confirmação da veracidade das informações.
+6.4.9.9 O candidato que não solicitar atendimento especial no sistema eletrônico de inscrição e não
+especificar quais os recursos serão necessários para tal atendimento não terá atendimento especial, ainda
+que faça o envio, via upload, da documentação prevista nos subitens 6.4.9.1 a 6.4.9.7 deste edital. Apenas
+o envio do laudo médico/documentação não é suficiente para a obtenção do atendimento especial.
+6.4.9.10 No caso de solicitação de atendimento especial que envolva a utilização de recursos tecnológicos,
+se ocorrer eventual falha desses recursos no dia de aplicação das provas, poderá ser disponibilizado
+atendimento alternativo, observadas as condições de viabilidade.
+6.4.9.11 A solicitação de atendimento especial, em qualquer caso, será atendida segundo os critérios de
+viabilidade e de razoabilidade.
+6.4.9.12 O candidato deverá verificar se a sua solicitação de atendimento especial foi deferida no período
+estabelecido  no  cronograma  constante  do  Anexo  I  deste  edital,  no  endereço  eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23.
+6.4.9.12.1 O candidato com a solicitação de atendimento especial indeferida poderá, no período
+estabelecido  no  cronograma  constante  do  Anexo  I  deste  edital,  no  endereço  eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, verificar os motivos do indeferimento e interpor
+recurso contra o indeferimento por meio do Sistema Eletrônico de Interposição de Recurso. Após esse
+período, não serão aceitos pedidos de revisão.
+6.4.9.12.2 O Cebraspe não arcará com prejuízos advindos de problemas de ordem técnica dos
+computadores, de falhas de comunicação, de congestionamento das linhas de comunicação e de outros
+fatores, de responsabilidade do candidato, que impossibilitem a interposição de recurso.
+6.4.9.12.3 O candidato deverá ser claro, consistente e objetivo em seu pleito. Recurso inconsistente ou
+intempestivo será preliminarmente indeferido.
+
+6.4.9.12.4 Recurso cujo teor desrespeite a banca será preliminarmente indeferido.
+6.4.9.12.5 Não será aceito recurso via postal, via requerimento administrativo, via correio eletrônico, fora
+do prazo ou em desacordo este edital.
+6.4.9.12.6 No período de interposição de recurso, não haverá possibilidade de envio de documentação
+pendente ou complementação desta.
+6.4.9.12.7 O candidato deverá verificar se a sua solicitação de atendimento especial foi deferida, após
+análise dos recursos, a partir da data provável estabelecida no cronograma constante do Anexo I deste
+edital, no endereço eletrônico http://www.cebraspe.org.br/concursos/serpro_23.
+7 DAS FASES DO CONCURSO
+7.1 As fases do concurso estão descritas no quadro a seguir.
+PROVA/TIPO
+ÁREA DE
+CONHECIMENTO
+DISCIPLINA
+NÚMERO DE
+ITENS
+CARÁTER
+(P
+1
+) ObjetivaConhecimentos
+Básicos
+Língua Portuguesa18
+Eliminatório
+e
+classificatório
+Língua Inglesa12
+Noções de estatística /
+probabilidade
+5
+Raciocínio Lógico10
+Legislação acerca de
+privacidade e proteção
+de dados pessoais
+5
+(P
+2
+) ObjetivaConhecimentos
+Específicos
+-70
+(P
+3
+) Conhecimentos
+aplicados
+---
+8 DAS PROVAS OBJETIVAS
+8.1 As provas objetivas terão a duração de 3 horas e 30 minutos e serão aplicadas na data provável
+estabelecida no cronograma constante do Anexo I deste edital, no turno da tarde.
+8.2 Na data provável estabelecida no cronograma constante do Anexo I deste edital, será publicado no
+Diário   Oficial   da   União   e   divulgado   na   internet,   no   endereçoeletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, edital que informará a disponibilização da consulta
+aos locais e aos horários de realização das provas.
+8.2.1   O   candidato   deverá,   obrigatoriamente,   acessar   o   endereço   eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23 para verificar seu local de provas, por meio de busca
+individual, devendo, para tanto, informar os dados solicitados.
+8.2.2 O candidato somente poderá realizar as provas no local designado pelo Cebraspe.
+8.2.3 Serão de responsabilidade exclusiva do candidato a identificação correta de seu local de realização
+das provas e o comparecimento no horário determinado.
+8.2.4 O Cebraspe poderá enviar, como complemento às informações citadas no subitem 8.2 deste edital,
+comunicação pessoal dirigida ao candidato, por e-mail, sendo de sua exclusiva responsabilidade a
+manutenção/atualização de seu correio eletrônico, o que não o desobriga do dever de observar o disposto
+no subitem 8.2 deste edital.
+8.3 As provas objetivas, de caráter eliminatório e classificatório, valerão 120,00 pontos e abrangerão os
+objetos de avaliação constantes do item 14 deste edital.
+8.4 Cada prova objetiva será constituída de itens para julgamento, agrupados por comandos que deverão
+ser respeitados. O julgamento de cada item será CERTO ou ERRADO, de acordo com o(s) comando(s) a
+que se refere o item. Haverá, na folha de respostas, para cada item, dois campos de marcação: o campo
+designado com o código C, que deverá ser preenchido pelo candidato caso julgue o item CERTO, e o campo
+designado com o código E, que deverá ser preenchido pelo candidato caso julgue o item ERRADO.
+
+8.5 Para que possa obter pontuação no item, o candidato deverá marcar um, e somente um, dos dois
+campos da folha de respostas.
+8.6 O candidato deverá transcrever as respostas das provas objetivas para a folha de respostas, que será
+o único documento válido para a correção das provas. O preenchimento da folha de respostas será de
+inteira responsabilidade do candidato, que deverá proceder em conformidade com as instruções
+específicas contidas neste edital e na folha de respostas. Em hipótese alguma haverá substituição da folha
+de respostas por motivo de erro do candidato.
+8.7 Serão de inteira responsabilidade do candidato os prejuízos advindos do preenchimento indevido da
+folha de respostas. Serão consideradas marcações indevidas as que estiverem em desacordo com este
+edital ou com a folha de respostas, tais como marcação rasurada ou emendada ou campo de marcação
+não preenchido integralmente.
+8.8 O candidato não poderá amassar, molhar, dobrar, rasgar, manchar ou, de modo algum, danificar a sua
+folha de respostas, sob pena de arcar com os prejuízos advindos da impossibilidade de realização do seu
+processamento eletrônico.
+8.9 O candidato é responsável pela conferência de seus dados pessoais, em especial de seu nome, do seu
+número de inscrição e do número de seu documento de identidade.
+8.10 Não será permitido que as marcações na folha de respostas sejam feitas por outras pessoas, salvo
+em  caso  de  candidato  a  quem  tenha  sido  deferido  atendimento  especial  para  auxíliono
+preenchimento/auxílio na leitura. Nesse caso, o candidato será acompanhado pelo aplicador
+especializado do Cebraspe devidamente treinado e as respostas fornecidas serão gravadas em áudio.
+8.11 Serão anuladas as provas objetivas do candidato que não devolver a sua folha de respostas.
+8.12 O Cebraspe disponibilizará o link de consulta da imagem da folha de respostas dos candidatos que
+realizaram as provas objetivas, exceto a dos candidatos cujas provas tiverem sido anuladas na forma do
+subitem 8.11 e dos que tiverem sido eliminados na forma dos subitens 13.22 e 13.24 deste edital, no
+endereço eletrônico http://www.cebraspe.org.br/concursos/serpro_23, em até cinco dias úteis a partir
+da data de divulgação do resultado final nas provas objetivas. A consulta à referida imagem ficará
+disponível por até 60 dias corridos da data de publicação do resultado final no concurso público.
+8.12.1 Após o prazo determinado no subitem 8.12 deste edital, não serão aceitos pedidos de
+disponibilização da imagem da folha de respostas.
+8.13 DOS CRITÉRIOS DE AVALIAÇÃO DAS PROVAS OBJETIVAS
+8.13.1 As provas objetivas de todos os candidatos serão corrigidas por meio de processamento eletrônico
+das folhas de respostas.
+8.13.2 A nota em cada item das provas objetivas, feita com base nas marcações da folha de respostas,
+será igual a: 1,00 ponto, caso a resposta do candidato esteja em concordância com o gabarito oficial
+definitivo das provas; 1,00 ponto negativo, caso a resposta do candidato esteja em discordância com o
+gabarito oficial definitivo das provas; 0,00, caso não haja marcação ou haja marcação dupla (C e E).
+8.13.3 A nota em cada prova objetiva será igual à soma das notas obtidas em todos os itens que a
+compõem.
+8.13.4 Será reprovado nas provas objetivas e eliminado do concurso público o candidato que se enquadrar
+em pelo menos um dos itens a seguir:
+a) obtiver nota inferior a 5,00 pontos na prova objetiva de Conhecimentos Básicos P
+1
+;
+b) obtiver nota inferior a 14,00 pontos na prova objetiva de Conhecimentos Específicos P
+2
+.
+8.13.4.1 O candidato eliminado na forma do subitem 8.13.4 deste edital não terá classificação alguma no
+concurso público.
+8.13.5 Os candidatos não eliminados na forma do subitem 8.13.4 serão ordenados de acordo com os
+valores decrescentes da nota final nas provas objetivas, que será a soma das notas obtidas nas provas
+objetivas P
+1
+e P
+2,
+e listados, no edital de resultado final nas provas objetivas, em ordem alfabética.
+8.14 DOS GABARITOS OFICIAIS PRELIMINARES DAS PROVAS OBJETIVAS
+
+8.14.1 Os gabaritos oficiais preliminares das provas objetivas serão divulgados na internet, no endereço
+eletrônico http://www.cebraspe.org.br/concursos/serpro_23, a partir das 19 horas da data provável
+estabelecida no cronograma constante do Anexo I deste edital.
+8.14.2 O candidato que desejar interpor recursos contra os gabaritos oficiais preliminares das provas
+objetivas disporá do período provável estabelecido no cronograma constante do Anexo I deste edital
+para fazê-lo, ininterruptamente.
+8.14.3 Para recorrer contra os gabaritos oficiais preliminares das provas objetivas, o candidato deverá
+utilizar o Sistema Eletrônico de Interposição de Recurso, disponível no endereço eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, e seguir as instruções ali contidas.
+8.14.3.1 O candidato poderá, ainda, no período de que trata o subitem 8.14.2 deste edital, apresentar
+razões para a manutenção do gabarito, por meio do Sistema Eletrônico de Interposição de Recurso,
+disponível no endereço eletrônico http://www.cebraspe.org.br/concursos/serpro_23, e seguir as
+instruções ali contidas.
+8.14.4 Todos os recursos serão analisados, e as justificativas das alterações/anulações de gabarito serão
+divulgadas no endereço eletrônico http://www.cebraspe.org.br/concursos/serpro_23. Não serão
+encaminhadas respostas individuais aos candidatos.
+8.14.5 O candidato deverá ser claro, consistente e objetivo em seu pleito. Recurso inconsistente ou
+intempestivo será preliminarmente indeferido.
+8.14.6 O recurso não poderá conter, em outro local que não o apropriado, qualquer palavra ou marca que
+identifique seu autor, sob pena de ser preliminarmente indeferido.
+8.14.7 O deferimento de recurso contra item de prova objetiva gera duas situações distintas: a anulação
+do item ou a alteração de seu gabarito. A anulação de item se dá quando o seu julgamento resta
+impossibilitado, o que ocorre nas seguintes situações, entre outras: o assunto abordado no item foge ao
+escopo dos objetos de avaliação estabelecidos em edital; há possibilidade de dupla interpretação; há erro
+de digitação que prejudica o julgamento do item; há contradição entre duas referências bibliográficas
+válidas. Já a alteração de gabarito pode decorrer de erro material na divulgação ou de apresentação de
+argumentação consistente que leve a banca a reconsiderar a resposta originalmente proposta para o item.
+8.14.7.1 Se do exame de recursos resultar a anulação de item integrante de prova, a pontuação
+correspondente a esse item será atribuída a todos os candidatos, independentemente de terem recorrido.
+8.14.7.2 Se houver alteração, por força de impugnações, de gabarito oficial preliminar de item integrante
+de prova, essa alteração valerá para todos os candidatos, independentemente de terem recorrido.
+8.14.8 Não será aceito recurso via postal, via requerimento administrativo, via correio eletrônico ou,
+ainda, fora do prazo.
+8.14.9 Em nenhuma hipótese serão aceitos pedidos de revisão de recursos ou recurso contra o gabarito
+oficial definitivo.
+8.14.10 Recursos cujo teor desrespeite a banca serão preliminarmente indeferidos.
+8.15 O edital de resultado final nas provas objetivas e de convocação para a prova de conhecimentos
+aplicados será publicado no Diário Oficial da União, e divulgado na internet, no endereço eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, na data provável na data provável estabelecida no
+cronograma constante do Anexo I deste edital.
+9 DA PROVA DE CONHECIMENTOS APLICADOS
+9.1 Para cada sistema de concorrência, a convocação para a prova de conhecimentos aplicados será de
+acordo com os seguintes critérios:
+a) ampla concorrência: serão convocados para a prova de conhecimentos aplicados os 2.160 candidatos
+mais bem classificados nas provas objetivas, respeitados os empates na última posição;
+b) candidatos que se declararam pessoas com deficiência: serão convocados para a prova de
+conhecimentos aplicados os 720 candidatos mais bem classificados nas provas objetivas, respeitados os
+empates na última posição;
+
+c) candidatos que se autodeclararam negros: serão convocados para a prova de conhecimentos aplicados
+os 720 candidatos mais bem classificados nas provas objetivas, respeitados os empates na última posição;
+9.1.1 Caso o número de candidatos que tenham se declarado pessoas com deficiência ou se autodeclarado
+negros aprovados nas provas objetivas seja inferior ao quantitativo estabelecido no subitem 9.1 deste
+edital, serão convocados para a prova de conhecimentos aplicados os candidatos da ampla concorrência
+posicionados nas provas objetivas até o limite de correções estabelecido no referido subitem, respeitados
+os empates na última colocação.
+9.1.2 O candidato que não for convocado para a prova de conhecimentos aplicados na forma do subitem
+9.1.1 deste edital estará automaticamente eliminado e não terá classificação alguma no concurso.
+9.1.3 O edital de resultado final nas provas objetivas e de convocação para a prova de conhecimentos
+aplicados listará apenas os candidatos não eliminados, conforme subitens 9.1 e 9.1.1 deste edital.
+9.2 A prova de conhecimentos aplicados tem como objetivo aferir a habilidade do candidato quanto à
+prática de desenvolvimento de sistemas de computação, incluindo a análise de requisitos, programação
+do código-fonte — que envolve, no mínimo, conhecimentos acerca de lógica de programação —, e
+construção de algoritmo com ou sem acesso a banco de dados.
+9.3 A prova de conhecimentos aplicados abrangerá, por meio da avaliação do resultado, a execução de
+tarefas esperadas para o cargo, como, por exemplo: análise e desenvolvimento de sistemas,
+conhecimentos sobre computação, programação de sistemas, desenvolvimento de algoritmos e
+manipulação de banco de dados.
+9.4 A prova de conhecimentos aplicados avaliará, dentre outros, o conhecimento da linguagem de
+programação utilizada no desenvolvimento da solução, incluindo sintaxe e boas práticas de
+desenvolvimento como, por exemplo, Clean Code (conjunto de boas práticas na escrita de software que
+o candidato pode aplicar para obter uma maior legibilidade e manutenibilidade do seu código).
+9.5 A prova de conhecimentos aplicados avaliará, a partir da execução do código-fonte entregue pelo
+candidato, o resultado efetivo esperado, de acordo com os requisitos apresentados no enunciado da
+questão.
+9.6 O candidato deverá estar apto a realizar as seguintes ações na mesma prova, podendo ser questões
+distintas, contendo apenas uma dessas solicitações, ou mesmo todas elas em uma mesma questão:
+a) desenvolver um programa a partir de uma especificação, com ou sem acesso a banco de dados;
+b) desenvolver um programa que apresente os dados solicitados e(ou) calculados, a partir de entrada de
+dados;
+c) desenvolver um programa que execute uma ou mais rotinas a partir de uma especificação de software;
+d) encontrar erros no código-fonte em uma solução de software previamente disponibilizada e solucioná-
+los, detalhando cada erro encontrado e apresentando para cada erro a(s) solução(ções) necessária(s);
+e) refatorar um código-fonte disponibilizado com objetivo de melhorá-lo sem que haja mudança na sua
+funcionalidade;
+f) elaborar o teste unitário de um código-fonte disponibilizado.
+9.7 Na prova de conhecimentos aplicados serão avaliados, no mínimo:
+a) sintaxe do código-fonte;
+b) avaliação do resultado (saída do software);
+c) correta execução do software a partir dos requisitos descritos, incluindo, dados de entrada e resultado
+esperado.
+9.8 A(s) linguagem(ns) de programação a ser(em) utilizada(s) será(ão) informada(s) ao candidato no
+momento da prova de conhecimentos aplicados, sendo linguagem(ns) padrão(ões) de mercado como, por
+exemplo: Java, Python ou Javascript e suas respectivas versões vigentes.
+9.9 A prova de conhecimentos aplicados, de caráter eliminatório e classificatório, valerá 100,00 pontos.
+9.9.1 Será eliminado e não terá classificação alguma no concurso o candidato que obtiver pontuação igual
+a 0,00 na prova de conhecimentos aplicados.
+
+9.10 Para a execução da prova de conhecimentos aplicados será disponibilizado ao candidato um
+computador de uso individual sem acesso à Internet ou a dispositivos como pendrive, CD ou DVD,
+contendo os requisitos para o desenvolvimento da solução na(s) linguagem(ns) específica(s).
+9.11 O tempo total para a execução da prova será de até 2 horas e 30 minutos, incluindo nesse tempo o
+necessário para submissão/entrega do código no repositório definido pelo Cebraspe.
+9.12 Além da gravação, poderá ser exigida do candidato a impressão do código-fonte e(ou) do resultado
+apresentado pelo software, que será realizada por intermédio de colaborador do Cebraspe.
+9.13 Para execução da prova, o candidato deverá seguir as instruções ali contidas, de acordo com as
+orientações do examinador.
+9.14 No caso de haver problemas no computador, a prova será copiada para outro computador e o tempo
+gasto nessa operação será compensado, sem que haja prejuízo ao tempo total especificado para a
+realização da prova.
+9.15 Durante a execução da prova de conhecimentos aplicados, não será permitida a utilização de
+nenhum dispositivo eletrônico, além do computador disponível para a realização da prova.
+9.16 O candidato e inteiramente responsável pelo manuseio do computador em relação ao
+desenvolvimento do código-fonte, compilação, se necessário do código, e submissão desse para o
+repositório definido pelo Cebraspe.
+9.17 Para a resolução da avaliação, o candidato somente pode utilizar o software disponível no
+computador ou utilizar as folhas de respostas disponíveis.
+9.18 Não será permitida qualquer espécie de consulta na internet ou a qualquer equipamento eletrônico.
+9.19 Não será permitida qualquer espécie de consulta a qualquer material com exceção dos dados
+contidos no enunciado na prova de conhecimentos aplicados
+9.20 Os candidatos não poderão comunicar-se com os demais candidatos, sob pena de exclusão do
+concurso.
+9.21 Caso seja requerido, o candidato deverá, ao final da prova, aguardar orientação do examinador para
+a(s) impressão(ões) solicitada(s).
+9.22 O caderno de prova devera ser devolvido ao término da prova, juntamente com a impressão do
+código-fonte (caso seja requerida), bem como do resultado do software (caso seja requerido),
+devidamente assinado(s) e numerado(s).
+9.23 Após o término da prova de conhecimentos aplicados, o candidato irá salvá-la em um repositório
+disponibilizado pelo Cebraspe e(ou) será encaminhado de acordo com as instruções dadas no momento
+da prova.
+9.24 Caso o candidato não execute a prova, deverá assinar um termo em que constará essa informação.
+9.25 O candidato que desejar interpor recursos contra o resultado provisório na prova de conhecimentos
+aplicados deverá observar os procedimentos disciplinados no respectivo edital de resultado provisório.
+9.26 Demais informações a respeito da prova de conhecimentos aplicados constará do edital de
+convocação para essa fase.
+10 DA NOTA FINAL E DA CLASSIFICAÇÃO FINAL NO CONCURSO
+10.1 A nota final no concurso (NFC) será calculada de acordo com a seguinte fórmula:
+NFC = N1 + (2 x N2) + N3
+em que:
+a) N1 = nota final obtida na prova objetiva P
+1
+;
+b) N2 = nota final obtida na prova objetiva P
+2
+c) N3 = nota final obtida na prova de conhecimentos aplicados P
+3
+.
+10.2 Após o cálculo da nota final no concurso e aplicados os critérios de desempate constantes do item
+11 deste edital, os candidatos serão listados em ordem de classificação, de acordo com os valores
+decrescentes das notas finais no concurso.
+
+10.3 O candidato que for considerado pessoa com deficiência, se não eliminado no concurso e após a
+avaliação biopsicossocial, terá seu nome e a respectiva pontuação publicados em lista única de
+classificação geral.
+10.4 O candidato que for considerado negro no procedimento de heteroidentificação e que for aprovado
+no concurso terá seu nome publicado em lista à parte e figurará também na lista de classificação geral.
+10.5 O edital de resultado final no concurso público contemplará a relação dos candidatos aprovados,
+ordenados por classificação, dentro dos quantitativos previstos no quadro a seguir.
+Ampla concorrênciaCandidatos com deficiênciaCandidatos negros
+1.800600600
+10.5.1 Caso não haja candidato com deficiência ou candidato negro aprovado até a classificação
+estipulada no quadro do subitem 10.5 deste edital, serão contemplados os candidatos da listagem geral
+em número correspondente, observada rigorosamente a ordem de classificação e o limite de candidatos
+definido no quadro.
+10.6 Os candidatos não classificados no número máximo de aprovados de que tratam os subitens 10.5 e
+10.5.1 deste edital, ainda que tenham atingido nota mínima para a aprovação, estarão automaticamente
+reprovados no concurso público.
+10.7 Nenhum dos candidatos empatados na última classificação de aprovados será considerado
+reprovado.
+10.8 Todos os resultados citados neste edital serão expressos até a segunda casa decimal, arredondando-
+se para o número imediatamente superior se o algarismo da terceira casa decimal for igual ou superior a
+cinco.
+11 DOS CRITÉRIOS DE DESEMPATE
+11.1 Em caso de empate na nota final no concurso, terá preferência o candidato que, na seguinte ordem:
+a) tiver idade igual ou superior a 60 anos, até o último dia de inscrição neste concurso, conforme o art.
+27, parágrafo único, da Lei nº 10.741, de 1º de outubro de 2003 (Estatuto do Idoso);
+b) obtiver maior nota na prova de Conhecimentos Aplicados P
+3
+;
+c) obtiver a maior nota na prova objetiva de Conhecimentos Específicos P
+2
+;
+d) obtiver o maior número de acertos na prova objetiva de Conhecimentos Específicos P
+2
+;
+e) obtiver o maior número de acertos na prova objetiva de Conhecimentos Básicos P
+1
+;
+f) tiver maior idade entre aqueles que tiverem idade menor que 60 anos;
+g) tiver exercido a função de jurado (conforme o art. 440 do Código de Processo Penal).
+11.2 Os candidatos que sguirmmptdosteplicção dlín “f” do subitm 11.1 dstditl
+serão convocados, antes do resultado final no concurso, para a apresentação da imagem legível da
+certidão de nascimento para verificação do horário do nascimento para fins de desempate.
+11.2.1 Para os candidatos convocados para apresentação da certidão de nascimento que não
+apresentarem a imagem legível da certidão de nascimento, será considerada como hora de nascimento
+23 horas 59 minutos e 59 segundos.
+11.3 Os candidatos a que s rfrlín “g” do subitm 11.1 dstditl srão convocdos,nts do
+resultado final do concurso, para a entrega da documentação que comprovará o exercício da função de
+jurado.
+11.3.1 Para fins de comprovação da função citada no subitem 11.3 deste edital, serão aceitas certidões,
+declarações, atestados ou outros documentos públicos (original ou cópia autenticada em cartório)
+emitidos pelos Tribunais de Justiça Estaduais e Regionais Federais do País, relativos ao exercício da função
+de jurado, nos termos do art. 440 do CPP, alterado pela Lei nº 11.689/2008.
+12 DA CONTRATAÇÃO
+12.1 Os candidatos aprovados dentro do número de vagas serão convocados para contratação durante o
+prazo de validade do concurso, observada a sua classificação final.
+
+12.2 No ato convocatório constarão todas as informações/documentações/prazos necessários para a
+admissão.
+13 DAS DISPOSIÇÕES FINAIS
+13.1 A inscrição do candidato implicará a aceitação das normas para o concurso público contidas nos
+comunicados, neste edital e em outros a serem publicados.
+13.2 Todos os candidatos concorrerão em igualdade de condições, excetuados os casos específicos
+previstos na legislação vigente para o atendimento especializado para a realização das provas.
+13.3 É de inteira responsabilidade do candidato acompanhar a publicação de todos os atos, editais e
+comunicados referentes a este concurso público publicados no Diário Oficial da União e(ou) divulgados
+na internet, no endereço eletrônico http://www.cebraspe.org.br/concursos/serpro_23.
+13.3.1 Caso ocorram problemas de ordem técnica e(ou) operacional nos links referentes ao concurso,
+causados pelo Cebraspe, que comprometam as funcionalidades sistêmicas ou gerem a indisponibilidade
+de serviços, os prazos de acesso a esses links serão automaticamente prorrogados, no mínimo, pelo
+tempo que durar a indisponibilidade ou que ficar comprometida a funcionalidade. A prorrogação poderá
+ser feita sem alteração das condições deste edital.
+13.3.2 As informações a respeito de notas e classificações poderão ser acessadas por meio dos editais de
+resultados. Não serão fornecidas informações que já constem dos editais ou fora dos prazos previstos
+nesses editais.
+13.4 O candidato poderá obter informações referentes ao concurso público na Central de Atendimento
+ao Candidato do Cebraspe, localizada Quadra 01, Lotes 1115 a 1145 – SAAN, Edifício Cebraspe, Brasília/DF,
+por  meio  do  telefone  (61)  3448-0100,  ou  via  internet,no  endereço  eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23, ressalvado o disposto no subitem 13.6 deste edital, e
+por meio do endereço eletrônico sac@cebraspe.org.br.
+13.5 O candidato que desejar relatar ao Cebraspe fatos ocorridos durante a realização do concurso deverá
+fazê-lo junto à Central de Atendimento ao Candidato do Cebraspe, postando correspondência para a Caixa
+Postal  4488,  CEP  70842-970,  Brasília/DF,  ou  enviando  e-mail  para  o  endereço  eletrônico
+sac@cebraspe.org.br.
+13.6 Não serão dadas por telefone informações a respeito de datas, locais e horários de realização das
+provas. O candidato deverá observar rigorosamente os editais e os comunicados a serem divulgados na
+forma do subitem 13.3 deste edital.
+13.6.1 Não serão fornecidos a terceiros informações e documentos pessoais de candidatos, em atenção
+ao disposto no art. 31 da Lei nº 12.527, de 18 de novembro de 2011.
+13.7 O candidato poderá protocolar requerimento relativo ao concurso, a qualquer tempo, por meio de
+correspondência ou e-mail instruído com cópia do documento de identidade e do CPF. O requerimento
+poderá ser feito pessoalmente mediante preenchimento de formulário próprio, à disposição do candidato
+na Central de Atendimento ao Candidato do Cebraspe, no horário das 8 horas e 30 minutos às 18 horas e
+30 minutos, ininterruptamente, exceto sábados, domingos e feriados, observado o subitem 13.5 deste
+edital.
+13.8 O candidato que desejar corrigir o nome fornecido durante o processo de inscrição deverá entregar
+requerimento de solicitação de alteração de dados cadastrais das 8 horas e 30 minutos às 18 horas e 30
+minutos (exceto sábados, domingos e feriados), pessoalmente ou por terceiro, na Central de Atendimento
+ao Candidato do Cebraspe, Quadra 01, Lotes 1115 a 1145 – SAAN, Edifício Cebraspe, Brasília/DF, ou enviá-
+lo, via SEDEX ou carta registrada com aviso de recebimento, para a Central de Atendimento ao Candidato
+do Cebraspe – SERPRO 2023 (Solicitação de alteração de dados cadastrais) – Caixa Postal 4488, CEP 70842-
+970, Brasília/DF, ou via e-mail, para o endereço eletrônico sac@cebraspe.org.br, acompanhado de cópia
+dos documentos que contenham os dados corretos e cópia da sentença homologatória de retificação do
+registro civil.
+
+13.8.1 O candidato que solicitar a alteração de nome, nos termos do subitem 13.8 deste edital, terá o seu
+nome atualizado na base de dados do Cebraspe para os eventos com inscrições abertas e para os futuros
+eventos.
+13.9 O candidato deverá comparecer ao local designado para a realização das provas com antecedência
+mínima de uma hora do horário fixado para seu início, munido somente de caneta esferográfica de tinta
+preta fabricada em material transparente, do comprovante de inscrição ou do comprovante de
+pagamento da taxa de inscrição e do documento de identidade original. Não será permitido o uso de lápis,
+lapiseira/grafite, marca-texto e(ou) borracha durante a realização das provas.
+13.9.1 O candidato que desejar obter comprovante de comparecimento às provas deste certame deverá
+solicitá-lo no momento de realização das provas.
+13.10 Serão considerados documentos de identidade: carteiras expedidas pelos Comandos Militares,
+pelas Secretarias de Segurança Pública, pelos Institutos de Identificação e pelos Corpos de Bombeiros
+Militares; carteiras expedidas pelos órgãos fiscalizadores de exercício profissional (ordens, conselhos
+etc.); passaporte brasileiro; certificado de reservista; carteiras funcionais expedidas por órgão público
+que, por lei federal, valham como identidade; carteiras de trabalho; carteiras de identidade do
+trabalhador; carteiras nacionais de habilitação (somente o modelo com foto), documentos digitais com
+foto e assinatura (CNH digital e RG digital) apresentados nos respectivos aplicativos oficiais.
+13.10.1 Não serão aceitos como documentos de identidade: certidões de nascimento; CPF; títulos
+eleitorais; carteiras de estudante; carteiras funcionais sem valor de identidade; documentos vencidos,
+documentos ilegíveis, não identificáveis e(ou) danificados, cópia do documento de identidade, ainda que
+autenticada ou protocolo do documento de identidade; ou documentos digitais não citados no subitem
+13.10 deste edital e(ou) apresentados fora de seus aplicativos oficiais ou que não contenham foto e
+assinatura.
+13.11 O candidato que, por ocasião da realização das provas, não apresentar o documento de identidade
+original, na forma definida no subitem 13.10 deste edital, não poderá realizá-las e será automaticamente
+eliminado do concurso público.
+13.12 Caso o candidato esteja impossibilitado de apresentar, no dia de realização das provas, documento
+de identidade original, por motivo de perda, roubo ou furto, deverá entregar à equipe de aplicação
+documento (original ou cópia simples) que ateste o registro da ocorrência em órgão policial expedido, no
+máximo, 90 dias antes da data de realização das provas, ocasião em que será submetido à identificação
+especial, que compreende coleta de dados e de assinaturas em formulário próprio. O documento de
+registro da ocorrência será retido pela equipe de aplicação.
+13.12.1 A identificação especial será exigida, também, ao candidato cujo documento de identificação
+apresente dúvidas relativas à fisionomia ou à assinatura do portador.
+13.12.2 Para a segurança dos candidatos e a garantia da lisura do certame, o Cebraspe poderá proceder
+à coleta de dado biométrico de todos os candidatos no dia de realização das provas.
+13.13 Não serão aplicadas provas em local, data ou horário diferentes dos predeterminados em edital ou
+em comunicado.
+13.14 Não será admitido ingresso de candidato no local de realização das provas após o horário fixado
+para seu início.
+13.15 O candidato deverá permanecer obrigatoriamente no local de realização das provas por, no
+mínimo, uma hora após o início das provas.
+13.15.1 A inobservância do subitem 13.15 deste edital acarretará a não correção das provas e,
+consequentemente, a eliminação do candidato do concurso público.
+13.16 O Cebraspe manterá um marcador de tempo em cada sala de provas para fins de acompanhamento
+pelos candidatos.
+13.17 O candidato que se retirar do ambiente de provas não poderá retornar em hipótese alguma.
+
+13.18 O candidato somente poderá retirar-se da sala de provas levando o caderno de provas no decurso
+dos últimos 15 minutos anteriores ao horário determinado para o término das provas.
+13.19 Não haverá, por qualquer motivo, prorrogação do tempo previsto para a aplicação das provas em
+razão do afastamento de candidato da sala de provas, salvo o disposto no subitem 6.4.9.3.2.2 deste edital.
+13.20 Não haverá segunda chamada para a realização das provas. O não comparecimento ao local de
+realização das provas nos dias e horários determinados implicará a eliminação automática do candidato
+do concurso.
+13.21 Não serão permitidas, durante a realização das provas, a comunicação entre os candidatos e a
+utilização de máquinas calculadoras ou similares, livros, anotações, réguas de cálculo, impressos ou
+qualquer outro material de consulta, inclusive códigos e(ou) legislação.
+13.22 Será eliminado do concurso o candidato que, durante a realização das provas, for surpreendido
+portando:
+a) aparelhos eletrônicos, tais como wearable tech, máquinas calculadoras, agendas eletrônicas e(ou)
+similares, telefones celulares, smartphones, tablets, ipods®, gravadores, pen drive, mp3 player e(ou)
+similar, relógio de qualquer espécie, alarmes, chaves com alarme ou com qualquer outro componente
+eletrônico, fones de ouvido e(ou) qualquer transmissor, gravador e(ou) receptor de dados, imagens,
+vídeos e mensagens etc.;
+b) óculos escuros, protetor auricular, lápis, lapiseira/grafite, marca-texto e(ou) borracha;
+c) quaisquer acessórios de chapelaria, tais como chapéu, boné, gorro etc.;
+d) qualquer recipiente ou embalagem que não seja fabricado com material transparente, tais como
+garrafa de água, suco, refrigerante e embalagem de alimentos (biscoitos, barras de cereais, chocolate,
+balas etc.).
+13.22.1 No ambiente de provas, ou seja, nas dependências físicas em que serão realizadas as provas, não
+será permitido o uso pelo candidato de quaisquer objetos relacionados no subitem 13.22 deste edital.
+13.22.1.1 Não será permitida a entrada de candidatos no ambiente de provas portando armas, à exceção
+dos casos previstos na Lei Federal nº 10.826/2003, e suas alterações. O candidato que estiver armado e
+for amparado pela citada lei deverá solicitar atendimento especial no ato da inscrição, conforme subitem
+6.4.9.5 deste edital.
+13.22.2 Sob pena de ser eliminado do concurso, antes de entrar na sala de provas, o candidato deverá
+guardar, em embalagem porta-objetos fornecida pela equipe de aplicação, obrigatoriamente desligados,
+telefone celular e qualquer outro equipamento eletrônico relacionado no subitem 13.22 deste edital.
+13.22.2.1 Durante toda a permanência do candidato na sala de provas, o seu telefone celular, assim como
+qualquer equipamento eletrônico, deve permanecer obrigatoriamente desligado e acondicionado na
+embalagem porta-objetos lacrada, com todos os aplicativos, funções e sistemas desativados e
+desligados, incluindo alarmes. O candidato será eliminado do concurso caso o seu telefone celular ou
+qualquer equipamento eletrônico entre em funcionamento, mesmo sem a sua interferência direta,
+durante a realização das provas.
+13.22.2.2 A embalagem porta-objetos devidamente lacrada e identificada pelo candidato deverá ser
+mantida embaixo da carteira até o término das suas provas. A embalagem porta-objetos somente poderá
+ser deslacrada fora do ambiente de provas.
+13.22.3 O Cebraspe recomenda que o candidato não leve nenhum dos objetos citados no subitem 13.22
+deste edital no dia de realização das provas.
+13.22.4 O Cebraspe não ficará responsável pela guarda de quaisquer dos objetos supracitados.
+13.22.5 O Cebraspe não se responsabilizará por perdas ou extravios de objetos ou de equipamentos
+eletrônicos ocorridos durante a realização das provas nem por danos a eles causados.
+13.23 No dia de realização das provas, o Cebraspe poderá submeter os candidatos ao sistema de detecção
+de metal nas salas, corredores e banheiros, a fim de impedir a prática de fraude e de verificar se o
+candidato está portando material não permitido.
+
+13.24 Será automaticamente eliminado do concurso público, em decorrência da anulação de suas provas,
+o candidato que durante a realização das provas:
+a) for surpreendido dando ou recebendo auxílio para a execução das provas;
+b) utilizar-se de livros, máquinas de calcular ou equipamento similar, dicionário, notas ou impressos que
+não forem expressamente permitidos ou que se comunicar com outro candidato;
+c) for surpreendido portando aparelhos eletrônicos ou outros objetos, tais como os listados no subitem
+13.22 deste edital;
+d) faltar com o devido respeito para com qualquer membro da equipe de aplicação das provas, com as
+autoridades presentes ou com os demais candidatos;
+e) fizer anotação de informações relativas às suas respostas no comprovante de inscrição ou em qualquer
+outro meio que não os permitidos;
+f) não entregar o material das provas ao término do tempo destinado para a sua realização;
+g) afastar-se da sala, a qualquer tempo, sem o acompanhamento de fiscal;
+h) ausentar-se da sala, a qualquer tempo, portando a folha de respostas;
+i) descumprir as instruções contidas em editais, no caderno de provas ou na folha de respostas;
+j) perturbar, de qualquer modo, a ordem dos trabalhos, comportando-se indevidamente;
+k) utilizar ou tentar utilizar meios fraudulentos ou ilegais para obter a própria aprovação ou a aprovação
+de terceiros em qualquer etapa do concurso público;
+l) não permitir a coleta de sua assinatura;
+m) for surpreendido portando caneta fabricada em material não transparente;
+n) for surpreendido portando anotações em papéis que não os permitidos;
+o) for surpreendido portando qualquer tipo de arma sem o devido deferimento de atendimento especial,
+conforme previsto no subitem 6.4.9.5 deste edital;
+p) recusar-se a ser submetido ao detector de metal;
+q) deixar de transcrever ou recusar-se a transcrever, para posterior exame grafológico, a frase contida no
+material de prova que lhe for entregue;
+r) registrar, em local não apropriado de qualquer documento avaliativo, qualquer palavra ou marca que
+o identifique;
+s) não permitir a coleta de dado biométrico;
+t) descumprir as medidas de proteção em razão da pandemia do novo coronavírus a serem
+oportunamente divulgadas.
+13.25 Nos casos de eventual falta de prova/material personalizado de aplicação de provas, o Cebraspe
+tem a prerrogativa para entregar ao candidato prova/material substitutivo.
+13.26 No dia de realização das provas, não serão fornecidas, por qualquer membro da equipe de aplicação
+das provas ou pelas autoridades presentes, informações referentes ao conteúdo das provas ou aos
+critérios de avaliação e de classificação.
+13.27 Se, a qualquer tempo, for constatado, por meio eletrônico, estatístico, visual, grafológico ou por
+investigação policial, que o candidato se utilizou de processo ilícito, suas provas serão anuladas e ele será
+automaticamente eliminado do concurso público.
+13.28 O descumprimento de quaisquer das instruções supracitadas constituirá tentativa de fraude e
+implicará a eliminação do candidato do concurso.
+13.29 Serão divulgadas oportunamente as informações a respeito das medidas de proteção que serão
+adotadas no dia de realização das provas, em razão da pandemia do novo coronavírus.
+13.30 O prazo de validade do concurso esgotar-se-á após dois anos, contados a partir da data de
+publicação da homologação do resultado final, podendo ser prorrogado, uma única vez, por igual período.
+13.31 O candidato deverá manter atualizados seus dados pessoais e seu endereço perante o Cebraspe
+enquanto estiver participando do concurso público, por meio de requerimento a ser enviado à Central de
+Atendimento ao Candidato do Cebraspe, na forma dos subitens 13.7 ou 13.8 deste edital, conforme o
+
+caso, e perante o SERPRO, após a homologação do resultado final, desde que aprovado. São de exclusiva
+responsabilidade do candidato os prejuízos advindos da não atualização de seus dados pessoais e de seu
+endereço.
+13.32 As despesas relativas à participação em todas as fases do concurso e à apresentação para os exames
+da avaliação biopsicossocial dos candidatos que se declararem com deficiência e para os exames pré-
+admissionais correrão às expensas do próprio candidato.
+13.33 As alterações de legislação com entrada em vigor até a data de publicação deste edital serão objeto
+de avaliação, ainda que não contempladas nos objetos de avaliação constantes do item 14 deste edital.
+13.34 A legislação com entrada em vigor após a data de publicação deste edital, bem como as alterações
+em dispositivos legais e normativos a ele posteriores não serão objeto de avaliação, salvo se listadas nos
+objetos de avaliação constantes do item 14 deste edital.
+13.34.1 As jurisprudências pacificadas dos tribunais superiores poderão ser consideradas para fins de
+elaboração de itens desde que publicadas até 30 dias antes da data de realização das provas.
+13.35 Quaisquer alterações nas regras fixadas neste edital só poderão ser feitas por meio de outro edital.
+13.36 Os casos omissos serão resolvidos pelo Cebraspe e pelo SERPRO.
+14 DOS OBJETOS DE AVALIAÇÃO (HABILIDADES E CONHECIMENTOS)
+14.1 HABILIDADES
+14.1.1 Os itens das provas poderão avaliar habilidades que vão além do mero conhecimento memorizado,
+abrangendo compreensão, aplicação, análise, síntese e avaliação, com o intuito de valorizar a capacidade
+de raciocínio.
+14.1.2 Cada item das provas poderá contemplar mais de um objeto de avaliação.
+14.2 CONHECIMENTOS
+14.2.1 Nas provas, serão avaliados, além de habilidades, conhecimentos conforme descritos a seguir.
+14.2.1.1 CONHECIMENTOS BÁSICOS
+LÍNGUA PORTUGUESA: 1 Compreensão e interpretação de textos de gêneros variados. 2 Reconhecimento
+de tipos e gêneros textuais. 3 Domínio da ortografia oficial. 4 Domínio dos mecanismos de coesão textual.
+4.1 Emprego de elementos de referenciação, substituição e repetição, de conectores e de outros
+elementos de sequenciação textual. 4.2 Emprego de tempos e modos verbais. 5 Domínio da estrutura
+morfossintática do período. 5.1 Emprego das classes de palavras. 5.2 Relações de coordenação entre
+orações e entre termos da oração. 5.3 Relações de subordinação entre orações e entre termos da oração.
+5.4 Emprego dos sinais de pontuação. 5.5 Concordância verbal e nominal. 5.6 Regência verbal e nominal.
+5.7 Emprego do sinal indicativo de crase. 5.8 Colocação dos pronomes átonos. 6 Reescrita de frases e
+parágrafos do texto. 6.1 Significação das palavras. 6.2 Substituição de palavras ou de trechos de texto. 6.3
+Reorganização da estrutura de orações e de períodos do texto. 6.4 Reescrita de textos de diferentes
+gêneros e níveis de formalidade.
+LÍNGUA INGLESA: 1 Compreensão de textos variados: domínio do vocabulário e da estrutura da língua,
+ideias principais e secundárias, explícitas e implícitas, relações intratextuais e intertextuais. 2 Itens
+gramaticais relevantes para compreensão de conteúdos semânticos. 3 Conhecimento e uso das formas
+contemporâneas da linguagem inglesa.
+NOÇÕES DE ESTATÍSTICA/PROBABILIDADE: 1 Estatística descritiva. 2 Distribuição de probabilidade:
+discreta. 3. Compreensão e representação de dados apresentados em gráficos e tabelas. 4 Medidas de
+tendência central (média, mediana, moda, medidas de posição, mínimo e máximo) e de dispersão
+(amplitude, amplitude interquartil, variância, desvio padrão e coeficiente de variação). 5 Variáveis
+aleatórias e distribuição de probabilidade. 6 Teorema de Bayes. 7 Probabilidade condicional. 8 População
+e amostra. 9 Variância e covariância. 10 Correlação linear simples. 11 Distribuição binomial e distribuição
+normal. 12 Noções de amostragem e inferência estatística.
+RACIOCÍNIO LÓGICO: 1 Estruturas lógicas. Conectivos, tautologia e contradições, implicações e
+equivalências, afirmações e negações, argumento, silogismo, validade de argumento. Lógica sentencial
+
+(ou proposicional). Proposições simples e compostas. 2 Lógica de argumentação: analogia, inferências,
+deduções e conclusões. 3 Compreensão do processo lógico que, a partir de um conjunto de hipóteses,
+conduz, de forma válida, a conclusões determinadas. 4 Raciocínio lógico envolvendo problemas
+aritméticos, geométricos e matriciais.
+LEGISLAÇÃO ACERCA DE PRIVACIDADE E PROTEÇÃO DE DADOS PESSOAIS: 1 Lei nº 13.709/2018 (Lei
+Geral de Proteção de Dados Pessoais – LGPD): Capítulos I, II, III, IV, VII, VIII e IX. 2 Lei nº 12.527/2011 (Lei
+de Acesso à Informação): Capítulos I, II, III, IV e V. 3 Lei nº 12.965/2014 (Marco Civil da Internet): Capítulos
+II e III, Seções I e II. 4 Decreto nº 9.637/2018 (Política Nacional de Segurança da Informação): Capítulo II.
+5 Lei nº 12.737/2012 (Lei de Delitos Informáticos): art. 2º. 6 Lei nº 8.078/1990: Capítulo V, Seção VI, e
+arts. 71 e 72.
+14.2.1.2 CONHECIMENTOS ESPECÍFICOS
+SEGURANÇA DA INFORMAÇÃO: 1 ISO 27000 – Confiabilidade, integridade e disponibilidade. 2
+Mecanismos de segurança. 2.1 Criptografia. 2.2 Assinatura digital. 2.3 Garantia de integridade. 2.4
+Controle de acesso. 2.5 Certificação digital, ICP-Brasil. 3 Gerência de riscos. 3.1 Ameaça, vulnerabilidade
+e impacto. 4 Políticas de segurança. 4.1 NBR ISO/IEC 27002:2005. 4.2 NBR ISO/IEC 27001:2013. 4.3 NBR
+ISO/IEC 15408. 4.4 Políticas de senhas. 5 Autenticação de dois fatores (MFA). 6 OAuth 2, JWT, SSO, Open
+ID Connect e SAML. 7 OWASP Top 10 <https://owasp.org/www-project-topten/>.
+PROCESSOS DE DESENVOLVIMENTO E SUSTENTAÇÃO DE SOFTWARE: 1 Gerenciamento de Produtos de
+Software. 1.1 Gerenciamento de produtos com métodos ágeis: Scrum, Kanban, XP, Lean. 2 Gerenciamento
+de serviços (ITIL V4).
+TECNOLOGIA: 1 Banco de dados. 1.1 Arquitetura de banco de dados: relacional (PostgreSQL, Oracle,
+SqlServer), não relacional (orientado a documento, chave-valor, grafo, colunar, time series). 1.2
+Modelagem de banco de dados: físico, lógico e conceitual. 1.3 Álgebra relacional, SQL/ANSI e linguagens
+procedurais embarcadas. 1.4 Gestão de banco de dados. 1.4.1 Controle de acesso, usuário, cálculo
+volumétrico, replicação, cluster, particionamento e esquemas. 2 Servidores web e de aplicação. 2.1
+Wildfly, IIS, Apache, Nginx. 3 Linguagens de programação. 3.1 Java, JavaScript, TypeScript, Python, PHP,
+C# e Go. 4 Tecnologias e práticas frontend web: HTML, CSS, Ajax, frameworks (Bootstrap, Angular, VueJS
+e React). 4.1 Padrões de frontend. 4.1.1 SPA e PWA. 4.2 Design de interface e de experiência do usuário,
+responsividade, usabilidade e acessibilidade, prototipação, testes A/B. 5. Tecnologias backend. 5.1
+Frameworks: Hibernate, .NET Core, Quarkus, SpringBoot, Flask, Django, NodeJS, Express e NestJS. 5.2
+Especificações: JEE (JPA, EJB, JSF, JMS e JTA), JVM. 6 Tecnologia de desenvolvimento móvel: Android
+(Kotlin), IOS (Swift), Flutter, ReactNative, Ionic, Xamarin e Banco de Dados SQLite. 7 Ferramentas de
+gestão de configuração: versionamento (Git e GitLab), CI/CD (GitLab CI). 8 Protocolos HTTPS, SSL/TLS,
+HTTP/2, gRPC e WebSockets. 9 Ferramentas de integração assíncrona. 9.1 Protocolos AMQP e MQTT. 9.2
+Ferramentas Kafka, NATS Streaming, ActiveMQ, RabbitMQ e WebSphereMQ. 10 Containers. 10.1 Engine
+(Docker). 10.2 Orquestração (Kubernetes, OpenShift).
+ENGENHARIA DE SOFTWARE: 1 Engenharia de requisitos. 1.1 Gestão de backlog. 1.2 Produto mínimo
+viável (MVP). 1.3 Gestão de Dívida Técnica. 1.4 Técnicas de priorização, de estimativas (Análise de Pontos
+de Função, Story Points). 2 Análise e projeto. 3 Implementação: orientação a objetos, estrutura de dados
+e algoritmos. 4 Qualidade. 4.1 Análise estática de código. 4.2 Teste unitário. 4.3 Mock, stubs. 4.4 Teste de
+integração. 4.5 Teste de RNF (carga, estresse). 4.6 Revisão e programação por pares. 5 Gestão de
+configuração. 5.1 DevOps, modelo de versionamento, merge, branch, pipeline, CI/CD e database
+migration. 6 Infraestrutura. 6.1 Infraestrutura como código (IAC). 6.2 Linguagens de script (Ansible,
+Terraform, ShellScript). 7 Resiliência de aplicações. 7.1 Técnica (Cache, Fallback, Circuitbrake, Disaster
+Recovery, Contingência, Balanceamento de Carga Global de Servidores (GSLB), Site Ativo X Ativo). 8
+Monitoração e observabilidade. 9. Low-code e no-code software development.
+ARQUITETURA: 1 Padrões de projeto (GoF, de criação, estruturais, comportamentais). 2 Padrões GRASP
+(controller, expert). 3 SOLID e Clean Code. 4 Tecnologias de integração. 4.1 Workflow. 4.2 Web services.
+
+4.2.1 RESTful, SOAP e GraphQL. 4.3 Mensageria, stream e CORBA. 5 Design de software. 5.1 DDD -
+Domain-Driven Design. 5.2 Arquitetura hexagonal. 5.3 Microsserviços (orquestração de serviços e API
+gateway) e containers. 5.3.1 Padrões de microsserviços (SAGA e CQRS). 6 Transações distribuídas.
+NUVEM: 1 12 factories. 2 Orientação a serviço. 2.1 IaaS - Infraestrutura com Serviço. 2.2 SaaS – Software
+como Serviço. 2.3 PaaS – Plataforma como Serviço.
+TÓPICOS AVANÇADOS: 1 Inteligência artificial. 1.1 Análise de dados (Pandas, NumPy, Jupiter, R). 1.2
+Aprendizado de máquina. 1.2.1 Técnicas de classificação. 1.2.2 Técnicas de regressão. 1.2.3 Técnicas de
+agrupamento. 1.2.4 Técnicas de redução de dimensionalidade. 1.2.5 Técnicas de associação. 1.2.6
+Sistemas de recomendação. 1.3 Processamento de linguagem natural (PLN). 1.4 Visão computacional. 1.5
+Deep learning. 2 Ciência de dados. 2.1 Big Data. 2.1.1 Fundamentos. 2.1.2 Armazenamento de big data.
+2.1.3 Pipeline de dados. 2.1.4 Processamento distribuído. 2.1.5 Conceitos de data lake. 2.2
+Armazenamento de Dados. 2.2.1 Sistemas de arquivos distribuídos. 2.2.2 Armazenamento orientado a
+objeto (object store). 2.2.3 Sistemas de indexação. 2.3 Processamento de Dados. 2.3.1 Conceitos de
+processamento massivo e paralelo. 2.3.2 Processamento em lote (batch). 2.3.3 Processamento em tempo
+real (real time). 2.3.4 Processamento MapReduce.
+MARCELO BATISTA DE NORONHA
+Superintendente de Gente e Cultura em exercício
+
+ANEXO I
+CRONOGRAMA PREVISTO
+AtividadeDatas previstas
+Período de solicitação de inscrição e de solicitação
+de inscrição com isenção de taxa de inscrição
+24/4 a 2/6/2023
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Disponibilização  do  link  para  verificação  de
+deferimento da foto encaminhada na inscrição e
+prazo para novo envio de foto que atenda às
+determinações do sistema
+5 e 6/6/2023
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Consulta à situação provisória da solicitação de
+isenção de taxa de inscrição
+13 a 15/6/2023
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Prazo para a interposição de recursos contra o
+indeferimento da solicitação de isenção de taxa de
+inscrição
+14 e 15/6/2023
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Consulta à situação final da solicitação de isenção de
+taxa de inscrição
+21/6/2023
+Último dia para pagamento da taxa de inscrição23/6/2023
+Relação provisória dos candidatos com a inscrição
+deferida para concorrer na condição de pessoa com
+deficiência
+29/6/2023
+Consulta à situação provisória da solicitação de
+atendimento especial
+29/6 a 1º/7/2027
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Prazo para a interposição de recursos contra o
+indeferimento da inscrição para concorrer como
+pessoa com deficiência e contra o indeferimento da
+solicitação de atendimento especial
+30/6 e 1º/7/2023
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Relação final dos candidatos com inscrição deferida
+para  concorrer  na  condição  de  pessoa  com
+deficiência
+7/7/2023
+Consulta  à  situação  final  da  solicitação  de
+atendimento especial
+7/7/2023
+Divulgação   do   edital   que   informará   a
+disponibilização da consulta aos locais das provas
+objetivas
+12/7/2023
+Aplicação das provas objetivas23/7/2023
+Divulgação da consulta individual aos gabaritos
+oficiais preliminares e ao caderno de provas
+25 a 27/7/2023
+Das 19 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Prazo para a interposição de recursos quanto às
+questões formuladas e(ou) aos gabaritos oficiais
+preliminares divulgados na consulta individual
+26 e 27/7/2023
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Divulgação dos gabaritos oficiais preliminares das
+provas objetivas (provas modelo)
+28/7/2023
+
+Divulgação dos gabaritos oficiais definitivos e do
+edital de resultado final nas provas objetivas e de
+convocação  para  a  prova  de  conhecimentos
+aplicados
+16/8/2023
+Aplicação da prova de conhecimentos aplicados26 e 27/8/2023
+Divulgação do edital de resultado provisório na
+prova de conhecimentos aplicados
+12/9/2023
+Prazo para a interposição de recursos contra o
+resultado provisório na prova de conhecimentos
+aplicados
+13 e 14/9/2023
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Divulgação do edital de resultado final na prova de
+conhecimentos aplicados e de convocação para a
+avaliação biopsicossocial e para o procedimento de
+heteroidentificação
+28/9/2023
+Realização da avaliação biopsicossocial8/10/2023
+Realizaçãodoprocedimentode
+heteroidentificação
+8/10/2023
+Divulgação do edital de resultado provisório na
+avaliação biopsicossocial e no procedimento de
+heteroidentificação
+20/10/2023
+Prazo para a interposição de recursos contra o
+resultado provisório na avaliação biopsicossocial e
+no procedimento de heteroidentificação
+23 e 24/10/2023
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Divulgação do edital de resultado final na avaliação
+biopsicossocial   e   no   procedimento   de
+heteroidentificação  e  de  convocação  para  o
+desempate  de  notas  (se  houver  candidatos
+empatados)
+3/11/2023
+Prazo para o envio da documentação para o
+desempate de notas
+6 e 7/11/2023
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Divulgação do edital de resultado provisório no
+desempate de notas
+10/11/2023
+Prazo para a interposição de recursos contra o
+resultado provisório no desempate de notas
+13 e 14/11/2023
+Das 10 horas do primeiro dia às 18 horas do último
+dia (horário oficial de Brasília/DF)
+Divulgação  do  edital  de  resultado  final  no
+desempate de notas e de resultado final no
+concurso público
+20/11/2023
+*As datas e os períodos estabelecidos no cronograma são passíveis de alteração, conforme necessidade
+e conveniência do SERPRO e do Cebraspe. Caso haja alteração, esta será previamente comunicada por
+meio de edital.
+**As demais datas serão informadas por meio dos editais subsequentes a serem publicados no Diário
+Oficial    da    União    e(ou)    divulgados    na    internet,    noendereço    eletrônico
+http://www.cebraspe.org.br/concursos/serpro_23.
+
+ANEXO II
+MODELO DE LAUDO PARA A SOLICITAÇÃO DE INSCRIÇÃO E DE ATENDIMENTO ESPECIAL
+(candidatos que se declararam com deficiência)
+Atesto,   para   fins   de   participação   em   concurso   público,   que   o(a)
+Senhor(a)____________________________________________________________________________,
+portador(a) do documento de identidade nº ______________________, é considerado(a) pessoa com
+deficiência  à  luz  da  legislação  brasileira  por  apresentar  a(s)  seguinte(s)  condição(ões)
+_____________________________________________________________________________________
+_____________________________________________________________________________________
+__,   CID-10   ________________,   que   resulta(m)   no   comprometimento   das   seguintes
+funções/funcionalidades
+_____________________________________________________________________________________
+_____________________________________________________________________________________
+__.Informo,ainda,aprovávelcausado
+comprometimento_____________________________________________________________________
+_____________________________________________________________________________________
+___________.
+Cidade/UF, ____ de _________ de 20__.
+Assinatura e carimbo do(a) Médico(a)
+
+ANEXO III
+MODELO DE PARECER DE EQUIPE MULTIPROFISSIONAL E INTERDISCIPLINAR PARA A AVALIAÇÃO
+BIOPSICOSSOCIAL
+Atestamos   para   fins   de   participação   em   concursopúblico,   que   o
+Senhor(a)______________________________________________________________, portador (a) do
+documento de identidade nº _______________________________, e considerado(a) pessoa com
+deficiência  à  luz  da  legislação  brasileira  por  apresentar  a(s)  seguinte(s)condição(ões)
+_____________________________________________________________________________________
+_____________________________________________________________________________________
+______________________CID-10 _________.
+Por oportuno, declaramos que o candidato apresenta os seguintes impedimentos nas funções e
+nasestruturasdocorpo
+_____________________________________________________________________________________
+_____________________________________________________________________________________
+__________________________________________;  que  devem  ser  considerados  os  fatores
+socioambientais
+_____________________________________________________________________________________
+_____________________________________________________________________________________
+__________________________________________;  que  apresenta  as  seguintes  limitações  no
+desempenhode
+atividades_____________________________________________________________________________
+_____________________________________________________________________________________
+__________________________________________  e  as  seguintes  restrições  de  participação
+_____________________________________________________________________________________
+_____________________________________________________________________________________
+__________.
+Assinatura e carimbo com
+CRM do médico
+Assinatura e carimbo com
+registro da profissão do
+membro    de    equipe
+multiprofissionale
+interdisciplinar
+Assinatura e carimbo com
+registro da profissão do
+membro    de    equipe
+multiprofissionale
+interdisciplinar
+Cidade/UF, ____ de _____________ de 20__.

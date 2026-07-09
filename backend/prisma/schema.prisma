@@ -33,6 +33,8 @@ model Usuario {
   conceitos         Conceito[]
   questoes          Questao[]
   provas            Prova[]
+  editais           Edital[]
+  roadmapTrilhas    RoadmapTrilha[]
 
   @@map("usuarios")
 }
@@ -125,8 +127,43 @@ model Prova {
 
   usuario  Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   questoes ProvaQuestao[]
+  edital   Edital?
 
   @@map("provas")
+}
+
+// O edital (objetos de avaliação) de uma prova. Relação 1:1 com Prova — cada prova
+// tem no máximo um edital e cada edital no máximo uma prova (provaId @unique).
+model Edital {
+  id          String   @id @default(cuid())
+  usuarioId   String   @map("id_usuario")
+  titulo      String
+  programa    String
+  provaId     String?  @unique @map("id_prova")
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  prova   Prova?  @relation(fields: [provaId], references: [id], onDelete: SetNull)
+
+  @@map("editais")
+}
+
+// A persisted, ordered study roadmap for a graph under one prioritization mode
+// ("ai" | "prova" | "edital" | "prova_edital"). Recomputed incrementally: new nodes
+// are slotted into `itens` by priority; existing order is preserved. One per (graph, mode).
+model RoadmapTrilha {
+  id          String   @id @default(cuid())
+  usuarioId   String   @map("id_usuario")
+  grafoId     String   @map("id_grafo")
+  modo        String
+  itens       Json
+  dataGeracao DateTime @default(now()) @updatedAt @map("data_geracao")
+
+  usuario Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  grafo   GrafosConhecimento @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+
+  @@unique([grafoId, modo], name: "_trilha_uk")
+  @@map("roadmap_trilhas")
 }
 
 model ProvaQuestao {
@@ -254,6 +291,7 @@ model GrafosConhecimento {
 
   nodes   NodeConhecimento[]
   arestas ConhecimentoAresta[]
+  roadmapTrilhas RoadmapTrilha[]
 
   @@map("grafos_conhecimento")
 }
@@ -269,6 +307,7 @@ enum TipoNode {
   QUESTION
   GRAFO_REF
   PROVA
+  EDITAL
 }
 
 model NodeConhecimento {
@@ -349,6 +388,8 @@ enum TipoRelacao {
   HERDA
   CONTEM
   COMPLEMENTAR
+  REGE
+  COBRE
 }
 
 // ==========================================

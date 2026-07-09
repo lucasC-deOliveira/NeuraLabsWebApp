@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { OpenAI } from 'openai';
 import { ResolveAiConfigUseCase } from '../../../settings/application/use-cases/resolve-ai-config.use-case';
 import type { ExamLlmMessage, ExamLlmPort, ExamLlmRequest } from '../../domain/ports/exam-llm';
+import { TokenUsageService, type RawUsage } from '../../../../token-usage/token-usage.service';
 
 // Minimal slice of the OpenAI chat API this adapter relies on — keeps the SDK's
 // surface from leaking and makes the adapter testable via createClient().
@@ -14,9 +15,10 @@ export interface ChatParams {
 export interface ChatClient {
   chat: {
     completions: {
-      create(
-        params: ChatParams,
-      ): Promise<{ choices: Array<{ message: { content: string | null } | null }> }>;
+      create(params: ChatParams): Promise<{
+        choices: Array<{ message: { content: string | null } | null }>;
+        usage?: RawUsage;
+      }>;
     };
   };
 }
@@ -27,7 +29,10 @@ const DEFAULT_TEMPERATURE = 0.1;
 // and runs a JSON-object chat completion. The only place that imports the SDK.
 @Injectable()
 export class OpenAiExamLlmAdapter implements ExamLlmPort {
-  constructor(private readonly resolveConfig: ResolveAiConfigUseCase) {}
+  constructor(
+    private readonly resolveConfig: ResolveAiConfigUseCase,
+    private readonly tokens?: TokenUsageService,
+  ) {}
 
   async complete(request: ExamLlmRequest): Promise<string> {
     const cfg = await this.resolveConfig.execute(request.userId);
@@ -40,6 +45,7 @@ export class OpenAiExamLlmAdapter implements ExamLlmPort {
       response_format: { type: 'json_object' },
       messages: request.messages,
     });
+    this.tokens?.record(request.userId, response.usage);
     return response.choices[0]?.message?.content ?? '';
   }
 

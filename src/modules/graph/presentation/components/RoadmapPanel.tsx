@@ -6,15 +6,15 @@ import {
   CircleDotIcon,
   CircleIcon,
   RouteIcon,
+  ClipboardListIcon,
   XIcon,
-  SparklesIcon,
   Loader2Icon,
   ChevronLeftIcon,
   ChevronRightIcon,
   AlertCircleIcon,
   RefreshCwIcon,
-  SaveIcon,
   ClockIcon,
+  SparklesIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 import {
@@ -26,6 +26,7 @@ import {
   type RoadmapData,
 } from "../../domain/services/roadmap.service";
 import { graphHttp } from "../../infra/http";
+import type { RoadmapMode, RoadmapStep } from "../../application/ports/graph-ai.port";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -35,48 +36,27 @@ type Props = {
   grafoId: string;
   nodes: Array<{ id: string; label?: string; group?: string; dominio?: number }>;
   edges: Array<{ source: string; target: string; type?: string; peso?: number }>;
+  // PROVA / EDITAL nodes in the graph, to scope the prova/edital roadmap modes when
+  // the graph has more than one (a graph may have several of each).
+  provas: Array<{ id: string; label: string }>;
+  editais: Array<{ id: string; label: string }>;
   onFocusNode: (node: { id: string }) => void;
 };
 
-type AIStep = { nodeId: string; nome: string; tipo: string; motivo: string };
-type Mode = "urgency" | "ai";
+const PROVA_MODES: Mode[] = ["prova", "prova_edital"];
+const EDITAL_MODES: Mode[] = ["edital", "prova_edital"];
 
-interface SavedTrail {
-  steps: AIStep[];
-  generatedAt: string; // ISO
-  nodeCount: number; // para detectar grafo desatualizado
-}
+// "urgency" is computed locally from the graph; the others are server-persisted and
+// recomputed incrementally (only new nodes are re-slotted).
+type Mode = "urgency" | RoadmapMode;
 
-// ── localStorage helpers ──────────────────────────────────────────────────────
-
-function trailKey(grafoId: string): string {
-  return `neuralabs:trail:${grafoId}`;
-}
-
-function loadSavedTrail(grafoId: string): SavedTrail | null {
-  try {
-    const raw = localStorage.getItem(trailKey(grafoId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as SavedTrail;
-    if (!Array.isArray(parsed.steps) || !parsed.generatedAt) return null; // valida shape mínima
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function saveTrail(grafoId: string, trail: SavedTrail): boolean {
-  try {
-    localStorage.setItem(trailKey(grafoId), JSON.stringify(trail));
-    return true;
-  } catch {
-    return false; // QuotaExceededError ou outro erro de storage
-  }
-}
-
-function clearSavedTrail(grafoId: string): void {
-  try { localStorage.removeItem(trailKey(grafoId)); } catch { /* ignore */ }
-}
+const MODE_OPTIONS: Array<{ value: Mode; label: string }> = [
+  { value: "urgency", label: "Por urgência" },
+  { value: "ai", label: "Prioridade IA" },
+  { value: "prova", label: "Por prova" },
+  { value: "edital", label: "Por edital" },
+  { value: "prova_edital", label: "Prova + edital" },
+];
 
 function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -133,22 +113,45 @@ function RoadmapHeader({ onClose }: { onClose: () => void }) {
   );
 }
 
-function ModeToggle({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void }) {
+function ModeSelect({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void }) {
   return (
-    <div className="flex border-b">
-      <button
-        className={`flex-1 py-1.5 text-xs font-medium transition-colors ${mode === "urgency" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-        onClick={() => onMode("urgency")}
+    <div className="flex items-center gap-2 border-b px-3 py-2">
+      <SparklesIcon className="size-3.5 shrink-0 text-primary" />
+      <select
+        value={mode}
+        onChange={(e) => onMode(e.target.value as Mode)}
+        className="flex-1 rounded-md border bg-background text-foreground px-2 py-1 text-xs font-medium"
       >
-        Por urgência
-      </button>
-      <button
-        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium transition-colors ${mode === "ai" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-        onClick={() => onMode("ai")}
+        {MODE_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// Scopes an edital/prova roadmap mode to one item (or "all"), when the graph has many.
+function ScopeSelect({ Icon, iconClass, allLabel, items, value, onChange }: {
+  Icon: typeof RouteIcon;
+  iconClass: string;
+  allLabel: string;
+  items: Array<{ id: string; label: string }>;
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 border-b px-3 py-2">
+      <Icon className={`size-3.5 shrink-0 ${iconClass}`} />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 rounded-md border bg-background text-foreground px-2 py-1 text-xs"
       >
-        <SparklesIcon className="size-3" />
-        Trilha IA
-      </button>
+        <option value="">{allLabel}</option>
+        {items.map((it) => (
+          <option key={it.id} value={it.id}>{it.label}</option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -236,61 +239,29 @@ function UrgencyPanel({ roadmap, onFocusNode }: { roadmap: RoadmapData; onFocusN
   );
 }
 
-function Warning({ text }: { text: string }) {
+function Banner({ text, tone }: { text: string; tone: "warn" | "info" }) {
+  const cls = tone === "warn"
+    ? "bg-amber-500/8 text-amber-700 dark:text-amber-400"
+    : "bg-primary/8 text-primary";
+  const Icon = tone === "warn" ? TriangleAlertIcon : SparklesIcon;
   return (
-    <div className="border-b px-3 py-1.5 flex items-start gap-2 bg-amber-500/8">
-      <TriangleAlertIcon className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
-      <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-snug">{text}</p>
+    <div className={`border-b px-3 py-1.5 flex items-start gap-2 ${cls}`}>
+      <Icon className="size-3.5 shrink-0 mt-0.5" />
+      <p className="text-[11px] leading-snug">{text}</p>
     </div>
   );
 }
 
-interface AiTrailActions {
-  onSave: () => void;
-  onDelete: () => void;
-  onRegen: () => void;
-}
-
-function SavedMeta({ generatedAt, onDelete, onRegen }: { generatedAt: string | null } & Pick<AiTrailActions, "onDelete" | "onRegen">) {
-  return (
-    <>
-      <SaveIcon className="size-3 text-green-500 shrink-0" />
-      <span className="text-[11px] text-muted-foreground flex-1">Salva {generatedAt ? formatRelativeTime(generatedAt) : ""}</span>
-      <button className="text-[11px] text-destructive/70 hover:text-destructive" onClick={onDelete} title="Remover trilha salva">Remover</button>
-      <span className="text-muted-foreground/30">·</span>
-      <button className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground" onClick={onRegen}>
-        <RefreshCwIcon className="size-3" /> Regerar
-      </button>
-    </>
-  );
-}
-
-function UnsavedMeta({ generatedAt, saveFailed, onSave, onRegen }: { generatedAt: string | null; saveFailed: boolean } & Pick<AiTrailActions, "onSave" | "onRegen">) {
-  return (
-    <>
-      <ClockIcon className="size-3 text-muted-foreground shrink-0" />
-      <span className="text-[11px] text-muted-foreground flex-1">Gerada {generatedAt ? formatRelativeTime(generatedAt) : ""}</span>
-      {saveFailed ? (
-        <span className="text-[10px] text-destructive flex items-center gap-1"><SaveIcon className="size-3" /> Falha ao salvar</span>
-      ) : (
-        <button className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80" onClick={onSave}>
-          <SaveIcon className="size-3" /> Salvar trilha
-        </button>
-      )}
-      <span className="text-muted-foreground/30">·</span>
-      <button className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground" onClick={onRegen}>
-        <RefreshCwIcon className="size-3" /> Regerar
-      </button>
-    </>
-  );
-}
-
-function AiTrailMeta({ isSaved, generatedAt, saveFailed, actions }: { isSaved: boolean; generatedAt: string | null; saveFailed: boolean; actions: AiTrailActions }) {
+function ServerMeta({ generatedAt, onRegen }: { generatedAt: string | null; onRegen: () => void }) {
   return (
     <div className="border-b px-3 py-1.5 flex items-center gap-2">
-      {isSaved
-        ? <SavedMeta generatedAt={generatedAt} onDelete={actions.onDelete} onRegen={actions.onRegen} />
-        : <UnsavedMeta generatedAt={generatedAt} saveFailed={saveFailed} onSave={actions.onSave} onRegen={actions.onRegen} />}
+      <ClockIcon className="size-3 text-muted-foreground shrink-0" />
+      <span className="text-[11px] text-muted-foreground flex-1">
+        Atualizada {generatedAt ? formatRelativeTime(generatedAt) : ""}
+      </span>
+      <button className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground" onClick={onRegen}>
+        <RefreshCwIcon className="size-3" /> Regerar
+      </button>
     </div>
   );
 }
@@ -319,27 +290,16 @@ function StepNav({ currentStep, total, onGo }: { currentStep: number; total: num
   );
 }
 
-function AiLoadingView() {
+function LoadingView() {
   return (
-    <div className="space-y-4 py-6 px-1">
-      <div className="flex items-start gap-3">
-        <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 mt-0.5 shrink-0">
-          <Loader2Icon className="size-3.5 animate-spin text-primary" />
-        </span>
-        <div>
-          <p className="text-sm font-medium">Gerando trilha com IA</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Analisando dependências e nível de domínio...</p>
-        </div>
-      </div>
-      <div className="flex items-start gap-3 opacity-40">
-        <span className="flex size-6 items-center justify-center rounded-full border border-border text-xs text-muted-foreground font-medium mt-0.5 shrink-0">2</span>
-        <p className="text-sm font-medium text-muted-foreground">Apresentar trilha ordenada</p>
-      </div>
+    <div className="flex flex-col items-center gap-3 py-14">
+      <Loader2Icon className="size-8 animate-spin text-primary" />
+      <p className="text-sm text-muted-foreground">Priorizando os nós...</p>
     </div>
   );
 }
 
-function AiStepCard({ step, index, active, onGo }: { step: AIStep; index: number; active: boolean; onGo: () => void }) {
+function StepCard({ step, index, active, onGo }: { step: RoadmapStep; index: number; active: boolean; onGo: () => void }) {
   return (
     <button
       onClick={onGo}
@@ -353,26 +313,34 @@ function AiStepCard({ step, index, active, onGo }: { step: AIStep; index: number
           {step.tipo.toLowerCase()}
         </Badge>
         <span className="text-sm font-medium truncate flex-1">{step.nome}</span>
+        {step.provaFreq !== undefined && step.provaFreq > 0 && (
+          <span
+            className="shrink-0 rounded-full bg-orange-500/12 px-1.5 py-0 text-[10px] font-medium tabular-nums text-orange-600 dark:text-orange-400"
+            title={`Já caiu em ${step.provaFreq} questão(ões) de prova`}
+          >
+            🔥 {step.provaFreq}
+          </span>
+        )}
       </div>
       {step.motivo && <p className="text-[11px] text-muted-foreground leading-snug ml-7">{step.motivo}</p>}
     </button>
   );
 }
 
-function AiTrailContent({ aiLoading, aiError, steps, currentStep, onRetry, onGo }: {
-  aiLoading: boolean;
-  aiError: string;
-  steps: AIStep[];
+function StepList({ loading, error, steps, currentStep, onRetry, onGo }: {
+  loading: boolean;
+  error: string;
+  steps: RoadmapStep[];
   currentStep: number;
   onRetry: () => void;
   onGo: (idx: number) => void;
 }) {
-  if (aiLoading) return <AiLoadingView />;
-  if (aiError) {
+  if (loading) return <LoadingView />;
+  if (error) {
     return (
       <div className="flex flex-col items-center gap-3 py-10 text-center">
         <AlertCircleIcon className="size-8 text-destructive" />
-        <p className="text-sm text-muted-foreground">{aiError}</p>
+        <p className="text-sm text-muted-foreground">{error}</p>
         <Button variant="outline" size="sm" className="gap-2" onClick={onRetry}>
           <RefreshCwIcon className="size-3.5" /> Tentar novamente
         </Button>
@@ -380,43 +348,57 @@ function AiTrailContent({ aiLoading, aiError, steps, currentStep, onRetry, onGo 
     );
   }
   if (steps.length === 0) {
-    return <p className="py-10 text-center text-xs text-muted-foreground">Nenhum passo gerado. Adicione mais nós ao grafo.</p>;
+    return <p className="py-10 text-center text-xs text-muted-foreground">Nenhum conceito para priorizar. Adicione mais nós ao grafo.</p>;
   }
   return (
     <div className="space-y-2">
-      {steps.map((step, i) => <AiStepCard key={step.nodeId} step={step} index={i} active={i === currentStep} onGo={() => onGo(i)} />)}
+      {steps.map((step, i) => <StepCard key={step.nodeId} step={step} index={i} active={i === currentStep} onGo={() => onGo(i)} />)}
     </div>
   );
 }
 
-interface AiPanelProps {
-  aiLoading: boolean;
-  aiError: string;
-  steps: AIStep[];
+interface ServerPanelProps {
+  loading: boolean;
+  error: string;
+  steps: RoadmapStep[];
   currentStep: number;
-  isSaved: boolean;
   generatedAt: string | null;
-  saveFailed: boolean;
+  novos: number;
   staleCount: number;
-  graphChanged: boolean;
-  actions: AiTrailActions;
-  onRetry: () => void;
+  onRegen: () => void;
   onGo: (idx: number) => void;
 }
 
-function AiPanel(p: AiPanelProps) {
-  const ready = !p.aiLoading;
+function novosText(n: number): string {
+  const s = n > 1 ? "s" : "";
+  return `${n} novo${s} priorizado${s} e encaixado${s} na trilha.`;
+}
+
+function staleText(n: number): string {
+  return n > 1
+    ? `${n} passos não estão mais no grafo e foram ocultados.`
+    : `${n} passo não está mais no grafo e foi ocultado.`;
+}
+
+function ServerBanners({ novos, staleCount }: { novos: number; staleCount: number }) {
+  return (
+    <>
+      {novos > 0 && <Banner tone="info" text={novosText(novos)} />}
+      {staleCount > 0 && <Banner tone="warn" text={staleText(staleCount)} />}
+    </>
+  );
+}
+
+function ServerPanel(p: ServerPanelProps) {
+  const ready = !p.loading && !p.error;
   const hasSteps = p.steps.length > 0;
   return (
     <>
-      {ready && hasSteps && <AiTrailMeta isSaved={p.isSaved} generatedAt={p.generatedAt} saveFailed={p.saveFailed} actions={p.actions} />}
-      {ready && hasSteps && p.graphChanged && <Warning text="O grafo mudou desde a última geração. Regenerar pode melhorar a trilha." />}
-      {ready && p.staleCount > 0 && (
-        <Warning text={`${p.staleCount} passo${p.staleCount > 1 ? "s foram removidos" : " foi removido"} do grafo e ocultado${p.staleCount > 1 ? "s" : ""}.`} />
-      )}
+      {ready && hasSteps && <ServerMeta generatedAt={p.generatedAt} onRegen={p.onRegen} />}
+      {ready && <ServerBanners novos={p.novos} staleCount={p.staleCount} />}
       {ready && hasSteps && <StepNav currentStep={p.currentStep} total={p.steps.length} onGo={p.onGo} />}
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <AiTrailContent aiLoading={p.aiLoading} aiError={p.aiError} steps={p.steps} currentStep={p.currentStep} onRetry={p.onRetry} onGo={p.onGo} />
+        <StepList loading={p.loading} error={p.error} steps={p.steps} currentStep={p.currentStep} onRetry={p.onRegen} onGo={p.onGo} />
       </div>
     </>
   );
@@ -424,74 +406,52 @@ function AiPanel(p: AiPanelProps) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export function RoadmapPanel({ open, onClose, grafoId, nodes, edges, onFocusNode }: Props) {
+export function RoadmapPanel({ open, onClose, grafoId, nodes, edges, provas, editais, onFocusNode }: Props) {
   const [mode, setMode] = useState<Mode>("urgency");
-  const [aiSteps, setAiSteps] = useState<AIStep[]>([]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState("");
+  const [provaId, setProvaId] = useState("");
+  const [editalId, setEditalId] = useState("");
+  const [steps, setSteps] = useState<RoadmapStep[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [currentStep, setCurrentStep] = useState(0);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
-  const [savedNodeCount, setSavedNodeCount] = useState<number | null>(null);
-  const [isSaved, setIsSaved] = useState(false); // trilha veio do storage ou foi salva
-  const [saveFailed, setSaveFailed] = useState(false);
+  const [novos, setNovos] = useState(0);
   const [prevGrafoId, setPrevGrafoId] = useState<string | null>(null);
 
-  const relevantNodeCount = nodes.filter((n) => n.group === "ASSUNTO" || n.group === "TOPICO" || n.group === "CONCEITO").length;
+  const provaScoped = PROVA_MODES.includes(mode);
+  const editalScoped = EDITAL_MODES.includes(mode);
   const validNodeIds = useMemo(() => new Set(nodes.map((n) => n.id)), [nodes]);
-  const validSteps = useMemo(() => aiSteps.filter((s) => validNodeIds.has(s.nodeId)), [aiSteps, validNodeIds]);
-  const staleCount = aiSteps.length - validSteps.length;
-  const graphChanged = isSaved && savedNodeCount !== null && relevantNodeCount > 0 &&
-    Math.abs(relevantNodeCount - savedNodeCount) / Math.max(savedNodeCount, 1) > 0.2;
+  const validSteps = useMemo(() => steps.filter((s) => validNodeIds.has(s.nodeId)), [steps, validNodeIds]);
+  const staleCount = steps.length - validSteps.length;
 
-  // Reseta a IA ao trocar de grafo — durante render (evita set-state-in-effect).
+  // Reseta ao trocar de grafo — durante render (evita set-state-in-effect).
   if (grafoId !== prevGrafoId) {
     setPrevGrafoId(grafoId);
-    setAiSteps([]); setGeneratedAt(null); setSavedNodeCount(null);
-    setCurrentStep(0); setAiError(""); setIsSaved(false); setSaveFailed(false);
+    setSteps([]); setGeneratedAt(null); setNovos(0); setCurrentStep(0); setError("");
   }
 
-  const loadSaved = useCallback((): boolean => {
-    const saved = loadSavedTrail(grafoId);
-    if (!saved) return false;
-    setAiSteps(saved.steps); setGeneratedAt(saved.generatedAt); setSavedNodeCount(saved.nodeCount);
-    setCurrentStep(0); setAiError(""); setIsSaved(true); setSaveFailed(false);
-    return true;
-  }, [grafoId]);
-
-  const fetchAiTrail = useCallback(async (): Promise<void> => {
-    if (aiLoading) return; // previne fetch duplicado
-    setAiLoading(true); setAiError(""); setIsSaved(false); setSaveFailed(false); setCurrentStep(0);
+  const fetchRoadmap = useCallback(async (m: RoadmapMode, regenerate: boolean): Promise<void> => {
+    setLoading(true); setError(""); setCurrentStep(0);
     try {
-      const res = await graphHttp.generateLearningPath(grafoId);
-      setAiSteps(res.steps); setGeneratedAt(new Date().toISOString()); setSavedNodeCount(relevantNodeCount);
-      const firstValid = res.steps.find((s) => validNodeIds.has(s.nodeId));
-      if (firstValid) onFocusNode({ id: firstValid.nodeId });
+      const scopedProva = PROVA_MODES.includes(m) ? provaId || undefined : undefined;
+      const scopedEdital = EDITAL_MODES.includes(m) ? editalId || undefined : undefined;
+      const res = await graphHttp.buildRoadmap(grafoId, m, { regenerate, provaId: scopedProva, editalId: scopedEdital });
+      setSteps(res.itens); setGeneratedAt(res.dataGeracao); setNovos(res.novos);
+      const first = res.itens.find((s) => validNodeIds.has(s.nodeId));
+      if (first) onFocusNode({ id: first.nodeId });
     } catch (e) {
-      setAiError(e instanceof Error ? e.message : "Erro ao gerar trilha.");
+      setError(e instanceof Error ? e.message : "Erro ao montar o roadmap.");
     } finally {
-      setAiLoading(false);
+      setLoading(false);
     }
-  }, [aiLoading, grafoId, relevantNodeCount, validNodeIds, onFocusNode]);
+  }, [grafoId, provaId, editalId, validNodeIds, onFocusNode]);
 
-  // Ao abrir o modo IA: carrega do storage; só busca da IA se não houver trilha salva.
-  // queueMicrotask evita setState síncrono no effect (react-hooks/set-state-in-effect).
+  // Ao abrir/trocar de modo, prova ou edital: busca (o servidor persiste e recalcula só o delta).
   useEffect(() => {
-    if (mode !== "ai" || !open) return;
-    queueMicrotask(() => { if (!loadSaved() && !aiLoading) fetchAiTrail(); });
+    if (!open || mode === "urgency") return;
+    queueMicrotask(() => { void fetchRoadmap(mode, false); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, open, grafoId]);
-
-  const handleSave = (): void => {
-    if (!aiSteps.length || !generatedAt) return;
-    const ok = saveTrail(grafoId, { steps: aiSteps, generatedAt, nodeCount: relevantNodeCount });
-    setIsSaved(ok);
-    setSaveFailed(!ok);
-  };
-
-  const handleDeleteSaved = (): void => {
-    clearSavedTrail(grafoId);
-    setIsSaved(false); setAiSteps([]); setGeneratedAt(null); setSavedNodeCount(null); setCurrentStep(0);
-  };
+  }, [mode, open, grafoId, provaId, editalId]);
 
   const goToStep = (idx: number): void => {
     const step = validSteps[idx];
@@ -510,22 +470,39 @@ export function RoadmapPanel({ open, onClose, grafoId, nodes, edges, onFocusNode
   return (
     <div className="graph-toolbar absolute left-16 top-3 bottom-3 z-20 flex w-[360px] max-w-[calc(100%-5rem)] flex-col rounded-md border bg-background/95 backdrop-blur-sm shadow-lg">
       <RoadmapHeader onClose={onClose} />
-      <ModeToggle mode={mode} onMode={setMode} />
+      <ModeSelect mode={mode} onMode={setMode} />
+      {provaScoped && provas.length > 1 && (
+        <ScopeSelect
+          Icon={ClipboardListIcon}
+          iconClass="text-amber-500"
+          allLabel="Todas as provas"
+          items={provas}
+          value={provaId}
+          onChange={setProvaId}
+        />
+      )}
+      {editalScoped && editais.length > 1 && (
+        <ScopeSelect
+          Icon={RouteIcon}
+          iconClass="text-teal-500"
+          allLabel="Todos os editais"
+          items={editais}
+          value={editalId}
+          onChange={setEditalId}
+        />
+      )}
       {mode === "urgency" ? (
         <UrgencyPanel roadmap={roadmap} onFocusNode={onFocusNode} />
       ) : (
-        <AiPanel
-          aiLoading={aiLoading}
-          aiError={aiError}
+        <ServerPanel
+          loading={loading}
+          error={error}
           steps={validSteps}
           currentStep={currentStep}
-          isSaved={isSaved}
           generatedAt={generatedAt}
-          saveFailed={saveFailed}
+          novos={novos}
           staleCount={staleCount}
-          graphChanged={graphChanged}
-          actions={{ onSave: handleSave, onDelete: handleDeleteSaved, onRegen: fetchAiTrail }}
-          onRetry={fetchAiTrail}
+          onRegen={() => fetchRoadmap(mode, true)}
           onGo={goToStep}
         />
       )}

@@ -1,7 +1,7 @@
 import { NODE_TYPE_COLORS } from "../../constants/graph-ui.constants";
 
 // Node shapes
-export type NodeShape = "circle" | "ellipse" | "rect" | "rect-vertical" | "square";
+export type NodeShape = "circle" | "ellipse" | "rect" | "rect-vertical" | "square" | "diamond";
 
 const NODE_TYPE_SHAPES: Record<string, NodeShape> = {
   ASSUNTO: "circle",
@@ -10,8 +10,9 @@ const NODE_TYPE_SHAPES: Record<string, NodeShape> = {
   NOTA: "rect-vertical",
   FLASHCARD: "square",
   GRAFO_REF: "rect",
-  QUESTION: "square",
+  QUESTION: "diamond",
   PROVA: "rect",
+  EDITAL: "rect-vertical",
 };
 
 export function getNodeShape(type: string): NodeShape {
@@ -26,6 +27,7 @@ const SHAPE_LABEL_FACTOR: Record<NodeShape, number> = {
   rect: 1,
   "rect-vertical": 1,
   square: 1,
+  diamond: 0.6, // corners are empty, so the label has less usable width
 };
 
 const CHAR_WIDTH = 6.6; // ~largura média de um caractere em fontSize 12

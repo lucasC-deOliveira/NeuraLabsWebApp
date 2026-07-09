@@ -24,10 +24,18 @@ import { GetProvaImagemUseCase } from '../modules/provas/application/use-cases/g
 import { UpdateProvaUseCase } from '../modules/provas/application/use-cases/update-prova.use-case';
 import { RemoveProvaUseCase } from '../modules/provas/application/use-cases/remove-prova.use-case';
 import { ParseExamUploadUseCase } from '../modules/provas/application/use-cases/parse-exam-upload.use-case';
+import { SuggestQuestaoConceitosUseCase } from '../modules/provas/application/use-cases/suggest-questao-conceitos.use-case';
+import {
+  CreateEditalUseCase,
+  LinkEditalToProvaUseCase,
+  ListEditaisUseCase,
+} from '../modules/provas/application/use-cases/edital.use-cases';
 import { ProvasExceptionFilter } from '../modules/provas/interface/provas-exception.filter';
 import type {
+  CreateEditalInput,
   CreateProvaFromParsedInput,
   CreateProvaInput,
+  ParsedQuestao,
   UpdateProvaPatch,
 } from '../modules/provas/domain/prova';
 
@@ -44,6 +52,10 @@ export class ProvasController {
     private readonly updateProva: UpdateProvaUseCase,
     private readonly removeProva: RemoveProvaUseCase,
     private readonly parseExamUpload: ParseExamUploadUseCase,
+    private readonly suggestConceitos: SuggestQuestaoConceitosUseCase,
+    private readonly createEdital: CreateEditalUseCase,
+    private readonly linkEdital: LinkEditalToProvaUseCase,
+    private readonly listEditais: ListEditaisUseCase,
   ) {}
 
   @Post()
@@ -76,9 +88,35 @@ export class ProvasController {
     return this.parseExamUpload.execute(userId, provaFile, gabaritoFile);
   }
 
+  // Suggests, per question, the graph CONCEITOs it tests (reusing existing nodes),
+  // for the user to confirm in the review before the links are written.
+  @Post('suggest-conceitos')
+  suggestConceitosForQuestoes(
+    @CurrentUser() userId: string,
+    @Body() dto: { questoes: ParsedQuestao[] },
+  ) {
+    return this.suggestConceitos.execute(userId, dto.questoes ?? []);
+  }
+
   @Post('from-parsed')
   createFromParsed(@CurrentUser() userId: string, @Body() dto: CreateProvaFromParsedInput) {
     return this.createProvaFromParsed.execute(userId, dto);
+  }
+
+  // Cria o nó EDITAL (título + programa); com provaId, vincula 1:1 à prova.
+  @Post('editais')
+  createEditalNode(@CurrentUser() userId: string, @Body() dto: CreateEditalInput) {
+    return this.createEdital.execute(userId, dto);
+  }
+
+  // Vincula um edital existente a uma prova (1:1).
+  @Post('editais/:id/link')
+  linkEditalToProva(
+    @CurrentUser() userId: string,
+    @Param('id') editalId: string,
+    @Body() dto: { provaId: string; grafoId: string },
+  ) {
+    return this.linkEdital.execute(userId, editalId, dto.provaId, dto.grafoId);
   }
 
   @Get()
@@ -86,7 +124,12 @@ export class ProvasController {
     return this.listProvas.execute(userId);
   }
 
-  // Declared before ':id' so "imagens" is not captured as a prova id.
+  // Declared before ':id' so static paths are not captured as a prova id.
+  @Get('editais')
+  findEditais(@CurrentUser() userId: string) {
+    return this.listEditais.execute(userId);
+  }
+
   @Get('imagens/:id')
   async findImagem(
     @CurrentUser() userId: string,

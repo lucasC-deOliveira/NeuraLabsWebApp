@@ -24,10 +24,13 @@ export interface PropertiesPanelProps {
   onViewNota?: () => void;
   onViewTextoBruto?: () => void;
   onViewProva?: () => void;
+  onLinkEdital?: () => void;
   onStudyFlashcard?: () => void;
   onViewFlashcard?: () => void;
   onStudyDeck?: () => void;
   onViewDeck?: () => void;
+  onStudyProva?: () => void;
+  onStudyQuestao?: () => void;
   onStudyNeighborhood?: () => void;
   onGenerateInsights?: () => void;
   onExpandNode?: () => void;
@@ -108,6 +111,8 @@ function NodeContent({ props, node, notaMeta, deckStats }: NodeContentProps) {
         onViewFlashcard={props.onViewFlashcard}
         onStudyDeck={props.onStudyDeck}
         onViewDeck={props.onViewDeck}
+        onStudyProva={props.onStudyProva}
+        onStudyQuestao={props.onStudyQuestao}
       />
       <DeckStatsView node={node} stats={deckStats} />
       <NotaMetaView node={node} meta={notaMeta} />
@@ -130,6 +135,7 @@ function NodeContent({ props, node, notaMeta, deckStats }: NodeContentProps) {
         onViewNota={props.onViewNota}
         onViewTextoBruto={props.onViewTextoBruto}
         onViewProva={props.onViewProva}
+        onLinkEdital={props.onLinkEdital}
         onRemoveFromGraph={props.onRemoveFromGraph}
         onDeleteNode={props.onDeleteNode}
       />

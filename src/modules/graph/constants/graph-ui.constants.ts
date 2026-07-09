@@ -119,15 +119,20 @@ export const NODE_TYPE_COLORS = {
     light: { bg: "#f5f3ff", border: "#7c3aed", text: "#3b0764" },
     dark:  { bg: "#2e1065", border: "#a78bfa", text: "#ede9fe" },
   },
-  // Ciano/teal — questão (verdadeiro/falso ou múltipla escolha)
+  // Rosa/vermelho — questão (losango): cor forte e distinta do verde do CONCEITO
   QUESTION: {
-    light: { bg: "#f0fdfa", border: "#0d9488", text: "#134e4a" },
-    dark:  { bg: "#0d3330", border: "#2dd4bf", text: "#ccfbf1" },
+    light: { bg: "#ffe4e6", border: "#e11d48", text: "#881337" },
+    dark:  { bg: "#4c0519", border: "#fb7185", text: "#fecdd3" },
   },
   // Âmbar/laranja escuro — prova (coleção de questões com gabarito)
   PROVA: {
     light: { bg: "#fffbeb", border: "#d97706", text: "#78350f" },
     dark:  { bg: "#3a2500", border: "#fbbf24", text: "#fef3c7" },
+  },
+  // Teal — edital (programa/objetos de avaliação), vinculado 1:1 à prova
+  EDITAL: {
+    light: { bg: "#f0fdfa", border: "#0d9488", text: "#134e4a" },
+    dark:  { bg: "#0d3330", border: "#2dd4bf", text: "#ccfbf1" },
   },
 };
 
@@ -143,4 +148,5 @@ export const NODE_TYPE_DISPLAY = {
   GRAFO_REF: { label: "Subgrafo" },
   QUESTION: { label: "Questão" },
   PROVA: { label: "Prova" },
+  EDITAL: { label: "Edital" },
 };

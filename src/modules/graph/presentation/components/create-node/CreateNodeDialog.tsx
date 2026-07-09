@@ -15,16 +15,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2Icon, PlusIcon } from "lucide-react";
+import { Loader2Icon, PlusIcon, NetworkIcon } from "lucide-react";
 import type { AvailableItem } from "@/modules/graph/application/ports/graph-data.port";
 import type { ParsedQuestao } from "@/modules/graph/application/ports/graph-prova.port";
+import type { ConceitoPickerEntry } from "@/modules/graph/domain/services/prova-conceitos";
 import type { CreateNodeFormValues } from "@/modules/graph/domain/services/create-node-form";
 import { RelationLinkList, type LinkRow } from "./RelationLinkList";
 import { ProvaForm, type ProvaSubMode, type ProvaUploadStep } from "./ProvaForm";
+import { EditalForm } from "./EditalForm";
 import { DeckForm, type DeckFlashcard } from "./DeckForm";
 import { NotaFields, NotaAiSuggestions, type NotaSuggestion } from "./NotaForm";
 import { ExistingItemsPicker } from "./ExistingItemsPicker";
 import { NodeTypeSelect, NameDescriptionFields, FlashcardFields } from "./NodeFields";
+import { CreateNodeProcessing } from "./CreateNodeProcessing";
 
 export interface NamedRef {
   id: string;
@@ -93,10 +96,23 @@ export interface CreateNodeVm {
     setProvaFile: (file: File | null) => void;
     gabaritoFile: File | null;
     setGabaritoFile: (file: File | null) => void;
+    editalFile: File | null;
+    setEditalFile: (file: File | null) => void;
     parsedTitulo: string;
     setParsedTitulo: (title: string) => void;
     parsedQuestoes: ParsedQuestao[];
     setParsedQuestaoGabarito: (index: number, value: string) => void;
+    conceitosByQuestao: Record<number, ConceitoPickerEntry[]>;
+    conceitosLoading: boolean;
+    onToggleConceito: (numero: number, nome: string) => void;
+    onAddConceito: (numero: number, nome: string) => void;
+  };
+  edital: {
+    file: File | null;
+    setFile: (file: File | null) => void;
+    provas: { id: string; label: string }[];
+    provaId: string;
+    setProvaId: (id: string) => void;
   };
 }
 
@@ -105,53 +121,87 @@ function submitLabel(vm: CreateNodeVm): string {
     if (vm.prova.subMode === "existing") return "Vincular prova ao grafo";
     return vm.prova.uploadStep === "review" ? "Criar prova e adicionar ao grafo" : "Processar arquivos";
   }
+  if (vm.selectedType === "EDITAL") return "Importar edital e completar grafo";
   if (vm.activeTab === "create") return "Criar nó";
   return vm.selectedItems.size > 0 ? `Adicionar ${vm.selectedItems.size} item(s)` : "Selecione itens";
 }
 
-const TAB_BASE = "flex-1 py-2 px-4 text-sm font-medium transition-colors";
-const TAB_ACTIVE = "border-b-2 border-primary text-primary";
-const TAB_IDLE = "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100";
+const TAB_BASE = "rounded-md px-4 py-1.5 text-sm font-medium transition-colors";
+const TAB_ACTIVE = "bg-background text-foreground shadow-sm";
+const TAB_IDLE = "text-muted-foreground hover:text-foreground";
+
+const NOOP = (): void => {};
+
+function TabBar({ vm }: { vm: CreateNodeVm }) {
+  const showExisting = vm.selectedType === "FLASHCARD" || vm.selectedType === "NOTA";
+  if (!showExisting) return null;
+  return (
+    <div className="mt-4 inline-flex shrink-0 gap-1 rounded-lg bg-muted p-1">
+      <button onClick={() => vm.setActiveTab("create")} className={`${TAB_BASE} ${vm.activeTab === "create" ? TAB_ACTIVE : TAB_IDLE}`}>
+        Criar novo
+      </button>
+      <button onClick={() => vm.setActiveTab("existing")} className={`${TAB_BASE} ${vm.activeTab === "existing" ? TAB_ACTIVE : TAB_IDLE}`}>
+        Adicionar existentes
+      </button>
+    </div>
+  );
+}
 
 export function CreateNodeDialog({ vm, parents }: { vm: CreateNodeVm; parents: CreateNodeParents }) {
+  // While a create/parse/save is in flight the modal locks: no dismiss, no close
+  // button, and the body becomes a progress view.
+  const busy = vm.loading;
+  const isProva = vm.selectedType === "PROVA";
+  const provaSaving = isProva && vm.prova.uploadStep === "review";
+  const isEdital = vm.selectedType === "EDITAL";
+
   return (
-    <Dialog open={vm.open} onOpenChange={vm.close}>
-      <DialogContent className="max-w-2xl flex max-h-[85dvh] flex-col overflow-hidden gap-0">
+    <Dialog open={vm.open} onOpenChange={busy ? NOOP : vm.close}>
+      <DialogContent
+        showCloseButton={!busy}
+        className="flex max-h-[88dvh] w-[calc(100%-2rem)] flex-col overflow-hidden gap-0 sm:max-w-3xl"
+      >
         <DialogHeader className="shrink-0">
-          <DialogTitle>Adicionar nós ao grafo</DialogTitle>
-          <DialogDescription>Crie novos nós ou adicione flashcards e notas existentes ao grafo.</DialogDescription>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <NetworkIcon className="size-4" />
+            </span>
+            Adicionar ao grafo
+          </DialogTitle>
+          <DialogDescription>Crie novos nós ou vincule flashcards, notas e provas já existentes.</DialogDescription>
         </DialogHeader>
 
-        <div className="shrink-0 mt-4 flex border-b border-zinc-200 dark:border-zinc-800">
-          <button onClick={() => vm.setActiveTab("create")} className={`${TAB_BASE} ${vm.activeTab === "create" ? TAB_ACTIVE : TAB_IDLE}`}>
-            Criar novo
-          </button>
-          {(vm.selectedType === "FLASHCARD" || vm.selectedType === "NOTA") && (
-            <button onClick={() => vm.setActiveTab("existing")} className={`${TAB_BASE} ${vm.activeTab === "existing" ? TAB_ACTIVE : TAB_IDLE}`}>
-              Adicionar existentes
-            </button>
-          )}
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto py-4 px-1 -mx-1">
-          {vm.activeTab === "existing" && <ExistingTabBody vm={vm} parents={parents} />}
-          {vm.activeTab === "create" && <CreateTabBody vm={vm} parents={parents} />}
-        </div>
+        {busy ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <CreateNodeProcessing isProva={isProva} provaSaving={provaSaving} isEdital={isEdital} />
+          </div>
+        ) : (
+          <>
+            <TabBar vm={vm} />
+            <div className="min-h-0 flex-1 overflow-y-auto py-4 px-1 -mx-1">
+              {vm.activeTab === "existing" && <ExistingTabBody vm={vm} parents={parents} />}
+              {vm.activeTab === "create" && <CreateTabBody vm={vm} parents={parents} />}
+            </div>
+          </>
+        )}
 
         <DialogFooter className="shrink-0 mt-4">
-          <Button variant="outline" onClick={() => vm.close(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={vm.submit} disabled={vm.loading}>
-            {vm.loading ? (
+          {busy ? (
+            <Button className="flex-1 gap-2" variant="secondary" disabled>
               <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <>
+              Processando...
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => vm.close(false)}>
+                Cancelar
+              </Button>
+              <Button className="gap-1.5" onClick={vm.submit}>
                 <PlusIcon className="size-4" />
                 {submitLabel(vm)}
-              </>
-            )}
-          </Button>
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -238,7 +288,7 @@ function ExistingTabBody({ vm, parents }: { vm: CreateNodeVm; parents: CreateNod
 
 function CreateTabBody({ vm, parents }: { vm: CreateNodeVm; parents: CreateNodeParents }) {
   return (
-    <>
+    <div className="space-y-5">
       <NodeTypeSelect value={vm.selectedType} onChange={vm.changeType} />
       {vm.selectedType === "BARALHO" && (
         <DeckForm
@@ -266,10 +316,25 @@ function CreateTabBody({ vm, parents }: { vm: CreateNodeVm; parents: CreateNodeP
           onProvaFile={vm.prova.setProvaFile}
           gabaritoFile={vm.prova.gabaritoFile}
           onGabaritoFile={vm.prova.setGabaritoFile}
+          editalFile={vm.prova.editalFile}
+          onEditalFile={vm.prova.setEditalFile}
           parsedTitulo={vm.prova.parsedTitulo}
           onParsedTitulo={vm.prova.setParsedTitulo}
           parsedQuestoes={vm.prova.parsedQuestoes}
           onSetGabarito={vm.prova.setParsedQuestaoGabarito}
+          conceitosByQuestao={vm.prova.conceitosByQuestao}
+          conceitosLoading={vm.prova.conceitosLoading}
+          onToggleConceito={vm.prova.onToggleConceito}
+          onAddConceito={vm.prova.onAddConceito}
+        />
+      )}
+      {vm.selectedType === "EDITAL" && (
+        <EditalForm
+          file={vm.edital.file}
+          onFile={vm.edital.setFile}
+          provas={vm.edital.provas}
+          provaId={vm.edital.provaId}
+          onProvaId={vm.edital.setProvaId}
         />
       )}
       {vm.selectedType === "ASSUNTO" && (
@@ -302,6 +367,6 @@ function CreateTabBody({ vm, parents }: { vm: CreateNodeVm; parents: CreateNodeP
           <NotaAiSuggestions loading={vm.aiLoading} suggestions={vm.aiSuggestions} onSuggest={vm.suggest} onChange={vm.setAiSuggestions} />
         </div>
       )}
-    </>
+    </div>
   );
 }

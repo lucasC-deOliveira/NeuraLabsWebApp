@@ -28,14 +28,16 @@ interface Graph3DRendererProps {
 }
 
 // Formas 3D que correspondem às formas da legenda 2D
-const SHAPE_CFG: Record<string, { type: "sphere" | "ellipsoid" | "box"; w: number; h: number; d: number }> = {
-  ASSUNTO:     { type: "sphere",    w: 8,  h: 8,  d: 8 },
-  TOPICO:      { type: "ellipsoid", w: 10, h: 5,  d: 5 },
-  CONCEITO:    { type: "box",       w: 12, h: 6,  d: 3 },
-  NOTA:        { type: "box",       w: 6,  h: 11, d: 3 },
-  FLASHCARD:   { type: "box",       w: 8,  h: 8,  d: 3 },
-  TEXTO_BRUTO: { type: "box",       w: 10, h: 5,  d: 3 },
-  BARALHO:     { type: "box",       w: 10, h: 7,  d: 3 },
+const SHAPE_CFG: Record<string, { type: "sphere" | "ellipsoid" | "box" | "octahedron"; w: number; h: number; d: number }> = {
+  ASSUNTO:     { type: "sphere",     w: 8,  h: 8,  d: 8 },
+  TOPICO:      { type: "ellipsoid",  w: 10, h: 5,  d: 5 },
+  CONCEITO:    { type: "box",        w: 12, h: 6,  d: 3 },
+  NOTA:        { type: "box",        w: 6,  h: 11, d: 3 },
+  FLASHCARD:   { type: "box",        w: 8,  h: 8,  d: 3 },
+  TEXTO_BRUTO: { type: "box",        w: 10, h: 5,  d: 3 },
+  BARALHO:     { type: "box",        w: 10, h: 7,  d: 3 },
+  QUESTION:    { type: "octahedron", w: 11, h: 11, d: 11 }, // losango 3D
+  EDITAL:      { type: "box",        w: 6,  h: 11, d: 3 },  // documento (retrato)
 };
 
 const BG_DARK  = "#0a0a0a";
@@ -94,6 +96,8 @@ function buildNodeObj(node: any, bgColor: string, borderColor: string, textColor
   } else if (cfg.type === "ellipsoid") {
     mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 18), fillMat);
     mesh.scale.set(cfg.w / 2, cfg.h / 2, cfg.d / 2);
+  } else if (cfg.type === "octahedron") {
+    mesh = new THREE.Mesh(new THREE.OctahedronGeometry(cfg.w / 2), fillMat);
   } else {
     mesh = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, cfg.h, cfg.d), fillMat);
   }
@@ -112,12 +116,14 @@ function buildNodeObj(node: any, bgColor: string, borderColor: string, textColor
   } else if (cfg.type === "ellipsoid") {
     border = new THREE.Mesh(new THREE.SphereGeometry(1.12, 28, 18), edgeMat);
     border.scale.set(cfg.w / 2, cfg.h / 2, cfg.d / 2);
+  } else if (cfg.type === "octahedron") {
+    border = new THREE.Mesh(new THREE.OctahedronGeometry(cfg.w / 2 + 0.4), edgeMat);
   } else {
     border = new THREE.Mesh(new THREE.BoxGeometry(cfg.w + 0.6, cfg.h + 0.6, cfg.d + 0.6), edgeMat);
   }
   group.add(border);
 
-  const labelY = cfg.type === "sphere" ? cfg.w / 2 + 4 : cfg.h / 2 + 3.5;
+  const labelY = cfg.type === "sphere" || cfg.type === "octahedron" ? cfg.w / 2 + 4 : cfg.h / 2 + 3.5;
   const sprite = makeLabelSprite(node.label ?? "", textColor);
   sprite.position.set(0, labelY, 0);
   group.add(sprite);

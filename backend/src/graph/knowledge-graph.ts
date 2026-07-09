@@ -20,6 +20,7 @@ function resolveLabel(
   baralhos: any[],
   questoes: any[],
   provas: any[],
+  editais: any[],
 ): string {
   const trunc = (s: string) => (s.length > 60 ? `${s.slice(0, 60)}…` : s);
   switch (tipoNode) {
@@ -53,8 +54,36 @@ function resolveLabel(
       const p = provas.find((x) => x.id === refId);
       return p?.titulo ?? refId;
     }
+    case 'EDITAL': {
+      const e = editais.find((x) => x.id === refId);
+      return e?.titulo ?? refId;
+    }
     default:
       return refId;
+  }
+}
+
+// Derives PROVA→QUESTION (CONTEM) edges from the ProvaQuestao join for the provas and
+// questions present in the graph — the relationship is implicit in the data, not stored.
+async function addDerivedProvaQuestaoEdges(
+  prisma: PrismaClient,
+  byType: Record<string, Set<string>>,
+  seen: Set<string>,
+  edges: GraphEdge[],
+): Promise<void> {
+  const provaSet = byType['PROVA'];
+  const questaoSet = byType['QUESTION'];
+  if (!provaSet || !questaoSet) return;
+  const links = await prisma.provaQuestao.findMany({
+    where: { provaId: { in: [...provaSet] } },
+    select: { provaId: true, questaoId: true },
+  });
+  for (const { provaId, questaoId } of links) {
+    if (!questaoSet.has(questaoId)) continue;
+    const key = `${provaId}→${questaoId}→CONTEM`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    edges.push({ source: provaId, target: questaoId, type: 'CONTEM', peso: 1 });
   }
 }
 
@@ -106,6 +135,7 @@ export async function buildKnowledgeGraph(
     grafoRefs,
     questoes,
     provas,
+    editais,
   ] = await Promise.all([
     prisma.assunto.findMany({ where: { id: { in: ids('ASSUNTO') } } }),
     prisma.topico.findMany({ where: { id: { in: ids('TOPICO') } } }),
@@ -141,6 +171,12 @@ export async function buildKnowledgeGraph(
           select: { id: true, titulo: true, _count: { select: { questoes: true } } },
         })
       : Promise.resolve([]),
+    byType['EDITAL']
+      ? (prisma as any).edital.findMany({
+          where: { id: { in: ids('EDITAL') } },
+          select: { id: true, titulo: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const nodes: GraphNode[] = graphNodes.map((n) => {
@@ -170,6 +206,7 @@ export async function buildKnowledgeGraph(
               baralhos,
               questoes,
               provas,
+              editais,
             ),
       type: n.tipoNode as GraphNode['type'],
       nivelDominio: n.nivelDominio,
@@ -199,6 +236,11 @@ export async function buildKnowledgeGraph(
     seen.add(key);
     edges.push({ source: src, target: tgt, type: e.tipoRelacao, peso: e.peso });
   }
+
+  // PROVA→QUESTION edges aren't stored — they're derived from the exam's questions
+  // (ProvaQuestao) so a prova always shows connected to whichever of its questions
+  // are in the graph.
+  await addDerivedProvaQuestaoEdges(prisma, byType, seen, edges);
 
   const mastery = new Map<string, number>();
   const nowMs = Date.now();

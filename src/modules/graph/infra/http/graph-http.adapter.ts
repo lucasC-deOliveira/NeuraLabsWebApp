@@ -31,6 +31,7 @@ import {
 } from "@/lib/graph-api";
 import {
   generateLearningPath,
+  buildRoadmap,
   suggestNotaRelations,
   autoLinkGraph,
   applyAutoLink,
@@ -50,8 +51,20 @@ import {
   listBaralhosInGrafo,
   populateGraphFromBaralho,
   expandNode,
+  planGraphFromEdital,
+  buildGraphFromEdital,
+  rankGraphImportance,
+  getTokenUsage,
 } from "@/lib/ai-api";
-import { parseProvaUpload, createProvaFromParsed, getProva, fetchProvaImagem } from "@/lib/provas-api";
+import {
+  parseProvaUpload,
+  createProvaFromParsed,
+  suggestProvaConceitos,
+  getProva,
+  fetchProvaImagem,
+} from "@/lib/provas-api";
+import { getQuestao } from "@/lib/questions-api";
+import { createEditalNode, linkEditalToProva, listEditais } from "@/lib/provas-api";
 import {
   startSingleCardStudy,
   startDeckStudy,
@@ -67,6 +80,8 @@ import type {
 import type {
   GraphAiPort,
   LearningStep,
+  RoadmapMode,
+  RoadmapBuildResult,
   NotaRelationSuggestion,
   AutoLinkSuggestion,
   AppliedEdge,
@@ -83,6 +98,9 @@ import type {
   GenerateGraphResult,
   BaralhoItem,
   PopulateFromBaralhoResult,
+  EditalBuildResult,
+  RankedConceitoView,
+  TokenUsageView,
 } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { GraphDeckPort, DeckForStudy } from "../../application/ports/graph-deck.port";
@@ -100,7 +118,16 @@ import type {
   CardReviewInput,
 } from "../../application/ports/study.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
-import type { GraphProvaPort, ProvaParseResult, ParsedQuestao, ProvaDetailView } from "../../application/ports/graph-prova.port";
+import type {
+  GraphProvaPort,
+  ProvaParseResult,
+  ParsedQuestao,
+  QuestaoConceitosView,
+  QuestaoView,
+  CreateEditalInputView,
+  EditalItemView,
+  ProvaDetailView,
+} from "../../application/ports/graph-prova.port";
 import type { GraphListPort } from "../../application/ports/graph-list.port";
 import type {
   GraphNodeType,
@@ -174,6 +201,14 @@ export class HttpGraphAdapter
 
   generateLearningPath(grafoId: string): Promise<{ steps: LearningStep[] }> {
     return generateLearningPath(grafoId);
+  }
+
+  buildRoadmap(
+    grafoId: string,
+    modo: RoadmapMode,
+    opts?: { regenerate?: boolean; provaId?: string; editalId?: string },
+  ): Promise<RoadmapBuildResult> {
+    return buildRoadmap(grafoId, modo, opts);
   }
 
   getNodeDetails(group: string, nodeId: string): Promise<NodeDetails | null> {
@@ -340,6 +375,22 @@ export class HttpGraphAdapter
     return populateGraphFromBaralho(grafoId, baralhoId);
   }
 
+  planGraphFromEdital(grafoId: string, edital: File): Promise<{ plan: unknown; programa: string }> {
+    return planGraphFromEdital(grafoId, edital);
+  }
+
+  buildGraphFromEdital(grafoId: string, plan: unknown): Promise<EditalBuildResult> {
+    return buildGraphFromEdital(grafoId, plan);
+  }
+
+  rankGraphImportance(grafoId: string, provaWeight?: number): Promise<{ conceitos: RankedConceitoView[] }> {
+    return rankGraphImportance(grafoId, provaWeight);
+  }
+
+  getTokenUsage(): Promise<TokenUsageView> {
+    return getTokenUsage();
+  }
+
   parseProvaUpload(provaFile: File, gabaritoFile?: File | null): Promise<ProvaParseResult> {
     return parseProvaUpload(provaFile, gabaritoFile);
   }
@@ -348,11 +399,48 @@ export class HttpGraphAdapter
     return getProva(provaId);
   }
 
+  async getQuestao(questaoId: string): Promise<QuestaoView | null> {
+    try {
+      const q = await getQuestao(questaoId);
+      return {
+        id: q.id,
+        tipo: q.tipo,
+        enunciado: q.enunciado,
+        alternativas: q.alternativas,
+        gabarito: q.gabarito,
+        explicacao: q.explicacao,
+        conceitoNome: q.conceitoNome,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  createEditalNode(input: CreateEditalInputView): Promise<{ editalId: string }> {
+    return createEditalNode(input);
+  }
+
+  linkEditalToProva(editalId: string, provaId: string, grafoId: string): Promise<{ success: boolean }> {
+    return linkEditalToProva(editalId, provaId, grafoId);
+  }
+
+  listEditais(): Promise<EditalItemView[]> {
+    return listEditais();
+  }
+
   fetchProvaImagem(imagemId: string): Promise<Blob> {
     return fetchProvaImagem(imagemId);
   }
 
-  createProvaFromParsed(input: { titulo: string; questoes: ParsedQuestao[] }): Promise<{ provaId: string }> {
+  suggestProvaConceitos(questoes: ParsedQuestao[]): Promise<QuestaoConceitosView[]> {
+    return suggestProvaConceitos(questoes);
+  }
+
+  createProvaFromParsed(input: {
+    titulo: string;
+    questoes: ParsedQuestao[];
+    grafoId?: string;
+  }): Promise<{ provaId: string }> {
     return createProvaFromParsed(input);
   }
 

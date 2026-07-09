@@ -1,5 +1,5 @@
 // Features de IA do grafo → API NestJS.
-import { apiFetch } from "./api";
+import { apiFetch, getToken } from "./api";
 
 export interface NotaRelationSuggestion {
   nodeId: string;
@@ -70,6 +70,94 @@ export function planGraphFromText(grafoId: string, rawText: string): Promise<{ p
 }
 export function buildGraphFromPlan(grafoId: string, rawText: string, plan: any, saveBruto = true): Promise<GenerateGraphResult> {
   return apiFetch(`/ai/graph/graphs/${grafoId}/generate-graph/build`, { method: "POST", body: JSON.stringify({ rawText, plan, saveBruto }) });
+}
+
+export interface EditalBuildResult {
+  assuntos: number;
+  topicos: number;
+  conceitos: number;
+  // Node ids of the concepts the edital covers (to link the EDITAL node via COBRE).
+  conceitoNodeIds: string[];
+}
+
+export interface RankedConceitoView {
+  conceitoId: string;
+  nome: string;
+  importancia: number;
+  provaFreq: number;
+  editalPeso: number;
+}
+
+// Sobe o PDF do edital e devolve o plano (hierarquia disciplina→tópico→subtópico),
+// reusando os nós existentes. Multipart (não é JSON), com o token JWT.
+export async function planGraphFromEdital(grafoId: string, edital: File): Promise<{ plan: any; programa: string }> {
+  const form = new FormData();
+  form.append("edital", edital);
+  const base = (await import("./api")).resolveApiUrl();
+  const token = getToken();
+  const res = await fetch(`${base}/ai/graph/graphs/${grafoId}/edital/plan`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message ?? "Erro ao processar o edital");
+  }
+  return res.json();
+}
+
+export function buildGraphFromEdital(grafoId: string, plan: any): Promise<EditalBuildResult> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/edital/build`, { method: "POST", body: JSON.stringify({ plan }) });
+}
+
+// Ranqueia os conceitos por importância (frequência em provas × ênfase do edital).
+export function rankGraphImportance(grafoId: string, provaWeight?: number): Promise<{ conceitos: RankedConceitoView[] }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/importance`, { method: "POST", body: JSON.stringify({ provaWeight }) });
+}
+
+export interface TokenUsageView {
+  prompt: number;
+  completion: number;
+  total: number;
+  calls: number;
+}
+
+export type RoadmapMode = "ai" | "prova" | "edital" | "prova_edital";
+export interface RoadmapStep {
+  nodeId: string;
+  nome: string;
+  tipo: string;
+  motivo: string;
+  provaFreq?: number;
+}
+export interface RoadmapBuildResult {
+  itens: RoadmapStep[];
+  dataGeracao: string;
+  novos: number;
+}
+
+// Builds/persists the roadmap for a mode; server recomputes only the delta. provaId
+// and editalId scope the prova/edital modes to a specific one (a graph may have several).
+export function buildRoadmap(
+  grafoId: string,
+  modo: RoadmapMode,
+  opts?: { regenerate?: boolean; provaId?: string; editalId?: string },
+): Promise<RoadmapBuildResult> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/roadmap`, {
+    method: "POST",
+    body: JSON.stringify({
+      modo,
+      regenerate: opts?.regenerate,
+      provaId: opts?.provaId,
+      editalId: opts?.editalId,
+    }),
+  });
+}
+
+// Total de tokens de IA gastos na sessão (todas as features), medido no adapter.
+export function getTokenUsage(): Promise<TokenUsageView> {
+  return apiFetch("/token-usage");
 }
 
 export interface BaralhoItem { id: string; titulo: string; flashcardCount: number; }
