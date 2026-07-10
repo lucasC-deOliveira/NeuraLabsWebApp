@@ -47,6 +47,38 @@ export function getFilteredEdges<T extends { source: string; target: string }>(
 }
 
 /**
+ * Arestas visíveis: oculta as de relação desativada pelo usuário e, quando
+ * `visibleNodeIds` é dado (grafo pequeno), também as que tocam nós ocultos.
+ * `visibleNodeIds === null` (grafo grande) pula o filtro por nó — o Canvas culla.
+ */
+export function getVisibleEdges<T extends { source: string; target: string; type: string }>(
+  edges: T[],
+  visibleNodeIds: Set<string> | null,
+  hiddenRelations: Set<string>
+): T[] {
+  return edges.filter((e) => isEdgeVisible(e, visibleNodeIds, hiddenRelations));
+}
+
+function isEdgeVisible(
+  edge: { source: string; target: string; type: string },
+  visibleNodeIds: Set<string> | null,
+  hiddenRelations: Set<string>
+): boolean {
+  if (hiddenRelations.has(edge.type)) return false;
+  if (!visibleNodeIds) return true;
+  return visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target);
+}
+
+/**
+ * Estatísticas das arestas por tipo de relação.
+ */
+export function getRelationStats<T extends { type: string }>(edges: T[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const e of edges) counts[e.type] = (counts[e.type] || 0) + 1;
+  return counts;
+}
+
+/**
  * Calcula estatísticas dos nós por tipo
  */
 export function getNodeStats<T extends { type: string }>(rawNodes: T[]): Record<string, number> {
