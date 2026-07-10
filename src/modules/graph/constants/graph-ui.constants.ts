@@ -79,15 +79,17 @@ export const RELATION_GROUPS = [
 //   20% accent    → text   (readable label)
 // Two palettes only: light and dark. Each node type has a distinct hue.
 export const NODE_TYPE_COLORS = {
-  // Indigo — root concept, authoritative
+  // Azul-marinho — root concept, authoritative. Azul mais escuro que o indigo
+  // anterior (mais forte/raiz) e bem distinto do ciano do TÓPICO.
   ASSUNTO: {
-    light: { bg: "#eef2ff", border: "#4338ca", text: "#1e1b4b" },
-    dark:  { bg: "#1e1b4b", border: "#818cf8", text: "#c7d2fe" },
+    light: { bg: "#dbeafe", border: "#1e3a8a", text: "#172554" },
+    dark:  { bg: "#172554", border: "#3b82f6", text: "#bfdbfe" },
   },
-  // Sky blue — structured, organised
+  // Cyan — structured, organised. Ciano (não sky blue) para separar bem do indigo
+  // do ASSUNTO, que estavam parecidos demais (mesmo matiz azul).
   TOPICO: {
-    light: { bg: "#e0f2fe", border: "#0369a1", text: "#0c4a6e" },
-    dark:  { bg: "#0c2840", border: "#38bdf8", text: "#bae6fd" },
+    light: { bg: "#cffafe", border: "#0e7490", text: "#164e63" },
+    dark:  { bg: "#083344", border: "#22d3ee", text: "#a5f3fc" },
   },
   // Emerald — knowledge, clarity
   CONCEITO: {

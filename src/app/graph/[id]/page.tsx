@@ -10,7 +10,7 @@ import { GenerateDeckModal } from "@/modules/graph/presentation/components/deck/
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/modules/graph/presentation/components/PropertiesPanel";
 
-import { ArrowLeftIcon, Loader2Icon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon, LayersIcon } from "lucide-react";
+import { ArrowLeftIcon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon, LayersIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -44,6 +44,7 @@ import { TokenUsageMeter } from "@/modules/graph/presentation/components/TokenUs
 import { useGraphSearch } from "@/modules/graph/presentation/hooks/useGraphSearch";
 import { RoadmapPanel } from "@/modules/graph/presentation/components/RoadmapPanel";
 import { GraphSettingsModal } from "@/modules/graph/presentation/components/GraphSettingsModal";
+import { GraphLoadingScreen } from "@/modules/graph/presentation/components/GraphLoadingScreen";
 import { useGraphSettings } from "@/modules/graph/presentation/hooks/useGraphSettings";
 
 import type { GrafoInfoDetail } from "@/modules/graph/domain/types/graph.types";
@@ -67,6 +68,7 @@ import { GraphDashboard } from "@/modules/graph/presentation/components/dashboar
 import { isDesktop } from "@/lib/vault-bridge";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 import { splitGraphEntities, countNodesByType, neighborhoodFlashcardIds } from "@/modules/graph/domain/services/graph-derivations";
+import { getRelationStats } from "@/modules/graph/domain/selectors/graph.selectors";
 
 export default function GraphPage() {
   const router = useRouter();
@@ -291,15 +293,13 @@ export default function GraphPage() {
   // ======================
   // LOADING
   // ======================
-  if (controller.state.loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2Icon className="animate-spin" />
-      </div>
-    );
+  if (controller.state.loading || controller.state.preparing) {
+    return <GraphLoadingScreen phase={controller.state.loading ? "loading" : "preparing"} />;
   }
   // contagem de nós por tipo (painel de camadas/filtro)
   const nodeStats = countNodesByType(controller.state.layout);
+  // contagem de arestas por tipo de relação (camadas de relações)
+  const relationStats = getRelationStats(controller.state.edges);
 
   // ======================
   // ZOOM BUTTONS (zoom around SVG center)
@@ -633,6 +633,9 @@ export default function GraphPage() {
             nodeStats={nodeStats}
             hiddenTypes={controller.state.hiddenTypes}
             onToggleType={controller.actions.toggleNodeType}
+            relationStats={relationStats}
+            hiddenRelations={controller.state.hiddenRelations}
+            onToggleRelation={controller.actions.toggleRelation}
             roadmapOpen={roadmapOpen}
             onToggleRoadmap={() => { const next = !roadmapOpen; closeToolbarModals(); setRoadmapOpen(next); if (!next) setRoadmapSpotlightId(null); }}
           />

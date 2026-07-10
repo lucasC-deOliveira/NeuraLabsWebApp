@@ -3,6 +3,8 @@ import {
   getFilteredNodes,
   getVisibleNodeIds,
   getFilteredEdges,
+  getVisibleEdges,
+  getRelationStats,
   getNodeStats,
   getConnectedNodeIds,
   getNodesInRect,
@@ -79,6 +81,40 @@ describe("getFilteredEdges", () => {
 
   it("returns empty array when visibleIds is empty", () => {
     expect(getFilteredEdges(edges, new Set())).toHaveLength(0);
+  });
+});
+
+const typedEdges = [
+  { source: "n1", target: "n2", type: "PERTENCE_A" },
+  { source: "n2", target: "n3", type: "PERTENCE_A" },
+  { source: "n3", target: "n4", type: "DEPENDE_DE" },
+];
+
+describe("getVisibleEdges", () => {
+  const visibleIds = new Set(["n1", "n2", "n3", "n4"]);
+
+  it("hides edges of a deactivated relation type", () => {
+    const result = getVisibleEdges(typedEdges, visibleIds, new Set(["DEPENDE_DE"]));
+    expect(result).toHaveLength(2);
+    expect(result.every((e) => e.type === "PERTENCE_A")).toBe(true);
+  });
+
+  it("still hides edges touching hidden nodes when node ids are given", () => {
+    const result = getVisibleEdges(typedEdges, new Set(["n1", "n2"]), new Set());
+    expect(result).toEqual([{ source: "n1", target: "n2", type: "PERTENCE_A" }]);
+  });
+
+  it("skips the node-visibility filter in large-graph mode (null ids)", () => {
+    const result = getVisibleEdges(typedEdges, null, new Set(["PERTENCE_A"]));
+    expect(result).toEqual([{ source: "n3", target: "n4", type: "DEPENDE_DE" }]);
+  });
+});
+
+describe("getRelationStats", () => {
+  it("counts edges by relation type", () => {
+    const stats = getRelationStats(typedEdges);
+    expect(stats.PERTENCE_A).toBe(2);
+    expect(stats.DEPENDE_DE).toBe(1);
   });
 });
 

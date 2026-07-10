@@ -130,7 +130,9 @@ function ModeSelect({ mode, onMode }: { mode: Mode; onMode: (m: Mode) => void })
   );
 }
 
-// Scopes an edital/prova roadmap mode to one item (or "all"), when the graph has many.
+// Scopes an edital/prova roadmap mode to one item (or "all"); shown whenever the
+// mode is scoped and the graph has at least one such node, so a single edital/prova
+// can still be picked explicitly.
 function ScopeSelect({ Icon, iconClass, allLabel, items, value, onChange }: {
   Icon: typeof RouteIcon;
   iconClass: string;
@@ -471,7 +473,7 @@ export function RoadmapPanel({ open, onClose, grafoId, nodes, edges, provas, edi
     <div className="graph-toolbar absolute left-16 top-3 bottom-3 z-20 flex w-[360px] max-w-[calc(100%-5rem)] flex-col rounded-md border bg-background/95 backdrop-blur-sm shadow-lg">
       <RoadmapHeader onClose={onClose} />
       <ModeSelect mode={mode} onMode={setMode} />
-      {provaScoped && provas.length > 1 && (
+      {provaScoped && provas.length > 0 && (
         <ScopeSelect
           Icon={ClipboardListIcon}
           iconClass="text-amber-500"
@@ -481,7 +483,7 @@ export function RoadmapPanel({ open, onClose, grafoId, nodes, edges, provas, edi
           onChange={setProvaId}
         />
       )}
-      {editalScoped && editais.length > 1 && (
+      {editalScoped && editais.length > 0 && (
         <ScopeSelect
           Icon={RouteIcon}
           iconClass="text-teal-500"

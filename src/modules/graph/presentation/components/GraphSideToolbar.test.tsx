@@ -21,6 +21,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     onDeleteGraph: vi.fn(),
     onFocusNode: vi.fn(),
     onToggleType: vi.fn(),
+    onToggleRelation: vi.fn(),
     onToggleRoadmap: vi.fn(),
   };
   const props = {
@@ -28,6 +29,8 @@ function setup(overrides: Record<string, unknown> = {}) {
     tool: "select",
     nodeStats: {},
     hiddenTypes: new Set<string>(),
+    relationStats: {},
+    hiddenRelations: new Set<string>(),
     roadmapOpen: false,
     ...handlers,
     ...overrides,

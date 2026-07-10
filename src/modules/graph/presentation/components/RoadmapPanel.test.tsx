@@ -88,6 +88,22 @@ describe("RoadmapPanel", () => {
     );
   });
 
+  it("still lets you pick the edital when there is only one (regression)", async () => {
+    const editais = [{ id: "ed1", label: "SERPRO" }];
+    render(<RoadmapPanel open onClose={vi.fn()} {...baseProps} editais={editais} />);
+    fireEvent.change(screen.getAllByRole("combobox")[0], { target: { value: "edital" } });
+    const selects = await screen.findAllByRole("combobox");
+    expect(selects).toHaveLength(2); // scope selector shown even for a single edital
+    fireEvent.change(selects[1], { target: { value: "ed1" } });
+    await waitFor(() =>
+      expect(buildRoadmap).toHaveBeenLastCalledWith("g1", "edital", {
+        regenerate: false,
+        provaId: undefined,
+        editalId: "ed1",
+      }),
+    );
+  });
+
   it("shows a prova selector for prova modes when the graph has several provas", async () => {
     const provas = [{ id: "p1", label: "ENEM" }, { id: "p2", label: "CEBRASPE" }];
     render(<RoadmapPanel open onClose={vi.fn()} {...baseProps} provas={provas} />);

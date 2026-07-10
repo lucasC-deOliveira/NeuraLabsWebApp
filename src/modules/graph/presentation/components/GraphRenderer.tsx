@@ -415,8 +415,13 @@ export function GraphRenderer({
             if (!groups.has(sid)) groups.set(sid, []);
             groups.get(sid)!.push(n);
           }
-          const c = getNodeColors(lv.type, isDark);
-          for (const [, gNodes] of groups) {
+          // Cada região é colorida pelo NÓ ESTRUTURAL que a possui (o nó cujo id é
+          // o sid do subtree), não pela cor fixa do nível: folhas (flashcard/nota/
+          // baralho/prova/questão) só orbitam e não definem cor; e hierarquias que
+          // pulam níveis (ex.: conceito direto sob assunto) recebem a cor certa.
+          for (const [sid, gNodes] of groups) {
+            const ownerType = nodeById.get(sid)?.group ?? lv.type;
+            const c = getNodeColors(ownerType, isDark);
             drawClusterBlob(ctx, gNodes, c.border + lv.fillA, c.border + lv.strokeA, zoom, lv.pad);
           }
         }

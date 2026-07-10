@@ -27,8 +27,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { GraphTool } from "./GraphRenderer";
-import { getNodeColors } from "../services/graph-style.service";
-import { NODE_TYPE_DISPLAY } from "../../constants/graph-ui.constants";
+import { getNodeColors, getRelationColor } from "../services/graph-style.service";
+import { NODE_TYPE_DISPLAY, RELATION_LABELS } from "../../constants/graph-ui.constants";
 import { PRIORITY_MAX, type DegreeFilter, type GraphSearch, type GraphSearchFilters, type SearchActions } from "../hooks/useGraphSearch";
 import type { SimNode } from "../../infra/layout/force-layout.engine";
 
@@ -49,6 +49,10 @@ type Props = {
   nodeStats: Record<string, number>;
   hiddenTypes: Set<string>;
   onToggleType: (type: string) => void;
+
+  relationStats: Record<string, number>;
+  hiddenRelations: Set<string>;
+  onToggleRelation: (type: string) => void;
 
   roadmapOpen: boolean;
   onToggleRoadmap: () => void;
@@ -335,27 +339,75 @@ function LayersPanel({
   nodeStats,
   hiddenTypes,
   onToggleType,
+  relationStats,
+  hiddenRelations,
+  onToggleRelation,
   isDark,
 }: {
   nodeStats: Record<string, number>;
   hiddenTypes: Set<string>;
   onToggleType: (type: string) => void;
+  relationStats: Record<string, number>;
+  hiddenRelations: Set<string>;
+  onToggleRelation: (type: string) => void;
   isDark: boolean;
 }) {
-  const entries = Object.entries(nodeStats);
-  const showAll = (): void => Object.keys(nodeStats).filter((t) => hiddenTypes.has(t)).forEach(onToggleType);
   return (
-    <div className="graph-toolbar absolute left-full bottom-0 ml-2 w-60 rounded-md border bg-background/95 backdrop-blur-sm p-3 shadow-md">
+    <div className="graph-toolbar absolute left-full bottom-0 ml-2 w-60 max-h-[70vh] overflow-y-auto rounded-md border bg-background/95 backdrop-blur-sm p-3 shadow-md space-y-4">
+      <LayerSection
+        title="Tipos de nó"
+        entries={Object.entries(nodeStats)}
+        hidden={hiddenTypes}
+        onToggle={onToggleType}
+        colorOf={(t) => getNodeColors(t, isDark).border}
+        labelOf={(t) => NODE_TYPE_DISPLAY[t as keyof typeof NODE_TYPE_DISPLAY]?.label ?? t}
+        emptyText="Nenhum nó no grafo"
+      />
+      <LayerSection
+        title="Relações"
+        entries={Object.entries(relationStats)}
+        hidden={hiddenRelations}
+        onToggle={onToggleRelation}
+        colorOf={(t) => getRelationColor(t, isDark)}
+        labelOf={(t) => RELATION_LABELS[t] ?? t}
+        emptyText="Nenhuma relação no grafo"
+      />
+    </div>
+  );
+}
+
+function LayerSection({
+  title,
+  entries,
+  hidden,
+  onToggle,
+  colorOf,
+  labelOf,
+  emptyText,
+}: {
+  title: string;
+  entries: [string, number][];
+  hidden: Set<string>;
+  onToggle: (type: string) => void;
+  colorOf: (type: string) => string;
+  labelOf: (type: string) => string;
+  emptyText: string;
+}) {
+  const showAll = (): void => entries.filter(([t]) => hidden.has(t)).forEach(([t]) => onToggle(t));
+  return (
+    <div>
       <div className="mb-2 flex items-center justify-between">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Camadas (tipos de nó)</h4>
-        {hiddenTypes.size > 0 && <button onClick={showAll} className="text-[11px] text-primary hover:underline">Mostrar todos</button>}
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</h4>
+        {entries.some(([t]) => hidden.has(t)) && (
+          <button onClick={showAll} className="text-[11px] text-primary hover:underline">Mostrar todos</button>
+        )}
       </div>
       {entries.length === 0 ? (
-        <p className="text-xs text-muted-foreground text-center py-3">Nenhum nó no grafo</p>
+        <p className="text-xs text-muted-foreground text-center py-3">{emptyText}</p>
       ) : (
         <div className="space-y-1">
           {entries.map(([type, count]) => (
-            <LayerRow key={type} type={type} count={count} hidden={hiddenTypes.has(type)} isDark={isDark} onToggle={() => onToggleType(type)} />
+            <LayerRow key={type} label={labelOf(type)} color={colorOf(type)} count={count} hidden={hidden.has(type)} onToggle={() => onToggle(type)} />
           ))}
         </div>
       )}
@@ -363,17 +415,15 @@ function LayersPanel({
   );
 }
 
-function LayerRow({ type, count, hidden, isDark, onToggle }: { type: string; count: number; hidden: boolean; isDark: boolean; onToggle: () => void }) {
+function LayerRow({ label, color, count, hidden, onToggle }: { label: string; color: string; count: number; hidden: boolean; onToggle: () => void }) {
   return (
     <button
       onClick={onToggle}
-      title={hidden ? "Mostrar este tipo" : "Ocultar este tipo"}
+      title={hidden ? "Mostrar" : "Ocultar"}
       className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors hover:bg-accent ${hidden ? "opacity-45" : ""}`}
     >
-      <div className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: getNodeColors(type, isDark).border }} />
-      <span className={`flex-1 truncate text-left ${hidden ? "line-through" : ""}`}>
-        {NODE_TYPE_DISPLAY[type as keyof typeof NODE_TYPE_DISPLAY]?.label ?? type}
-      </span>
+      <div className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+      <span className={`flex-1 truncate text-left ${hidden ? "line-through" : ""}`}>{label}</span>
       <span className="text-xs text-muted-foreground">{count}</span>
       {hidden ? <EyeOffIcon className="size-3.5 text-muted-foreground" /> : <EyeIcon className="size-3.5 text-primary" />}
     </button>
@@ -393,6 +443,9 @@ export function GraphSideToolbar({
   nodeStats,
   hiddenTypes,
   onToggleType,
+  relationStats,
+  hiddenRelations,
+  onToggleRelation,
   roadmapOpen,
   onToggleRoadmap,
 }: Props) {
@@ -435,7 +488,7 @@ export function GraphSideToolbar({
           <SideButton label="Buscar e filtrar nós" active={openPanel === "search"} ringed={search.activeCount > 0} onClick={() => togglePanel("search")}>
             <SearchIcon className="size-4" />
           </SideButton>
-          <SideButton label="Tipos de nó (camadas)" active={openPanel === "layers"} ringed={hiddenTypes.size > 0} onClick={() => togglePanel("layers")}>
+          <SideButton label="Camadas (nós e relações)" active={openPanel === "layers"} ringed={hiddenTypes.size > 0 || hiddenRelations.size > 0} onClick={() => togglePanel("layers")}>
             <LayersIcon className="size-4" />
           </SideButton>
           <SideButton label="Roadmap de estudo" active={roadmapOpen} onClick={() => { setOpenPanel(null); onToggleRoadmap(); }}>
@@ -464,7 +517,15 @@ export function GraphSideToolbar({
         )}
 
         {openPanel === "layers" && (
-          <LayersPanel nodeStats={nodeStats} hiddenTypes={hiddenTypes} onToggleType={onToggleType} isDark={isDark} />
+          <LayersPanel
+            nodeStats={nodeStats}
+            hiddenTypes={hiddenTypes}
+            onToggleType={onToggleType}
+            relationStats={relationStats}
+            hiddenRelations={hiddenRelations}
+            onToggleRelation={onToggleRelation}
+            isDark={isDark}
+          />
         )}
       </div>
     </TooltipProvider>
