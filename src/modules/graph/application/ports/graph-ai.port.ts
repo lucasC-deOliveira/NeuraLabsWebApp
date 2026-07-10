@@ -156,6 +156,7 @@ export interface GraphAiPort {
   autoLinkGraph(grafoId: string): Promise<{ suggestions: AutoLinkSuggestion[] }>;
   applyAutoLink(grafoId: string, edges: AppliedEdge[]): Promise<{ added: number }>;
   detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }>;
+  detectDuplicatesBySimilarity(grafoId: string, threshold?: number): Promise<{ groups: DuplicateGroup[] }>;
   mergeDuplicates(grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }>;
   assessCompleteness(grafoId: string): Promise<{ assessments: CompletenessAssessment[] }>;
   fillKnowledgeGaps(grafoId: string, gaps: GapItem[]): Promise<GeneratedContentCount>;

@@ -2,6 +2,8 @@
 // "tipo|nomeLowercase" → referenciaId plus a prompt fragment listing the names
 // so the model reuses them instead of creating duplicates. Pure logic.
 
+import { nodeNameKey } from './node-name-key';
+
 export interface NamedNode {
   id: string;
   nome: string;
@@ -39,7 +41,7 @@ function addGroup(
   cap?: number,
 ): void {
   if (!nodes.length) return;
-  for (const n of nodes) nameIndex.set(`${tipo}|${n.nome.toLowerCase()}`, n.id);
+  for (const n of nodes) nameIndex.set(nodeNameKey(tipo, n.nome), n.id);
   const listed = cap ? nodes.slice(0, cap) : nodes;
   lines.push(`${label}: ${listed.map((n) => `"${n.nome}"`).join(', ')}`);
 }

@@ -60,7 +60,8 @@ describe('BuildGraphFromEditalUseCase', () => {
   it('reuses an existing node by name instead of creating a duplicate', async () => {
     const nodeWriter = new FakeNodeWriter();
     const useCase = new BuildGraphFromEditalUseCase(
-      new FakeNames([['ASSUNTO|língua portuguesa', 'existing-assunto']]),
+      // key is accent-folded by node-name-key: "Língua Portuguesa" → "assunto|lingua portuguesa".
+      new FakeNames([['ASSUNTO|lingua portuguesa', 'existing-assunto']]),
       nodeWriter,
       new FakeEdgeWriter(),
     );

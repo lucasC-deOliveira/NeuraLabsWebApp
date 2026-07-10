@@ -3,6 +3,7 @@
 // orchestration use-cases stay free of duplicated try/catch boilerplate.
 import type { GraphNodeInput, GraphNodeWriter } from '../domain/ports/graph-node-writer';
 import type { GraphEdgeInput, GraphEdgeWriter } from '../domain/ports/graph-edge-writer';
+import { nodeNameKey } from '../domain/services/node-name-key';
 
 /** Creates a node, returning its id or null when creation fails. */
 export async function createNodeSafe(
@@ -29,7 +30,7 @@ export async function findOrCreateNode(
   nome: string,
   descricao = '',
 ): Promise<{ nodeId: string; created: boolean }> {
-  const key = `${tipoNode}|${nome.toLowerCase()}`;
+  const key = nodeNameKey(tipoNode, nome);
   const existing = nameIndex.get(key);
   if (existing) return { nodeId: existing, created: false };
   const { nodeId } = await writer.createNode(userId, grafoId, { tipoNode, nome, descricao });

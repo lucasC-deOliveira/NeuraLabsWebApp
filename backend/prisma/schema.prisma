@@ -35,6 +35,8 @@ model Usuario {
   provas            Prova[]
   editais           Edital[]
   roadmapTrilhas    RoadmapTrilha[]
+  nodeEmbeddings    NodeEmbedding[]
+  duplicateVerdicts DuplicateVerdictCache[]
 
   @@map("usuarios")
 }
@@ -94,8 +96,8 @@ model Questao {
   explicacao   String?
   dataCriacao  DateTime    @default(now()) @map("data_criacao")
 
-  usuario       Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  conceito      Conceito?      @relation(fields: [conceitoId], references: [id], onDelete: SetNull)
+  usuario       Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  conceito      Conceito?       @relation(fields: [conceitoId], references: [id], onDelete: SetNull)
   provasQuestao ProvaQuestao[]
   imagens       QuestaoImagem[]
 
@@ -105,11 +107,11 @@ model Questao {
 // Figuras extraídas do PDF da prova (ex.: esquemas, diagramas), exibidas junto
 // ao enunciado. Os bytes ficam no Postgres (bytea) e são servidos por um endpoint.
 model QuestaoImagem {
-  id         String  @id @default(cuid())
-  questaoId  String  @map("id_questao")
-  ordem      Int     @default(0)
-  mimetype   String
-  dados      Bytes
+  id          String  @id @default(cuid())
+  questaoId   String  @map("id_questao")
+  ordem       Int     @default(0)
+  mimetype    String
+  dados       Bytes
   alternativa String? // letra A–E quando a figura é de uma alternativa-imagem; null = enunciado
 
   questao Questao @relation(fields: [questaoId], references: [id], onDelete: Cascade)
@@ -246,8 +248,8 @@ model Nota {
   fonte           String?
   slug            String?
   conteudo        String
-  dataCriacao     DateTime @default(now()) @map("data_criacao")
-  dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao")
+  dataCriacao     DateTime     @default(now()) @map("data_criacao")
+  dataAtualizacao DateTime     @default(now()) @updatedAt @map("data_atualizacao")
 
   usuario        Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   arestasOrigem  ConhecimentoAresta[] @relation("ArestaNotaOrigem")
@@ -285,15 +287,55 @@ model GrafosConhecimento {
   dataCriacao     DateTime @default(now()) @map("data_criacao")
   dataAtualizacao DateTime @default(now()) @updatedAt @map("data_atualizacao")
 
-  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario Usuario              @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   parent  GrafosConhecimento?  @relation("GrafoHierarquia", fields: [parentGrafoId], references: [id], onDelete: SetNull)
   filhos  GrafosConhecimento[] @relation("GrafoHierarquia")
 
-  nodes   NodeConhecimento[]
-  arestas ConhecimentoAresta[]
-  roadmapTrilhas RoadmapTrilha[]
+  nodes             NodeConhecimento[]
+  arestas           ConhecimentoAresta[]
+  roadmapTrilhas    RoadmapTrilha[]
+  nodeEmbeddings    NodeEmbedding[]
+  duplicateVerdicts DuplicateVerdictCache?
 
   @@map("grafos_conhecimento")
+}
+
+// Cache incremental do detector de duplicatas híbrido (IA): guarda, por assinatura
+// de cluster candidato (nós + nomes normalizados), o veredicto do LLM. Num novo run
+// só os clusters com assinatura nova (nó novo/renomeado) voltam ao LLM; o resto reusa
+// o veredicto salvo. Uma linha por grafo; `dados` é o mapa assinatura → grupos.
+model DuplicateVerdictCache {
+  id           String   @id @default(cuid())
+  usuarioId    String   @map("id_usuario")
+  grafoId      String   @unique @map("id_grafo")
+  dados        Json
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  usuario Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  grafo   GrafosConhecimento @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+
+  @@map("duplicate_verdict_cache")
+}
+
+// Vetor de embedding por nó estrutural do grafo, para detecção de duplicatas
+// semânticas por similaridade de cosseno (escala grafos grandes que não cabem no
+// prompt do detector por LLM). Incremental: `assinatura` guarda o texto embutido,
+// então só re-embute quando o nome muda. Chaveado por referenciaId (id da entidade).
+model NodeEmbedding {
+  id           String   @id @default(cuid())
+  usuarioId    String   @map("id_usuario")
+  grafoId      String   @map("id_grafo")
+  referenciaId String   @map("referencia_id")
+  tipoNode     TipoNode @map("tipo_node")
+  assinatura   String   @map("assinatura")
+  vetor        Float[]
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  usuario Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  grafo   GrafosConhecimento @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+
+  @@unique([grafoId, referenciaId], name: "_embedding_unique")
+  @@map("node_embeddings")
 }
 
 enum TipoNode {

@@ -31,6 +31,15 @@ interface DuplicatesModalProps {
 
 type Step = "loading" | "results" | "done" | "error";
 type Confirm = { nodeId: string; groupIdx: number } | null;
+type Method = "llm" | "similarity";
+
+// "IA" lê nome+descrição num prompt (rico, mas trunca em grafos grandes);
+// "Similaridade" compara embeddings dos nomes (escala, sem limite de prompt).
+function runDetect(method: Method, grafoId: string) {
+  return method === "similarity"
+    ? graphHttp.detectDuplicatesBySimilarity(grafoId)
+    : graphHttp.detectDuplicates(grafoId);
+}
 
 const TIPO_COLORS: Record<string, string> = { ASSUNTO: "#6366f1", TOPICO: "#0ea5e9", CONCEITO: "#10b981" };
 const ANALYSIS_STEPS = [
@@ -61,6 +70,7 @@ export function DuplicatesModal({ open, onOpenChange, grafoId, onDeleted }: Dupl
   const [subStep, setSubStep] = useState(0);
   const [prevOpen, setPrevOpen] = useState(false);
   const [nonce, setNonce] = useState(0);
+  const [method, setMethod] = useState<Method>("llm");
 
   if (open !== prevOpen) {
     setPrevOpen(open);
@@ -75,8 +85,7 @@ export function DuplicatesModal({ open, onOpenChange, grafoId, onDeleted }: Dupl
   useEffect(() => {
     if (!open) return;
     let ignore = false;
-    graphHttp
-      .detectDuplicates(grafoId)
+    runDetect(method, grafoId)
       .then((res) => {
         if (ignore) return;
         setGroups(res.groups);
@@ -89,7 +98,7 @@ export function DuplicatesModal({ open, onOpenChange, grafoId, onDeleted }: Dupl
         setStep("error");
       });
     return () => { ignore = true; };
-  }, [open, grafoId, nonce]);
+  }, [open, grafoId, nonce, method]);
 
   useEffect(() => {
     if (step !== "loading") return;
@@ -99,6 +108,11 @@ export function DuplicatesModal({ open, onOpenChange, grafoId, onDeleted }: Dupl
   }, [step]);
 
   const retry = () => { setStep("loading"); setResolvedCount(0); setElapsed(0); setSubStep(0); setNonce((n) => n + 1); };
+  const switchMethod = (m: Method) => {
+    if (m === method) return;
+    setMethod(m);
+    setStep("loading"); setResolvedCount(0); setElapsed(0); setSubStep(0);
+  };
   const busy = mergingAll || merging.size > 0 || !!deleting;
 
   const removeGroup = (groupIdx: number) => {
@@ -193,7 +207,8 @@ export function DuplicatesModal({ open, onOpenChange, grafoId, onDeleted }: Dupl
             <CopyIcon className="size-4 text-primary" />
             Detecção de duplicatas
           </DialogTitle>
-          <DialogDescription>A IA agrupa nós semanticamente equivalentes para você decidir quais manter.</DialogDescription>
+          <DialogDescription>Agrupa nós semanticamente equivalentes para você decidir quais manter.</DialogDescription>
+          <MethodToggle method={method} disabled={busy || step === "loading"} onChange={switchMethod} />
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto py-2 space-y-3">
@@ -232,6 +247,25 @@ export function DuplicatesModal({ open, onOpenChange, grafoId, onDeleted }: Dupl
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MethodToggle({ method, disabled, onChange }: { method: Method; disabled: boolean; onChange: (m: Method) => void }) {
+  const opt = (m: Method, label: string, hint: string) => (
+    <button
+      onClick={() => onChange(m)}
+      disabled={disabled}
+      title={hint}
+      className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${method === m ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="mt-2 flex gap-1 rounded-lg border border-border p-0.5">
+      {opt("llm", "IA", "Embeddings acham os candidatos; a IA confirma só os ambíguos. Preciso e econômico em tokens.")}
+      {opt("similarity", "Similaridade", "Só embeddings dos nomes, sem IA — 0 token, escala para grafos grandes.")}
+    </div>
   );
 }
 
