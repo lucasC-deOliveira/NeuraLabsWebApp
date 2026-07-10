@@ -23,6 +23,9 @@ const GRAPH_PERF_EXEMPT = [
   "src/modules/graph/presentation/workers/graph-render.worker.ts",
   // Simulação de física O(n²) (repulsão/molas/gravidade) — laços numéricos quentes.
   "src/modules/graph/presentation/services/graph-physics.service.ts",
+  // Barnes-Hut (quadtree) + grid espacial: aproximação O(n log n) da física p/ grafos
+  // grandes — laços numéricos quentes (SoA, sem alocação por nó).
+  "src/modules/graph/presentation/services/barnes-hut.ts",
   // Motor de force-layout — mesma natureza de simulação numérica.
   "src/modules/graph/infra/layout/force-layout.engine.ts",
   // Orquestrador perf-crítico: modo-ref p/ grafos de ~14k nós (evita reconciliar 14k
