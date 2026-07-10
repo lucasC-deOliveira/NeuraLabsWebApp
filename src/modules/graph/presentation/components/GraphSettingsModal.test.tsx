@@ -48,8 +48,18 @@ describe("GraphSettingsModal", () => {
 
   it("editing a slider emits a patched options object", () => {
     const { onChange } = setup();
-    fireEvent.change(screen.getByLabelText("Repulsão entre nós"), { target: { value: "500" } });
+    fireEvent.change(screen.getByLabelText("Espalhamento"), { target: { value: "500" } });
     expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_PHYSICS_OPTIONS, gravitationalConstant: 500 });
+  });
+
+  it("hides the advanced physics knobs, keeping only the user-meaningful controls", () => {
+    setup();
+    expect(screen.getByLabelText("Espalhamento")).toBeInTheDocument();
+    expect(screen.getByLabelText("Coesão")).toBeInTheDocument();
+    expect(screen.getByLabelText("Espaçamento entre nós")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Atrito")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Rigidez das arestas")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Força orbital")).not.toBeInTheDocument();
   });
 
   it("editing the focus depth emits the new depth", () => {
@@ -66,9 +76,10 @@ describe("GraphSettingsModal", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("renders the cluster-mode controls when in cluster mode", () => {
+  it("keeps the shared controls (no advanced cluster knobs) in cluster mode", () => {
     setup({ physicsMode: "cluster", options: DEFAULT_CLUSTER_OPTIONS });
-    expect(screen.getByRole("switch")).toBeInTheDocument();
-    expect(screen.getByLabelText("Atração de cluster")).toBeInTheDocument();
+    expect(screen.getByLabelText("Espalhamento")).toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Atração de cluster")).not.toBeInTheDocument();
   });
 });

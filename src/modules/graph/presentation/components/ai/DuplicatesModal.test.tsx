@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { DuplicatesModal } from "./DuplicatesModal";
-import { detectDuplicates } from "@/lib/ai-api";
+import { detectDuplicates, detectDuplicatesBySimilarity } from "@/lib/ai-api";
 
 // O adapter delega para @/lib/*, então mockar a borda cobre o fluxo.
-vi.mock("@/lib/ai-api", () => ({ detectDuplicates: vi.fn(), mergeDuplicates: vi.fn() }));
+vi.mock("@/lib/ai-api", () => ({
+  detectDuplicates: vi.fn(),
+  detectDuplicatesBySimilarity: vi.fn(),
+  mergeDuplicates: vi.fn(),
+}));
 vi.mock("@/lib/graph-api", () => ({ deleteGraphNode: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -38,5 +43,17 @@ describe("DuplicatesModal", () => {
     vi.mocked(detectDuplicates).mockRejectedValue(new Error("boom"));
     render(<DuplicatesModal open onOpenChange={vi.fn()} grafoId="g1" onDeleted={vi.fn()} />);
     expect(await screen.findByRole("button", { name: "Tentar novamente" })).toBeInTheDocument();
+  });
+
+  it("switches to the similarity detector when the toggle is used", async () => {
+    vi.mocked(detectDuplicates).mockResolvedValue({ groups: [] });
+    vi.mocked(detectDuplicatesBySimilarity).mockResolvedValue({ groups: [group] });
+    render(<DuplicatesModal open onOpenChange={vi.fn()} grafoId="g1" onDeleted={vi.fn()} />);
+    await screen.findByText("Nenhuma duplicata encontrada!"); // LLM run finished
+
+    await userEvent.click(screen.getByRole("button", { name: "Similaridade" }));
+
+    expect(detectDuplicatesBySimilarity).toHaveBeenCalledWith("g1", undefined);
+    expect(await screen.findByText("Mitóse")).toBeInTheDocument();
   });
 });

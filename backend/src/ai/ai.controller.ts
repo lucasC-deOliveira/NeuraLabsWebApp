@@ -13,7 +13,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
-import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
+import { DetectDuplicatesHybridUseCase } from '../modules/ai/application/use-cases/detect-duplicates-hybrid.use-case';
+import { DetectDuplicatesBySimilarityUseCase } from '../modules/ai/application/use-cases/detect-duplicates-by-similarity.use-case';
 import { SuggestNotaRelationsUseCase } from '../modules/ai/application/use-cases/suggest-nota-relations.use-case';
 import { GenerateLearningPathUseCase } from '../modules/ai/application/use-cases/generate-learning-path.use-case';
 import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases/generate-node-insights.use-case';
@@ -53,7 +54,8 @@ import { AiDomainExceptionFilter } from '../modules/ai/interface/ai-domain-excep
 @Controller('ai/graph')
 export class AiController {
   constructor(
-    private readonly detectDuplicatesUseCase: DetectDuplicatesUseCase,
+    private readonly detectDuplicatesHybridUseCase: DetectDuplicatesHybridUseCase,
+    private readonly detectDuplicatesBySimilarityUseCase: DetectDuplicatesBySimilarityUseCase,
     private readonly suggestNotaRelationsUseCase: SuggestNotaRelationsUseCase,
     private readonly generateLearningPathUseCase: GenerateLearningPathUseCase,
     private readonly generateNodeInsightsUseCase: GenerateNodeInsightsUseCase,
@@ -231,9 +233,22 @@ export class AiController {
     return this.applyAutoLinkUseCase.execute(userId, grafoId, body.edges ?? []);
   }
 
+  // "IA" mode = hybrid: embeddings shortlist the candidates, the LLM only confirms
+  // the uncertain ones, and an incremental cache skips unchanged clusters.
   @Post('graphs/:grafoId/detect-duplicates')
   detectDuplicates(@CurrentUser() userId: string, @Param('grafoId') grafoId: string) {
-    return this.detectDuplicatesUseCase.execute(userId, grafoId);
+    return this.detectDuplicatesHybridUseCase.execute(userId, grafoId);
+  }
+
+  // Similarity-only detection (embeddings, no LLM): scales to large graphs the LLM
+  // detector truncates. `threshold` (0..1) tunes strictness; omit for the default.
+  @Post('graphs/:grafoId/detect-duplicates-similar')
+  detectDuplicatesSimilar(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { threshold?: number },
+  ) {
+    return this.detectDuplicatesBySimilarityUseCase.execute(userId, grafoId, body?.threshold);
   }
 
   @Post('graphs/:grafoId/nodes/:nodeId/expand')

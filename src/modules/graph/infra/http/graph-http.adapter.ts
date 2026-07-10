@@ -36,6 +36,7 @@ import {
   autoLinkGraph,
   applyAutoLink,
   detectDuplicates,
+  detectDuplicatesBySimilarity,
   mergeDuplicates,
   assessCompleteness,
   fillKnowledgeGaps,
@@ -305,6 +306,10 @@ export class HttpGraphAdapter
 
   detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }> {
     return detectDuplicates(grafoId);
+  }
+
+  detectDuplicatesBySimilarity(grafoId: string, threshold?: number): Promise<{ groups: DuplicateGroup[] }> {
+    return detectDuplicatesBySimilarity(grafoId, threshold);
   }
 
   mergeDuplicates(grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }> {

@@ -36,14 +36,24 @@ export class DetectDuplicatesUseCase {
 
   async execute(userId: string, grafoId: string): Promise<{ groups: DuplicateGroup[] }> {
     const nodes = await this.nodes.loadGraphNodes(userId, grafoId);
-    if (nodes.length < 2) return { groups: [] };
+    return { groups: await this.detectAmong(userId, nodes) };
+  }
+
+  /**
+   * Finds duplicate groups AMONG a given node list (not the whole graph). The
+   * hybrid detector reuses this to confirm only the embedding-shortlisted
+   * candidates, so the LLM never sees the full graph.
+   * @example detect.detectAmong('u1', shortlistNodes)
+   */
+  async detectAmong(userId: string, nodes: DuplicateGraphNode[]): Promise<DuplicateGroup[]> {
+    if (nodes.length < 2) return [];
     const content = await this.llm.complete({
       userId,
       maxTokens: 6000,
       messages: buildMessages(nodes),
     });
     const parsed = parseAiJson(content || '{}') as { groups?: RawGroup[] };
-    return { groups: selectDuplicateGroups(parsed?.groups ?? [], nodes) };
+    return selectDuplicateGroups(parsed?.groups ?? [], nodes);
   }
 }
 

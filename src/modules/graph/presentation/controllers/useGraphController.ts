@@ -21,8 +21,19 @@ const BIG_BANG_PRESETTLE_ITERS = 2000; // pré-assenta o alvo no equilíbrio da 
 
 // Grafos com muitos nós pulam a animação de entrada e desligam a física:
 // physicsStep é O(n²) e o big bang copia n objetos por frame — inviável acima deste limiar.
-const LARGE_GRAPH_THRESHOLD = 400;
+const LARGE_GRAPH_THRESHOLD = 2000;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+// Reaplica os nós preservando a posição atual dos já existentes (não embaralha ao
+// criar/excluir); novos nós entram com a posição vinda do layout.
+function mergePositions(nodes: SimNode[], prev: SimNode[]): SimNode[] {
+  if (prev.length === 0) return nodes.map((n) => ({ ...n, vx: 0, vy: 0 }));
+  const prevById = new Map(prev.map((n) => [n.id, n]));
+  return nodes.map((n) => {
+    const old = prevById.get(n.id);
+    return old ? { ...n, x: old.x, y: old.y, vx: 0, vy: 0 } : { ...n, vx: 0, vy: 0 };
+  });
+}
 
 export function useGraphController(graphId: string) {
   const svgRef = useRef<HTMLElement | null>(null);
@@ -283,17 +294,28 @@ export function useGraphController(graphId: string) {
       return;
     }
 
-    setLayout((prev) => {
-      if (prev.length === 0) return nodes;
-      const prevById = new Map(prev.map((n) => [n.id, n]));
-      return nodes.map((n) => {
-        const old = prevById.get(n.id);
-        return old ? { ...n, x: old.x, y: old.y, vx: 0, vy: 0 } : n;
-      });
-    });
+    // Cargas seguintes: se o grafo cresceu além do limiar (ex.: importou um edital),
+    // muda para o modo ref e desliga a física — senão a física O(n²) + reconciliar
+    // centenas de fibers no estado React a cada frame travam a UI (mesmo motivo do
+    // modo grande na primeira carga).
+    if (LARGE_GRAPH_REF_MODE && nodes.length > LARGE_GRAPH_THRESHOLD) {
+      isLargeRef.current = true;
+      largeLayoutRef.current = mergePositions(nodes, layoutRefForSelect.current);
+      setPhysicsEnabled(false);
+      setLayout([]);
+      setLargeLayoutVer((v) => v + 1);
+      return;
+    }
+    // Encolheu abaixo do limiar: volta ao modo pequeno (física ligada).
+    if (isLargeRef.current) {
+      isLargeRef.current = false;
+      largeLayoutRef.current = [];
+      setPhysicsEnabled(true);
+    }
+    setLayout((prev) => mergePositions(nodes, prev));
     // Reinicia a física para que novos nós (sem posição salva) se posicionem.
     // Para nós existentes (vx=0, vy=0 no equilíbrio) a física para em 1-2 frames.
-    setPhysicsRestartKey(k => k + 1);
+    setPhysicsRestartKey((k) => k + 1);
   }, [nodes]);
 
   // Grafo grande: lê do ref (referência estável — useMemo não recomputa no pan)

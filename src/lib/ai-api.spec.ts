@@ -82,4 +82,13 @@ describe("ai-api POST endpoints without a body", () => {
       expect(lastCall()).toEqual([path, { method: "POST" }]);
     }
   });
+
+  it("posts the threshold to the similarity duplicate detector", async () => {
+    mockApiFetch.mockClear();
+    await ai.detectDuplicatesBySimilarity("g1", 0.9);
+    expect(lastCall()).toEqual([
+      "/ai/graph/graphs/g1/detect-duplicates-similar",
+      { method: "POST", body: JSON.stringify({ threshold: 0.9 }) },
+    ]);
+  });
 });

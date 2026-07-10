@@ -10,8 +10,9 @@ describe('buildNameIndex', () => {
       [node('t1', 'Célula')],
       [node('c1', 'Mitose')],
     );
+    // keys are accent-folded (see node-name-key): "Célula" → "topico|celula".
     expect(nameIndex.get('ASSUNTO|biologia')).toBe('a1');
-    expect(nameIndex.get('TOPICO|célula')).toBe('t1');
+    expect(nameIndex.get('TOPICO|celula')).toBe('t1');
     expect(nameIndex.get('CONCEITO|mitose')).toBe('c1');
     expect(existingContext).toContain('ASSUNTOs existentes: "Biologia"');
     expect(existingContext).toContain('TÓPICOs existentes: "Célula"');

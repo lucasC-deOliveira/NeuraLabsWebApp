@@ -120,8 +120,7 @@ export function GraphSettingsModal({
         <DialogHeader className="shrink-0">
           <DialogTitle>Configurações do gráfico</DialogTitle>
           <DialogDescription>
-            Física inspirada no vis-network. As mudanças valem na hora, com a
-            física ligada.
+            As mudanças valem na hora e ficam salvas para as próximas sessões.
           </DialogDescription>
         </DialogHeader>
 
@@ -146,7 +145,7 @@ export function GraphSettingsModal({
 
           <PhysicsSlider
             id="gravitational-constant"
-            label="Repulsão entre nós"
+            label="Espalhamento"
             description="Quão forte os nós se afastam uns dos outros. Maior = grafo mais espalhado."
             value={options.gravitationalConstant}
             min={0}
@@ -157,7 +156,7 @@ export function GraphSettingsModal({
 
           <PhysicsSlider
             id="central-gravity"
-            label="Gravidade central"
+            label="Coesão"
             description="Atração de todos os nós para o centro. Maior = grafo mais compacto e coeso."
             value={options.centralGravity}
             min={0}
@@ -167,58 +166,10 @@ export function GraphSettingsModal({
             onChange={(v) => set({ centralGravity: v })}
           />
 
-<PhysicsSlider
-            id="spring-constant"
-            label="Rigidez das arestas"
-            description="Quão forte as relações puxam os nós para o comprimento ideal."
-            value={options.springConstant}
-            min={0}
-            max={0.2}
-            step={0.005}
-            format={(v) => v.toFixed(3)}
-            onChange={(v) => set({ springConstant: v })}
-          />
-
-          <PhysicsSlider
-            id="damping"
-            label="Atrito"
-            description="Quão rápido o movimento desacelera. Maior = estabiliza mais rápido."
-            value={options.damping}
-            min={0.05}
-            max={0.95}
-            step={0.05}
-            format={(v) => v.toFixed(2)}
-            onChange={(v) => set({ damping: v })}
-          />
-
-          <PhysicsSlider
-            id="avoid-overlap"
-            label="Evitar sobreposição"
-            description="Quanto o tamanho dos nós empurra a repulsão para que não se sobreponham."
-            value={options.avoidOverlap}
-            min={0}
-            max={1}
-            step={0.05}
-            format={(v) => v.toFixed(2)}
-            onChange={(v) => set({ avoidOverlap: v })}
-          />
-
-          <PhysicsSlider
-            id="cluster-repulsion"
-            label="Repulsão de clusters"
-            description="Empurra grupos inteiros uns dos outros, agindo nos centróides. 0 = desativado."
-            value={options.clusterRepulsion ?? 0}
-            min={0}
-            max={60000}
-            step={1000}
-            format={(v) => v === 0 ? "off" : `${(v/1000).toFixed(0)}k`}
-            onChange={(v) => set({ clusterRepulsion: v })}
-          />
-
           <PhysicsSlider
             id="min-gap"
-            label="Distância mínima entre nós"
-            description="Folga mínima obrigatória entre bordas de nós. A física nunca viola este valor — é uma restrição rígida pós-integração."
+            label="Espaçamento entre nós"
+            description="Folga mínima garantida entre os nós. Maior = mais respiro; a física nunca deixa os nós mais perto que isto."
             value={options.minGap ?? 10}
             min={0}
             max={80}
@@ -226,63 +177,6 @@ export function GraphSettingsModal({
             format={(v) => `${v}px`}
             onChange={(v) => set({ minGap: v })}
           />
-
-          {physicsMode === "default" && (
-            <PhysicsSlider
-              id="orbital-strength"
-              label="Força orbital"
-              description="Mantém nós filhos em órbita ao redor do pai, formando anéis concêntricos."
-              value={options.orbitalStrength ?? 0.08}
-              min={0}
-              max={0.25}
-              step={0.01}
-              format={(v) => v.toFixed(2)}
-              onChange={(v) => set({ orbitalStrength: v })}
-            />
-          )}
-
-          {physicsMode === "cluster" && (
-            <>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="avoid-cluster-overlap">Evitar sobreposição de clusters</Label>
-                  <p className="text-xs text-muted-foreground">Impede que os bounding circles dos clusters se sobreponham.</p>
-                </div>
-                <button
-                  id="avoid-cluster-overlap"
-                  role="switch"
-                  aria-checked={options.avoidClusterOverlap ?? false}
-                  onClick={() => set({ avoidClusterOverlap: !(options.avoidClusterOverlap ?? false) })}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${options.avoidClusterOverlap ? "bg-primary" : "bg-input"}`}
-                >
-                  <span className={`pointer-events-none inline-block size-4 rounded-full bg-background shadow-lg transition-transform ${options.avoidClusterOverlap ? "translate-x-4" : "translate-x-0"}`} />
-                </button>
-              </div>
-
-              <PhysicsSlider
-                id="cluster-strength"
-                label="Atração de cluster"
-                description="Força com que cada nó é atraído para o centro do seu grupo. Maior = clusters mais compactos."
-                value={options.clusterStrength ?? 0.14}
-                min={0}
-                max={0.4}
-                step={0.01}
-                format={(v) => v.toFixed(2)}
-                onChange={(v) => set({ clusterStrength: v })}
-              />
-              <PhysicsSlider
-                id="inter-group-repulsion"
-                label="Repulsão entre grupos"
-                description="Multiplicador da repulsão entre nós de tipos diferentes. Maior = clusters mais separados."
-                value={options.interGroupRepulsion ?? 4}
-                min={1}
-                max={10}
-                step={0.5}
-                format={(v) => v.toFixed(1) + "×"}
-                onChange={(v) => set({ interGroupRepulsion: v })}
-              />
-            </>
-          )}
 
           <div className="space-y-1.5 border-t pt-4">
             <div className="flex items-center justify-between">

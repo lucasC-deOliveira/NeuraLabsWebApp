@@ -202,6 +202,17 @@ export interface DuplicateGroup { nodes: DuplicateNode[]; sugestao: string; }
 export function detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }> {
   return apiFetch(`/ai/graph/graphs/${grafoId}/detect-duplicates`, { method: "POST" });
 }
+// Detecção por similaridade de embeddings — escala grafos grandes que o detector
+// por LLM trunca. threshold (0..1) opcional ajusta o rigor.
+export function detectDuplicatesBySimilarity(
+  grafoId: string,
+  threshold?: number,
+): Promise<{ groups: DuplicateGroup[] }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/detect-duplicates-similar`, {
+    method: "POST",
+    body: JSON.stringify({ threshold }),
+  });
+}
 
 // ── Expansão de nó ─────────────────────────────────────────────────────────
 export function expandNode(

@@ -43,8 +43,8 @@ import { GraphSideToolbar } from "@/modules/graph/presentation/components/GraphS
 import { TokenUsageMeter } from "@/modules/graph/presentation/components/TokenUsageMeter";
 import { useGraphSearch } from "@/modules/graph/presentation/hooks/useGraphSearch";
 import { RoadmapPanel } from "@/modules/graph/presentation/components/RoadmapPanel";
-import { GraphSettingsModal, DEFAULT_FOCUS_DEPTH } from "@/modules/graph/presentation/components/GraphSettingsModal";
-import type { PhysicsMode } from "@/modules/graph/presentation/services/graph-physics.service";
+import { GraphSettingsModal } from "@/modules/graph/presentation/components/GraphSettingsModal";
+import { useGraphSettings } from "@/modules/graph/presentation/hooks/useGraphSettings";
 
 import type { GrafoInfoDetail } from "@/modules/graph/domain/types/graph.types";
 import { CreateSubgrafoModal } from "@/modules/graph/presentation/components/vault/CreateSubgrafoModal";
@@ -149,8 +149,10 @@ export default function GraphPage() {
   const [has3DBeenOpened, setHas3DBeenOpened] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
-  const [focusDepth, setFocusDepth] = useState(DEFAULT_FOCUS_DEPTH);
-  const [physicsMode, setPhysicsMode] = useState<PhysicsMode>("default");
+  const { physicsMode, setPhysicsMode, focusDepth, setFocusDepth } = useGraphSettings(
+    controller.state.physicsOptions,
+    controller.actions.setPhysicsOptions,
+  );
   const [showClusters, setShowClusters] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEdgeManagerOpen, setIsEdgeManagerOpen] = useState(false);

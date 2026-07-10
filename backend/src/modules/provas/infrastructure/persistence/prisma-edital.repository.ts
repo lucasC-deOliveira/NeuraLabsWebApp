@@ -25,7 +25,7 @@ export class PrismaEditalRepository implements EditalRepository {
     });
     const editalNode = await this.ensureNode(userId, input.grafoId, TipoNode.EDITAL, edital.id);
     if (input.provaId) await this.linkNodes(userId, input.grafoId, editalNode, input.provaId);
-    await this.linkConceitos(input.grafoId, editalNode, input.conceitoNodeIds ?? []);
+    await this.linkConceitos(userId, input.grafoId, editalNode, input.conceitoNodeIds ?? []);
     return { editalId: edital.id };
   }
 
@@ -73,14 +73,19 @@ export class PrismaEditalRepository implements EditalRepository {
     await this.ensureEdge(grafoId, editalNodeId, provaNode, TipoRelacao.REGE);
   }
 
-  // Links the EDITAL node to each concept it covers (COBRE edge, idempotent).
+  // Links the EDITAL node to each concept it covers (COBRE edge, idempotent). The ids
+  // are concept referenciaIds (as returned by the graph build), so each is resolved to
+  // its CONCEITO node before the edge — writing referenciaId as an edge endpoint would
+  // violate the node FK.
   private async linkConceitos(
+    userId: string,
     grafoId: string,
     editalNodeId: string,
-    conceitoNodeIds: string[],
+    conceitoRefIds: string[],
   ): Promise<void> {
-    for (const conceitoNodeId of conceitoNodeIds) {
-      await this.ensureEdge(grafoId, editalNodeId, conceitoNodeId, TipoRelacao.COBRE);
+    for (const refId of conceitoRefIds) {
+      const conceitoNode = await this.ensureNode(userId, grafoId, TipoNode.CONCEITO, refId);
+      await this.ensureEdge(grafoId, editalNodeId, conceitoNode, TipoRelacao.COBRE);
     }
   }
 

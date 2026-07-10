@@ -15,6 +15,8 @@
 // para sozinho — quando a energia fica desprezível devolvemos o mesmo array
 // (mesma referência) para não disparar re-render. Função pura.
 
+import { barnesHutRepulsion, resolveMinGapGrid } from "./barnes-hut";
+
 export type PhysicsNode = {
   id: string;
   x: number;
@@ -125,6 +127,9 @@ const TIMESTEP = 0.85; // passo de integração por frame
 const MAX_VELOCITY = 16; // limite de velocidade por nó (evita "explosões")
 const MAX_PAIR_FORCE = 1200; // limite da força de repulsão por par
 const MIN_KINETIC = 0.10; // abaixo disto o nó é considerado parado
+// Acima deste nº de nós, a repulsão O(n²) e a distância mínima O(n²) trocam pelas
+// versões O(n log n)/O(n): Barnes-Hut (quadtree) + grid espacial. Abaixo, caminho exato.
+const BARNES_HUT_MIN = 600;
 
 // raio de colisão aproximado pelo tamanho do nó
 const collisionRadius = (n: PhysicsNode) =>
@@ -166,10 +171,16 @@ export function physicsStep<T extends PhysicsNode>(
   const clusterKeyOf = (node: T): string | undefined =>
     clusterBy === "hierarchy" ? (node.clusterId ?? node.group) : node.group;
 
+  const useBarnesHut = n > BARNES_HUT_MIN;
   const fx = new Float64Array(n);
   const fy = new Float64Array(n);
   const mass = new Float64Array(n);
   const radius = new Float64Array(n);
+  // Posições/fixos em arrays tipados: Barnes-Hut e o grid de distância mínima operam
+  // sobre eles (só alocados no caminho grande).
+  const xs = useBarnesHut ? new Float64Array(n) : null;
+  const ys = useBarnesHut ? new Float64Array(n) : null;
+  const fixedArr = useBarnesHut ? new Uint8Array(n) : null;
 
   let cx = 0;
   let cy = 0;
@@ -179,6 +190,11 @@ export function physicsStep<T extends PhysicsNode>(
     radius[i] = collisionRadius(node);
     cx += node.x;
     cy += node.y;
+    if (xs) {
+      xs[i] = node.x;
+      ys![i] = node.y;
+      fixedArr![i] = node.fixed ? 1 : 0;
+    }
   }
   cx /= n;
   cy /= n;
@@ -192,42 +208,48 @@ export function physicsStep<T extends PhysicsNode>(
   // n=50 → ×1.0; n=100 → ×1.41; n=200 → ×2.0; n=400 → ×2.83
   const effectiveSpringLength = springLength * Math.sqrt(Math.max(n, 50) / 50);
 
-  // ── Repulsão entre todos os pares (O(n²) — suficiente para estes grafos)
-  for (let i = 0; i < n; i++) {
-    const ai = nodes[i];
-    for (let j = i + 1; j < n; j++) {
-      const bj = nodes[j];
-      let dx = ai.x - bj.x;
-      let dy = ai.y - bj.y;
-      let dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 1e-4) {
-        // exatamente sobrepostos: separa numa direção pseudo-aleatória estável
-        const ang = (((i * 727 + j * 131) % 628) / 100);
-        dx = Math.cos(ang);
-        dy = Math.sin(ang);
-        dist = 1e-4;
+  // ── Repulsão entre nós. Grafo grande: Barnes-Hut O(n log n) (força-base; o
+  // avoidOverlap/groupMul do par exato viram responsabilidade do grid de distância
+  // mínima e das forças de cluster). Grafo pequeno: par-a-par exato O(n²).
+  if (useBarnesHut && xs && ys) {
+    barnesHutRepulsion(n, xs, ys, mass, fx, fy, effectiveGC, MAX_PAIR_FORCE);
+  } else {
+    for (let i = 0; i < n; i++) {
+      const ai = nodes[i];
+      for (let j = i + 1; j < n; j++) {
+        const bj = nodes[j];
+        let dx = ai.x - bj.x;
+        let dy = ai.y - bj.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 1e-4) {
+          // exatamente sobrepostos: separa numa direção pseudo-aleatória estável
+          const ang = (((i * 727 + j * 131) % 628) / 100);
+          dx = Math.cos(ang);
+          dy = Math.sin(ang);
+          dist = 1e-4;
+        }
+        // avoidOverlap encurta a distância efetiva pelos raios — a repulsão
+        // dispara quando os nós encostam
+        let eff = dist;
+        if (avoidOverlap > 0) {
+          eff = dist - avoidOverlap * (radius[i] + radius[j]);
+          if (eff < 1) eff = 1;
+        }
+        const ki = clusterKeyOf(nodes[i]);
+        const kj = clusterKeyOf(nodes[j]);
+        const groupMul = (interGroupRepulsion > 1 && ki && kj && ki !== kj)
+          ? interGroupRepulsion : 1;
+        let force = (effectiveGC * mass[i] * mass[j] * groupMul) / (eff * eff);
+        if (force > MAX_PAIR_FORCE) force = MAX_PAIR_FORCE;
+        const ux = dx / dist;
+        const uy = dy / dist;
+        const fxv = ux * force;
+        const fyv = uy * force;
+        fx[i] += fxv;
+        fy[i] += fyv;
+        fx[j] -= fxv;
+        fy[j] -= fyv;
       }
-      // avoidOverlap encurta a distância efetiva pelos raios — a repulsão
-      // dispara quando os nós encostam
-      let eff = dist;
-      if (avoidOverlap > 0) {
-        eff = dist - avoidOverlap * (radius[i] + radius[j]);
-        if (eff < 1) eff = 1;
-      }
-      const ki = clusterKeyOf(nodes[i]);
-      const kj = clusterKeyOf(nodes[j]);
-      const groupMul = (interGroupRepulsion > 1 && ki && kj && ki !== kj)
-        ? interGroupRepulsion : 1;
-      let force = (effectiveGC * mass[i] * mass[j] * groupMul) / (eff * eff);
-      if (force > MAX_PAIR_FORCE) force = MAX_PAIR_FORCE;
-      const ux = dx / dist;
-      const uy = dy / dist;
-      const fxv = ux * force;
-      const fyv = uy * force;
-      fx[i] += fxv;
-      fy[i] += fyv;
-      fx[j] -= fxv;
-      fy[j] -= fyv;
     }
   }
 
@@ -508,30 +530,34 @@ export function physicsStep<T extends PhysicsNode>(
 
   // ── Passo 2: Resolução de restrição de distância mínima (hard constraint).
   // Após integrar, garante que nenhum par fique abaixo de radius[i]+radius[j]+MIN_GAP.
-  // A física propõe posições; a restrição as corrige. Independe de amortecimento.
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const dx = px[j] - px[i];
-      const dy = py[j] - py[i];
-      const minD = radius[i] + radius[j] + minGap;
-      const dist2 = dx * dx + dy * dy;
-      if (dist2 >= minD * minD) continue;
-      const dist = Math.sqrt(dist2) || 1e-4;
-      const overlap = minD - dist; // quanto precisamos separar no total
-      const ux = dx / dist;
-      const uy = dy / dist;
-      // distribuição por massa: nó mais pesado se move menos. Nó fixo (root) é
-      // imóvel — o outro absorve toda a separação (massa infinita efetiva).
-      const fi = nodes[i].fixed, fj = nodes[j].fixed;
-      let wi: number, wj: number;
-      if (fi && fj) { wi = 0; wj = 0; }
-      else if (fi) { wi = 0; wj = 1; }
-      else if (fj) { wi = 1; wj = 0; }
-      else { wi = mass[j] / (mass[i] + mass[j]); wj = mass[i] / (mass[i] + mass[j]); }
-      px[i] -= ux * overlap * wi;
-      py[i] -= uy * overlap * wi;
-      px[j] += ux * overlap * wj;
-      py[j] += uy * overlap * wj;
+  // Grafo grande: grid espacial O(n) (só vizinhos); grafo pequeno: par-a-par O(n²).
+  if (useBarnesHut && fixedArr) {
+    resolveMinGapGrid(n, px, py, radius, mass, fixedArr, minGap);
+  } else {
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const dx = px[j] - px[i];
+        const dy = py[j] - py[i];
+        const minD = radius[i] + radius[j] + minGap;
+        const dist2 = dx * dx + dy * dy;
+        if (dist2 >= minD * minD) continue;
+        const dist = Math.sqrt(dist2) || 1e-4;
+        const overlap = minD - dist; // quanto precisamos separar no total
+        const ux = dx / dist;
+        const uy = dy / dist;
+        // distribuição por massa: nó mais pesado se move menos. Nó fixo (root) é
+        // imóvel — o outro absorve toda a separação (massa infinita efetiva).
+        const fi = nodes[i].fixed, fj = nodes[j].fixed;
+        let wi: number, wj: number;
+        if (fi && fj) { wi = 0; wj = 0; }
+        else if (fi) { wi = 0; wj = 1; }
+        else if (fj) { wi = 1; wj = 0; }
+        else { wi = mass[j] / (mass[i] + mass[j]); wj = mass[i] / (mass[i] + mass[j]); }
+        px[i] -= ux * overlap * wi;
+        py[i] -= uy * overlap * wi;
+        px[j] += ux * overlap * wj;
+        py[j] += uy * overlap * wj;
+      }
     }
   }
 

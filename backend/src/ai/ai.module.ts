@@ -24,6 +24,20 @@ import {
 } from '../modules/ai/domain/ports/duplicate-nodes-repository';
 import { PrismaDuplicateNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-duplicate-nodes.repository';
 import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
+import { EMBEDDING_PORT, type EmbeddingPort } from '../modules/ai/domain/ports/embedding-port';
+import { OpenAiEmbeddingAdapter } from '../modules/ai/infrastructure/llm/openai-embedding.adapter';
+import {
+  NODE_EMBEDDING_REPOSITORY,
+  type NodeEmbeddingRepository,
+} from '../modules/ai/domain/ports/node-embedding-repository';
+import { PrismaNodeEmbeddingRepository } from '../modules/ai/infrastructure/persistence/prisma-node-embedding.repository';
+import { DetectDuplicatesBySimilarityUseCase } from '../modules/ai/application/use-cases/detect-duplicates-by-similarity.use-case';
+import {
+  DUPLICATE_VERDICT_REPOSITORY,
+  type DuplicateVerdictRepository,
+} from '../modules/ai/domain/ports/duplicate-verdict-repository';
+import { PrismaDuplicateVerdictRepository } from '../modules/ai/infrastructure/persistence/prisma-duplicate-verdict.repository';
+import { DetectDuplicatesHybridUseCase } from '../modules/ai/application/use-cases/detect-duplicates-hybrid.use-case';
 import {
   RELATION_CANDIDATES_REPOSITORY,
   type RelationCandidatesRepository,
@@ -246,6 +260,9 @@ const graphRelationRules: RelationRulesPort = {
     { provide: LLM_PORT, useClass: OpenAiLlmAdapter },
     { provide: AI_CONFIG_RESOLVER, useFactory: aiConfigResolver, inject: [ResolveAiConfigUseCase] },
     { provide: DUPLICATE_NODES_REPOSITORY, useClass: PrismaDuplicateNodesRepository },
+    { provide: EMBEDDING_PORT, useClass: OpenAiEmbeddingAdapter },
+    { provide: NODE_EMBEDDING_REPOSITORY, useClass: PrismaNodeEmbeddingRepository },
+    { provide: DUPLICATE_VERDICT_REPOSITORY, useClass: PrismaDuplicateVerdictRepository },
     { provide: RELATION_CANDIDATES_REPOSITORY, useClass: PrismaRelationCandidatesRepository },
     { provide: RELATION_RULES_PORT, useValue: graphRelationRules },
     { provide: LEARNING_GRAPH_REPOSITORY, useClass: PrismaLearningGraphRepository },
@@ -282,6 +299,32 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (nodes: DuplicateNodesRepository, llm: LlmPort) =>
         new DetectDuplicatesUseCase(nodes, llm),
       inject: [DUPLICATE_NODES_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: DetectDuplicatesBySimilarityUseCase,
+      useFactory: (
+        nodes: DuplicateNodesRepository,
+        embeddings: EmbeddingPort,
+        store: NodeEmbeddingRepository,
+      ) => new DetectDuplicatesBySimilarityUseCase(nodes, embeddings, store),
+      inject: [DUPLICATE_NODES_REPOSITORY, EMBEDDING_PORT, NODE_EMBEDDING_REPOSITORY],
+    },
+    {
+      provide: DetectDuplicatesHybridUseCase,
+      useFactory: (
+        nodes: DuplicateNodesRepository,
+        embeddings: EmbeddingPort,
+        store: NodeEmbeddingRepository,
+        verdicts: DuplicateVerdictRepository,
+        llm: DetectDuplicatesUseCase,
+      ) => new DetectDuplicatesHybridUseCase(nodes, embeddings, store, verdicts, llm),
+      inject: [
+        DUPLICATE_NODES_REPOSITORY,
+        EMBEDDING_PORT,
+        NODE_EMBEDDING_REPOSITORY,
+        DUPLICATE_VERDICT_REPOSITORY,
+        DetectDuplicatesUseCase,
+      ],
     },
     {
       provide: SuggestNotaRelationsUseCase,
