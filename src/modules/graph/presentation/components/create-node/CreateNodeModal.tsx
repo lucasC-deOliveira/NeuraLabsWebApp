@@ -125,6 +125,8 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   const [gabaritoFile, setGabaritoFile] = useState<File | null>(null);
   const [editalFile, setEditalFile] = useState<File | null>(null);
   const [editalProvaId, setEditalProvaId] = useState<string>("");
+  // "reading" = IA lendo o edital; "saving" = gravando os nós/vínculos no grafo.
+  const [editalPhase, setEditalPhase] = useState<"reading" | "saving">("reading");
   const [parsedQuestoes, setParsedQuestoes] = useState<ParsedQuestao[]>([]);
   const [parsedTitulo, setParsedTitulo] = useState<string>("");
   const [conceitosByQuestao, setConceitosByQuestao] = useState<Record<number, ConceitoPickerEntry[]>>({});
@@ -199,6 +201,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     setGabaritoFile(null);
     setEditalFile(null);
     setEditalProvaId("");
+    setEditalPhase("reading");
     setParsedQuestoes([]);
     setParsedTitulo("");
     setConceitosByQuestao({});
@@ -343,9 +346,11 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   // the node (linking it 1:1 to the chosen prova when one is selected).
   const submitEdital = async (): Promise<void> => {
     if (!editalFile) return void toast.error("Selecione o arquivo do edital");
+    setEditalPhase("reading");
     setLoading(true);
     try {
       const { plan, programa } = await graphHttp.planGraphFromEdital(grafoId, editalFile);
+      setEditalPhase("saving");
       const built = await graphHttp.buildGraphFromEdital(grafoId, plan);
       await graphHttp.createEditalNode({
         titulo: editalFile.name.replace(/\.[^.]+$/, ""),
@@ -513,6 +518,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
       provas,
       provaId: editalProvaId,
       setProvaId: setEditalProvaId,
+      phase: editalPhase,
     },
   };
 

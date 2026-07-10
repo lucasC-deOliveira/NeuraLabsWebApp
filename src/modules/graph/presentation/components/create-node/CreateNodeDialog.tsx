@@ -113,6 +113,7 @@ export interface CreateNodeVm {
     provas: { id: string; label: string }[];
     provaId: string;
     setProvaId: (id: string) => void;
+    phase: "reading" | "saving";
   };
 }
 
@@ -154,6 +155,7 @@ export function CreateNodeDialog({ vm, parents }: { vm: CreateNodeVm; parents: C
   const isProva = vm.selectedType === "PROVA";
   const provaSaving = isProva && vm.prova.uploadStep === "review";
   const isEdital = vm.selectedType === "EDITAL";
+  const editalSaving = isEdital && vm.edital.phase === "saving";
 
   return (
     <Dialog open={vm.open} onOpenChange={busy ? NOOP : vm.close}>
@@ -173,7 +175,12 @@ export function CreateNodeDialog({ vm, parents }: { vm: CreateNodeVm; parents: C
 
         {busy ? (
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <CreateNodeProcessing isProva={isProva} provaSaving={provaSaving} isEdital={isEdital} />
+            <CreateNodeProcessing
+              isProva={isProva}
+              provaSaving={provaSaving}
+              isEdital={isEdital}
+              editalSaving={editalSaving}
+            />
           </div>
         ) : (
           <>
