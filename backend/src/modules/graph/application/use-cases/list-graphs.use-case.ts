@@ -1,13 +1,18 @@
-import type { GraphQuery, GraphSummary } from '../../domain/ports/graph-query';
+import type { GraphQuery, GraphListPage } from '../../domain/ports/graph-query';
+import {
+  parseGraphListQuery,
+  type RawGraphListQuery,
+} from '../../domain/services/parse-graph-list-query';
 
 /**
- * Lists the user's knowledge graphs (newest first) with their children count.
- * @example listGraphs.execute('u1') // → GraphSummary[]
+ * Lists the user's knowledge graphs with server-side search/filter/sort/pagination.
+ * The raw HTTP query is validated/normalized before hitting the read model.
+ * @example listGraphs.execute('u1', { tipo: 'raiz', page: '2' }) // → GraphListPage
  */
 export class ListGraphsUseCase {
   constructor(private readonly graphs: GraphQuery) {}
 
-  execute(userId: string): Promise<GraphSummary[]> {
-    return this.graphs.listForUser(userId);
+  execute(userId: string, raw: RawGraphListQuery = {}): Promise<GraphListPage> {
+    return this.graphs.listForUser(userId, parseGraphListQuery(raw));
   }
 }

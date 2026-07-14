@@ -26,6 +26,7 @@ import {
   updateEdge,
   deleteEdge,
   listUserGraphs,
+  listGraphAssuntos,
   createGrafo,
   deleteGrafo,
 } from "@/lib/graph-api";
@@ -145,9 +146,11 @@ import type {
   GraphNodeType,
   GraphEdgeType,
   EdgeView,
-  GrafoInfo,
   GrafoInfoDetail,
   GraphVisualState,
+  GraphListParams,
+  GraphListResult,
+  GraphAssunto,
 } from "../../domain/types/graph.types";
 
 export class HttpGraphAdapter
@@ -167,8 +170,12 @@ export class HttpGraphAdapter
     return expandNode(grafoId, nodeId);
   }
 
-  listUserGraphs(): Promise<GrafoInfo[]> {
-    return listUserGraphs();
+  listUserGraphs(params?: GraphListParams): Promise<GraphListResult> {
+    return listUserGraphs(params);
+  }
+
+  listGraphAssuntos(): Promise<GraphAssunto[]> {
+    return listGraphAssuntos();
   }
 
   createGrafo(nome: string, descricao?: string): Promise<{ id: string }> {

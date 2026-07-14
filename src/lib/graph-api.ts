@@ -9,6 +9,9 @@ import type {
   GrafoInfo,
   GrafoInfoDetail,
   GraphVisualState,
+  GraphListParams,
+  GraphListResult,
+  GraphAssunto,
 } from "@/modules/graph/domain/types/graph.types";
 
 // Os tipos-modelo do grafo agora vivem no domínio (src/modules/graph/domain);
@@ -21,6 +24,9 @@ export type {
   GrafoInfo,
   GrafoInfoDetail,
   GraphVisualState,
+  GraphListParams,
+  GraphListResult,
+  GraphAssunto,
 };
 
 const qs = (params: Record<string, string | undefined>) => {
@@ -31,8 +37,25 @@ const qs = (params: Record<string, string | undefined>) => {
 };
 
 // ---- Grafos ----
-export function listUserGraphs(): Promise<GrafoInfo[]> {
-  return apiFetch<GrafoInfo[]>("/graph/graphs");
+// Lista paginada com busca/filtro/ordenação server-side. Sem params, traz a
+// primeira página com os defaults do backend.
+export function listUserGraphs(params: GraphListParams = {}): Promise<GraphListResult> {
+  const query = qs({
+    q: params.q,
+    tipo: params.tipo,
+    sort: params.sort,
+    createdFrom: params.createdFrom,
+    createdTo: params.createdTo,
+    assunto: params.assuntoIds?.length ? params.assuntoIds.join(",") : undefined,
+    page: params.page ? String(params.page) : undefined,
+    pageSize: params.pageSize ? String(params.pageSize) : undefined,
+  });
+  return apiFetch<GraphListResult>(`/graph/graphs${query}`);
+}
+
+// Assuntos disponíveis para o filtro (distintos, presentes como nós ASSUNTO).
+export function listGraphAssuntos(): Promise<GraphAssunto[]> {
+  return apiFetch<GraphAssunto[]>("/graph/graphs/assuntos");
 }
 export function createGrafo(nome: string, descricao?: string): Promise<{ id: string }> {
   return apiFetch("/graph/graphs", { method: "POST", body: JSON.stringify({ nome, descricao }) });

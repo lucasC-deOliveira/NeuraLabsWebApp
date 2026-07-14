@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { GetGraphInfoUseCase } from './get-graph-info.use-case';
-import type { GraphInfoView, GraphQuery, GraphSummary } from '../../domain/ports/graph-query';
+import type { GraphInfoView, GraphQuery, GraphListPage } from '../../domain/ports/graph-query';
 
 const info: GraphInfoView = {
   nome: 'Biology',
@@ -12,11 +12,14 @@ const info: GraphInfoView = {
 
 class FakeGraphQuery implements GraphQuery {
   constructor(private readonly found: GraphInfoView | null) {}
-  async listForUser(): Promise<GraphSummary[]> {
-    return [];
+  async listForUser(): Promise<GraphListPage> {
+    return { items: [], total: 0, page: 1, pageSize: 12 };
   }
   async findInfo(): Promise<GraphInfoView | null> {
     return this.found;
+  }
+  async listAssuntos(): Promise<[]> {
+    return [];
   }
 }
 
