@@ -176,12 +176,22 @@ export default function GraphListPage() {
                       </p>
                       {g.assuntos && g.assuntos.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {g.assuntos.slice(0, 3).map((a) => (
-                            <Badge key={a.id} variant="secondary" className="gap-1 text-[10px] font-normal">
-                              <TagIcon className="size-2.5" />
-                              {a.nome}
-                            </Badge>
-                          ))}
+                          {g.assuntos.slice(0, 3).map((a, i) => {
+                            // Backend ordena por peso desc — a 1ª (com peso > 0) é o assunto
+                            // mais conectado do grafo; ganha destaque visual.
+                            const isTop = i === 0 && a.peso > 0;
+                            return (
+                              <Badge
+                                key={a.id}
+                                variant={isTop ? "default" : "secondary"}
+                                className={`gap-1 text-[10px] ${isTop ? "font-medium" : "font-normal"}`}
+                                title={isTop ? "Assunto mais conectado deste grafo" : undefined}
+                              >
+                                <TagIcon className="size-2.5" />
+                                {a.nome}
+                              </Badge>
+                            );
+                          })}
                           {g.assuntos.length > 3 && (
                             <Badge variant="secondary" className="text-[10px] font-normal">
                               +{g.assuntos.length - 3}

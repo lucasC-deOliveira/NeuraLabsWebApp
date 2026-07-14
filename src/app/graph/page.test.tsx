@@ -27,4 +27,25 @@ describe("GraphListPage", () => {
     expect(listUserGraphs).toHaveBeenCalled();
     expect(await screen.findByText("Meu Grafo")).toBeInTheDocument();
   });
+
+  it("highlights the highest-weight assunto tag of a graph", async () => {
+    vi.mocked(listUserGraphs).mockResolvedValue({
+      items: [
+        {
+          id: "g1",
+          nome: "Grafo",
+          assuntos: [
+            { id: "a1", nome: "Direito", peso: 9 },
+            { id: "a2", nome: "Português", peso: 1 },
+          ],
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 12,
+    });
+    render(<GraphListPage />);
+    const top = await screen.findByTitle("Assunto mais conectado deste grafo");
+    expect(top).toHaveTextContent("Direito");
+  });
 });

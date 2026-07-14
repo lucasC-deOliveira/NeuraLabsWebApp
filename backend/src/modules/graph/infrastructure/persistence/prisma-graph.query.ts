@@ -10,6 +10,7 @@ import type {
   GraphSortField,
   GraphSummary,
 } from '../../domain/ports/graph-query';
+import { relationTier } from '../../domain/services/assunto-weight';
 
 const SUMMARY_SELECT = {
   id: true,
@@ -59,21 +60,58 @@ function buildOrderBy(sort: GraphSortField): Prisma.GrafosConhecimentoOrderByWit
   }
 }
 
-// Agrupa os nós ASSUNTO por grafo em tags {id, nome} distintas e ordenadas.
+type AssuntoNodeRow = { id: string; grafoId: string | null; referenciaId: string };
+type EdgeRow = {
+  nodeOrigemId: string | null;
+  nodeDestinoId: string | null;
+  tipoRelacao: string;
+  peso: number;
+};
+
+// Agrupa os nós ASSUNTO por grafo em tags {id, nome, peso} distintas, ordenadas
+// por peso de prioridade (desc) e, no empate, por nome.
 function groupAssuntos(
-  nodes: { grafoId: string | null; referenciaId: string }[],
+  nodes: AssuntoNodeRow[],
   names: Map<string, string>,
+  weights: Map<string, number>,
 ): Map<string, GraphAssunto[]> {
   const byGraph = new Map<string, GraphAssunto[]>();
   for (const n of nodes) {
     const nome = n.grafoId ? names.get(n.referenciaId) : undefined;
     if (!n.grafoId || !nome) continue;
     const list = byGraph.get(n.grafoId) ?? [];
-    if (!list.some((a) => a.id === n.referenciaId)) list.push({ id: n.referenciaId, nome });
+    if (!list.some((a) => a.id === n.referenciaId))
+      list.push({ id: n.referenciaId, nome, peso: weights.get(n.id) ?? 0 });
     byGraph.set(n.grafoId, list);
   }
-  for (const list of byGraph.values()) list.sort((a, b) => a.nome.localeCompare(b.nome));
+  for (const list of byGraph.values()) list.sort(byWeightThenName);
   return byGraph;
+}
+
+function byWeightThenName(a: GraphAssunto, b: GraphAssunto): number {
+  return b.peso - a.peso || a.nome.localeCompare(b.nome);
+}
+
+// Soma o peso de prioridade (tier do tipo × peso da aresta) em cada nó ASSUNTO.
+function accumulateWeights(nodeIds: string[], edges: EdgeRow[]): Map<string, number> {
+  const ids = new Set(nodeIds);
+  const weights = new Map<string, number>();
+  for (const e of edges) {
+    const w = relationTier(e.tipoRelacao) * e.peso;
+    addWeight(weights, e.nodeOrigemId, ids, w);
+    addWeight(weights, e.nodeDestinoId, ids, w);
+  }
+  return weights;
+}
+
+function addWeight(
+  weights: Map<string, number>,
+  nodeId: string | null,
+  ids: Set<string>,
+  w: number,
+): void {
+  if (!nodeId || !ids.has(nodeId)) return;
+  weights.set(nodeId, (weights.get(nodeId) ?? 0) + w);
 }
 
 type SummaryRow = Prisma.GrafosConhecimentoGetPayload<{ select: typeof SUMMARY_SELECT }>;
@@ -111,7 +149,8 @@ export class PrismaGraphQuery implements GraphQuery {
     return { items, total, page: query.page, pageSize: query.pageSize };
   }
 
-  // Tags de assunto (nós ASSUNTO → nome da entidade Assunto) por grafo da página.
+  // Tags de assunto (nós ASSUNTO → nome da entidade Assunto) por grafo da página,
+  // já com o peso de prioridade derivado das conexões de cada nó.
   private async assuntosByGraph(
     userId: string,
     graphIds: string[],
@@ -119,13 +158,26 @@ export class PrismaGraphQuery implements GraphQuery {
     if (graphIds.length === 0) return new Map();
     const nodes = await this.prisma.nodeConhecimento.findMany({
       where: { usuarioId: userId, grafoId: { in: graphIds }, tipoNode: TipoNode.ASSUNTO },
-      select: { grafoId: true, referenciaId: true },
+      select: { id: true, grafoId: true, referenciaId: true },
     });
-    const names = await this.assuntoNames(
-      userId,
-      nodes.map((n) => n.referenciaId),
-    );
-    return groupAssuntos(nodes, names);
+    const [names, weights] = await Promise.all([
+      this.assuntoNames(
+        userId,
+        nodes.map((n) => n.referenciaId),
+      ),
+      this.assuntoWeights(nodes.map((n) => n.id)),
+    ]);
+    return groupAssuntos(nodes, names, weights);
+  }
+
+  // Peso de prioridade por nó ASSUNTO: soma tier(tipo) × peso das arestas incidentes.
+  private async assuntoWeights(nodeIds: string[]): Promise<Map<string, number>> {
+    if (nodeIds.length === 0) return new Map();
+    const edges = await this.prisma.conhecimentoAresta.findMany({
+      where: { OR: [{ nodeOrigemId: { in: nodeIds } }, { nodeDestinoId: { in: nodeIds } }] },
+      select: { nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true, peso: true },
+    });
+    return accumulateWeights(nodeIds, edges);
   }
 
   // Resolve os nomes das entidades Assunto por id (soft reference — sem FK).
@@ -149,8 +201,9 @@ export class PrismaGraphQuery implements GraphQuery {
       userId,
       nodes.map((n) => n.referenciaId),
     );
+    // Opções do filtro não são por-grafo, então o peso não se aplica (0).
     return [...names.entries()]
-      .map(([id, nome]) => ({ id, nome }))
+      .map(([id, nome]) => ({ id, nome, peso: 0 }))
       .sort((a, b) => a.nome.localeCompare(b.nome));
   }
 

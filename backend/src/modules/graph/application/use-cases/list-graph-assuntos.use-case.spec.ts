@@ -19,8 +19,8 @@ describe('ListGraphAssuntosUseCase', () => {
   it('returns the distinct assuntos for the user', async () => {
     const useCase = new ListGraphAssuntosUseCase(
       new FakeGraphQuery([
-        { id: 'a1', nome: 'Direito' },
-        { id: 'a2', nome: 'Português' },
+        { id: 'a1', nome: 'Direito', peso: 0 },
+        { id: 'a2', nome: 'Português', peso: 0 },
       ]),
     );
     const res = await useCase.execute('u1');

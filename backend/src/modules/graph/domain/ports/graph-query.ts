@@ -2,6 +2,9 @@
 export interface GraphAssunto {
   id: string;
   nome: string;
+  // Priority weight from the ASSUNTO node's connections (count × relation type).
+  // Tags of a graph come sorted by this desc; the filter options carry 0.
+  peso: number;
 }
 
 // Read model for an item in the user's graph list.

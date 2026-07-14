@@ -46,6 +46,43 @@ describe('Graph query (integration — neuralabs_test)', () => {
     return assunto.id;
   }
 
+  async function assuntoNodeId(userId: string, referenciaId: string): Promise<string> {
+    const node = await prisma.nodeConhecimento.findFirstOrThrow({
+      where: { usuarioId: userId, referenciaId, tipoNode: 'ASSUNTO' },
+      select: { id: true },
+    });
+    return node.id;
+  }
+
+  // Liga o nó ASSUNTO a um nó-alvo (conceito) via uma aresta do tipo/peso dados.
+  async function linkAssunto(
+    userId: string,
+    grafoId: string,
+    assuntoNode: string,
+    tipoRelacao: 'CONTEM' | 'RELACIONADO',
+  ): Promise<void> {
+    const target = await prisma.nodeConhecimento.create({
+      data: { usuarioId: userId, grafoId, tipoNode: 'CONCEITO', referenciaId: `ref-${seq++}` },
+    });
+    await prisma.conhecimentoAresta.create({
+      data: { grafoId, nodeOrigemId: assuntoNode, nodeDestinoId: target.id, tipoRelacao, peso: 1 },
+    });
+  }
+
+  it('weights assunto tags by connection count and type, ordering heaviest first', async () => {
+    const userId = await seedUser();
+    const g = await prisma.grafosConhecimento.create({ data: { usuarioId: userId, nome: 'G' } });
+    const alpha = await seedAssuntoNode(userId, g.id, 'Alpha'); // leve (associativo)
+    const zulu = await seedAssuntoNode(userId, g.id, 'Zulu'); // pesado (estrutural)
+    await linkAssunto(userId, g.id, await assuntoNodeId(userId, alpha), 'RELACIONADO'); // 1×1 = 1
+    await linkAssunto(userId, g.id, await assuntoNodeId(userId, zulu), 'CONTEM'); // 3×1 = 3
+
+    const page = await query.listForUser(userId, list());
+    const tags = page.items.find((x) => x.id === g.id)?.assuntos;
+    expect(tags?.map((a) => a.nome)).toEqual(['Zulu', 'Alpha']); // peso vence o alfabético
+    expect(tags?.map((a) => a.peso)).toEqual([3, 1]);
+  });
+
   it('tags each graph with its ASSUNTO nodes and filters by assunto (OR)', async () => {
     const userId = await seedUser();
     const g1 = await prisma.grafosConhecimento.create({ data: { usuarioId: userId, nome: 'G1' } });
