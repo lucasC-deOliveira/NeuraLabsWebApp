@@ -32,6 +32,10 @@ import {
 } from '../modules/ai/domain/ports/node-embedding-repository';
 import { PrismaNodeEmbeddingRepository } from '../modules/ai/infrastructure/persistence/prisma-node-embedding.repository';
 import { DetectDuplicatesBySimilarityUseCase } from '../modules/ai/application/use-cases/detect-duplicates-by-similarity.use-case';
+import { ImproveFlashcardUseCase } from '../modules/ai/application/use-cases/improve-flashcard.use-case';
+import { ImproveQuestaoUseCase } from '../modules/ai/application/use-cases/improve-questao.use-case';
+import { ImproveNotaUseCase } from '../modules/ai/application/use-cases/improve-nota.use-case';
+import { ImproveProvaQuestoesUseCase } from '../modules/ai/application/use-cases/improve-questoes-batch.use-case';
 import {
   DUPLICATE_VERDICT_REPOSITORY,
   type DuplicateVerdictRepository,
@@ -299,6 +303,26 @@ const graphRelationRules: RelationRulesPort = {
       useFactory: (nodes: DuplicateNodesRepository, llm: LlmPort) =>
         new DetectDuplicatesUseCase(nodes, llm),
       inject: [DUPLICATE_NODES_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: ImproveFlashcardUseCase,
+      useFactory: (llm: LlmPort) => new ImproveFlashcardUseCase(llm),
+      inject: [LLM_PORT],
+    },
+    {
+      provide: ImproveQuestaoUseCase,
+      useFactory: (llm: LlmPort) => new ImproveQuestaoUseCase(llm),
+      inject: [LLM_PORT],
+    },
+    {
+      provide: ImproveNotaUseCase,
+      useFactory: (llm: LlmPort) => new ImproveNotaUseCase(llm),
+      inject: [LLM_PORT],
+    },
+    {
+      provide: ImproveProvaQuestoesUseCase,
+      useFactory: (llm: LlmPort) => new ImproveProvaQuestoesUseCase(llm),
+      inject: [LLM_PORT],
     },
     {
       provide: DetectDuplicatesBySimilarityUseCase,

@@ -2,11 +2,29 @@
 // implements it (ACL over @/lib/provas-api). DTOs mirror the provas-api shapes but
 // live here so application/presentation don't import @/lib/*-api.
 
+import type { ImproveFlashcardOperation } from "./graph-ai.port";
+
 export type QuestaoTipo = "VERDADEIRO_FALSO" | "MULTIPLA_ESCOLHA";
 
 export interface QuestaoAlternativa {
   letra: string;
   texto: string;
+}
+
+// Melhoria em lote das questões de uma prova (importação).
+export interface ImproveBatchQuestaoInput {
+  numero: number;
+  tipo: string;
+  enunciado: string;
+  alternativas: QuestaoAlternativa[];
+  gabarito: string;
+  explicacao: string;
+}
+export interface ImprovedBatchQuestaoView {
+  numero: number;
+  enunciado: string;
+  alternativas: QuestaoAlternativa[];
+  explicacao: string;
 }
 
 // Figura extraída do PDF, base64, para preview durante a revisão (parse → criar).
@@ -102,6 +120,11 @@ export interface EditalItemView {
 export interface GraphProvaPort {
   // Uma questão pelo id (nó QUESTION) para estudar isoladamente.
   getQuestao(questaoId: string): Promise<QuestaoView | null>;
+  // Salva textos melhorados da questão (gabarito/letras não mudam).
+  updateQuestao(
+    id: string,
+    data: { enunciado?: string; alternativas?: QuestaoAlternativa[]; explicacao?: string },
+  ): Promise<{ success: boolean }>;
   // Cria o nó EDITAL (com programa); com provaId, vincula 1:1 à prova.
   createEditalNode(input: CreateEditalInputView): Promise<{ editalId: string }>;
   // Vincula um edital existente a uma prova (1:1).
@@ -109,7 +132,12 @@ export interface GraphProvaPort {
   listEditais(): Promise<EditalItemView[]>;
   // gabaritoFile é opcional: sem ele, cada questão volta com gabarito "?" para o
   // usuário informar a alternativa correta manualmente.
-  parseProvaUpload(provaFile: File, gabaritoFile?: File | null): Promise<ProvaParseResult>;
+  parseProvaUpload(provaFile: File, gabaritoFile?: File | null, aiExtraction?: boolean): Promise<ProvaParseResult>;
+  // Melhora TODAS as questões extraídas numa chamada (formatação/markdown/conteúdo).
+  improveProvaQuestoes(
+    questoes: ImproveBatchQuestaoInput[],
+    operations: ImproveFlashcardOperation[],
+  ): Promise<ImprovedBatchQuestaoView[]>;
   // Sugere os conceitos que cada questão avalia, para confirmação na revisão.
   suggestProvaConceitos(questoes: ParsedQuestao[]): Promise<QuestaoConceitosView[]>;
   // grafoId liga as questões ao grafo pelos conceitos confirmados de cada questão.

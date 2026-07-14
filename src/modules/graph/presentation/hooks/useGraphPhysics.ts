@@ -3,7 +3,7 @@
 import { useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import {
   physicsStep,
-  DEFAULT_PHYSICS_OPTIONS,
+  DEFAULT_CLUSTER_OPTIONS,
   type PhysicsEdge,
   type PhysicsOptions,
 } from "../services/graph-physics.service";
@@ -90,7 +90,7 @@ function runPhysicsLoop<T extends PhysicsNode>(setLayout: Dispatch<SetStateActio
 
 export function useGraphPhysics<T extends PhysicsNode>(props: Props<T>): void {
   const { enabled, setLayout, edges, restartKey = 0, hiddenIds = EMPTY_IDS } = props;
-  const options = props.options ?? DEFAULT_PHYSICS_OPTIONS;
+  const options = props.options ?? DEFAULT_CLUSTER_OPTIONS;
   const pointerDown = useRef(false);
   const edgesRef = useRef(edges);
   const optionsRef = useRef(options);

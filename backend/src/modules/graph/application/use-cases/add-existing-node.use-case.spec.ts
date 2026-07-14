@@ -17,9 +17,6 @@ class FakeGraphNodeRepository implements GraphNodeRepository {
   ): Promise<void> {
     this.added.push({ grafoId, tipoNode, entityId });
   }
-  async isRootAssunto(): Promise<boolean> {
-    return false;
-  }
   async findNodeInGraph(): Promise<{ id: string } | null> {
     return null;
   }

@@ -24,7 +24,6 @@ import {
   ProvaNotFoundError,
   RelationNotAllowedError,
   SubgraphNotFoundError,
-  RootNodeError,
   TooManyFlashcardsError,
   UnknownNodeTypeError,
   type NodeValidationCode,
@@ -38,7 +37,6 @@ type GraphDomainError =
   | InvalidEdgeWeightError
   | GraphNotFoundError
   | NodeNotInGraphError
-  | RootNodeError
   | NodeValidationError
   | UnknownNodeTypeError
   | DeckTitleRequiredError
@@ -61,7 +59,6 @@ type GraphDomainError =
   InvalidEdgeWeightError,
   GraphNotFoundError,
   NodeNotInGraphError,
-  RootNodeError,
   NodeValidationError,
   UnknownNodeTypeError,
   DeckTitleRequiredError,
@@ -111,8 +108,6 @@ export class GraphDomainExceptionFilter implements ExceptionFilter {
     if (error instanceof DuplicateEdgeError)
       return 'Relação já existe entre esses nós com este tipo';
     if (error instanceof InvalidEdgeWeightError) return 'Peso inválido (0 a 2)';
-    if (error instanceof RootNodeError)
-      return 'O assunto-raiz do grafo não pode ser removido — ele é deletado junto com o grafo.';
     if (error instanceof UnknownNodeTypeError) return `Tipo de nó desconhecido: ${error.tipoNode}`;
     if (error instanceof NodeValidationError) return nodeValidationMessage(error.code);
     return null;

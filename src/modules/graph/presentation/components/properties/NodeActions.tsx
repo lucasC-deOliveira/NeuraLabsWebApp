@@ -79,14 +79,7 @@ export function NodeActions(props: NodeActionsProps) {
   );
 }
 
-function NodeDeletionActions({ node, isDeleting, onRemoveFromGraph, onDeleteNode }: NodeActionsProps) {
-  if (node.isRoot) {
-    return (
-      <p className="text-xs text-muted-foreground px-1">
-        Assunto-raiz do grafo — fixo no centro. Renomeie pelo nome do grafo; só é removido ao excluir o grafo.
-      </p>
-    );
-  }
+function NodeDeletionActions({ isDeleting, onRemoveFromGraph, onDeleteNode }: NodeActionsProps) {
   return (
     <>
       <Button

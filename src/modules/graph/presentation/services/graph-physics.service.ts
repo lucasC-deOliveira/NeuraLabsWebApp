@@ -42,8 +42,6 @@ export type PhysicsEdge = { source: string; target: string; peso?: number };
 
 // parâmetros ajustáveis pelo usuário (modal de configurações do grafo).
 // Nomes e papéis espelham o solver barnesHut do vis-network.
-export type PhysicsMode = "default" | "cluster";
-
 export type PhysicsOptions = {
   /** força de repulsão entre nós (quanto maior, mais espalhado) */
   gravitationalConstant: number;

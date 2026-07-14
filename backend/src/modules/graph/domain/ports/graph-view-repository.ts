@@ -6,11 +6,9 @@ export interface GraphView {
   edges: GraphEdge[];
 }
 
-// Read/maintenance port for loading a graph's view. ensureRoot lazily creates the
-// root subject for graphs predating that feature (idempotent).
+// Read port for loading a graph's renderable view.
 export interface GraphViewRepository {
   exists(grafoId: string, userId: string): Promise<boolean>;
-  ensureRoot(userId: string, grafoId: string): Promise<void>;
   loadView(userId: string, grafoId: string): Promise<GraphView>;
 }
 

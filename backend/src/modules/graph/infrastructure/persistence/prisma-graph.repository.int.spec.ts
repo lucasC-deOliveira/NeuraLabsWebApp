@@ -6,8 +6,8 @@ import { CreateGraphUseCase } from '../../application/use-cases/create-graph.use
 import { RenameGraphUseCase } from '../../application/use-cases/rename-graph.use-case';
 
 // Integration of the Prisma graph adapter against the real DB (neuralabs_test),
-// driven by the Create/Rename graph use-cases. Validates the root-subject
-// creation and the name-mirroring rule.
+// driven by the Create/Rename graph use-cases. Graphs start empty (no root
+// subject) and rename only touches the graph's own name.
 
 const TABLES = ['"NodeConhecimento"', '"grafos_conhecimento"', '"assuntos"', '"usuarios"'];
 
@@ -41,23 +41,18 @@ describe('Graph repository (integration — neuralabs_test)', () => {
     return user.id;
   }
 
-  it('creates a graph with a root ASSUNTO pinned at (0,0)', async () => {
+  it('creates an empty graph with no root subject', async () => {
     const userId = await seedUser();
     const { id } = await createGraph.execute(userId, 'Biology');
 
     const grafo = await prisma.grafosConhecimento.findUnique({ where: { id } });
     expect(grafo?.nome).toBe('Biology');
-    expect(grafo?.rootAssuntoId).toBeTruthy();
 
-    const root = await prisma.nodeConhecimento.findFirst({
-      where: { grafoId: id, tipoNode: 'ASSUNTO' },
-    });
-    expect(root?.posicaoX).toBe(0);
-    expect(root?.posicaoY).toBe(0);
-    expect(root?.referenciaId).toBe(grafo?.rootAssuntoId);
+    const nodeCount = await prisma.nodeConhecimento.count({ where: { grafoId: id } });
+    expect(nodeCount).toBe(0);
   });
 
-  it('renames the graph and mirrors the name on the root subject', async () => {
+  it('renames the graph', async () => {
     const userId = await seedUser();
     const { id } = await createGraph.execute(userId, 'Old');
 
@@ -65,10 +60,6 @@ describe('Graph repository (integration — neuralabs_test)', () => {
 
     const grafo = await prisma.grafosConhecimento.findUnique({ where: { id } });
     expect(grafo?.nome).toBe('New');
-    const assunto = await prisma.assunto.findUnique({
-      where: { id: grafo?.rootAssuntoId ?? '' },
-    });
-    expect(assunto?.nome).toBe('New');
   });
 
   it('does not rename a graph owned by another user', async () => {

@@ -34,6 +34,9 @@ export interface PropertiesPanelProps {
   onStudyNeighborhood?: () => void;
   onGenerateInsights?: () => void;
   onExpandNode?: () => void;
+  onImproveFlashcard?: () => void;
+  onImproveQuestao?: () => void;
+  onImproveNota?: () => void;
   onGenerateDeck?: () => void;
   onSelectNode?: (nodeId: string) => void;
   grafoId?: string;
@@ -103,7 +106,7 @@ function NodeContent({ props, node, notaMeta, deckStats }: NodeContentProps) {
     <div className="space-y-4">
       <NodeSummary node={node} connections={props.connectedEdges.length} />
       <Separator />
-      <NodeAiSection node={node} onGenerateInsights={props.onGenerateInsights} onExpandNode={props.onExpandNode} />
+      <NodeAiSection node={node} onGenerateInsights={props.onGenerateInsights} onExpandNode={props.onExpandNode} onImproveFlashcard={props.onImproveFlashcard} onImproveQuestao={props.onImproveQuestao} onImproveNota={props.onImproveNota} />
       <NodeStudySection
         node={node}
         onStudyNeighborhood={props.onStudyNeighborhood}

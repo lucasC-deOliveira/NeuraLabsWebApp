@@ -98,15 +98,10 @@ export async function buildKnowledgeGraph(
   userId: string,
   grafoId: string,
 ): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
-  let [graphNodes, graphEdges, grafoMeta] = await Promise.all([
+  let [graphNodes, graphEdges] = await Promise.all([
     prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId } }),
     prisma.conhecimentoAresta.findMany({ where: { grafoId } }),
-    prisma.grafosConhecimento.findUnique({
-      where: { id: grafoId },
-      select: { rootAssuntoId: true },
-    }),
   ]);
-  const rootAssuntoId = grafoMeta?.rootAssuntoId ?? null;
 
   // Filtra nós FLASHCARD quando há muitos — 14k nós freezam o renderer SVG
   const flashcardNodeCount = graphNodes.filter((n) => n.tipoNode === 'FLASHCARD').length;
@@ -218,7 +213,6 @@ export async function buildKnowledgeGraph(
       grafoRefMeta,
       posicaoX: n.posicaoX ?? null,
       posicaoY: n.posicaoY ?? null,
-      isRoot: n.tipoNode === 'ASSUNTO' && n.referenciaId === rootAssuntoId,
     };
   });
 

@@ -12,7 +12,6 @@ class FakeGraphViewRepository implements GraphViewRepository {
   async exists(grafoId: string): Promise<boolean> {
     return this.graphs.has(grafoId);
   }
-  async ensureRoot(): Promise<void> {}
   async loadView(_userId: string, grafoId: string): Promise<GraphView> {
     this.loaded = grafoId;
     return view;

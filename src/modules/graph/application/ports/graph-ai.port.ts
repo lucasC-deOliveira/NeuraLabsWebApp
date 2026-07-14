@@ -9,6 +9,27 @@ export interface LearningStep {
   provaFreq?: number; // nº de questões que já testaram o conceito (prioridade)
 }
 
+// Melhorias que a IA pode aplicar a um flashcard/questão (o usuário escolhe quais).
+export type ImproveFlashcardOperation = "format" | "markdown" | "content";
+
+export interface QuestaoAlternativa {
+  letra: string;
+  texto: string;
+}
+export interface ImproveQuestaoInput {
+  tipo: string;
+  enunciado: string;
+  alternativas: QuestaoAlternativa[];
+  gabarito: string;
+  explicacao: string;
+  operations: ImproveFlashcardOperation[];
+}
+export interface ImprovedQuestao {
+  enunciado: string;
+  alternativas: QuestaoAlternativa[];
+  explicacao: string;
+}
+
 export interface NotaRelationSuggestion {
   nodeId: string;
   nodeTipo: "ASSUNTO" | "TOPICO" | "CONCEITO";
@@ -157,6 +178,17 @@ export interface GraphAiPort {
   applyAutoLink(grafoId: string, edges: AppliedEdge[]): Promise<{ added: number }>;
   detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }>;
   detectDuplicatesBySimilarity(grafoId: string, threshold?: number): Promise<{ groups: DuplicateGroup[] }>;
+  improveFlashcard(input: {
+    pergunta: string;
+    resposta: string;
+    operations: ImproveFlashcardOperation[];
+  }): Promise<{ pergunta: string; resposta: string }>;
+  improveQuestao(input: ImproveQuestaoInput): Promise<ImprovedQuestao>;
+  improveNota(input: {
+    titulo: string;
+    conteudo: string;
+    operations: ImproveFlashcardOperation[];
+  }): Promise<{ titulo: string; conteudo: string }>;
   mergeDuplicates(grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }>;
   assessCompleteness(grafoId: string): Promise<{ assessments: CompletenessAssessment[] }>;
   fillKnowledgeGaps(grafoId: string, gaps: GapItem[]): Promise<GeneratedContentCount>;

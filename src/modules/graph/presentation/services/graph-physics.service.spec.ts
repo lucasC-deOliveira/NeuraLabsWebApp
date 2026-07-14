@@ -320,17 +320,17 @@ describe("physicsStep (modelo force-directed inspirado no vis-network)", () => {
       expect(Math.abs(c1.y - c0.y)).toBeLessThan(20);
     });
 
-    it("nó fixo (Assunto-raiz) nunca se move e ancora os assuntos em órbita", () => {
+    it("nó fixo nunca se move e ancora os vizinhos em órbita", () => {
       const nodes = [
-        hnode("root", 0, 0, "ASSUNTO", { fixed: true, isRoot: true }),
+        hnode("root", 0, 0, "ASSUNTO", { fixed: true }),
         hnode("a", 30, 0, "ASSUNTO", { parentId: "root", clusterId: "a", subtreeIds: ["a", undefined, undefined] }),
       ];
       const { nodes: out } = runUntilStable(nodes, [], opts());
       const root = find(out, "root");
-      // root permanece exatamente onde estava
+      // o nó fixo permanece exatamente onde estava
       expect(root.x).toBe(0);
       expect(root.y).toBe(0);
-      // o assunto assenta perto do raio-alvo orbital (560) ao redor do root
+      // o assunto assenta perto do raio-alvo orbital (560) ao redor do fixo
       const d = dist(root, find(out, "a"));
       expect(Math.abs(d - 560)).toBeLessThan(120);
     });

@@ -11,10 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  DEFAULT_PHYSICS_OPTIONS,
   DEFAULT_CLUSTER_OPTIONS,
   type PhysicsOptions,
-  type PhysicsMode,
 } from "../services/graph-physics.service";
 
 export const DEFAULT_FOCUS_DEPTH = 1;
@@ -25,8 +23,6 @@ interface GraphSettingsModalProps {
   onOpenChange: (open: boolean) => void;
   options: PhysicsOptions;
   onChange: (options: PhysicsOptions) => void;
-  physicsMode: PhysicsMode;
-  onPhysicsModeChange: (mode: PhysicsMode) => void;
   focusDepth: number;
   onFocusDepthChange: (depth: number) => void;
 }
@@ -75,44 +71,15 @@ function PhysicsSlider({
   );
 }
 
-function PhysicsModeButton({
-  active,
-  onClick,
-  title,
-  subtitle,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors text-left ${active ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
-    >
-      <div className="font-semibold">{title}</div>
-      <div className="text-xs opacity-70">{subtitle}</div>
-    </button>
-  );
-}
-
 export function GraphSettingsModal({
   open,
   onOpenChange,
   options,
   onChange,
-  physicsMode,
-  onPhysicsModeChange,
   focusDepth,
   onFocusDepthChange,
 }: GraphSettingsModalProps) {
   const set = (patch: Partial<PhysicsOptions>) => onChange({ ...options, ...patch });
-
-  const switchMode = (mode: PhysicsMode) => {
-    onPhysicsModeChange(mode);
-    onChange(mode === "cluster" ? DEFAULT_CLUSTER_OPTIONS : DEFAULT_PHYSICS_OPTIONS);
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -125,24 +92,6 @@ export function GraphSettingsModal({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto py-4">
-          <div className="space-y-2">
-            <Label>Modo de física</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <PhysicsModeButton
-                active={physicsMode === "default"}
-                onClick={() => switchMode("default")}
-                title="Padrão"
-                subtitle="Hierárquico · assunto no centro"
-              />
-              <PhysicsModeButton
-                active={physicsMode === "cluster"}
-                onClick={() => switchMode("cluster")}
-                title="Clusters"
-                subtitle="Agrupa por tipo de nó"
-              />
-            </div>
-          </div>
-
           <PhysicsSlider
             id="gravitational-constant"
             label="Espalhamento"
@@ -201,10 +150,7 @@ export function GraphSettingsModal({
         </div>
 
         <DialogFooter className="shrink-0">
-          <Button
-            variant="outline"
-            onClick={() => onChange(physicsMode === "cluster" ? { ...DEFAULT_CLUSTER_OPTIONS } : { ...DEFAULT_PHYSICS_OPTIONS })}
-          >
+          <Button variant="outline" onClick={() => onChange({ ...DEFAULT_CLUSTER_OPTIONS })}>
             Restaurar padrão
           </Button>
           <Button onClick={() => onOpenChange(false)}>Fechar</Button>

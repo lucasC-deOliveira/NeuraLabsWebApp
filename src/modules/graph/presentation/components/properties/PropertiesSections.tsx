@@ -59,10 +59,25 @@ interface AiProps {
   node: PropertiesNode;
   onGenerateInsights?: () => void;
   onExpandNode?: () => void;
+  onImproveFlashcard?: () => void;
+  onImproveQuestao?: () => void;
+  onImproveNota?: () => void;
 }
 
-export function NodeAiSection({ node, onGenerateInsights, onExpandNode }: AiProps) {
-  if ((!onGenerateInsights && !onExpandNode) || !AI_TYPES.includes(node.tipoReal)) return null;
+function improveHandler(
+  tipo: string,
+  handlers: { flashcard?: () => void; questao?: () => void; nota?: () => void },
+): (() => void) | undefined {
+  if (tipo === "FLASHCARD") return handlers.flashcard;
+  if (tipo === "QUESTION") return handlers.questao;
+  if (tipo === "NOTA") return handlers.nota;
+  return undefined;
+}
+
+export function NodeAiSection({ node, onGenerateInsights, onExpandNode, onImproveFlashcard, onImproveQuestao, onImproveNota }: AiProps) {
+  const onImprove = improveHandler(node.tipoReal, { flashcard: onImproveFlashcard, questao: onImproveQuestao, nota: onImproveNota });
+  const showStandard = AI_TYPES.includes(node.tipoReal) && (!!onGenerateInsights || !!onExpandNode);
+  if (!showStandard && !onImprove) return null;
   return (
     <>
       <div className="rounded-lg border border-violet-500/25 bg-violet-500/5 p-3 space-y-2">
@@ -70,13 +85,13 @@ export function NodeAiSection({ node, onGenerateInsights, onExpandNode }: AiProp
           <SparklesIcon className="size-3.5 text-violet-500" />
           <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">IA</span>
         </div>
-        {onGenerateInsights && (
+        {showStandard && onGenerateInsights && (
           <Button size="sm" className="w-full gap-2 bg-violet-600 hover:bg-violet-700 text-white border-0" onClick={onGenerateInsights}>
             <SparklesIcon className="size-3.5" />
             Insights da IA
           </Button>
         )}
-        {onExpandNode && EXPAND_TYPES.includes(node.tipoReal) && (
+        {showStandard && onExpandNode && EXPAND_TYPES.includes(node.tipoReal) && (
           <Button
             size="sm"
             variant="outline"
@@ -85,6 +100,17 @@ export function NodeAiSection({ node, onGenerateInsights, onExpandNode }: AiProp
           >
             <WandSparklesIcon className="size-3.5" />
             Expandir com IA
+          </Button>
+        )}
+        {onImprove && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full gap-2 border-violet-500/40 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 hover:border-violet-500/60"
+            onClick={onImprove}
+          >
+            <WandSparklesIcon className="size-3.5" />
+            Melhorar com IA
           </Button>
         )}
       </div>

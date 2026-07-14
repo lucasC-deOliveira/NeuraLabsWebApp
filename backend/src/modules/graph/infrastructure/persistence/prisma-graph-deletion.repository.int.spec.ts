@@ -4,11 +4,10 @@ import { PrismaService } from '../../../../prisma/prisma.service';
 import { PrismaGraphDeletionRepository } from './prisma-graph-deletion.repository';
 import { DeleteGraphUseCase } from '../../application/use-cases/delete-graph.use-case';
 import { DeleteNodeUseCase } from '../../application/use-cases/delete-node.use-case';
-import { RootNodeError } from '../../domain/errors';
 
 // Integration of the deletion adapter against the real DB (neuralabs_test),
-// driven by the Delete graph/node use-cases. Validates entity removal, the
-// shared-entity rule and the root-subject guard.
+// driven by the Delete graph/node use-cases. Validates entity removal and the
+// shared-entity rule.
 
 const TABLES = [
   '"ConhecimentoAresta"',
@@ -70,22 +69,6 @@ describe('Graph deletion (integration — neuralabs_test)', () => {
     expect(res).toEqual({ success: true, deletedType: 'CONCEITO' });
     expect(await prisma.conceito.count()).toBe(0);
     expect(await prisma.nodeConhecimento.count()).toBe(0);
-  });
-
-  it('refuses to delete the graph root subject on its own', async () => {
-    const userId = await seedUser();
-    const root = await prisma.assunto.create({ data: { usuarioId: userId, nome: 'Root' } });
-    const grafo = await prisma.grafosConhecimento.create({
-      data: { usuarioId: userId, nome: 'G', rootAssuntoId: root.id },
-    });
-    await prisma.nodeConhecimento.create({
-      data: { usuarioId: userId, grafoId: grafo.id, tipoNode: 'ASSUNTO', referenciaId: root.id },
-    });
-
-    await expect(deleteNode.execute(userId, root.id, grafo.id)).rejects.toBeInstanceOf(
-      RootNodeError,
-    );
-    expect(await prisma.assunto.count()).toBe(1);
   });
 
   it('deletes the graph and its owned concepts', async () => {

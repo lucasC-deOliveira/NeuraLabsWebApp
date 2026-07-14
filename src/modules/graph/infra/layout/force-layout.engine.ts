@@ -53,9 +53,7 @@ export interface SimNode {
   clusterId?: string;
   /** id do subtree por nível [ASSUNTO, TOPICO, CONCEITO] — repulsão aninhada */
   subtreeIds?: (string | undefined)[];
-  /** Assunto-raiz do grafo: fixo no centro, ancora o grafo, não-deletável */
-  isRoot?: boolean;
-  /** nó imóvel: a simulação nunca atualiza sua posição (usado pelo root) */
+  /** nó imóvel: a simulação nunca atualiza sua posição (usado por nós ocultos) */
   fixed?: boolean;
   pergunta?: string;
   prioridadeRevisao: number;
@@ -109,9 +107,6 @@ export function runForceLayout(
     // (novos do vault, primeiros na carga) recebem posição aleatória e são movidos
     // pela simulação até assentar naturalmente entre os nós fixos.
     const hasSaved = n.posicaoX != null && n.posicaoY != null && (n.posicaoX !== 0 || n.posicaoY !== 0);
-    // O Assunto-raiz fica SEMPRE fixo no centro, ancorando o grafo (não usa
-    // posição salva nem aleatória, e não é movido pela simulação).
-    const isRoot = !!n.isRoot;
     return {
       id: n.id,
       label: n.label,
@@ -123,15 +118,13 @@ export function runForceLayout(
       subtreeIds: hier?.subtreeIds,
       pergunta: n.pergunta,
       tipoReal: n.type,
-      x: isRoot ? width / 2 : hasSaved ? n.posicaoX! : width / 2 + (Math.random() - 0.5) * 600,
-      y: isRoot ? height / 2 : hasSaved ? n.posicaoY! : height / 2 + (Math.random() - 0.5) * 400,
+      x: hasSaved ? n.posicaoX! : width / 2 + (Math.random() - 0.5) * 600,
+      y: hasSaved ? n.posicaoY! : height / 2 + (Math.random() - 0.5) * 400,
       vx: 0,
       vy: 0,
       width: nodeW,
       height: nodeH,
-      pinned: isRoot || hasSaved,
-      isRoot,
-      fixed: isRoot,
+      pinned: hasSaved,
     };
   });
 

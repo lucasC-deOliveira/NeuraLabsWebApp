@@ -214,6 +214,57 @@ export function detectDuplicatesBySimilarity(
   });
 }
 
+// ── Melhorar flashcard com IA ────────────────────────────────────────────────
+export type ImproveFlashcardOperation = "format" | "markdown" | "content";
+export function improveFlashcard(input: {
+  pergunta: string;
+  resposta: string;
+  operations: ImproveFlashcardOperation[];
+}): Promise<{ pergunta: string; resposta: string }> {
+  return apiFetch(`/ai/graph/flashcards/improve`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export interface QuestaoAlternativa {
+  letra: string;
+  texto: string;
+}
+export function improveQuestao(input: {
+  tipo: string;
+  enunciado: string;
+  alternativas: QuestaoAlternativa[];
+  gabarito: string;
+  explicacao: string;
+  operations: ImproveFlashcardOperation[];
+}): Promise<{ enunciado: string; alternativas: QuestaoAlternativa[]; explicacao: string }> {
+  return apiFetch(`/ai/graph/questions/improve`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function improveNota(input: {
+  titulo: string;
+  conteudo: string;
+  operations: ImproveFlashcardOperation[];
+}): Promise<{ titulo: string; conteudo: string }> {
+  return apiFetch(`/ai/graph/notas/improve`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export interface BatchQuestaoInput {
+  numero: number;
+  tipo: string;
+  enunciado: string;
+  alternativas: QuestaoAlternativa[];
+  gabarito: string;
+  explicacao: string;
+}
+export function improveProvaQuestoes(
+  questoes: BatchQuestaoInput[],
+  operations: ImproveFlashcardOperation[],
+): Promise<Array<{ numero: number; enunciado: string; alternativas: QuestaoAlternativa[]; explicacao: string }>> {
+  return apiFetch(`/ai/graph/questions/improve-batch`, {
+    method: "POST",
+    body: JSON.stringify({ questoes, operations }),
+  });
+}
+
 // ── Expansão de nó ─────────────────────────────────────────────────────────
 export function expandNode(
   grafoId: string,

@@ -4,7 +4,7 @@ import { useGraphLayout } from "../hooks/useGraphLayout";
 import { SimNode } from "../../infra/layout/force-layout.engine";
 import { useGraphInteractions } from "../hooks/useGraphInteractions";
 import { useGraphPhysics } from "../hooks/useGraphPhysics";
-import { DEFAULT_PHYSICS_OPTIONS, physicsStep, type PhysicsOptions } from "../services/graph-physics.service";
+import { DEFAULT_CLUSTER_OPTIONS, physicsStep, type PhysicsOptions } from "../services/graph-physics.service";
 import { getFilteredNodes, getVisibleEdges } from "../../domain/selectors/graph.selectors";
 import { graphHttp } from "../../infra/http";
 import { useVaultWatch } from "../hooks/useVaultWatch";
@@ -88,7 +88,7 @@ export function useGraphController(graphId: string) {
     });
   const [activeTool, setActiveTool] = useState<"select" | "marquee" | "hand">("select");
   const [physicsEnabled, setPhysicsEnabled] = useState(true);
-  const [physicsOptions, setPhysicsOptions] = useState<PhysicsOptions>(DEFAULT_PHYSICS_OPTIONS);
+  const [physicsOptions, setPhysicsOptions] = useState<PhysicsOptions>(DEFAULT_CLUSTER_OPTIONS);
   const [physicsRestartKey, setPhysicsRestartKey] = useState(0);
 
   const layoutRefForSelect = useRef<SimNode[]>([]);

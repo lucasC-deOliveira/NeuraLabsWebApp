@@ -15,6 +15,10 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { DetectDuplicatesHybridUseCase } from '../modules/ai/application/use-cases/detect-duplicates-hybrid.use-case';
 import { DetectDuplicatesBySimilarityUseCase } from '../modules/ai/application/use-cases/detect-duplicates-by-similarity.use-case';
+import { ImproveFlashcardUseCase } from '../modules/ai/application/use-cases/improve-flashcard.use-case';
+import { ImproveQuestaoUseCase } from '../modules/ai/application/use-cases/improve-questao.use-case';
+import { ImproveNotaUseCase } from '../modules/ai/application/use-cases/improve-nota.use-case';
+import { ImproveProvaQuestoesUseCase } from '../modules/ai/application/use-cases/improve-questoes-batch.use-case';
 import { SuggestNotaRelationsUseCase } from '../modules/ai/application/use-cases/suggest-nota-relations.use-case';
 import { GenerateLearningPathUseCase } from '../modules/ai/application/use-cases/generate-learning-path.use-case';
 import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases/generate-node-insights.use-case';
@@ -56,6 +60,10 @@ export class AiController {
   constructor(
     private readonly detectDuplicatesHybridUseCase: DetectDuplicatesHybridUseCase,
     private readonly detectDuplicatesBySimilarityUseCase: DetectDuplicatesBySimilarityUseCase,
+    private readonly improveFlashcardUseCase: ImproveFlashcardUseCase,
+    private readonly improveQuestaoUseCase: ImproveQuestaoUseCase,
+    private readonly improveNotaUseCase: ImproveNotaUseCase,
+    private readonly improveProvaQuestoesUseCase: ImproveProvaQuestoesUseCase,
     private readonly suggestNotaRelationsUseCase: SuggestNotaRelationsUseCase,
     private readonly generateLearningPathUseCase: GenerateLearningPathUseCase,
     private readonly generateNodeInsightsUseCase: GenerateNodeInsightsUseCase,
@@ -311,6 +319,50 @@ export class AiController {
       provaId: body.provaId,
       editalId: body.editalId,
     });
+  }
+
+  // Melhora um flashcard aplicando só as operações escolhidas (formatação, estilo
+  // markdown, conteúdo). Recebe o conteúdo no corpo — sem contexto do grafo, barato.
+  @Post('flashcards/improve')
+  improveFlashcard(
+    @CurrentUser() userId: string,
+    @Body() body: { pergunta: string; resposta: string; operations: unknown },
+  ) {
+    return this.improveFlashcardUseCase.execute(userId, body);
+  }
+
+  // Melhora uma questão preservando gabarito/letras; recebe a questão no corpo.
+  @Post('questions/improve')
+  improveQuestao(
+    @CurrentUser() userId: string,
+    @Body()
+    body: {
+      tipo: string;
+      enunciado: string;
+      alternativas: { letra: string; texto: string }[];
+      gabarito: string;
+      explicacao: string;
+      operations: unknown;
+    },
+  ) {
+    return this.improveQuestaoUseCase.execute(userId, body);
+  }
+
+  @Post('notas/improve')
+  improveNota(
+    @CurrentUser() userId: string,
+    @Body() body: { titulo: string; conteudo: string; operations: unknown },
+  ) {
+    return this.improveNotaUseCase.execute(userId, body);
+  }
+
+  // Melhora TODAS as questões numa chamada (usado na importação de prova).
+  @Post('questions/improve-batch')
+  improveQuestoesBatch(
+    @CurrentUser() userId: string,
+    @Body() body: { questoes: unknown; operations: unknown },
+  ) {
+    return this.improveProvaQuestoesUseCase.execute(userId, body as never);
   }
 
   @Post('graphs/:grafoId/chat')
