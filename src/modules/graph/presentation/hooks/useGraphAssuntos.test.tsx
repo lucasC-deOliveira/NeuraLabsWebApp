@@ -9,9 +9,9 @@ beforeEach(() => vi.mocked(graphHttp.listGraphAssuntos).mockReset());
 
 describe("useGraphAssuntos", () => {
   it("loads the available assuntos on mount", async () => {
-    vi.mocked(graphHttp.listGraphAssuntos).mockResolvedValue([{ id: "a1", nome: "Direito" }]);
+    vi.mocked(graphHttp.listGraphAssuntos).mockResolvedValue([{ id: "a1", nome: "Direito", peso: 0 }]);
     const { result } = renderHook(() => useGraphAssuntos());
-    await waitFor(() => expect(result.current).toEqual([{ id: "a1", nome: "Direito" }]));
+    await waitFor(() => expect(result.current).toEqual([{ id: "a1", nome: "Direito", peso: 0 }]));
   });
 
   it("stays empty when there are no assuntos", async () => {

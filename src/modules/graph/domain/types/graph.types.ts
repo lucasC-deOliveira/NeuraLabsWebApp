@@ -45,6 +45,9 @@ export interface EdgeView {
 export interface GraphAssunto {
   id: string;
   nome: string;
+  // Peso de prioridade (conexões × tipo). As tags do grafo vêm ordenadas por ele
+  // (desc); as opções do filtro trazem 0.
+  peso: number;
 }
 
 export interface GrafoInfo {

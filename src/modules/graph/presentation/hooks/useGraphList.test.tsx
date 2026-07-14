@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useGraphList } from "./useGraphList";
+import { saveCachedGraphList } from "../services/graph-list-cache";
 import { graphHttp } from "../../infra/http";
 
 vi.mock("../../infra/http", () => ({ graphHttp: { listUserGraphs: vi.fn() } }));
@@ -14,6 +15,7 @@ const page = (over: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => {
+  localStorage.clear();
   vi.mocked(graphHttp.listUserGraphs).mockReset();
   vi.mocked(graphHttp.listUserGraphs).mockResolvedValue(page() as never);
 });
@@ -41,5 +43,16 @@ describe("useGraphList", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => result.current.reload());
     await waitFor(() => expect(graphHttp.listUserGraphs).toHaveBeenCalledTimes(2));
+  });
+
+  it("shows the cached page instantly, then revalidates in the background", async () => {
+    saveCachedGraphList({ page: 1, pageSize: 12 }, page({ items: [{ id: "cached", nome: "Cached" }] }));
+    vi.mocked(graphHttp.listUserGraphs).mockResolvedValue(
+      page({ items: [{ id: "fresh", nome: "Fresh" }] }) as never,
+    );
+    const { result } = renderHook(() => useGraphList());
+    expect(result.current.loading).toBe(false); // cache hit → sem spinner
+    expect(result.current.result.items).toEqual([{ id: "cached", nome: "Cached" }]);
+    await waitFor(() => expect(result.current.result.items).toEqual([{ id: "fresh", nome: "Fresh" }]));
   });
 });
