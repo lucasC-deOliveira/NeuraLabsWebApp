@@ -19,6 +19,8 @@ export class UpdateNodeUseCase {
     assertUpdatableNode(tipoNode, data);
     const { updated } = await this.nodes.updateNode(userId, tipoNode, refId, data);
     if (updated === 0) throw new NodeNotInGraphError();
+    // Bump the node timestamp so the graph view cache invalidates on this edit.
+    await this.nodes.touchNodes(userId, refId);
     return { success: true };
   }
 }

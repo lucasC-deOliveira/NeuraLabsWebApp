@@ -9,6 +9,10 @@ export interface NodeUpdateRepository {
     refId: string,
     data: NodeUpdateData,
   ): Promise<{ updated: number }>;
+  // Bumps the modified timestamp of the node(s) referencing refId so the graph
+  // view cache invalidates when the entity's content/label changes (the entity
+  // edit itself doesn't touch NodeConhecimento).
+  touchNodes(userId: string, refId: string): Promise<void>;
 }
 
 export const NODE_UPDATE_REPOSITORY = Symbol('NODE_UPDATE_REPOSITORY');

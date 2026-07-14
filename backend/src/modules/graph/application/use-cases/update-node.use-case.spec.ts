@@ -7,6 +7,7 @@ import type { NodeUpdateRepository } from '../../domain/ports/node-update-reposi
 class FakeNodeUpdateRepository implements NodeUpdateRepository {
   updatedCount = 1;
   lastCall: { tipoNode: string; refId: string; data: NodeUpdateData } | null = null;
+  touched: string | null = null;
   async updateNode(
     _userId: string,
     tipoNode: string,
@@ -15,6 +16,9 @@ class FakeNodeUpdateRepository implements NodeUpdateRepository {
   ): Promise<{ updated: number }> {
     this.lastCall = { tipoNode, refId, data };
     return { updated: this.updatedCount };
+  }
+  async touchNodes(_userId: string, refId: string): Promise<void> {
+    this.touched = refId;
   }
 }
 
@@ -27,17 +31,19 @@ describe('UpdateNodeUseCase', () => {
     useCase = new UpdateNodeUseCase(repo);
   });
 
-  it('updates an editable node', async () => {
+  it('updates an editable node and touches it (cache invalidation)', async () => {
     const res = await useCase.execute('u1', 'CONCEITO', 'c1', { nome: 'New' });
     expect(res).toEqual({ success: true });
     expect(repo.lastCall).toEqual({ tipoNode: 'CONCEITO', refId: 'c1', data: { nome: 'New' } });
+    expect(repo.touched).toBe('c1');
   });
 
-  it('throws when nothing matched', async () => {
+  it('throws when nothing matched and does not touch', async () => {
     repo.updatedCount = 0;
     await expect(useCase.execute('u1', 'CONCEITO', 'missing', {})).rejects.toBeInstanceOf(
       NodeNotInGraphError,
     );
+    expect(repo.touched).toBeNull();
   });
 
   it('rejects an invalid note subtype before persisting', async () => {

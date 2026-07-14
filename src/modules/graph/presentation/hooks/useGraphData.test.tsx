@@ -8,6 +8,7 @@ vi.mock("@/lib/graph-api");
 vi.mock("@/lib/vault-bridge", () => ({ isDesktop: vi.fn(() => false), desktop: {} }));
 
 beforeEach(() => {
+  localStorage.clear(); // isola o cache stale-while-revalidate entre os testes
   vi.mocked(api.getGraphNodes).mockResolvedValue({
     nodes: [{ id: "n1" }],
     edges: [{ source: "a", target: "b" }],
@@ -38,5 +39,17 @@ describe("useGraphData", () => {
     const { result } = renderHook(() => useGraphData("g1"));
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.grafoNome).toBe("Mapa de Conhecimento");
+  });
+
+  it("opens instantly from cache, then revalidates in the background", async () => {
+    // primeira montagem carrega e popula o cache do grafo...
+    const first = renderHook(() => useGraphData("g1"));
+    await waitFor(() => expect(first.result.current.loading).toBe(false));
+    first.unmount();
+
+    // ...uma nova montagem mostra o cache SEM spinner (loading já false no 1º render).
+    const second = renderHook(() => useGraphData("g1"));
+    expect(second.result.current.loading).toBe(false);
+    expect(second.result.current.rawNodes).toEqual([{ id: "n1" }]);
   });
 });

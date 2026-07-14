@@ -38,6 +38,7 @@ model Usuario {
   nodeEmbeddings    NodeEmbedding[]
   duplicateVerdicts DuplicateVerdictCache[]
   nodeInsights      NodeInsightsCache[]
+  graphViewCache    GraphViewCache[]
 
   @@map("usuarios")
 }
@@ -298,8 +299,27 @@ model GrafosConhecimento {
   nodeEmbeddings    NodeEmbedding[]
   duplicateVerdicts DuplicateVerdictCache?
   nodeInsights      NodeInsightsCache[]
+  viewCache         GraphViewCache?
 
   @@map("grafos_conhecimento")
+}
+
+// Cache da view construída do grafo (nós + arestas resolvidos por buildKnowledgeGraph).
+// Uma linha por grafo; `assinatura` = contagens + max(ultimaAtualizacao) de nós e
+// arestas + dataAtualizacao do grafo. Enquanto a assinatura bate, a leitura reusa
+// `dados` sem refazer as ~13 queries do build. Auto-invalida quando o grafo muda.
+model GraphViewCache {
+  id           String   @id @default(cuid())
+  usuarioId    String   @map("id_usuario")
+  grafoId      String   @unique @map("id_grafo")
+  assinatura   String
+  dados        Json
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  usuario Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  grafo   GrafosConhecimento @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+
+  @@map("graph_view_cache")
 }
 
 // Cache incremental do detector de duplicatas híbrido (IA): guarda, por assinatura
@@ -386,7 +406,9 @@ model NodeConhecimento {
   posicaoX          Float?   @default(0.0) @map("posicao_x")
   posicaoY          Float?   @default(0.0) @map("posicao_y")
   nivelDominio      Float    @default(0.0) @map("nivel_dominio")
-  ultimaAtualizacao DateTime @default(now()) @map("ultima_atualizacao")
+  // @updatedAt: bumps on any node write (posição, domínio, criação) — alimenta a
+  // assinatura do cache da view do grafo (invalidação automática).
+  ultimaAtualizacao DateTime @default(now()) @updatedAt @map("ultima_atualizacao")
 
   usuario Usuario             @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   grafo   GrafosConhecimento? @relation(fields: [grafoId], references: [id], onDelete: Cascade)
@@ -409,6 +431,9 @@ model ConhecimentoAresta {
 
   tipoRelacao TipoRelacao
   peso        Float       @default(1.0)
+  // Timestamp de modificação: sem ele, editar peso/tipo (sem mudar a contagem) não
+  // seria detectado pela assinatura do cache da view. @updatedAt bumpa em create/edit.
+  ultimaAtualizacao DateTime @default(now()) @updatedAt @map("ultima_atualizacao")
 
   grafo       GrafosConhecimento? @relation(fields: [grafoId], references: [id], onDelete: Cascade)
   nodeOrigem  NodeConhecimento?   @relation("NodeOrigem", fields: [nodeOrigemId], references: [id], onDelete: Cascade)
