@@ -1,8 +1,11 @@
 // Estado + carregamento da listagem de grafos (busca/filtro/ordenação/paginação
 // server-side). Qualquer mudança de filtro volta para a página 1; só setPage navega.
+// Stale-while-revalidate: semeia do cache local no render (abertura instantânea) e
+// revalida no backend em background, reescrevendo o cache.
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { graphHttp } from "../../infra/http";
 import type { GraphListParams, GraphListResult } from "../../domain/types/graph.types";
+import { loadCachedGraphList, saveCachedGraphList } from "../services/graph-list-cache";
 
 const PAGE_SIZE = 12;
 const EMPTY: GraphListResult = { items: [], total: 0, page: 1, pageSize: PAGE_SIZE };
@@ -16,21 +19,30 @@ export interface GraphListApi {
   reload: () => void;
 }
 
-// Dispara o fetch (liga o loading, escreve o resultado ao voltar) e ignora a
-// resposta se o efeito já foi limpo — evita corrida entre trocas rápidas de filtro.
-// Vive fora do hook para que o corpo do useEffect não faça setState direto.
-function fetchList(
+// Revalida no backend sem religar o loading (o cache já preencheu a tela). Grava o
+// resultado + cache ao voltar e ignora respostas obsoletas de trocas rápidas de query.
+function revalidate(
   params: GraphListParams,
   setResult: Dispatch<SetStateAction<GraphListResult>>,
   setLoading: Dispatch<SetStateAction<boolean>>,
 ): () => void {
   let alive = true;
-  setLoading(true);
   graphHttp
     .listUserGraphs(params)
-    .then((r) => { if (alive) { setResult(r); setLoading(false); } })
+    .then((r) => { if (alive) { setResult(r); saveCachedGraphList(params, r); setLoading(false); } })
     .catch(() => { if (alive) setLoading(false); });
   return () => { alive = false; };
+}
+
+// Cache presente → mostra na hora sem spinner; ausente → limpa e liga o spinner.
+function seedFromCache(
+  params: GraphListParams,
+  setResult: Dispatch<SetStateAction<GraphListResult>>,
+  setLoading: Dispatch<SetStateAction<boolean>>,
+): void {
+  const cached = loadCachedGraphList(params);
+  if (cached) { setResult(cached); setLoading(false); }
+  else { setResult(EMPTY); setLoading(true); }
 }
 
 export function useGraphList(): GraphListApi {
@@ -38,8 +50,13 @@ export function useGraphList(): GraphListApi {
   const [result, setResult] = useState<GraphListResult>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  const [seededKey, setSeededKey] = useState<string | null>(null);
 
-  useEffect(() => fetchList(params, setResult, setLoading), [params, reloadKey]);
+  // Troca de query: semeia do cache no render (sem set-state-in-effect).
+  const key = JSON.stringify(params);
+  if (key !== seededKey) { setSeededKey(key); seedFromCache(params, setResult, setLoading); }
+
+  useEffect(() => revalidate(params, setResult, setLoading), [params, reloadKey]);
 
   const setFilter = useCallback(
     (patch: Partial<GraphListParams>) => setParams((p) => ({ ...p, ...patch, page: 1 })),
