@@ -6,6 +6,7 @@ import { useGraphInteractions } from "../hooks/useGraphInteractions";
 import { useGraphPhysics } from "../hooks/useGraphPhysics";
 import { DEFAULT_CLUSTER_OPTIONS, type PhysicsOptions } from "../services/graph-physics.service";
 import { runPresettle } from "../services/run-presettle";
+import { isFirstOpenOfGraph } from "./big-bang-guard";
 import { getFilteredNodes, getVisibleEdges } from "../../domain/selectors/graph.selectors";
 import { graphHttp } from "../../infra/http";
 import { useVaultWatch } from "../hooks/useVaultWatch";
@@ -106,7 +107,13 @@ export function useGraphController(graphId: string) {
   // mantém o feedback na tela para não deixar o grafo preto sem nada.
   const [preparing, setPreparing] = useState(false);
   const introRafRef = useRef(0);
-  const bigBangDoneRef = useRef(false);
+  // Guarda o graphId cujo big-bang já rodou: a animação de entrada roda UMA vez por
+  // grafo aberto. Refresh dos dados do MESMO grafo (ex.: fechar o modal de estudo →
+  // refreshGraph) reusa este guard e cai no branch de "cargas seguintes" (mergePositions),
+  // sem re-montar o layout. Trocar de grafo (graphId novo) reanima. (Antes era um boolean
+  // resetado na limpeza do efeito p/ o StrictMode dev — o que re-disparava o big-bang a
+  // cada refresh real em produção.)
+  const bigBangedGraphRef = useRef<string | null>(null);
   useEffect(() => () => cancelAnimationFrame(introRafRef.current), []);
 
 
@@ -229,8 +236,8 @@ export function useGraphController(graphId: string) {
   useEffect(() => {
     if (nodes.length === 0) return;
 
-    if (!bigBangDoneRef.current) {
-      bigBangDoneRef.current = true;
+    if (isFirstOpenOfGraph(bigBangedGraphRef.current, graphId)) {
+      bigBangedGraphRef.current = graphId;
 
       // Grafo grande: armazena no ref em vez do estado React.
       // startTransition com 14k itens levava 2-3s de reconciliação de fibers,
@@ -242,9 +249,9 @@ export function useGraphController(graphId: string) {
         setLargeLayoutVer((v) => v + 1); // um único re-render barato
         // Ao sair deste grafo grande (graphId muda → nodes mudam → effect
         // re-roda), a limpeza reseta os flags para que o próximo grafo
-        // (possivelmente pequeno) possa rodar o bigbang e a física.
+        // (possivelmente pequeno) possa rodar o bigbang e a física. O guard do
+        // big-bang é keyed por graphId, então o grafo novo reanima sozinho.
         return () => {
-          bigBangDoneRef.current = false;
           isLargeRef.current = false;
           largeLayoutRef.current = [];
           setPhysicsEnabled(true);
@@ -333,13 +340,13 @@ export function useGraphController(graphId: string) {
         };
 
         const prepTimer = setTimeout(build, BIG_BANG_PREPARE_DELAY);
-        // Cleanup: React StrictMode runs effects twice in dev — reset introActive
-        // so physics isn't disabled on the second invocation.
+        // Cancela a animação/timers em voo ao re-rodar o efeito ou desmontar. NÃO
+        // reseta o guard do big-bang: um refresh do mesmo grafo deve mesclar posições,
+        // não re-animar (ver bigBangedGraphRef). Trocar de grafo reanima pelo graphId.
         return () => {
           cancelled = true;
           clearTimeout(prepTimer);
           cancelAnimationFrame(introRafRef.current);
-          bigBangDoneRef.current = false; // allow bigbang to re-run on second mount
           setIntroActive(false);
           setPreparing(false);
         };
