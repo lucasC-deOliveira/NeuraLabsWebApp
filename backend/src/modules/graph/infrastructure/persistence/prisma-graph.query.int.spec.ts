@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import { PrismaGraphQuery } from './prisma-graph.query';
+import { parseGraphListQuery } from '../../domain/services/parse-graph-list-query';
 
 // Integration of the Prisma graph read model against the real DB (neuralabs_test).
 // Validates the children count, ordering and parent-name resolution.
@@ -35,6 +36,42 @@ describe('Graph query (integration — neuralabs_test)', () => {
     return user.id;
   }
 
+  const list = (raw: Parameters<typeof parseGraphListQuery>[0] = {}) => parseGraphListQuery(raw);
+
+  async function seedAssuntoNode(userId: string, grafoId: string, nome: string): Promise<string> {
+    const assunto = await prisma.assunto.create({ data: { usuarioId: userId, nome } });
+    await prisma.nodeConhecimento.create({
+      data: { usuarioId: userId, grafoId, tipoNode: 'ASSUNTO', referenciaId: assunto.id },
+    });
+    return assunto.id;
+  }
+
+  it('tags each graph with its ASSUNTO nodes and filters by assunto (OR)', async () => {
+    const userId = await seedUser();
+    const g1 = await prisma.grafosConhecimento.create({ data: { usuarioId: userId, nome: 'G1' } });
+    const g2 = await prisma.grafosConhecimento.create({ data: { usuarioId: userId, nome: 'G2' } });
+    const direito = await seedAssuntoNode(userId, g1.id, 'Direito');
+    await seedAssuntoNode(userId, g1.id, 'Português');
+    await seedAssuntoNode(userId, g2.id, 'Biologia');
+
+    const all = await query.listForUser(userId, list());
+    const tagsG1 = all.items.find((g) => g.id === g1.id)?.assuntos.map((a) => a.nome);
+    expect(tagsG1).toEqual(['Direito', 'Português']); // ordenado por nome
+
+    const filtered = await query.listForUser(userId, list({ assunto: direito }));
+    expect(filtered.items.map((g) => g.id)).toEqual([g1.id]);
+  });
+
+  it('lists the distinct assuntos present across the user graphs', async () => {
+    const userId = await seedUser();
+    const g = await prisma.grafosConhecimento.create({ data: { usuarioId: userId, nome: 'G' } });
+    await seedAssuntoNode(userId, g.id, 'Zoologia');
+    await seedAssuntoNode(userId, g.id, 'Anatomia');
+
+    const assuntos = await query.listAssuntos(userId);
+    expect(assuntos.map((a) => a.nome)).toEqual(['Anatomia', 'Zoologia']); // ordenado
+  });
+
   it('lists the user graphs newest-first with their children count', async () => {
     const userId = await seedUser();
     const parent = await prisma.grafosConhecimento.create({
@@ -44,9 +81,10 @@ describe('Graph query (integration — neuralabs_test)', () => {
       data: { usuarioId: userId, nome: 'Child', parentGrafoId: parent.id },
     });
 
-    const list = await query.listForUser(userId);
-    expect(list.map((g) => g.nome)).toEqual(['Child', 'Parent']);
-    expect(list.find((g) => g.nome === 'Parent')?.filhosCount).toBe(1);
+    const page = await query.listForUser(userId, list());
+    expect(page.items.map((g) => g.nome)).toEqual(['Child', 'Parent']);
+    expect(page.total).toBe(2);
+    expect(page.items.find((g) => g.nome === 'Parent')?.filhosCount).toBe(1);
   });
 
   it('does not list graphs owned by another user', async () => {
@@ -54,7 +92,37 @@ describe('Graph query (integration — neuralabs_test)', () => {
     const other = await seedUser();
     await prisma.grafosConhecimento.create({ data: { usuarioId: owner, nome: 'Mine' } });
 
-    expect(await query.listForUser(other)).toHaveLength(0);
+    const page = await query.listForUser(other, list());
+    expect(page.items).toHaveLength(0);
+    expect(page.total).toBe(0);
+  });
+
+  it('filters by root/subgraph type', async () => {
+    const userId = await seedUser();
+    const parent = await prisma.grafosConhecimento.create({
+      data: { usuarioId: userId, nome: 'Root' },
+    });
+    await prisma.grafosConhecimento.create({
+      data: { usuarioId: userId, nome: 'Sub', parentGrafoId: parent.id },
+    });
+
+    const roots = await query.listForUser(userId, list({ tipo: 'raiz' }));
+    const subs = await query.listForUser(userId, list({ tipo: 'subgrafo' }));
+    expect(roots.items.map((g) => g.nome)).toEqual(['Root']);
+    expect(subs.items.map((g) => g.nome)).toEqual(['Sub']);
+  });
+
+  it('searches by name/description and paginates the total', async () => {
+    const userId = await seedUser();
+    await prisma.grafosConhecimento.create({ data: { usuarioId: userId, nome: 'Direito Penal' } });
+    await prisma.grafosConhecimento.create({ data: { usuarioId: userId, nome: 'Biologia' } });
+    await prisma.grafosConhecimento.create({
+      data: { usuarioId: userId, nome: 'Química', descricao: 'ligação direito à saúde' },
+    });
+
+    const found = await query.listForUser(userId, list({ q: 'direito', pageSize: '1' }));
+    expect(found.total).toBe(2); // "Direito Penal" + descrição de "Química"
+    expect(found.items).toHaveLength(1); // pageSize limita a página
   });
 
   it('resolves the parent name in the info view', async () => {

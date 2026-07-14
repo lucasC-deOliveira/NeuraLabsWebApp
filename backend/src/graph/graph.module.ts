@@ -9,6 +9,7 @@ import { RemoveNodeUseCase } from '../modules/graph/application/use-cases/remove
 import { CreateGraphUseCase } from '../modules/graph/application/use-cases/create-graph.use-case';
 import { RenameGraphUseCase } from '../modules/graph/application/use-cases/rename-graph.use-case';
 import { ListGraphsUseCase } from '../modules/graph/application/use-cases/list-graphs.use-case';
+import { ListGraphAssuntosUseCase } from '../modules/graph/application/use-cases/list-graph-assuntos.use-case';
 import { GetGraphInfoUseCase } from '../modules/graph/application/use-cases/get-graph-info.use-case';
 import { DeleteGraphUseCase } from '../modules/graph/application/use-cases/delete-graph.use-case';
 import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
@@ -213,6 +214,11 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
     {
       provide: ListGraphsUseCase,
       useFactory: (graphs: GraphQuery) => new ListGraphsUseCase(graphs),
+      inject: [GRAPH_QUERY],
+    },
+    {
+      provide: ListGraphAssuntosUseCase,
+      useFactory: (graphs: GraphQuery) => new ListGraphAssuntosUseCase(graphs),
       inject: [GRAPH_QUERY],
     },
     {

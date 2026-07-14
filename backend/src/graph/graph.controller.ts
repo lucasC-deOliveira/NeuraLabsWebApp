@@ -22,6 +22,8 @@ import { RemoveNodeUseCase } from '../modules/graph/application/use-cases/remove
 import { CreateGraphUseCase } from '../modules/graph/application/use-cases/create-graph.use-case';
 import { RenameGraphUseCase } from '../modules/graph/application/use-cases/rename-graph.use-case';
 import { ListGraphsUseCase } from '../modules/graph/application/use-cases/list-graphs.use-case';
+import { ListGraphAssuntosUseCase } from '../modules/graph/application/use-cases/list-graph-assuntos.use-case';
+import type { RawGraphListQuery } from '../modules/graph/domain/services/parse-graph-list-query';
 import { GetGraphInfoUseCase } from '../modules/graph/application/use-cases/get-graph-info.use-case';
 import { DeleteGraphUseCase } from '../modules/graph/application/use-cases/delete-graph.use-case';
 import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete-node.use-case';
@@ -63,6 +65,7 @@ export class GraphController {
     private readonly createGraphUseCase: CreateGraphUseCase,
     private readonly renameGraphUseCase: RenameGraphUseCase,
     private readonly listGraphsUseCase: ListGraphsUseCase,
+    private readonly listGraphAssuntosUseCase: ListGraphAssuntosUseCase,
     private readonly getGraphInfoUseCase: GetGraphInfoUseCase,
     private readonly deleteGraphUseCase: DeleteGraphUseCase,
     private readonly deleteNodeUseCase: DeleteNodeUseCase,
@@ -90,8 +93,14 @@ export class GraphController {
 
   // ---- Grafos ----
   @Get('graphs')
-  listGraphs(@CurrentUser() userId: string) {
-    return this.listGraphsUseCase.execute(userId);
+  listGraphs(@CurrentUser() userId: string, @Query() query: RawGraphListQuery) {
+    return this.listGraphsUseCase.execute(userId, query);
+  }
+
+  // Assuntos disponíveis para o filtro (rota estática — precede graphs/:id/*).
+  @Get('graphs/assuntos')
+  listGraphAssuntos(@CurrentUser() userId: string) {
+    return this.listGraphAssuntosUseCase.execute(userId);
   }
 
   @Post('graphs')

@@ -41,6 +41,12 @@ export interface EdgeView {
   targetLabel: string;
 }
 
+// Tag de assunto de um grafo (derivada dos nós ASSUNTO).
+export interface GraphAssunto {
+  id: string;
+  nome: string;
+}
+
 export interface GrafoInfo {
   id: string;
   nome: string;
@@ -48,8 +54,33 @@ export interface GrafoInfo {
   parentGrafoId?: string | null;
   tipoRelacaoPai?: string | null;
   filhosCount?: number;
+  assuntos?: GraphAssunto[];
   dataCriacao?: string;
   dataAtualizacao?: string;
+}
+
+// Ordenação e filtro de tipo da listagem de grafos (espelham o backend).
+export type GraphSortField = "recentes" | "atualizados" | "alfabetica" | "subgrafos";
+export type GraphTypeFilter = "todos" | "raiz" | "subgrafo";
+
+// Parâmetros de busca/filtro/ordenação/paginação enviados à listagem.
+export interface GraphListParams {
+  q?: string;
+  tipo?: GraphTypeFilter;
+  sort?: GraphSortField;
+  createdFrom?: string; // ISO date
+  createdTo?: string; // ISO date
+  assuntoIds?: string[]; // filtra grafos com QUALQUER um destes assuntos
+  page?: number;
+  pageSize?: number;
+}
+
+// Página de resultados da listagem (espelha GraphListPage do backend).
+export interface GraphListResult {
+  items: GrafoInfo[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface GrafoInfoDetail {
