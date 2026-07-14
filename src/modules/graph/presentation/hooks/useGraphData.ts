@@ -6,6 +6,7 @@ import { parseNode } from "@/lib/vault-format";
 import { VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 import type { VaultNode } from "@/lib/vault-format";
 import type { GraphNodeType, GraphEdgeType, EdgeView, GraphVisualState, GrafoInfoDetail } from "../../domain/types/graph.types";
+import { loadCachedGraph, saveCachedGraph } from "../services/graph-cache";
 
 type Pan = { x: number; y: number };
 type GraphSource = { nodes: GraphNodeType[]; edges: GraphEdgeType[] };
@@ -73,8 +74,31 @@ function loadEdgesInBackground(graphId: string, setGraphEdges: Dispatch<SetState
   graphHttp.getGraphEdges(graphId).then((d) => { if (d) setGraphEdges(d); }).catch(() => {});
 }
 
+// Semeia o estado com o grafo cacheado (abertura instantânea). Retorna false
+// quando não há cache — aí o chamador mostra o spinner até o fetch chegar.
+function seedFromCache(graphId: string, s: GraphDataSetters): boolean {
+  const cached = loadCachedGraph(graphId);
+  if (!cached) return false;
+  s.setRawNodes(cached.nodes);
+  s.setRawEdges(cached.edges);
+  s.setZoom(cached.zoom);
+  s.setPan(cached.pan);
+  s.setGrafoNome(cached.grafoNome);
+  s.setLoading(false);
+  return true;
+}
+
+function cacheLoaded(graphId: string, src: GraphSource, saved: GraphVisualState | null, nome: string): void {
+  saveCachedGraph(graphId, {
+    nodes: src.nodes, edges: src.edges,
+    zoom: saved?.zoom ?? 0.6, pan: saved?.pan ?? { x: 0, y: 0 },
+    grafoNome: nome, savedAt: Date.now(),
+  });
+}
+
+// loadGraph NÃO liga o spinner: o estado inicial (cache ou vazio) já foi definido
+// no render. Aqui só revalida em background e reescreve o cache.
 async function loadGraph(graphId: string, s: GraphDataSetters): Promise<void> {
-  s.setLoading(true);
   try {
     const [result, saved, info] = await fetchGraphBundle(graphId);
     if (saved) { s.setZoom(saved.zoom); s.setPan(saved.pan); }
@@ -83,6 +107,7 @@ async function loadGraph(graphId: string, s: GraphDataSetters): Promise<void> {
     const src = await resolveGraphSource(graphId, nome, { nodes: result.nodes, edges: result.edges });
     s.setRawNodes(src.nodes);
     s.setRawEdges(src.edges);
+    cacheLoaded(graphId, src, saved, nome);
   } catch (e) {
     console.error(e);
   } finally {
@@ -100,15 +125,17 @@ export function useGraphData(graphId: string): GraphDataApi {
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0 });
   const [graphEdges, setGraphEdges] = useState<EdgeView[]>([]);
   const [prevGraphId, setPrevGraphId] = useState<string | null>(null);
+  const setters: GraphDataSetters = { setZoom, setPan, setGrafoNome, setRawNodes, setRawEdges, setLoading, setGraphEdges };
 
-  // Ao trocar de grafo, limpa os dados anteriores DURANTE o render (evita
-  // set-state-in-effect) para o controller não entrar no caminho "grafo grande"
-  // com nós velhos.
-  if (graphId !== prevGraphId) { setPrevGraphId(graphId); setRawNodes([]); setRawEdges([]); }
+  // Troca de grafo: semeia do cache no render (abertura instantânea, evita
+  // set-state-in-effect). Sem cache, limpa e mostra o spinner até revalidar.
+  if (graphId !== prevGraphId) {
+    setPrevGraphId(graphId);
+    if (!seedFromCache(graphId, setters)) { setRawNodes([]); setRawEdges([]); setLoading(true); }
+  }
 
-  useEffect(() => {
-    loadGraph(graphId, { setZoom, setPan, setGrafoNome, setRawNodes, setRawEdges, setLoading, setGraphEdges });
-  }, [graphId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadGraph(graphId, setters); }, [graphId]);
 
   return {
     rawNodes, rawEdges, loading, grafoNome, setGrafoNome, zoom, setZoom, pan, setPan,

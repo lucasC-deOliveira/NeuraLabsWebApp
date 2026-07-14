@@ -22,6 +22,13 @@ export class PrismaNodeUpdateRepository implements NodeUpdateRepository {
     return { updated };
   }
 
+  async touchNodes(userId: string, refId: string): Promise<void> {
+    await this.prisma.nodeConhecimento.updateMany({
+      where: { referenciaId: refId, usuarioId: userId },
+      data: { ultimaAtualizacao: new Date() },
+    });
+  }
+
   // Per-type entity update; the use-case has already validated the type/subtype.
   private readonly updaters: Record<string, EntityUpdater> = {
     ASSUNTO: async (where, data) =>

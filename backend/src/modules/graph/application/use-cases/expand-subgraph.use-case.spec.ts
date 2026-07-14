@@ -3,6 +3,7 @@ import { ExpandSubgraphUseCase } from './expand-subgraph.use-case';
 import { LoadGraphUseCase } from './load-graph.use-case';
 import { SubgraphNotFoundError } from '../../domain/errors';
 import type { GraphView, GraphViewRepository } from '../../domain/ports/graph-view-repository';
+import type { GraphViewCacheRepository } from '../../domain/ports/graph-view-cache-repository';
 
 const view: GraphView = { nodes: [], edges: [] };
 
@@ -18,6 +19,17 @@ class FakeGraphViewRepository implements GraphViewRepository {
   }
 }
 
+// Cache que sempre erra — força o LoadGraphUseCase a delegar em loadView.
+class NoopGraphViewCache implements GraphViewCacheRepository {
+  async currentSignature(): Promise<string> {
+    return 'sig';
+  }
+  async load(): Promise<null> {
+    return null;
+  }
+  async save(): Promise<void> {}
+}
+
 describe('ExpandSubgraphUseCase', () => {
   let repo: FakeGraphViewRepository;
   let useCase: ExpandSubgraphUseCase;
@@ -25,7 +37,7 @@ describe('ExpandSubgraphUseCase', () => {
   beforeEach(() => {
     repo = new FakeGraphViewRepository();
     repo.graphs.add('child');
-    useCase = new ExpandSubgraphUseCase(repo, new LoadGraphUseCase(repo));
+    useCase = new ExpandSubgraphUseCase(repo, new LoadGraphUseCase(repo, new NoopGraphViewCache()));
   });
 
   it('loads the child view when it exists', async () => {

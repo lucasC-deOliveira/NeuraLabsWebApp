@@ -107,6 +107,11 @@ import {
   type GraphViewRepository,
 } from '../modules/graph/domain/ports/graph-view-repository';
 import {
+  GRAPH_VIEW_CACHE_REPOSITORY,
+  type GraphViewCacheRepository,
+} from '../modules/graph/domain/ports/graph-view-cache-repository';
+import { PrismaGraphViewCacheRepository } from '../modules/graph/infrastructure/persistence/prisma-graph-view-cache.repository';
+import {
   GRAPH_EXPORT_REPOSITORY,
   type GraphExportRepository,
 } from '../modules/graph/domain/ports/graph-export-repository';
@@ -300,10 +305,12 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
       useFactory: (subgraphs: ExtractSubgraphRepository) => new ExtractSubgraphUseCase(subgraphs),
       inject: [EXTRACT_SUBGRAPH_REPOSITORY],
     },
+    { provide: GRAPH_VIEW_CACHE_REPOSITORY, useClass: PrismaGraphViewCacheRepository },
     {
       provide: LoadGraphUseCase,
-      useFactory: (view: GraphViewRepository) => new LoadGraphUseCase(view),
-      inject: [GRAPH_VIEW_REPOSITORY],
+      useFactory: (view: GraphViewRepository, cache: GraphViewCacheRepository) =>
+        new LoadGraphUseCase(view, cache),
+      inject: [GRAPH_VIEW_REPOSITORY, GRAPH_VIEW_CACHE_REPOSITORY],
     },
     {
       provide: ExpandSubgraphUseCase,

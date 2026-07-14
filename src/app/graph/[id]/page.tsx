@@ -361,10 +361,18 @@ export default function GraphPage() {
   // RELAÇÕES DO NÓ SELECIONADO (painel de propriedades)
   // ======================
   const selectedNodeId = controller.state.selectedNode?.id;
+  // tipo de cada nó, para o painel agrupar as relações pelo tipo do outro nó.
+  const nodeTypeById = new Map<string, string>(
+    controller.state.layout.map((n: any) => [n.id, n.tipoReal ?? n.group])
+  );
   const selectedNodeEdges = selectedNodeId
-    ? graphEdges.filter(
-        (e: any) => e.source === selectedNodeId || e.target === selectedNodeId
-      )
+    ? graphEdges
+        .filter((e: any) => e.source === selectedNodeId || e.target === selectedNodeId)
+        .map((e: any) => ({
+          ...e,
+          sourceType: nodeTypeById.get(e.source),
+          targetType: nodeTypeById.get(e.target),
+        }))
     : [];
 
   const handleEditEdge = (edge: any) => {

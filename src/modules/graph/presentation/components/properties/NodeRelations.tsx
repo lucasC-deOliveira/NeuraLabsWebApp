@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Trash2Icon, PencilIcon, PlusIcon } from "lucide-react";
 import { getRelationColor } from "@/modules/graph/presentation/services/graph-style.service";
-import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
+import { RELATION_LABELS, NODE_TYPE_DISPLAY } from "@/modules/graph/constants/graph-ui.constants";
 import type { PropertiesNode, PropertiesEdge } from "./properties-panel.types";
+import { groupRelations, type RelationGroup } from "./group-relations";
 
 interface NodeRelationsProps {
   node: PropertiesNode;
@@ -14,17 +15,21 @@ interface NodeRelationsProps {
   onAddEdge?: () => void;
 }
 
+const typeLabel = (tipo: string): string =>
+  NODE_TYPE_DISPLAY[tipo as keyof typeof NODE_TYPE_DISPLAY]?.label ?? (tipo || "Sem tipo");
+
 export function NodeRelations(props: NodeRelationsProps) {
   const { node, edges } = props;
+  const groups = groupRelations(edges, node.id);
   return (
     <div>
       <h4 className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">Relações ({edges.length})</h4>
       {edges.length === 0 ? (
         <p className="text-xs text-muted-foreground">Este nó não tem relações neste grafo.</p>
       ) : (
-        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-          {edges.map((edge) => (
-            <RelationRow key={edge.id} edge={edge} nodeId={node.id} {...props} />
+        <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+          {groups.map((group) => (
+            <RelationTypeGroup key={group.tipo || "__none__"} group={group} {...props} />
           ))}
         </div>
       )}
@@ -34,6 +39,33 @@ export function NodeRelations(props: NodeRelationsProps) {
           Nova relação
         </Button>
       )}
+    </div>
+  );
+}
+
+interface RelationTypeGroupProps extends NodeRelationsProps {
+  group: RelationGroup;
+}
+
+// One block per connected node type, with a subheader per relation type inside.
+function RelationTypeGroup({ group, ...props }: RelationTypeGroupProps) {
+  const count = group.relacoes.reduce((n, r) => n + r.edges.length, 0);
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] font-semibold text-foreground">{typeLabel(group.tipo)}</span>
+        <span className="text-[10px] text-muted-foreground">({count})</span>
+      </div>
+      {group.relacoes.map((sub) => (
+        <div key={sub.relacao} className="pl-1 border-l-2 border-muted space-y-1">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground capitalize pl-1">
+            {RELATION_LABELS[sub.relacao] || sub.relacao.toLowerCase()}
+          </div>
+          {sub.edges.map((edge) => (
+            <RelationRow key={edge.id} edge={edge} nodeId={props.node.id} {...props} />
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
@@ -69,7 +101,6 @@ function RelationRow({ edge, nodeId, isDark, onSelectNode, onEditEdge, onDeleteE
           )}
         </div>
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <span className="capitalize">{RELATION_LABELS[edge.tipoRelacao] || edge.tipoRelacao}</span>
           <span className="rounded bg-muted px-1 font-mono not-italic tabular-nums">
             peso {Number(edge.peso.toFixed(2))}
           </span>
