@@ -116,8 +116,7 @@ function beginPan<T extends LayoutNode>(clientX: number, clientY: number, core: 
 // move o grupo selecionado quando o nó arrastado faz parte dele.
 function beginDrag<T extends LayoutNode>(nodeId: string, e: PointerEvent, core: CoreRef<T>, screenToGraph: ScreenToGraph): void {
   const node = core.current.layout.find((n) => n.id === nodeId);
-  // o Assunto-raiz é fixo no centro — não arrasta.
-  if (!node || (node as T & { isRoot?: boolean }).isRoot) return;
+  if (!node) return;
   core.current.interaction = { type: "drag", nodeId };
   const selected = core.current.selected;
   const groupIds = selected && selected.has(nodeId) && selected.size > 1 ? [...selected] : [nodeId];

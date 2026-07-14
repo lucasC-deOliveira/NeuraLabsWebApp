@@ -44,16 +44,19 @@ export class ParseExamUploadUseCase {
     private readonly figures?: ExamFigureSource,
   ) {}
 
+  // allowLlm=false força extração só determinística (0 token) — o usuário pode
+  // desligar a IA na extração; formatos incomuns podem perder questões.
   async execute(
     userId: string,
     prova: UploadedDocument,
     gabarito?: UploadedDocument,
+    allowLlm = true,
   ): Promise<ParsedUpload> {
     // Pre-clean (drop cover/boilerplate) to cut tokens and improve coverage.
     const provaText = cleanExamText(await this.extractor.extract(prova));
     const upload = gabarito
-      ? await this.parseWithGabarito(userId, provaText, gabarito)
-      : await this.parseWithoutGabarito(userId, provaText);
+      ? await this.parseWithGabarito(userId, provaText, gabarito, allowLlm)
+      : await this.parseWithoutGabarito(userId, provaText, allowLlm);
     return this.withFigures(prova, upload);
   }
 
@@ -65,37 +68,48 @@ export class ParseExamUploadUseCase {
     userId: string,
     provaText: string,
     gabarito: UploadedDocument,
+    allowLlm: boolean,
   ): Promise<ParsedUpload> {
     const gabaritoText = await this.extractor.extract(gabarito);
     const gabaritos = parseGabarito(gabaritoText);
-    const parsed = gabaritos.size > 0 ? await this.parseWithoutGabarito(userId, provaText) : null;
+    const parsed =
+      gabaritos.size > 0 ? await this.parseWithoutGabarito(userId, provaText, allowLlm) : null;
     if (parsed && gabaritoCovers(parsed.questoes, gabaritos)) {
       return { ...parsed, questoes: applyGabarito(parsed.questoes, gabaritos) };
     }
+    if (!allowLlm) return parsed ?? { tituloSugerido: null, questoes: [] };
     const messages = buildExamParsePrompt(provaText, gabaritoText);
     const content = await this.llm.complete({ userId, messages, temperature: PARSE_TEMPERATURE });
     return parseExamResponse(content);
   }
 
-  private async parseWithoutGabarito(userId: string, provaText: string): Promise<ParsedUpload> {
+  private async parseWithoutGabarito(
+    userId: string,
+    provaText: string,
+    allowLlm: boolean,
+  ): Promise<ParsedUpload> {
     const judgment = confidentUpload(
       extractJudgmentItems(provaText),
       countJudgmentItems(provaText),
     );
-    return judgment ?? (await this.parseMultipleChoice(userId, provaText));
+    return judgment ?? (await this.parseMultipleChoice(userId, provaText, allowLlm));
   }
 
   // Trusts the deterministic MC parse and sends only the blocks it couldn't read
   // to the LLM. A fully parsed exam costs 0 tokens; an unfamiliar one (few/no
   // recognized blocks) falls back to a full LLM parse.
-  private async parseMultipleChoice(userId: string, provaText: string): Promise<ParsedUpload> {
+  private async parseMultipleChoice(
+    userId: string,
+    provaText: string,
+    allowLlm: boolean,
+  ): Promise<ParsedUpload> {
     const blocks = examBlocksByNumero(provaText);
     const questoes = extractExamQuestions(provaText);
     if (blocks.size === 0 || questoes.length < blocks.size * DETERMINISTIC_CONFIDENCE) {
-      return this.parseWithLlm(userId, provaText);
+      return allowLlm ? this.parseWithLlm(userId, provaText) : { tituloSugerido: null, questoes };
     }
     const missing = [...blocks.keys()].filter((n) => !questoes.some((q) => q.numero === n));
-    if (missing.length === 0) return { tituloSugerido: null, questoes };
+    if (missing.length === 0 || !allowLlm) return { tituloSugerido: null, questoes };
     const recovered = await this.parseWithLlm(userId, surgicalText(blocks, missing));
     return { tituloSugerido: null, questoes: mergeQuestoes(questoes, recovered.questoes) };
   }

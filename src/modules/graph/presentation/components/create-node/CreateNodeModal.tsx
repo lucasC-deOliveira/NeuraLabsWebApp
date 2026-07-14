@@ -18,6 +18,8 @@ import {
 } from "@/modules/graph/domain/services/prova-conceitos";
 import { createGraphNode, createDeck } from "@/modules/graph/application/use-cases/create-graph-node";
 import { addExistingItems } from "@/modules/graph/application/use-cases/add-existing-items";
+import { mergeImprovedQuestoes, toImproveBatchInput } from "@/modules/graph/domain/services/merge-improved-questoes";
+import { useProvaAiConfig } from "@/modules/graph/presentation/hooks/useProvaAiConfig";
 import { graphHttp } from "@/modules/graph/infra/http";
 import { CreateNodeDialog, type CreateNodeVm } from "./CreateNodeDialog";
 import { useRouter } from "@/lib/navigation";
@@ -131,6 +133,8 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   const [parsedTitulo, setParsedTitulo] = useState<string>("");
   const [conceitosByQuestao, setConceitosByQuestao] = useState<Record<number, ConceitoPickerEntry[]>>({});
   const [conceitosLoading, setConceitosLoading] = useState(false);
+  const [formatandoQuestoes, setFormatandoQuestoes] = useState(false);
+  const { config: aiConfig, toggle: toggleAi } = useProvaAiConfig();
   const [formData, setFormData] = useState<CreateNodeFormValues>(EMPTY_FORM);
 
   // Muda o tipo e volta à aba "create" quando o novo tipo não tem aba de existentes.
@@ -206,6 +210,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     setParsedTitulo("");
     setConceitosByQuestao({});
     setConceitosLoading(false);
+    setFormatandoQuestoes(false);
     setFormData(EMPTY_FORM);
   };
 
@@ -274,7 +279,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   // Optional edital attached during prova import: completes the graph from the notice
   // and links the EDITAL node 1:1 to the freshly-created prova (best-effort).
   const attachEditalIfAny = async (provaId: string): Promise<void> => {
-    if (!editalFile) return;
+    if (!editalFile || !aiConfig.completarEdital) return;
     const { plan, programa } = await graphHttp.planGraphFromEdital(grafoId, editalFile);
     const built = await graphHttp.buildGraphFromEdital(grafoId, plan);
     await graphHttp.createEditalNode({
@@ -318,16 +323,33 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     }
   };
 
+  // Formata as questões com IA em lote (uma chamada) DEPOIS que a revisão já apareceu,
+  // para não travar a extração numa prova grande. Funde no estado atual (por numero/letra),
+  // preservando o gabarito que o usuário já possa ter ajustado. Best-effort: falha = cruas.
+  const formatQuestoesInBackground = async (questoes: ParsedQuestao[]): Promise<void> => {
+    if (!aiConfig.melhorarFormatacao || questoes.length === 0) return;
+    setFormatandoQuestoes(true);
+    try {
+      const improved = await graphHttp.improveProvaQuestoes(toImproveBatchInput(questoes), ["format", "markdown"]);
+      setParsedQuestoes((prev) => mergeImprovedQuestoes(prev, improved));
+    } catch {
+      // mantém as questões cruas; a melhoria de formatação é opcional
+    } finally {
+      setFormatandoQuestoes(false);
+    }
+  };
+
   const submitProvaParse = async (): Promise<void> => {
     if (!provaFile) return void toast.error("Selecione o arquivo da prova");
     setProvaUploadStep("reviewing");
     setLoading(true);
     try {
-      const result = await graphHttp.parseProvaUpload(provaFile, gabaritoFile);
+      const result = await graphHttp.parseProvaUpload(provaFile, gabaritoFile, aiConfig.aiExtraction);
       setParsedQuestoes(result.questoes);
       setParsedTitulo(result.tituloSugerido ?? "");
       setProvaUploadStep("review");
-      void loadConceitoSuggestions(result.questoes);
+      void formatQuestoesInBackground(result.questoes);
+      if (aiConfig.sugerirConceitos) void loadConceitoSuggestions(result.questoes);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao processar arquivos");
       setProvaUploadStep("files");
@@ -509,8 +531,11 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
       setParsedQuestaoGabarito,
       conceitosByQuestao,
       conceitosLoading,
+      formatandoQuestoes,
       onToggleConceito: toggleConceitoForQuestao,
       onAddConceito: addConceitoForQuestao,
+      aiConfig,
+      onToggleAi: toggleAi,
     },
     edital: {
       file: editalFile,

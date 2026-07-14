@@ -55,13 +55,6 @@ export class NodeNotInGraphError extends Error {
   }
 }
 
-export class RootNodeError extends Error {
-  constructor() {
-    super('The graph root subject cannot be removed; it is deleted with the graph.');
-    this.name = 'RootNodeError';
-  }
-}
-
 export type NodeValidationCode =
   | 'NOTE_TITLE_REQUIRED'
   | 'NOTE_SUBTYPE_REQUIRED'

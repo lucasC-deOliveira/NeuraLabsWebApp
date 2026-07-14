@@ -3,10 +3,9 @@
 // grafo — para que a afinação escolhida sobreviva entre sessões (inclusive no
 // Electron, que também expõe localStorage no renderer).
 
-import type { PhysicsMode, PhysicsOptions } from "./graph-physics.service";
+import type { PhysicsOptions } from "./graph-physics.service";
 
 export interface StoredGraphSettings {
-  physicsMode: PhysicsMode;
   physicsOptions: PhysicsOptions;
   focusDepth: number;
 }
@@ -17,7 +16,7 @@ const STORAGE_KEY = "neuralabs.graph-settings.v1";
  * Lê as preferências salvas. Retorna null quando não há nada salvo ou o
  * localStorage está indisponível (modo privado/quota) — o chamador aplica os
  * padrões nesse caso.
- * @example const saved = loadGraphSettings(); // { physicsMode, focusDepth, ... } | null
+ * @example const saved = loadGraphSettings(); // { physicsOptions, focusDepth } | null
  */
 export function loadGraphSettings(): Partial<StoredGraphSettings> | null {
   try {
@@ -31,7 +30,7 @@ export function loadGraphSettings(): Partial<StoredGraphSettings> | null {
 /**
  * Grava as preferências. Silencioso quando o localStorage está indisponível — a
  * ausência de persistência não deve quebrar a UI.
- * @example saveGraphSettings({ physicsMode, physicsOptions, focusDepth });
+ * @example saveGraphSettings({ physicsOptions, focusDepth });
  */
 export function saveGraphSettings(settings: StoredGraphSettings): void {
   try {

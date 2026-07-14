@@ -39,9 +39,8 @@ describe("graph-settings-storage", () => {
   });
 
   it("round-trips the saved settings", () => {
-    saveGraphSettings({ physicsMode: "cluster", physicsOptions: DEFAULT_PHYSICS_OPTIONS, focusDepth: 3 });
+    saveGraphSettings({ physicsOptions: DEFAULT_PHYSICS_OPTIONS, focusDepth: 3 });
     const loaded = loadGraphSettings();
-    expect(loaded?.physicsMode).toBe("cluster");
     expect(loaded?.focusDepth).toBe(3);
     expect(loaded?.physicsOptions).toEqual(DEFAULT_PHYSICS_OPTIONS);
   });
@@ -49,6 +48,6 @@ describe("graph-settings-storage", () => {
   it("returns null (instead of throwing) when localStorage is unavailable", () => {
     (globalThis as unknown as { localStorage: ThrowingLocalStorage }).localStorage = new ThrowingLocalStorage();
     expect(loadGraphSettings()).toBeNull();
-    expect(() => saveGraphSettings({ physicsMode: "default", physicsOptions: DEFAULT_PHYSICS_OPTIONS, focusDepth: 1 })).not.toThrow();
+    expect(() => saveGraphSettings({ physicsOptions: DEFAULT_PHYSICS_OPTIONS, focusDepth: 1 })).not.toThrow();
   });
 });

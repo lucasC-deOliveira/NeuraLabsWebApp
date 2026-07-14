@@ -32,14 +32,6 @@ export class PrismaGraphNodeRepository implements GraphNodeRepository {
     });
   }
 
-  async isRootAssunto(userId: string, refId: string): Promise<boolean> {
-    const root = await this.prisma.grafosConhecimento.findFirst({
-      where: { rootAssuntoId: refId, usuarioId: userId },
-      select: { id: true },
-    });
-    return root !== null;
-  }
-
   async findNodeInGraph(
     grafoId: string,
     userId: string,

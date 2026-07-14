@@ -99,11 +99,14 @@ export interface ParseUploadResult {
 export async function parseProvaUpload(
   provaFile: File,
   gabaritoFile?: File | null,
+  aiExtraction = true,
 ): Promise<ParseUploadResult> {
   const formData = new FormData();
   formData.append("prova", provaFile);
   // Gabarito é opcional: sem ele, o backend devolve gabarito "?" em cada questão.
   if (gabaritoFile) formData.append("gabarito", gabaritoFile);
+  // Desligar = extração só determinística (0 token de LLM) no backend.
+  if (!aiExtraction) formData.append("aiExtraction", "false");
 
   const base = (await import("./api")).resolveApiUrl();
   const token = getToken();

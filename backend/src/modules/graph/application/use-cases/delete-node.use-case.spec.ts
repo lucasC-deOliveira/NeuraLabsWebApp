@@ -1,20 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DeleteNodeUseCase } from './delete-node.use-case';
-import { NodeNotInGraphError, RootNodeError } from '../../domain/errors';
+import { NodeNotInGraphError } from '../../domain/errors';
 import type {
   DeletableNode,
   NodeDeletionRepository,
 } from '../../domain/ports/node-deletion-repository';
 
 class FakeNodeDeletionRepository implements NodeDeletionRepository {
-  roots = new Set<string>();
   node: DeletableNode | null = null;
   connected: DeletableNode[] = [];
   deleted: DeletableNode[] | null = null;
 
-  async isRootSubject(_u: string, refId: string): Promise<boolean> {
-    return this.roots.has(refId);
-  }
   async findNode(): Promise<DeletableNode | null> {
     return this.node;
   }
@@ -33,11 +29,6 @@ describe('DeleteNodeUseCase', () => {
   beforeEach(() => {
     repo = new FakeNodeDeletionRepository();
     useCase = new DeleteNodeUseCase(repo);
-  });
-
-  it('throws when the node is the root subject', async () => {
-    repo.roots.add('root');
-    await expect(useCase.execute('u1', 'root')).rejects.toBeInstanceOf(RootNodeError);
   });
 
   it('throws when the node is not found', async () => {

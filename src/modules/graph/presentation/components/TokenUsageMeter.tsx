@@ -2,16 +2,12 @@ import { useEffect, useState } from "react";
 import { CoinsIcon } from "lucide-react";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { TokenUsageView } from "@/modules/graph/application/ports/graph-ai.port";
+import { formatTokens } from "./format-tokens";
 
 // Live meter of AI tokens spent this session (all features — recorded at the LLM
 // adapter). Polls the running total; awaited HTTP AI calls make polling
 // effectively real-time, so no websocket is needed.
 const POLL_MS = 4000;
-
-function formatTokens(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-}
 
 export function TokenUsageMeter() {
   const [usage, setUsage] = useState<TokenUsageView | null>(null);

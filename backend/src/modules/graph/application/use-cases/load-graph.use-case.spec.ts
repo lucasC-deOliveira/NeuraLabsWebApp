@@ -5,23 +5,21 @@ import type { GraphView, GraphViewRepository } from '../../domain/ports/graph-vi
 const emptyView: GraphView = { nodes: [], edges: [] };
 
 class FakeGraphViewRepository implements GraphViewRepository {
-  ensuredRoot = false;
+  loadedArgs: { userId: string; grafoId: string } | null = null;
   async exists(): Promise<boolean> {
     return true;
   }
-  async ensureRoot(): Promise<void> {
-    this.ensuredRoot = true;
-  }
-  async loadView(): Promise<GraphView> {
+  async loadView(userId: string, grafoId: string): Promise<GraphView> {
+    this.loadedArgs = { userId, grafoId };
     return emptyView;
   }
 }
 
 describe('LoadGraphUseCase', () => {
-  it('ensures the root before loading the view', async () => {
+  it('loads the graph view', async () => {
     const repo = new FakeGraphViewRepository();
     const res = await new LoadGraphUseCase(repo).execute('u1', 'g1');
-    expect(repo.ensuredRoot).toBe(true);
+    expect(repo.loadedArgs).toEqual({ userId: 'u1', grafoId: 'g1' });
     expect(res).toBe(emptyView);
   });
 });

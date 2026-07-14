@@ -22,8 +22,6 @@ export type GraphNode = {
   grafoRefMeta?: { nome: string; nodeCount: number; tipoRelacao: string | null };
   posicaoX?: number | null;
   posicaoY?: number | null;
-  /** Root subject of the graph (fixed at the center, anchors the layout, non-deletable). */
-  isRoot?: boolean;
 };
 
 export type GraphEdge = { source: string; target: string; type: string; peso: number };

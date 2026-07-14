@@ -78,14 +78,17 @@ export class ProvasController {
   parseUpload(
     @CurrentUser() userId: string,
     @UploadedFiles() files: { prova?: Express.Multer.File[]; gabarito?: Express.Multer.File[] },
+    @Body() body: { aiExtraction?: string },
   ) {
     const provaFile = files?.prova?.[0];
     const gabaritoFile = files?.gabarito?.[0];
     if (!provaFile) throw new BadRequestException('Arquivo da prova é obrigatório.');
 
+    // aiExtraction="false" força extração só determinística (0 token de LLM).
+    const allowLlm = body?.aiExtraction !== 'false';
     // Gabarito is optional: without it, every question comes back with gabarito "?"
     // for the user to fill in manually.
-    return this.parseExamUpload.execute(userId, provaFile, gabaritoFile);
+    return this.parseExamUpload.execute(userId, provaFile, gabaritoFile, allowLlm);
   }
 
   // Suggests, per question, the graph CONCEITOs it tests (reusing existing nodes),

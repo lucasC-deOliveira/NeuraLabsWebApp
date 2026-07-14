@@ -70,14 +70,6 @@ export class PrismaGraphDeletionRepository
     });
   }
 
-  async isRootSubject(userId: string, refId: string): Promise<boolean> {
-    const root = await this.prisma.grafosConhecimento.findFirst({
-      where: { rootAssuntoId: refId, usuarioId: userId },
-      select: { id: true },
-    });
-    return root !== null;
-  }
-
   async findNode(userId: string, refId: string, grafoId?: string): Promise<DeletableNode | null> {
     const node = await this.prisma.nodeConhecimento.findFirst({
       where: { referenciaId: refId, usuarioId: userId, ...(grafoId ? { grafoId } : {}) },

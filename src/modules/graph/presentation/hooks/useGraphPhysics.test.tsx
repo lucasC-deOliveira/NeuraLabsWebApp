@@ -6,7 +6,7 @@ import { physicsStep } from "../services/graph-physics.service";
 // physicsStep devolve o MESMO array (estabilizado) → o loop para após 1 tick.
 vi.mock("../services/graph-physics.service", () => ({
   physicsStep: vi.fn((prev) => prev),
-  DEFAULT_PHYSICS_OPTIONS: {},
+  DEFAULT_CLUSTER_OPTIONS: {},
 }));
 
 let rafCb: FrameRequestCallback | null;

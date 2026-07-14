@@ -22,6 +22,7 @@ import type { ConceitoPickerEntry } from "@/modules/graph/domain/services/prova-
 import type { CreateNodeFormValues } from "@/modules/graph/domain/services/create-node-form";
 import { RelationLinkList, type LinkRow } from "./RelationLinkList";
 import { ProvaForm, type ProvaSubMode, type ProvaUploadStep } from "./ProvaForm";
+import type { ProvaAiConfig } from "@/modules/graph/presentation/hooks/useProvaAiConfig";
 import { EditalForm } from "./EditalForm";
 import { DeckForm, type DeckFlashcard } from "./DeckForm";
 import { NotaFields, NotaAiSuggestions, type NotaSuggestion } from "./NotaForm";
@@ -104,8 +105,11 @@ export interface CreateNodeVm {
     setParsedQuestaoGabarito: (index: number, value: string) => void;
     conceitosByQuestao: Record<number, ConceitoPickerEntry[]>;
     conceitosLoading: boolean;
+    formatandoQuestoes: boolean;
     onToggleConceito: (numero: number, nome: string) => void;
     onAddConceito: (numero: number, nome: string) => void;
+    aiConfig: ProvaAiConfig;
+    onToggleAi: (key: keyof ProvaAiConfig) => void;
   };
   edital: {
     file: File | null;
@@ -331,8 +335,11 @@ function CreateTabBody({ vm, parents }: { vm: CreateNodeVm; parents: CreateNodeP
           onSetGabarito={vm.prova.setParsedQuestaoGabarito}
           conceitosByQuestao={vm.prova.conceitosByQuestao}
           conceitosLoading={vm.prova.conceitosLoading}
+          formatandoQuestoes={vm.prova.formatandoQuestoes}
           onToggleConceito={vm.prova.onToggleConceito}
           onAddConceito={vm.prova.onAddConceito}
+          aiConfig={vm.prova.aiConfig}
+          onToggleAi={vm.prova.onToggleAi}
         />
       )}
       {vm.selectedType === "EDITAL" && (

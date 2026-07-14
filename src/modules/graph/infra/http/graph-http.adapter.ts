@@ -37,6 +37,10 @@ import {
   applyAutoLink,
   detectDuplicates,
   detectDuplicatesBySimilarity,
+  improveFlashcard,
+  improveQuestao,
+  improveNota,
+  improveProvaQuestoes,
   mergeDuplicates,
   assessCompleteness,
   fillKnowledgeGaps,
@@ -102,8 +106,12 @@ import type {
   EditalBuildResult,
   RankedConceitoView,
   TokenUsageView,
+  ImproveFlashcardOperation,
+  ImproveQuestaoInput,
+  ImprovedQuestao,
 } from "../../application/ports/graph-ai.port";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
+import { updateQuestao } from "@/lib/questions-api";
 import type { GraphDeckPort, DeckForStudy } from "../../application/ports/graph-deck.port";
 import type {
   GraphSubgrafoPort,
@@ -125,6 +133,9 @@ import type {
   ParsedQuestao,
   QuestaoConceitosView,
   QuestaoView,
+  QuestaoAlternativa,
+  ImproveBatchQuestaoInput,
+  ImprovedBatchQuestaoView,
   CreateEditalInputView,
   EditalItemView,
   ProvaDetailView,
@@ -312,6 +323,26 @@ export class HttpGraphAdapter
     return detectDuplicatesBySimilarity(grafoId, threshold);
   }
 
+  improveFlashcard(input: {
+    pergunta: string;
+    resposta: string;
+    operations: ImproveFlashcardOperation[];
+  }): Promise<{ pergunta: string; resposta: string }> {
+    return improveFlashcard(input);
+  }
+
+  improveQuestao(input: ImproveQuestaoInput): Promise<ImprovedQuestao> {
+    return improveQuestao(input);
+  }
+
+  improveNota(input: {
+    titulo: string;
+    conteudo: string;
+    operations: ImproveFlashcardOperation[];
+  }): Promise<{ titulo: string; conteudo: string }> {
+    return improveNota(input);
+  }
+
   mergeDuplicates(grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }> {
     return mergeDuplicates(grafoId, keepId, deleteIds);
   }
@@ -396,8 +427,8 @@ export class HttpGraphAdapter
     return getTokenUsage();
   }
 
-  parseProvaUpload(provaFile: File, gabaritoFile?: File | null): Promise<ProvaParseResult> {
-    return parseProvaUpload(provaFile, gabaritoFile);
+  parseProvaUpload(provaFile: File, gabaritoFile?: File | null, aiExtraction = true): Promise<ProvaParseResult> {
+    return parseProvaUpload(provaFile, gabaritoFile, aiExtraction);
   }
 
   getProva(provaId: string): Promise<ProvaDetailView | null> {
@@ -421,6 +452,13 @@ export class HttpGraphAdapter
     }
   }
 
+  updateQuestao(
+    id: string,
+    data: { enunciado?: string; alternativas?: QuestaoAlternativa[]; explicacao?: string },
+  ): Promise<{ success: boolean }> {
+    return updateQuestao(id, data);
+  }
+
   createEditalNode(input: CreateEditalInputView): Promise<{ editalId: string }> {
     return createEditalNode(input);
   }
@@ -439,6 +477,13 @@ export class HttpGraphAdapter
 
   suggestProvaConceitos(questoes: ParsedQuestao[]): Promise<QuestaoConceitosView[]> {
     return suggestProvaConceitos(questoes);
+  }
+
+  improveProvaQuestoes(
+    questoes: ImproveBatchQuestaoInput[],
+    operations: ImproveFlashcardOperation[],
+  ): Promise<ImprovedBatchQuestaoView[]> {
+    return improveProvaQuestoes(questoes, operations);
   }
 
   createProvaFromParsed(input: {

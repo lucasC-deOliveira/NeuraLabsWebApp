@@ -54,7 +54,6 @@ export function useGraphLayout(rawNodes: GraphNodeType[], rawEdges: GraphEdgeTyp
             pergunta: n.pergunta, tipoReal: n.type,
             x: n.posicaoX!, y: n.posicaoY!, vx: 0, vy: 0,
             width, height, pinned: true,
-            isRoot: !!n.isRoot, fixed: !!n.isRoot,
           };
         });
         edgesRef.current = rawEdges.map((e) => ({

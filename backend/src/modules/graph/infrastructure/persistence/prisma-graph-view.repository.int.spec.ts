@@ -4,7 +4,7 @@ import { PrismaService } from '../../../../prisma/prisma.service';
 import { PrismaGraphViewRepository } from './prisma-graph-view.repository';
 
 // Integration of the graph-view adapter against the real DB (neuralabs_test).
-// Validates lazy root creation and that the view loads the created node.
+// Validates that the view loads the graph's linked nodes and ownership checks.
 
 const TABLES = ['"NodeConhecimento"', '"assuntos"', '"grafos_conhecimento"', '"usuarios"'];
 
@@ -38,21 +38,12 @@ describe('Graph view (integration — neuralabs_test)', () => {
     return { userId: user.id, grafoId: grafo.id };
   }
 
-  it('creates the root subject on demand and is idempotent', async () => {
+  it('loads the view with the graph linked nodes', async () => {
     const { userId, grafoId } = await seedGraph();
-    await repo.ensureRoot(userId, grafoId);
-    await repo.ensureRoot(userId, grafoId);
-
-    const grafo = await prisma.grafosConhecimento.findUnique({ where: { id: grafoId } });
-    expect(grafo?.rootAssuntoId).toBeTruthy();
-    expect(await prisma.nodeConhecimento.count({ where: { grafoId, tipoNode: 'ASSUNTO' } })).toBe(
-      1,
-    );
-  });
-
-  it('loads the view including the root node', async () => {
-    const { userId, grafoId } = await seedGraph();
-    await repo.ensureRoot(userId, grafoId);
+    const assunto = await prisma.assunto.create({ data: { usuarioId: userId, nome: 'A' } });
+    await prisma.nodeConhecimento.create({
+      data: { usuarioId: userId, grafoId, tipoNode: 'ASSUNTO', referenciaId: assunto.id },
+    });
 
     const view = await repo.loadView(userId, grafoId);
     expect(view.nodes.some((n) => n.type === 'ASSUNTO')).toBe(true);

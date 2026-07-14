@@ -5,6 +5,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, CheckCircle2Icon, XCircleIcon, GraduationCapIcon, ClockIcon } from "lucide-react";
 import { graphHttp } from "@/modules/graph/infra/http";
+import { MarkdownContent } from "@/components/markdown-content";
 import type { QuestaoAlternativa } from "@/modules/graph/application/ports/graph-prova.port";
 
 // Quiz/simulado: shows each answerable question without the answer, the user
@@ -222,7 +223,7 @@ function QuizQuestion({ questao, selected, revealed, onSelect }: {
   const options = questao.tipo === "VERDADEIRO_FALSO" ? VF_OPTIONS : (questao.alternativas ?? []);
   return (
     <div className="space-y-3 p-1">
-      <p className="text-sm font-medium leading-snug">{questao.enunciado}</p>
+      <div className="text-sm font-medium leading-snug"><MarkdownContent>{questao.enunciado}</MarkdownContent></div>
       <div className="space-y-1.5">
         {options.map((opt) => (
           <QuizOption

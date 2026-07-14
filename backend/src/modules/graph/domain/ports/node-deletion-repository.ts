@@ -7,8 +7,6 @@ export interface DeletableNode {
 
 // Persistence port for deleting individual nodes (optionally their neighbors).
 export interface NodeDeletionRepository {
-  // Whether refId is the root subject of some graph owned by the user.
-  isRootSubject(userId: string, refId: string): Promise<boolean>;
   findNode(userId: string, refId: string, grafoId?: string): Promise<DeletableNode | null>;
   findConnectedNodes(userId: string, nodeId: string): Promise<DeletableNode[]>;
   // Deletes each node's edges, performance rows, referenced entity and link.

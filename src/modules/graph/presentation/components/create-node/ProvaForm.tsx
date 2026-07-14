@@ -1,10 +1,13 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2Icon, SearchIcon } from "lucide-react";
+import { CoinsIcon, Loader2Icon, SearchIcon } from "lucide-react";
 import type { AvailableItem } from "@/modules/graph/application/ports/graph-data.port";
 import type { ParsedQuestao, ParsedImagemView } from "@/modules/graph/application/ports/graph-prova.port";
 import type { ConceitoPickerEntry } from "@/modules/graph/domain/services/prova-conceitos";
+import type { ProvaAiConfig } from "@/modules/graph/presentation/hooks/useProvaAiConfig";
+import { useLiveTokenDelta } from "@/modules/graph/presentation/hooks/useLiveTokenDelta";
+import { formatTokens } from "../format-tokens";
 import { ProvaConceitosPicker } from "./ProvaConceitosPicker";
 
 export type ProvaSubMode = "existing" | "upload";
@@ -31,8 +34,11 @@ interface ProvaFormProps {
   onSetGabarito: (index: number, value: string) => void;
   conceitosByQuestao: Record<number, ConceitoPickerEntry[]>;
   conceitosLoading: boolean;
+  formatandoQuestoes: boolean;
   onToggleConceito: (numero: number, nome: string) => void;
   onAddConceito: (numero: number, nome: string) => void;
+  aiConfig: ProvaAiConfig;
+  onToggleAi: (key: keyof ProvaAiConfig) => void;
 }
 
 const TAB_CLASS = "flex-1 py-1.5 transition-colors";
@@ -43,6 +49,9 @@ const FILE_CLASS =
 
 export function ProvaForm(props: ProvaFormProps) {
   const isUpload = props.subMode === "upload";
+  // Uma IA está trabalhando enquanto extrai, formata em lote ou sugere conceitos.
+  const aiActive = props.uploadStep === "reviewing" || props.formatandoQuestoes || props.conceitosLoading;
+  const liveTokens = useLiveTokenDelta(aiActive);
   return (
     <div className="space-y-3">
       <div className="flex rounded-md overflow-hidden border border-zinc-200 dark:border-zinc-700 text-sm">
@@ -64,8 +73,8 @@ export function ProvaForm(props: ProvaFormProps) {
 
       {props.subMode === "existing" && <ProvaExistingPicker {...props} />}
       {isUpload && props.uploadStep === "files" && <ProvaUploadFiles {...props} />}
-      {isUpload && props.uploadStep === "reviewing" && <ProvaReviewing />}
-      {isUpload && props.uploadStep === "review" && <ProvaReview {...props} />}
+      {isUpload && props.uploadStep === "reviewing" && <ProvaReviewing liveTokens={liveTokens} />}
+      {isUpload && props.uploadStep === "review" && <ProvaReview {...props} liveTokens={liveTokens} />}
     </div>
   );
 }
@@ -114,7 +123,7 @@ function ProvaOption({ prova, selected, onSelect }: { prova: AvailableItem; sele
   );
 }
 
-function ProvaUploadFiles({ provaFile, onProvaFile, gabaritoFile, onGabaritoFile, editalFile, onEditalFile }: ProvaFormProps) {
+function ProvaUploadFiles({ provaFile, onProvaFile, gabaritoFile, onGabaritoFile, editalFile, onEditalFile, aiConfig, onToggleAi }: ProvaFormProps) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
@@ -127,7 +136,47 @@ function ProvaUploadFiles({ provaFile, onProvaFile, gabaritoFile, onGabaritoFile
       <p className="text-[11px] text-muted-foreground">
         Com o edital, o grafo é completado pelos objetos de avaliação e o edital fica vinculado a esta prova.
       </p>
+      <ProvaAiConfigPanel config={aiConfig} onToggle={onToggleAi} hasEdital={!!editalFile} />
     </div>
+  );
+}
+
+const AI_TOGGLES: { key: keyof ProvaAiConfig; label: string; desc: string; editalOnly?: boolean }[] = [
+  { key: "aiExtraction", label: "Extração com IA quando necessário", desc: "Fallback do LLM em formatos que o extrator não reconhece. Desligado = só determinístico (0 token)." },
+  { key: "melhorarFormatacao", label: "Melhorar formatação das questões", desc: "Reescreve enunciado/alternativas em bom padrão markdown (preserva o gabarito)." },
+  { key: "sugerirConceitos", label: "Sugerir conceitos com IA", desc: "Sugere, por questão, os conceitos do grafo que ela avalia." },
+  { key: "completarEdital", label: "Completar o grafo pelo edital", desc: "Ao anexar o edital, a IA lê e completa o grafo.", editalOnly: true },
+];
+
+function ProvaAiConfigPanel({ config, onToggle, hasEdital }: {
+  config: ProvaAiConfig;
+  onToggle: (key: keyof ProvaAiConfig) => void;
+  hasEdital: boolean;
+}) {
+  return (
+    <div className="rounded-md border border-violet-500/25 bg-violet-500/5 p-2.5 space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+        IA nesta importação
+      </p>
+      <p className="text-[11px] text-muted-foreground">Você controla o gasto de API. Os tokens usados entram no medidor do grafo.</p>
+      {AI_TOGGLES.filter((t) => !t.editalOnly || hasEdital).map((t) => (
+        <AiToggleRow key={t.key} label={t.label} desc={t.desc} on={config[t.key]} onToggle={() => onToggle(t.key)} />
+      ))}
+    </div>
+  );
+}
+
+function AiToggleRow({ label, desc, on, onToggle }: { label: string; desc: string; on: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} className="flex w-full items-start gap-2 rounded p-1 text-left hover:bg-violet-500/5">
+      <span className={`mt-0.5 flex h-4 w-7 shrink-0 items-center rounded-full border transition-colors ${on ? "border-violet-500 bg-violet-500 justify-end" : "border-muted-foreground/40 justify-start"}`}>
+        <span className="mx-0.5 size-3 rounded-full bg-white shadow" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-xs font-medium">{label}</span>
+        <span className="block text-[11px] text-muted-foreground">{desc}</span>
+      </span>
+    </button>
   );
 }
 
@@ -146,16 +195,31 @@ function ProvaFileInput({ label, file, onFile }: { label: string; file: File | n
   );
 }
 
-function ProvaReviewing() {
+function ProvaReviewing({ liveTokens }: { liveTokens: number }) {
   return (
     <div className="flex flex-col items-center gap-3 py-6">
       <Loader2Icon className="size-8 animate-spin text-primary" />
       <p className="text-sm text-muted-foreground">Extraindo e cruzando questões com a IA...</p>
+      <TokenDeltaBadge tokens={liveTokens} />
     </div>
   );
 }
 
-function ProvaReview(props: ProvaFormProps) {
+// Tokens de IA gastos até agora nesta importação (extração + formatação + conceitos).
+function TokenDeltaBadge({ tokens }: { tokens: number }) {
+  if (tokens <= 0) return null;
+  return (
+    <span
+      className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400"
+      title={`${tokens} tokens de IA usados nesta importação (também somados ao medidor do grafo)`}
+    >
+      <CoinsIcon className="size-3" />
+      {formatTokens(tokens)} tokens
+    </span>
+  );
+}
+
+function ProvaReview(props: ProvaFormProps & { liveTokens: number }) {
   const { parsedTitulo, onParsedTitulo, parsedQuestoes, onSetGabarito } = props;
   const pendentes = parsedQuestoes.filter((q) => isGabaritoPendente(q.gabarito)).length;
   return (
@@ -164,7 +228,16 @@ function ProvaReview(props: ProvaFormProps) {
         <Label>Título da prova</Label>
         <Input value={parsedTitulo} onChange={(e) => onParsedTitulo(e.target.value)} placeholder="Título da prova" />
       </div>
-      <p className="text-xs font-medium text-muted-foreground">{parsedQuestoes.length} questão(ões) encontrada(s)</p>
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-medium text-muted-foreground">{parsedQuestoes.length} questão(ões) encontrada(s)</p>
+        {props.formatandoQuestoes && (
+          <span className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400">
+            <Loader2Icon className="size-3 animate-spin" />
+            Melhorando formatação com IA...
+          </span>
+        )}
+        <TokenDeltaBadge tokens={props.liveTokens} />
+      </div>
       <div className="grid max-h-[58vh] grid-cols-1 items-start gap-2 overflow-y-auto rounded-md border border-zinc-200 p-2 md:grid-cols-2 xl:grid-cols-3 dark:border-zinc-800">
         {parsedQuestoes.map((q, i) => (
           <ProvaQuestaoRow

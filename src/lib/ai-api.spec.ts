@@ -91,4 +91,49 @@ describe("ai-api POST endpoints without a body", () => {
       { method: "POST", body: JSON.stringify({ threshold: 0.9 }) },
     ]);
   });
+
+  it("posts the flashcard content and chosen operations to improveFlashcard", async () => {
+    mockApiFetch.mockClear();
+    await ai.improveFlashcard({ pergunta: "Q", resposta: "A", operations: ["markdown", "content"] });
+    expect(lastCall()).toEqual([
+      "/ai/graph/flashcards/improve",
+      { method: "POST", body: JSON.stringify({ pergunta: "Q", resposta: "A", operations: ["markdown", "content"] }) },
+    ]);
+  });
+
+  it("posts the question content and chosen operations to improveQuestao", async () => {
+    mockApiFetch.mockClear();
+    const input = {
+      tipo: "MULTIPLA_ESCOLHA",
+      enunciado: "E",
+      alternativas: [{ letra: "A", texto: "x" }],
+      gabarito: "A",
+      explicacao: "",
+      operations: ["format"] as const,
+    };
+    await ai.improveQuestao({ ...input, operations: ["format"] });
+    expect(lastCall()).toEqual([
+      "/ai/graph/questions/improve",
+      { method: "POST", body: JSON.stringify({ ...input, operations: ["format"] }) },
+    ]);
+  });
+
+  it("posts the note content and chosen operations to improveNota", async () => {
+    mockApiFetch.mockClear();
+    await ai.improveNota({ titulo: "T", conteudo: "C", operations: ["markdown"] });
+    expect(lastCall()).toEqual([
+      "/ai/graph/notas/improve",
+      { method: "POST", body: JSON.stringify({ titulo: "T", conteudo: "C", operations: ["markdown"] }) },
+    ]);
+  });
+
+  it("posts all questions in one call to improveProvaQuestoes", async () => {
+    mockApiFetch.mockClear();
+    const questoes = [{ numero: 1, tipo: "VERDADEIRO_FALSO", enunciado: "e", alternativas: [], gabarito: "V", explicacao: "" }];
+    await ai.improveProvaQuestoes(questoes, ["format", "markdown"]);
+    expect(lastCall()).toEqual([
+      "/ai/graph/questions/improve-batch",
+      { method: "POST", body: JSON.stringify({ questoes, operations: ["format", "markdown"] }) },
+    ]);
+  });
 });

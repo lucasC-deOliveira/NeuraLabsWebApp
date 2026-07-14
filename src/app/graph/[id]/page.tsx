@@ -60,6 +60,9 @@ import { StudyProvaModal } from "@/modules/graph/presentation/components/deck/St
 import { ViewTextoBrutoModal } from "@/modules/graph/presentation/components/deck/ViewTextoBrutoModal";
 import { StudyFlashcardModal } from "@/modules/graph/presentation/components/deck/StudyFlashcardModal";
 import { ViewFlashcardModal } from "@/modules/graph/presentation/components/deck/ViewFlashcardModal";
+import { ImproveFlashcardModal } from "@/modules/graph/presentation/components/ai/ImproveFlashcardModal";
+import { ImproveQuestaoModal } from "@/modules/graph/presentation/components/ai/ImproveQuestaoModal";
+import { ImproveNotaModal } from "@/modules/graph/presentation/components/ai/ImproveNotaModal";
 import { NodeInsightsModal } from "@/modules/graph/presentation/components/ai/NodeInsightsModal";
 import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
 import { ViewDeckModal } from "@/modules/graph/presentation/components/deck/ViewDeckModal";
@@ -151,7 +154,7 @@ export default function GraphPage() {
   const [has3DBeenOpened, setHas3DBeenOpened] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
-  const { physicsMode, setPhysicsMode, focusDepth, setFocusDepth } = useGraphSettings(
+  const { focusDepth, setFocusDepth } = useGraphSettings(
     controller.state.physicsOptions,
     controller.actions.setPhysicsOptions,
   );
@@ -169,6 +172,9 @@ export default function GraphPage() {
   const [viewingTextoId, setViewingTextoId] = useState<string | null>(null);
   const [studyFlashcardId, setStudyFlashcardId] = useState<string | null>(null);
   const [viewFlashcardId, setViewFlashcardId] = useState<string | null>(null);
+  const [improveFlashcardId, setImproveFlashcardId] = useState<string | null>(null);
+  const [improveQuestaoId, setImproveQuestaoId] = useState<string | null>(null);
+  const [improveNotaId, setImproveNotaId] = useState<string | null>(null);
   const [studyDeckId, setStudyDeckId] = useState<string | null>(null);
   const [viewDeckId, setViewDeckId] = useState<string | null>(null);
   const [editEdge, setEditEdge] = useState<any>(null);
@@ -766,6 +772,9 @@ export default function GraphPage() {
           onViewTextoBruto={() => setViewingTextoId(controller.state.selectedNode?.id ?? null)}
           onStudyFlashcard={() => setStudyFlashcardId(controller.state.selectedNode?.id ?? null)}
           onViewFlashcard={() => setViewFlashcardId(controller.state.selectedNode?.id ?? null)}
+          onImproveFlashcard={() => setImproveFlashcardId(controller.state.selectedNode?.id ?? null)}
+          onImproveQuestao={() => setImproveQuestaoId(controller.state.selectedNode?.id ?? null)}
+          onImproveNota={() => setImproveNotaId(controller.state.selectedNode?.id ?? null)}
           onStudyDeck={() => setStudyDeckId(controller.state.selectedNode?.id ?? null)}
           onViewDeck={() => setViewDeckId(controller.state.selectedNode?.id ?? null)}
           onStudyProva={() => setStudyProvaId(controller.state.selectedNode?.id ?? null)}
@@ -831,43 +840,35 @@ export default function GraphPage() {
                 Abrir subgrafo →
               </button>
             )}
-            {nodeMenu.node?.isRoot ? (
-              <div className="px-3 py-1.5 text-xs text-muted-foreground">
-                Assunto-raiz do grafo. Renomeie pelo nome do grafo; só é removido ao excluir o grafo.
-              </div>
-            ) : (
-              <>
-                <button
-                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => {
-                    setEditingNode(nodeMenu.node);
-                    setNodeMenu(null);
-                  }}
-                >
-                  Editar
-                </button>
-                <button
-                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => {
-                    removeFromGraph(nodeMenu.node);
-                    setNodeMenu(null);
-                  }}
-                >
-                  Remover do grafo
-                </button>
-                <div className="my-1 h-px bg-border" />
-                <button
-                  className="w-full px-3 py-1.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-accent"
-                  onClick={() => {
-                    const node = nodeMenu.node;
-                    setNodeMenu(null);
-                    deleteNodeFromApp(node);
-                  }}
-                >
-                  Excluir do aplicativo
-                </button>
-              </>
-            )}
+            <button
+              className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+              onClick={() => {
+                setEditingNode(nodeMenu.node);
+                setNodeMenu(null);
+              }}
+            >
+              Editar
+            </button>
+            <button
+              className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+              onClick={() => {
+                removeFromGraph(nodeMenu.node);
+                setNodeMenu(null);
+              }}
+            >
+              Remover do grafo
+            </button>
+            <div className="my-1 h-px bg-border" />
+            <button
+              className="w-full px-3 py-1.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-accent"
+              onClick={() => {
+                const node = nodeMenu.node;
+                setNodeMenu(null);
+                deleteNodeFromApp(node);
+              }}
+            >
+              Excluir do aplicativo
+            </button>
           </div>
         </>
       )}
@@ -885,8 +886,6 @@ export default function GraphPage() {
         onOpenChange={setIsSettingsOpen}
         options={controller.state.physicsOptions}
         onChange={controller.actions.setPhysicsOptions}
-        physicsMode={physicsMode}
-        onPhysicsModeChange={setPhysicsMode}
         focusDepth={focusDepth}
         onFocusDepthChange={setFocusDepth}
       />
@@ -966,6 +965,26 @@ export default function GraphPage() {
         flashcardId={viewFlashcardId}
         grafoId={graphId}
         grafoNome={controller.state.grafoNome}
+      />
+      <ImproveFlashcardModal
+        open={!!improveFlashcardId}
+        onOpenChange={(open) => !open && setImproveFlashcardId(null)}
+        flashcardId={improveFlashcardId}
+        grafoId={graphId}
+        onApplied={refreshGraph}
+      />
+      <ImproveQuestaoModal
+        open={!!improveQuestaoId}
+        onOpenChange={(open) => !open && setImproveQuestaoId(null)}
+        questaoId={improveQuestaoId}
+        onApplied={refreshGraph}
+      />
+      <ImproveNotaModal
+        open={!!improveNotaId}
+        onOpenChange={(open) => !open && setImproveNotaId(null)}
+        notaId={improveNotaId}
+        grafoId={graphId}
+        onApplied={refreshGraph}
       />
       <NodeInsightsModal
         open={!!insightsNode}
