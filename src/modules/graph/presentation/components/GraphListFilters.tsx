@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, FilterXIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { GraphAssunto, GraphListParams, GraphSortField, GraphTypeFilter } from "../../domain/types/graph.types";
 
@@ -44,11 +45,30 @@ function periodToCreatedFrom(value: string): string | undefined {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 }
 
+// Algum filtro/ordenação fora do padrão? (fora do componente p/ não somar complexidade)
+function filtersActive(params: GraphListParams, text: string, period: string): boolean {
+  return (
+    !!text ||
+    (!!params.tipo && params.tipo !== "todos") ||
+    (!!params.sort && params.sort !== "recentes") ||
+    period !== "any" ||
+    (params.assuntoIds?.length ?? 0) > 0
+  );
+}
+
 export function GraphListFilters({ params, assuntos, onFilter }: GraphListFiltersProps) {
   const [text, setText] = useState(params.q ?? "");
   const [period, setPeriod] = useState("any");
   const assuntoNames = Object.fromEntries(assuntos.map((a) => [a.id, a.nome]));
   const selectedAssuntos = params.assuntoIds ?? [];
+
+  const isDirty = filtersActive(params, text, period);
+
+  function resetFilters(): void {
+    setText("");
+    setPeriod("any");
+    onFilter({ q: undefined, tipo: "todos", sort: "recentes", createdFrom: undefined, assuntoIds: undefined });
+  }
 
   // Debounce da busca: só dispara o fetch 350ms após o usuário parar de digitar.
   useEffect(() => {
@@ -113,6 +133,18 @@ export function GraphListFilters({ params, assuntos, onFilter }: GraphListFilter
         <SelectTrigger className="w-full sm:w-48"><SelectValue /></SelectTrigger>
         <SelectContent>{itemsOf(SORT_ITEMS)}</SelectContent>
       </Select>
+
+      {isDirty && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={resetFilters}
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
+        >
+          <FilterXIcon className="size-4" />
+          Limpar filtros
+        </Button>
+      )}
     </div>
   );
 }
