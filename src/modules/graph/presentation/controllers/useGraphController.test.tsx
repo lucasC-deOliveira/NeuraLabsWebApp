@@ -47,4 +47,5 @@ describe("useGraphController", () => {
     act(() => result.current.actions.setPhysicsEnabled(false));
     expect(result.current.state.physicsEnabled).toBe(false);
   });
+
 });
