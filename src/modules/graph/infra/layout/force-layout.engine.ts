@@ -95,6 +95,7 @@ export function runForceLayout(
   rawEdges: GraphEdgeType[],
   width: number,
   height: number,
+  iterations = 500,
 ): { nodes: SimNode[]; edges: SimEdge[] } {
   // Hierarquia derivada das arestas+tipos (o backend não preenche parentId):
   // ASSUNTO → TOPICO → CONCEITO → comuns. Alimenta a força orbital e as de cluster.
@@ -154,8 +155,8 @@ export function runForceLayout(
   const idealEdgeLen = 200;
   const minGap = 80;
 
-  for (let iter = 0; iter < 500; iter++) {
-    const temperature = 1 - iter / 500;
+  for (let iter = 0; iter < iterations; iter++) {
+    const temperature = 1 - iter / iterations;
 
     // Repulsion between all pairs
     for (let i = 0; i < nodes.length; i++) {

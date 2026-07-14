@@ -67,9 +67,12 @@ export function useGraphLayout(rawNodes: GraphNodeType[], rawEdges: GraphEdgeTyp
       return () => clearTimeout(tid);
     }
 
-    // Small graph: run force layout in setTimeout, use normal state
+    // Small graph: apenas SEMEIA posições (0 iterações) — quem assenta de fato é o
+    // pre-settle do controller (com o modelo de forças real, off-thread). Rodar as
+    // 500 iterações O(n²) aqui era desperdício: o controller as descartava e
+    // re-assentava com outro modelo. Ver runPresettle em useGraphController.
     const timeout = setTimeout(() => {
-      const result = runForceLayout(rawNodes, rawEdges, 3000, 2000);
+      const result = runForceLayout(rawNodes, rawEdges, 3000, 2000, 0);
       startTransition(() => {
         setSmallNodes(result.nodes);
         setSmallEdges(result.edges);

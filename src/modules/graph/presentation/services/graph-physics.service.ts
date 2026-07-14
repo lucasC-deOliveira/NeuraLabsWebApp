@@ -127,7 +127,9 @@ const MAX_PAIR_FORCE = 1200; // limite da força de repulsão por par
 const MIN_KINETIC = 0.10; // abaixo disto o nó é considerado parado
 // Acima deste nº de nós, a repulsão O(n²) e a distância mínima O(n²) trocam pelas
 // versões O(n log n)/O(n): Barnes-Hut (quadtree) + grid espacial. Abaixo, caminho exato.
-const BARNES_HUT_MIN = 600;
+// Baixado de 600 → 300: acima de ~300 nós o par-a-par exato domina a montagem
+// (pre-settle) e o Barnes-Hut já dá layout equivalente com fração do custo.
+const BARNES_HUT_MIN = 300;
 
 // raio de colisão aproximado pelo tamanho do nó
 const collisionRadius = (n: PhysicsNode) =>

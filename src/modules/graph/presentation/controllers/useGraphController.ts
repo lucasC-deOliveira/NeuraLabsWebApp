@@ -4,7 +4,8 @@ import { useGraphLayout } from "../hooks/useGraphLayout";
 import { SimNode } from "../../infra/layout/force-layout.engine";
 import { useGraphInteractions } from "../hooks/useGraphInteractions";
 import { useGraphPhysics } from "../hooks/useGraphPhysics";
-import { DEFAULT_CLUSTER_OPTIONS, physicsStep, type PhysicsOptions } from "../services/graph-physics.service";
+import { DEFAULT_CLUSTER_OPTIONS, type PhysicsOptions } from "../services/graph-physics.service";
+import { runPresettle } from "../services/run-presettle";
 import { getFilteredNodes, getVisibleEdges } from "../../domain/selectors/graph.selectors";
 import { graphHttp } from "../../infra/http";
 import { useVaultWatch } from "../hooks/useVaultWatch";
@@ -17,9 +18,11 @@ const LARGE_GRAPH_REF_MODE = true;
 // com easing até as posições finais ao longo dessa duração
 const BIG_BANG_MIN_SCALE = 0.03;
 const BIG_BANG_DURATION = 1100; // ms
-const BIG_BANG_PRESETTLE_ITERS = 2000; // pré-assenta o alvo no equilíbrio da física
-// Adia o pre-settle (2000 iters de física, síncrono) um tick para o overlay
-// "montando o layout" pintar antes de a thread bloquear — evita a tela preta.
+// Teto de iterações do pre-settle. É só um limite de segurança: o cálculo para
+// assim que o layout converge (presettleLayout), o que costuma ocorrer bem antes.
+const BIG_BANG_PRESETTLE_ITERS = 1200;
+// Adia o disparo do pre-settle um tick para o overlay "montando o layout" pintar
+// antes. O cálculo em si roda off-thread (runPresettle) quando há Web Worker.
 const BIG_BANG_PREPARE_DELAY = 32; // ms
 
 // Grafos com muitos nós pulam a animação de entrada e desligam a física:
@@ -257,30 +260,10 @@ export function useGraphController(graphId: string) {
         setPreparing(true);
 
         let cancelled = false;
-        // O pre-settle (2000 iters de física) é síncrono e bloqueia a thread; roda
-        // num setTimeout para o overlay "montando o layout" pintar primeiro (senão
-        // a tela fica preta ~2s). O spinner é CSS (compositor), segue animando.
-        const build = (): void => {
-          if (cancelled) return;
-          // Se todos os nós têm posição salva, usa-as diretamente como alvos —
-          // evita simular (e distorcer) posições que já estão em equilíbrio.
-          const allPinned = nodes.every((n) => n.pinned);
-          let targets: SimNode[];
-          if (allPinned) {
-            targets = nodes.map((n) => ({ ...n, vx: 0, vy: 0 }));
-          } else {
-            // pré-assenta o layout com a própria física ambiente: o fim do big bang
-            // já é o equilíbrio, então a física assume sem retrair o grafo
-            let settled: SimNode[] = nodes.map((n) => ({ ...n }));
-            for (let i = 0; i < BIG_BANG_PRESETTLE_ITERS; i++) {
-              const nx = physicsStep(settled, edges, physicsOptions);
-              if (nx === settled) break;
-              settled = nx;
-            }
-            targets = settled.map((n) => ({ ...n, vx: 0, vy: 0 }));
-          }
 
-          // expande a partir do centro do layout final
+        // Anima o "big bang" (colapso → expansão) até os alvos assentados e, no fim,
+        // persiste as posições recém-simuladas. Extraída para manter o build enxuto.
+        const animateBigBang = (targets: SimNode[], allPinned: boolean): void => {
           let cx = 0;
           let cy = 0;
           for (const n of targets) {
@@ -290,7 +273,7 @@ export function useGraphController(graphId: string) {
           cx /= targets.length;
           cy /= targets.length;
 
-          const collapse = (scale: number) =>
+          const collapse = (scale: number): SimNode[] =>
             targets.map((n) => ({
               ...n,
               x: cx + (n.x - cx) * scale,
@@ -304,7 +287,7 @@ export function useGraphController(graphId: string) {
 
           const start =
             typeof performance !== "undefined" ? performance.now() : Date.now();
-          const step = () => {
+          const step = (): void => {
             if (cancelled) return;
             const now =
               typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -326,6 +309,27 @@ export function useGraphController(graphId: string) {
             }
           };
           introRafRef.current = requestAnimationFrame(step);
+        };
+
+        // Monta o layout. Grafo já salvo (allPinned) usa as posições direto. Senão,
+        // pré-assenta OFF-THREAD (runPresettle) marcando os pinados como âncoras
+        // FIXAS: só os nós novos assentam ao redor deles — converge rápido, não
+        // embaralha o existente e não congela a UI. Ver run-presettle / worker.
+        const build = (): void => {
+          if (cancelled) return;
+          const allPinned = nodes.every((n) => n.pinned);
+          const seed = allPinned
+            ? Promise.resolve(nodes.map((n) => ({ ...n, vx: 0, vy: 0 })))
+            : runPresettle(
+                nodes.map((n) => ({ ...n, fixed: n.pinned })),
+                edges,
+                physicsOptions,
+                BIG_BANG_PRESETTLE_ITERS,
+              );
+          seed.then((settled) => {
+            if (cancelled) return;
+            animateBigBang(settled.map((n) => ({ ...n, fixed: false, vx: 0, vy: 0 })), allPinned);
+          });
         };
 
         const prepTimer = setTimeout(build, BIG_BANG_PREPARE_DELAY);
