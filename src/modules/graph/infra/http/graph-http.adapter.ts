@@ -363,8 +363,8 @@ export class HttpGraphAdapter
     return addMissingPrerequisite(grafoId, nome, tipo, connectToIds);
   }
 
-  generateNodeInsights(grafoId: string, nodeId: string): Promise<NodeInsightsResult> {
-    return generateNodeInsights(grafoId, nodeId);
+  generateNodeInsights(grafoId: string, nodeId: string, refresh?: boolean): Promise<NodeInsightsResult> {
+    return generateNodeInsights(grafoId, nodeId, refresh);
   }
 
   addInsightsToGraph(grafoId: string, sourceNodeId: string, insights: InsightToAdd[]): Promise<{ added: number }> {

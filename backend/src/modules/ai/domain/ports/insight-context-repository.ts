@@ -7,8 +7,11 @@ export interface InsightContextNode {
 }
 
 // The target node plus its direct neighbors and the remaining graph nodes.
+// `grafoNome` carries the graph's theme (there is no longer a root subject that
+// summarized it), giving the LLM a sense of what the whole graph is about.
 export interface InsightContext {
   targetTipo: string;
+  grafoNome: string;
   target: InsightContextNode;
   neighbors: InsightContextNode[];
   others: InsightContextNode[];

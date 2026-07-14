@@ -73,6 +73,7 @@ describe('Insight context (integration — neuralabs_test)', () => {
     });
 
     const ctx = await repo.loadInsightContext(user.id, grafo.id, concepts[0].id);
+    expect(ctx?.grafoNome).toBe('G');
     expect(ctx?.target.nome).toBe('target');
     expect(ctx?.neighbors.map((n) => n.nome)).toEqual(['neighbor']);
     expect(ctx?.others.map((n) => n.nome)).toEqual(['other']);

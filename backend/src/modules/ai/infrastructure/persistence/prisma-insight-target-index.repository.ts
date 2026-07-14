@@ -4,6 +4,7 @@ import type {
   InsightTargetContext,
   InsightTargetIndexRepository,
 } from '../../domain/ports/insight-target-index-repository';
+import { nodeNameKey } from '../../domain/services/node-name-key';
 import { loadStructuralNodes } from './structural-nodes';
 
 @Injectable()
@@ -22,7 +23,7 @@ export class PrismaInsightTargetIndexRepository implements InsightTargetIndexRep
     if (!source) return null;
     const structural = await loadStructuralNodes(this.prisma, userId, grafoId);
     const nameIndex = new Map<string, string>();
-    for (const n of structural) nameIndex.set(`${n.tipo}|${n.nome.toLowerCase()}`, n.id);
+    for (const n of structural) nameIndex.set(nodeNameKey(n.tipo, n.nome), n.id);
     return { sourceType: source.tipoNode, nameIndex };
   }
 }

@@ -66,7 +66,6 @@ describe("ai-api POST endpoints without a body", () => {
     // thunks (não promises) para a chamada acontecer DENTRO do loop, após o clear.
     const cases: Array<[() => Promise<unknown>, string]> = [
       [() => ai.generateFlashcardsViaIA("n1"), "/ai/graph/notas/n1/flashcards"],
-      [() => ai.generateNodeInsights("g1", "n1"), "/ai/graph/graphs/g1/nodes/n1/insights"],
       [() => ai.listBaralhosInGrafo("g1"), "/ai/graph/graphs/g1/baralhos"],
       [() => ai.populateGraphFromBaralho("g1", "b1"), "/ai/graph/graphs/g1/baralhos/b1/populate"],
       [() => ai.autoLinkGraph("g1"), "/ai/graph/graphs/g1/auto-link"],
@@ -81,6 +80,17 @@ describe("ai-api POST endpoints without a body", () => {
       await call();
       expect(lastCall()).toEqual([path, { method: "POST" }]);
     }
+  });
+
+  it("posts the refresh flag to generateNodeInsights (cache bypass)", async () => {
+    mockApiFetch.mockClear();
+    await ai.generateNodeInsights("g1", "n1");
+    expect(lastCall()).toEqual([
+      "/ai/graph/graphs/g1/nodes/n1/insights",
+      { method: "POST", body: JSON.stringify({ refresh: false }) },
+    ]);
+    await ai.generateNodeInsights("g1", "n1", true);
+    expect(lastCall()[1]?.body).toBe(JSON.stringify({ refresh: true }));
   });
 
   it("posts the threshold to the similarity duplicate detector", async () => {

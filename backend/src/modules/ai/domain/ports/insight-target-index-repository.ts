@@ -1,5 +1,6 @@
-// The source node's type plus an index of existing structural nodes by
-// "tipo|nomeLowercase" → referenciaId, used to reuse nodes instead of duplicating.
+// The source node's type plus an index of existing structural nodes keyed by the
+// shared dedup key (nodeNameKey: tipo + accent-free, single-spaced, lowercased
+// name) → referenciaId, used to reuse nodes instead of duplicating.
 export interface InsightTargetContext {
   sourceType: string;
   nameIndex: Map<string, string>;

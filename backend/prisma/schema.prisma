@@ -37,6 +37,7 @@ model Usuario {
   roadmapTrilhas    RoadmapTrilha[]
   nodeEmbeddings    NodeEmbedding[]
   duplicateVerdicts DuplicateVerdictCache[]
+  nodeInsights      NodeInsightsCache[]
 
   @@map("usuarios")
 }
@@ -296,6 +297,7 @@ model GrafosConhecimento {
   roadmapTrilhas    RoadmapTrilha[]
   nodeEmbeddings    NodeEmbedding[]
   duplicateVerdicts DuplicateVerdictCache?
+  nodeInsights      NodeInsightsCache[]
 
   @@map("grafos_conhecimento")
 }
@@ -315,6 +317,26 @@ model DuplicateVerdictCache {
   grafo   GrafosConhecimento @relation(fields: [grafoId], references: [id], onDelete: Cascade)
 
   @@map("duplicate_verdict_cache")
+}
+
+// Cache de insights de IA por nó: guarda o último resultado gerado e a assinatura
+// do contexto do nó (conteúdo do alvo + nº de vizinhos + total de nós). Enquanto a
+// assinatura bate, o resultado é reusado sem chamar o LLM; "Gerar de novo" força
+// regenerar. Uma linha por (grafo, nó); `dados` é o NodeInsightsResult serializado.
+model NodeInsightsCache {
+  id           String   @id @default(cuid())
+  usuarioId    String   @map("id_usuario")
+  grafoId      String   @map("id_grafo")
+  nodeId       String   @map("node_id")
+  assinatura   String
+  dados        Json
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
+
+  usuario Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  grafo   GrafosConhecimento @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+
+  @@unique([grafoId, nodeId], name: "_insights_unique")
+  @@map("node_insights_cache")
 }
 
 // Vetor de embedding por nó estrutural do grafo, para detecção de duplicatas
