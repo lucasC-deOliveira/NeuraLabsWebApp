@@ -8,6 +8,7 @@ import type {
   GraphListQuery,
   GraphQuery,
   GraphSortField,
+  GraphSummary,
 } from '../../domain/ports/graph-query';
 
 const SUMMARY_SELECT = {
@@ -75,6 +76,17 @@ function groupAssuntos(
   return byGraph;
 }
 
+type SummaryRow = Prisma.GrafosConhecimentoGetPayload<{ select: typeof SUMMARY_SELECT }>;
+
+// Monta os GraphSummary a partir das linhas do Prisma + as tags de assunto por grafo.
+function toSummaries(rows: SummaryRow[], tags: Map<string, GraphAssunto[]>): GraphSummary[] {
+  return rows.map(({ _count, ...g }) => ({
+    ...g,
+    filhosCount: _count.filhos,
+    assuntos: tags.get(g.id) ?? [],
+  }));
+}
+
 @Injectable()
 export class PrismaGraphQuery implements GraphQuery {
   constructor(private readonly prisma: PrismaService) {}
@@ -95,11 +107,7 @@ export class PrismaGraphQuery implements GraphQuery {
       userId,
       rows.map((r) => r.id),
     );
-    const items = rows.map(({ _count, ...g }) => ({
-      ...g,
-      filhosCount: _count.filhos,
-      assuntos: tags.get(g.id) ?? [],
-    }));
+    const items = toSummaries(rows, tags);
     return { items, total, page: query.page, pageSize: query.pageSize };
   }
 
