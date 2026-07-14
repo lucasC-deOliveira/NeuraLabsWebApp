@@ -23,13 +23,22 @@ describe("NodeInsightsModal", () => {
     const onOpenChange = vi.fn();
     render(<NodeInsightsModal open onOpenChange={onOpenChange} grafoId="g1" nodeId="n1" nodeLabel="Mitose" onAdded={onAdded} />);
 
-    expect(generateNodeInsights).toHaveBeenCalledWith("g1", "n1");
+    expect(generateNodeInsights).toHaveBeenCalledWith("g1", "n1", false);
     await userEvent.click(await screen.findByRole("button", { name: /Insight 1/ }));
     await userEvent.click(screen.getByRole("button", { name: /Adicionar ao grafo/ }));
 
     await waitFor(() => expect(addInsightsToGraph).toHaveBeenCalledWith("g1", "n1", [insight]));
     expect(onAdded).toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("forces a refresh (bypassing the cache) when regenerating", async () => {
+    render(<NodeInsightsModal open onOpenChange={vi.fn()} grafoId="g1" nodeId="n1" nodeLabel="Mitose" />);
+    await screen.findByRole("button", { name: /Insight 1/ });
+    expect(generateNodeInsights).toHaveBeenLastCalledWith("g1", "n1", false);
+
+    await userEvent.click(screen.getByRole("button", { name: /Gerar de novo/ }));
+    await waitFor(() => expect(generateNodeInsights).toHaveBeenLastCalledWith("g1", "n1", true));
   });
 
   it("shows an empty message when the AI returns no insights", async () => {

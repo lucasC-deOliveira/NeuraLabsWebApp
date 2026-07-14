@@ -27,7 +27,6 @@ const CATEGORY_STYLE: Record<string, string> = {
   Relacionado: "border-sky-500/40 bg-sky-500/10 text-sky-600 dark:text-sky-400",
   Aprofundar: "border-violet-500/40 bg-violet-500/10 text-violet-600 dark:text-violet-400",
   Conexão: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  Lacuna: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
   Aplicação: "border-teal-500/40 bg-teal-500/10 text-teal-600 dark:text-teal-400",
 };
 
@@ -52,8 +51,10 @@ export function NodeInsightsModal({ open, onOpenChange, grafoId, nodeId, nodeLab
   useEffect(() => {
     if (!open || !nodeId) return;
     let active = true;
+    // reloadKey > 0 significa que o usuário pediu "Gerar de novo" — força ignorar o
+    // cache do servidor; a primeira carga (reloadKey 0) reusa o cache se válido.
     graphHttp
-      .generateNodeInsights(grafoId, nodeId)
+      .generateNodeInsights(grafoId, nodeId, reloadKey > 0)
       .then((res) => {
         if (!active) return;
         setInsights(res.insights);

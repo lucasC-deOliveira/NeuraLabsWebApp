@@ -111,6 +111,11 @@ import {
   type InsightContextRepository,
 } from '../modules/ai/domain/ports/insight-context-repository';
 import { PrismaInsightContextRepository } from '../modules/ai/infrastructure/persistence/prisma-insight-context.repository';
+import {
+  NODE_INSIGHTS_CACHE_REPOSITORY,
+  type NodeInsightsCacheRepository,
+} from '../modules/ai/domain/ports/node-insights-cache-repository';
+import { PrismaNodeInsightsCacheRepository } from '../modules/ai/infrastructure/persistence/prisma-node-insights-cache.repository';
 import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases/generate-node-insights.use-case';
 import {
   AUTO_LINK_REPOSITORY,
@@ -271,6 +276,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: RELATION_RULES_PORT, useValue: graphRelationRules },
     { provide: LEARNING_GRAPH_REPOSITORY, useClass: PrismaLearningGraphRepository },
     { provide: INSIGHT_CONTEXT_REPOSITORY, useClass: PrismaInsightContextRepository },
+    { provide: NODE_INSIGHTS_CACHE_REPOSITORY, useClass: PrismaNodeInsightsCacheRepository },
     { provide: AUTO_LINK_REPOSITORY, useClass: PrismaAutoLinkRepository },
     { provide: COMPLETENESS_REPOSITORY, useClass: PrismaCompletenessRepository },
     { provide: NODE_TYPES_REPOSITORY, useClass: PrismaNodeTypesRepository },
@@ -370,9 +376,13 @@ const graphRelationRules: RelationRulesPort = {
     },
     {
       provide: GenerateNodeInsightsUseCase,
-      useFactory: (context: InsightContextRepository, llm: LlmPort, rules: RelationRulesPort) =>
-        new GenerateNodeInsightsUseCase(context, llm, rules),
-      inject: [INSIGHT_CONTEXT_REPOSITORY, LLM_PORT, RELATION_RULES_PORT],
+      useFactory: (
+        context: InsightContextRepository,
+        llm: LlmPort,
+        rules: RelationRulesPort,
+        cache: NodeInsightsCacheRepository,
+      ) => new GenerateNodeInsightsUseCase(context, llm, rules, cache),
+      inject: [INSIGHT_CONTEXT_REPOSITORY, LLM_PORT, RELATION_RULES_PORT, NODE_INSIGHTS_CACHE_REPOSITORY],
     },
     {
       provide: AutoLinkGraphUseCase,

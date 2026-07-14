@@ -194,7 +194,7 @@ export interface GraphAiPort {
   fillKnowledgeGaps(grafoId: string, gaps: GapItem[]): Promise<GeneratedContentCount>;
   detectMissingPrerequisites(grafoId: string): Promise<{ prerequisites: MissingPrereq[] }>;
   addMissingPrerequisite(grafoId: string, nome: string, tipo: string, connectToIds: string[]): Promise<{ nodeId: string }>;
-  generateNodeInsights(grafoId: string, nodeId: string): Promise<NodeInsightsResult>;
+  generateNodeInsights(grafoId: string, nodeId: string, refresh?: boolean): Promise<NodeInsightsResult>;
   addInsightsToGraph(grafoId: string, sourceNodeId: string, insights: InsightToAdd[]): Promise<{ added: number }>;
   generateCommunitySummary(grafoId: string, nodeIds: string[]): Promise<{ titulo: string; resumo: string }>;
   chatWithGraph(

@@ -6,6 +6,7 @@ import type {
 import type { GraphNodeWriter } from '../../domain/ports/graph-node-writer';
 import type { GraphEdgeInput, GraphEdgeWriter } from '../../domain/ports/graph-edge-writer';
 import type { RelationRulesPort } from '../../domain/ports/relation-rules-port';
+import { nodeNameKey } from '../../domain/services/node-name-key';
 
 export interface InsightToAdd {
   tipoNo: string;
@@ -66,7 +67,7 @@ export class AddInsightsToGraphUseCase {
     ins: InsightToAdd,
     titulo: string,
   ): Promise<string> {
-    const key = `${ins.tipoNo}|${titulo.toLowerCase()}`;
+    const key = nodeNameKey(ins.tipoNo, titulo);
     const existing = ctx.nameIndex.get(key);
     if (existing) return existing;
     const { nodeId } = await this.nodeWriter.createNode(userId, grafoId, {

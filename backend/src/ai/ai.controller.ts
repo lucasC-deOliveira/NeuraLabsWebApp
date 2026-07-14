@@ -99,8 +99,11 @@ export class AiController {
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
     @Param('nodeId') nodeId: string,
+    @Body() body?: { refresh?: boolean },
   ) {
-    return this.generateNodeInsightsUseCase.execute(userId, grafoId, nodeId);
+    return this.generateNodeInsightsUseCase.execute(userId, grafoId, nodeId, {
+      refresh: !!body?.refresh,
+    });
   }
 
   @Post('graphs/:grafoId/nodes/:nodeId/insights/add')

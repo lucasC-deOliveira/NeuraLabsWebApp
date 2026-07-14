@@ -3,7 +3,11 @@
 // fall back to a default combo, or drop it. The "allowed" rule lives in the graph
 // context, so it is injected.
 
-export const INSIGHT_CATEGORIES = ['Relacionado', 'Aprofundar', 'Conexão', 'Lacuna', 'Aplicação'];
+import type { InsightContext } from '../ports/insight-context-repository';
+
+// "Lacuna" is intentionally NOT here: gap detection has its own dedicated feature
+// (suggest-gap-fill / GapDetectionModal). Node insights cover the other four.
+export const INSIGHT_CATEGORIES = ['Relacionado', 'Aprofundar', 'Conexão', 'Aplicação'];
 const FALLBACK_CATEGORY = 'Relacionado';
 export const MAX_NODE_INSIGHTS = 8;
 
@@ -13,6 +17,27 @@ export interface NodeInsight {
   descricao: string;
   tipoNo: string;
   relacao: string;
+}
+
+export interface NodeInsightsResult {
+  nodeNome: string;
+  nodeTipo: string;
+  insights: NodeInsight[];
+}
+
+// Cheap signature of a node's insight context: changes when the target content,
+// its neighbor count, or the graph's node total changes — invalidating the cache.
+// Edges elsewhere in the graph (not touching the target) don't affect its insights.
+export function insightSignature(ctx: InsightContext): string {
+  const total = ctx.neighbors.length + ctx.others.length + 1;
+  const base = `${ctx.target.nome}|${ctx.target.corpo ?? ''}`;
+  return `${total}:${ctx.neighbors.length}:${hashString(base)}`;
+}
+
+function hashString(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return h >>> 0;
 }
 
 export interface RawInsight {

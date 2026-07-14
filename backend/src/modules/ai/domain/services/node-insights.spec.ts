@@ -2,13 +2,25 @@ import { describe, it, expect } from 'vitest';
 import {
   selectNodeInsights,
   selectGapInsights,
+  insightSignature,
   MAX_NODE_INSIGHTS,
   MAX_GAP_INSIGHTS,
   type RawInsight,
 } from './node-insights';
+import type { InsightContext } from '../ports/insight-context-repository';
 
 const allowAll = (): boolean => true;
 const combo = { tipoNo: 'CONCEITO', relacao: 'PREREQUISITO' };
+
+const ctxOf = (over: Partial<InsightContext> = {}): InsightContext => ({
+  targetTipo: 'CONCEITO',
+  grafoNome: 'G',
+  target: { id: 'c1', tipo: 'CONCEITO', nome: 'Mitose', corpo: 'x' },
+  neighbors: [],
+  others: [],
+  ...over,
+});
+const node = (id: string): InsightContext['others'][number] => ({ id, tipo: 'CONCEITO', nome: id });
 
 describe('selectNodeInsights', () => {
   it('keeps a valid insight with its allowed combo', () => {
@@ -76,5 +88,25 @@ describe('selectGapInsights', () => {
   it('caps the number of gap insights', () => {
     const raw: RawInsight[] = Array.from({ length: MAX_GAP_INSIGHTS + 2 }, () => ({ titulo: 'T' }));
     expect(selectGapInsights(raw)).toHaveLength(MAX_GAP_INSIGHTS);
+  });
+});
+
+describe('insightSignature', () => {
+  it('is stable for the same context', () => {
+    expect(insightSignature(ctxOf())).toBe(insightSignature(ctxOf()));
+  });
+
+  it('changes when the target content changes', () => {
+    const a = insightSignature(ctxOf());
+    const b = insightSignature(
+      ctxOf({ target: { id: 'c1', tipo: 'CONCEITO', nome: 'Mitose', corpo: 'y' } }),
+    );
+    expect(a).not.toBe(b);
+  });
+
+  it('changes when the neighbor count or node total changes', () => {
+    const base = insightSignature(ctxOf());
+    expect(insightSignature(ctxOf({ neighbors: [node('n1')] }))).not.toBe(base);
+    expect(insightSignature(ctxOf({ others: [node('o1')] }))).not.toBe(base);
   });
 });

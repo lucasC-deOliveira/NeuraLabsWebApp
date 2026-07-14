@@ -43,8 +43,15 @@ export function saveSelectedNotas(candidatas: Array<{ titulo: string; conteudo: 
   return apiFetch("/ai/graph/notas/save", { method: "POST", body: JSON.stringify({ candidatas }) });
 }
 
-export function generateNodeInsights(grafoId: string, nodeId: string): Promise<NodeInsightsResult> {
-  return apiFetch(`/ai/graph/graphs/${grafoId}/nodes/${nodeId}/insights`, { method: "POST" });
+export function generateNodeInsights(
+  grafoId: string,
+  nodeId: string,
+  refresh = false,
+): Promise<NodeInsightsResult> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/nodes/${nodeId}/insights`, {
+    method: "POST",
+    body: JSON.stringify({ refresh }),
+  });
 }
 
 export function suggestGapFill(
