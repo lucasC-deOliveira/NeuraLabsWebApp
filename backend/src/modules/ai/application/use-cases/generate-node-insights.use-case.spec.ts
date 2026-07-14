@@ -87,7 +87,9 @@ describe('GenerateNodeInsightsUseCase', () => {
   });
 
   it('reuses the cache when the signature matches, skipping the LLM', async () => {
-    const llm = new FakeLlm('{"insights":[{"titulo":"T","tipoNo":"CONCEITO","relacao":"PREREQUISITO"}]}');
+    const llm = new FakeLlm(
+      '{"insights":[{"titulo":"T","tipoNo":"CONCEITO","relacao":"PREREQUISITO"}]}',
+    );
     const cache = new FakeInsightsCache();
     const useCase = new GenerateNodeInsightsUseCase(new FakeContext(ctx), llm, rules, cache);
     const first = await useCase.execute('u1', 'g1', 'c1'); // populates cache.saved
@@ -99,7 +101,9 @@ describe('GenerateNodeInsightsUseCase', () => {
   });
 
   it('refresh bypasses the cache and calls the LLM again', async () => {
-    const llm = new FakeLlm('{"insights":[{"titulo":"T","tipoNo":"CONCEITO","relacao":"PREREQUISITO"}]}');
+    const llm = new FakeLlm(
+      '{"insights":[{"titulo":"T","tipoNo":"CONCEITO","relacao":"PREREQUISITO"}]}',
+    );
     const cache = new FakeInsightsCache();
     const useCase = new GenerateNodeInsightsUseCase(new FakeContext(ctx), llm, rules, cache);
     const first = await useCase.execute('u1', 'g1', 'c1');

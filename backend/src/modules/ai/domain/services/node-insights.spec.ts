@@ -98,7 +98,9 @@ describe('insightSignature', () => {
 
   it('changes when the target content changes', () => {
     const a = insightSignature(ctxOf());
-    const b = insightSignature(ctxOf({ target: { id: 'c1', tipo: 'CONCEITO', nome: 'Mitose', corpo: 'y' } }));
+    const b = insightSignature(
+      ctxOf({ target: { id: 'c1', tipo: 'CONCEITO', nome: 'Mitose', corpo: 'y' } }),
+    );
     expect(a).not.toBe(b);
   });
 
