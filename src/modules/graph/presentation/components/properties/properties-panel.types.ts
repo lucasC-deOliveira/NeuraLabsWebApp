@@ -22,6 +22,10 @@ export interface PropertiesEdge {
   peso: number;
   sourceLabel: string;
   targetLabel: string;
+  // Node types of the endpoints, used to group the relations by the connected
+  // node's type. Optional: absent edges fall into an "unknown type" group.
+  sourceType?: string;
+  targetType?: string;
 }
 
 export interface DeckStats {
