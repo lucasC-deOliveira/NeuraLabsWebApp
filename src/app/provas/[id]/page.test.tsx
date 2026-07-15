@@ -25,6 +25,7 @@ describe("ProvaDetailPage", () => {
     });
     render(<ProvaDetailPage />);
     expect(getProva).toHaveBeenCalledWith("p1");
-    expect(await screen.findByText("Prova de Bio")).toBeInTheDocument();
+    // O título aparece no h1 e no fim da trilha do header — checa o h1.
+    expect(await screen.findByRole("heading", { name: "Prova de Bio" })).toBeInTheDocument();
   });
 });
