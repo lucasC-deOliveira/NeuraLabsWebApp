@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Trash2Icon, CheckCircle2Icon, CircleIcon } from "lucide-react";
+import { ConceptTags, type ConceptTagSelection } from "@/components/concept-tags";
 import type { AlternativaMultipla, QuestaoListItem } from "../../domain/questao.types";
 
 const TIPO_LABEL: Record<string, string> = {
@@ -50,12 +51,14 @@ export function QuestaoCard({
   deleting,
   onToggle,
   onDelete,
+  onSelectTag,
 }: {
   questao: QuestaoListItem;
   expanded: boolean;
   deleting: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onSelectTag: (selection: ConceptTagSelection) => void;
 }) {
   return (
     <div className="rounded-lg border bg-card p-4 cursor-pointer hover:border-primary/40 transition-colors" onClick={onToggle}>
@@ -65,9 +68,9 @@ export function QuestaoCard({
             <Badge variant="outline" className={`text-[11px] h-5 px-1.5 font-medium ${TIPO_COLOR[questao.tipo]}`}>
               {TIPO_LABEL[questao.tipo]}
             </Badge>
-            {questao.conceitoNome && (
-              <Badge variant="outline" className="text-[11px] h-5 px-1.5 text-zinc-500 dark:text-zinc-400">{questao.conceitoNome}</Badge>
-            )}
+            {/* Conceitos que a questão testa no grafo; o conceitoNome do relacional
+                está sempre nulo, então as tags vêm de lá. */}
+            <ConceptTags tags={questao.conceitosConectados} onSelect={onSelectTag} />
           </div>
           <p className="text-sm font-medium leading-snug">{questao.enunciado}</p>
         </div>

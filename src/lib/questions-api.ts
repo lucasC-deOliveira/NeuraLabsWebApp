@@ -7,6 +7,14 @@ export interface AlternativaMultipla {
   texto: string;
 }
 
+export interface ConceptTag {
+  conceito: string;
+  topico: string;
+  topicoId: string;
+  assunto: string;
+  assuntoId: string;
+}
+
 export interface QuestaoListItem {
   id: string;
   tipo: TipoQuestao;
@@ -16,6 +24,7 @@ export interface QuestaoListItem {
   alternativas: AlternativaMultipla[] | null;
   conceitoId: string | null;
   conceitoNome: string | null;
+  conceitosConectados: ConceptTag[];
   dataCriacao: string;
 }
 

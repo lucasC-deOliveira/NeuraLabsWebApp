@@ -19,6 +19,7 @@ describe("QuestoesPage", () => {
         enunciado: "Qual é a capital?",
         gabarito: "A",
         explicacao: null,
+        conceitosConectados: [],
         alternativas: null,
         conceitoId: null,
         conceitoNome: null,
