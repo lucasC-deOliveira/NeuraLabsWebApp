@@ -13,6 +13,16 @@ export interface SpacedRepetition {
   estagioAprendizado: number;
 }
 
+// Tag de um conceito conectado ao flashcard no grafo, com seus pais.
+// Os ids acompanham os nomes para a tag exibida poder virar filtro (clique).
+export interface FlashcardConceptTag {
+  conceito: string;
+  topico: string;
+  topicoId: string;
+  assunto: string;
+  assuntoId: string;
+}
+
 export interface FlashcardItem {
   id: string;
   tipo: TipoFlashcard | null;
@@ -23,6 +33,8 @@ export interface FlashcardItem {
   topicoId: string;
   assunto: string;
   assuntoId: string;
+  // Conceitos conectados no grafo (+ tópicos/assuntos pais). Vazio se fora de grafos.
+  conceitosConectados: FlashcardConceptTag[];
   dataCriacao: Date;
   spacedRepetition: SpacedRepetition | null;
 }

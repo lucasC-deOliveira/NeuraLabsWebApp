@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +8,15 @@ import { Separator } from "@/components/ui/separator";
 import { PlusIcon, Trash2Icon, SearchIcon, XIcon, Loader2Icon, LayersIcon } from "lucide-react";
 import { toast } from "sonner";
 import { flashcardsHttp } from "../infra/http";
-import type { FlashcardItem, AssuntoOption, ConceptOption } from "../domain/flashcard.types";
+import type { FlashcardItem } from "../domain/flashcard.types";
 import {
   filterAndSortFlashcards, computeFlashcardStats, countActiveFilters,
-  type FlashcardCriteria, type StatusFilter, type FlashcardSort,
+  type FlashcardCriteria, type StatusFilter, type FlashcardSort, type TipoFilter,
 } from "../domain/services/flashcard-filters";
-import { flattenConceptOptions } from "../domain/services/concept-options";
+import { paginate } from "../domain/services/paginate";
+import { useFlashcardsData } from "./hooks/useFlashcardsData";
 import { FlashcardsStatsBar } from "./components/FlashcardsStatsBar";
+import { FlashcardsPagination } from "./components/FlashcardsPagination";
 import { FlashcardsFilterDialog } from "./components/FlashcardsFilterDialog";
 import { FlashcardsActiveFilters } from "./components/FlashcardsActiveFilters";
 import { FlashcardCard } from "./components/FlashcardCard";
@@ -23,18 +25,18 @@ import { FlashcardEditDialog, type FlashcardForm } from "./components/FlashcardE
 import { FlashcardDeleteDialogs } from "./components/FlashcardDeleteDialogs";
 
 const DEFAULT_CRITERIA: FlashcardCriteria = {
-  search: "", assuntoFilter: "", topicoFilter: "", statusFilter: "all", sortBy: "date",
+  search: "", assuntoFilter: "", topicoFilter: "", tipoFilter: "", statusFilter: "all", sortBy: "date",
 };
 const EMPTY_FORM: FlashcardForm = { pergunta: "", resposta: "", conceitoId: "" };
+const PAGE_SIZE = 12;
 
 export function FlashcardsListPage() {
-  const [flashcards, setFlashcards] = useState<FlashcardItem[]>([]);
-  const [filterData, setFilterData] = useState<AssuntoOption[]>([]);
-  const [concepts, setConcepts] = useState<ConceptOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { snapshot, loading, reload } = useFlashcardsData();
+  const { cards: flashcards, filterData, concepts } = snapshot;
   const [submitting, setSubmitting] = useState(false);
 
   const [criteria, setCriteria] = useState<FlashcardCriteria>(DEFAULT_CRITERIA);
+  const [page, setPage] = useState(1);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -45,37 +47,11 @@ export function FlashcardsListPage() {
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [detailCard, setDetailCard] = useState<FlashcardItem | null>(null);
 
-  const fetchData = useCallback(async () => {
-    const [cards, hier] = await Promise.all([flashcardsHttp.getFlashcards(), flashcardsHttp.getFilterData()]);
-    const subjects = await flashcardsHttp.getConceptHierarchy();
-    return { cards, hier, concepts: flattenConceptOptions(subjects) };
-  }, []);
-
-  // Kicks off the fetch synchronously; state settles in the promise callback so
-  // no setState runs synchronously in the effect body (react-hooks/set-state-in-effect).
-  useEffect(() => {
-    let cancelled = false;
-    fetchData()
-      .then((d) => {
-        if (cancelled) return;
-        setFlashcards(d.cards);
-        setFilterData(d.hier);
-        setConcepts(d.concepts);
-        setLoading(false);
-      })
-      .catch(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [fetchData]);
-
-  const reload = useCallback(async () => {
-    const d = await fetchData();
-    setFlashcards(d.cards);
-    setFilterData(d.hier);
-    setConcepts(d.concepts);
-    setLoading(false);
-  }, [fetchData]);
-
-  const patch = (p: Partial<FlashcardCriteria>): void => setCriteria((prev) => ({ ...prev, ...p }));
+  // Toda mudança de filtro/busca/ordenação volta para a página 1.
+  const patch = (p: Partial<FlashcardCriteria>): void => {
+    setCriteria((prev) => ({ ...prev, ...p }));
+    setPage(1);
+  };
   const patchForm = (p: Partial<FlashcardForm>): void => setForm((prev) => ({ ...prev, ...p }));
 
   const availableTopicos = useMemo(
@@ -83,10 +59,11 @@ export function FlashcardsListPage() {
     [criteria.assuntoFilter, filterData],
   );
   const filtered = useMemo(() => filterAndSortFlashcards(flashcards, criteria), [flashcards, criteria]);
+  const paged = useMemo(() => paginate(filtered, page, PAGE_SIZE), [filtered, page]);
   const stats = useMemo(() => computeFlashcardStats(flashcards), [flashcards]);
   const activeFilterCount = countActiveFilters(criteria);
 
-  const clearFilters = (): void => setCriteria(DEFAULT_CRITERIA);
+  const clearFilters = (): void => { setCriteria(DEFAULT_CRITERIA); setPage(1); };
 
   const openEdit = (card: FlashcardItem): void => {
     setEditingCard(card);
@@ -194,6 +171,7 @@ export function FlashcardsListPage() {
           activeFilterCount={activeFilterCount}
           onAssunto={(v) => patch({ assuntoFilter: v, topicoFilter: "" })}
           onTopico={(v: string) => patch({ topicoFilter: v })}
+          onTipo={(v: TipoFilter) => patch({ tipoFilter: v })}
           onStatus={(v: StatusFilter) => patch({ statusFilter: v })}
           onSort={(v: FlashcardSort) => patch({ sortBy: v })}
           onClear={clearFilters}
@@ -207,6 +185,7 @@ export function FlashcardsListPage() {
           availableTopicos={availableTopicos}
           onClearAssunto={() => patch({ assuntoFilter: "", topicoFilter: "" })}
           onClearTopico={() => patch({ topicoFilter: "" })}
+          onClearTipo={() => patch({ tipoFilter: "" })}
           onClearStatus={() => patch({ statusFilter: "all" })}
           onClearSort={() => patch({ sortBy: "date" })}
         />
@@ -229,16 +208,18 @@ export function FlashcardsListPage() {
         <>
           <p className="text-xs text-zinc-400">{filtered.length} flashcard{filtered.length !== 1 && "s"} filtrado{filtered.length !== 1 && "s"}</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((fc) => (
+            {paged.items.map((fc) => (
               <FlashcardCard
                 key={fc.id}
                 fc={fc}
                 onDetail={() => setDetailCard(fc)}
                 onEdit={() => openEdit(fc)}
                 onDelete={() => setDeleteTarget(fc)}
+                onFilter={patch}
               />
             ))}
           </div>
+          <FlashcardsPagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
         </>
       )}
 
