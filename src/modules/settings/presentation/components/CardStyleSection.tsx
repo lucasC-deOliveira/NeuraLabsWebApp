@@ -6,6 +6,7 @@ import { WandSparklesIcon, CheckCircle2Icon } from "lucide-react";
 import { useCardStyle } from "@/components/flashcard/CardStyleProvider";
 import { CARD_STYLES, CARD_CSS_CLASSES } from "@/components/flashcard/card-styles";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
+import { CardFramePicker } from "./CardFramePicker";
 
 export function CardStyleSection() {
   const { styleId, setStyleId, customCss, setCustomCss } = useCardStyle();
@@ -17,7 +18,8 @@ export function CardStyleSection() {
           Estilo do flashcard
         </CardTitle>
         <CardDescription className="text-xs sm:text-sm">
-          Escolha um estilo de card ou personalize o CSS. Vale para todos os flashcards.
+          Escolha um estilo de card, uma moldura ou personalize o CSS. Vale para todos os
+          flashcards, inclusive no estudo.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 px-3 sm:px-6">
@@ -75,6 +77,9 @@ export function CardStyleSection() {
             </p>
           </div>
         )}
+
+        {/* moldura: preferência independente do estilo */}
+        <CardFramePicker />
 
         {/* preview ao vivo */}
         <div className="space-y-1.5">
