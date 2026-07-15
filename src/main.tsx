@@ -28,7 +28,6 @@ import BaralhoDetailPage from "@/app/baralhos/[id]/page";
 import NotesPage from "@/app/notes/page";
 import NewNotePage from "@/app/notes/new/page";
 import NoteDetailPage from "@/app/notes/[id]/page";
-import StudyPage from "@/app/study/page";
 import GraphPage from "@/app/graph/page";
 import GraphDetailPage from "@/app/graph/[id]/page";
 import VRPage from "@/app/vr/[id]/page";
@@ -74,7 +73,6 @@ function App() {
           <Route path="/notes" element={<RequireAuth><NotesPage /></RequireAuth>} />
           <Route path="/notes/new" element={<RequireAuth><NewNotePage /></RequireAuth>} />
           <Route path="/notes/:id" element={<RequireAuth><NoteDetailPage /></RequireAuth>} />
-          <Route path="/study" element={<RequireAuth><StudyPage /></RequireAuth>} />
           <Route path="/graph" element={<RequireAuth><GraphPage /></RequireAuth>} />
           <Route path="/graph/:id" element={<RequireAuth><GraphDetailPage /></RequireAuth>} />
           <Route path="/vr/:id" element={<RequireAuth><VRPage /></RequireAuth>} />

@@ -7,7 +7,6 @@ import {
   HelpCircleIcon,
   ClipboardListIcon,
   FileTextIcon,
-  FlameIcon,
   NetworkIcon,
   SettingsIcon,
   ArrowLeftIcon,
@@ -26,7 +25,6 @@ const CRUMB_ICONS: Record<CrumbIcon, LucideIcon> = {
   questions: HelpCircleIcon,
   provas: ClipboardListIcon,
   notes: FileTextIcon,
-  study: FlameIcon,
   graph: NetworkIcon,
   settings: SettingsIcon,
 };

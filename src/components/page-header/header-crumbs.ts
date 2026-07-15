@@ -9,7 +9,6 @@ export type CrumbIcon =
   | "questions"
   | "provas"
   | "notes"
-  | "study"
   | "graph"
   | "settings";
 
@@ -28,7 +27,6 @@ const SECTIONS: Crumb[] = [
   { name: "Questões", href: "/questions", icon: "questions" },
   { name: "Provas", href: "/provas", icon: "provas" },
   { name: "Notas", href: "/notes", icon: "notes" },
-  { name: "Estudar", href: "/study", icon: "study" },
   { name: "Grafo", href: "/graph", icon: "graph" },
   { name: "Configurações", href: "/settings", icon: "settings" },
 ];

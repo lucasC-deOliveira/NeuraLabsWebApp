@@ -20,8 +20,8 @@ function QuickActions() {
     <section className="mb-6 sm:mb-8">
       <h2 className="mb-3 text-base sm:text-lg font-semibold">Ações rápidas</h2>
       <div className="flex flex-wrap gap-2 sm:gap-3">
-        <Link href="/study"><Button size="lg" className="text-sm sm:text-base px-4 sm:px-6">Estudar agora</Button></Link>
-        <Link href="/reviews"><Button variant="outline" size="lg">Revisões</Button></Link>
+        {/* A página /study saiu: estudar agora é escolher um baralho. */}
+        <Link href="/baralhos"><Button size="lg" className="text-sm sm:text-base px-4 sm:px-6">Estudar agora</Button></Link>
         <Link href="/flashcards/new"><Button variant="outline" size="lg">Adicionar flashcard</Button></Link>
       </div>
     </section>
