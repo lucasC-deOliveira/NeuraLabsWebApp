@@ -22,7 +22,14 @@ describe("StudyFlashcardModal", () => {
       sessionId: "s1",
       card: { id: "f1", pergunta: "O que é mitose?", resposta: "Divisão", conceito: null },
       due: true,
+      // Card novo: sem agendamento ainda.
+      fase: "LEARN",
+      learningStep: 0,
+      dificuldade: 5,
+      intervalo: 0,
+      fatorEase: 2.5,
       proximaRevisao: null,
+      ultimaRevisao: null,
     });
     render(<StudyFlashcardModal open onOpenChange={vi.fn()} flashcardId="f1" />);
     expect(startSingleCardStudy).toHaveBeenCalledWith("f1");

@@ -6,8 +6,15 @@ export interface FlashcardStudyView {
   resposta: string;
   conceito: string | null;
   due: boolean;
+  // Agendamento atual, para a interface prever o efeito de cada nota neste card
+  // (ver StudyCardView). `proximaRevisao` nulo = nunca revisado.
   proximaRevisao: string | null;
+  ultimaRevisao: string | null;
   fase: string;
+  learningStep: number;
+  intervalo: number;
+  fatorEase: number;
+  dificuldade: number;
 }
 
 // Read port: look up one card's study status for a user.

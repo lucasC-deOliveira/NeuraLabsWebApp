@@ -1,6 +1,7 @@
 import { CardNotFoundError, NoActiveSessionError } from '../../domain/errors';
 import type { Clock } from '../../domain/ports/clock';
 import type { StudyRepositories, StudyUnitOfWork } from '../../domain/ports/study-unit-of-work';
+import type { ScheduleState } from '../../domain/services/spaced-repetition';
 import { Grade } from '../../domain/value-objects/grade';
 
 export interface SubmitReviewCommand {
@@ -15,9 +16,40 @@ export interface SubmitReviewCommand {
   sessaoId?: string;
 }
 
+// O agendamento resultante volta para quem revisou: a sessão de estudo precisa
+// saber QUANDO o card vence para decidir se ele reaparece agora — antes ela o
+// repetia na hora, ignorando o horário, e o "10 min" do botão não valia nada.
+export interface SubmitReviewResult {
+  success: boolean;
+  schedule: ReviewSchedule | null;
+}
+
+export interface ReviewSchedule {
+  fase: string;
+  learningStep: number;
+  intervalo: number;
+  fatorEase: number;
+  dificuldade: number;
+  proximaRevisao: string;
+  ultimaRevisao: string;
+}
+
+function toReviewSchedule(state: ScheduleState | null): ReviewSchedule | null {
+  if (!state) return null;
+  return {
+    fase: state.fase,
+    learningStep: state.learningStep,
+    intervalo: state.intervalo,
+    fatorEase: state.fatorEase,
+    dificuldade: state.dificuldade,
+    proximaRevisao: state.proximaRevisao.toISOString(),
+    ultimaRevisao: state.ultimaRevisao.toISOString(),
+  };
+}
+
 /**
  * Records a flashcard review and reschedules it (SM-2), atomically across the
- * StudySession and Flashcard aggregates.
+ * StudySession and Flashcard aggregates. Returns the card's new schedule.
  * @example useCase.execute({ userId, flashcardId, grade: 'good', sessaoId })
  */
 export class SubmitReviewUseCase {
@@ -26,17 +58,17 @@ export class SubmitReviewUseCase {
     private readonly clock: Clock,
   ) {}
 
-  async execute(cmd: SubmitReviewCommand): Promise<{ success: boolean }> {
+  async execute(cmd: SubmitReviewCommand): Promise<SubmitReviewResult> {
     const grade = this.resolveGrade(cmd);
-    await this.uow.execute((repos) => this.review(repos, cmd, grade));
-    return { success: true };
+    const state = await this.uow.execute((repos) => this.review(repos, cmd, grade));
+    return { success: true, schedule: toReviewSchedule(state) };
   }
 
   private async review(
     repos: StudyRepositories,
     cmd: SubmitReviewCommand,
     grade: Grade,
-  ): Promise<void> {
+  ): Promise<ScheduleState | null> {
     const session = await repos.sessions.findActive(cmd.userId, cmd.sessaoId);
     if (!session) throw new NoActiveSessionError(cmd.userId);
 
@@ -53,6 +85,7 @@ export class SubmitReviewUseCase {
 
     await repos.sessions.save(session);
     await repos.flashcards.save(flashcard);
+    return flashcard.learningState;
   }
 
   private resolveGrade(cmd: SubmitReviewCommand): Grade {

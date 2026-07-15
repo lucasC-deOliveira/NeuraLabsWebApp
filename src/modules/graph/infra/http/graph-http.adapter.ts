@@ -76,6 +76,8 @@ import {
   startDeckStudy,
   submitCardReview,
   finalizeStudySession,
+  type ApiCardSchedule,
+  type ApiDeckCard,
 } from "@/lib/study-api";
 import type {
   GraphDataPort,
@@ -126,6 +128,8 @@ import type {
   SingleCardStudy,
   DeckStudySession,
   CardReviewInput,
+  CardSchedule,
+  StudyCard,
 } from "../../application/ports/study.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
 import type {
@@ -152,6 +156,31 @@ import type {
   GraphListResult,
   GraphAssunto,
 } from "../../domain/types/graph.types";
+
+// A API serializa o agendamento plano, junto com o card; o domínio o quer como um
+// objeto à parte (ou nulo, quando o card é novo). Traduzir é papel do adapter.
+function toCardSchedule(api: ApiCardSchedule | null): CardSchedule | null {
+  if (!api || !api.proximaRevisao) return null;
+  return {
+    fase: api.fase as CardSchedule["fase"],
+    learningStep: api.learningStep,
+    dificuldade: api.dificuldade,
+    intervalo: api.intervalo,
+    fatorEase: api.fatorEase,
+    proximaRevisao: api.proximaRevisao,
+    ultimaRevisao: api.ultimaRevisao ?? api.proximaRevisao,
+  };
+}
+
+function toStudyCard(api: ApiDeckCard): StudyCard {
+  return {
+    id: api.id,
+    pergunta: api.pergunta,
+    resposta: api.resposta,
+    conceito: api.conceito,
+    schedule: toCardSchedule(api),
+  };
+}
 
 export class HttpGraphAdapter
   implements
@@ -267,16 +296,25 @@ export class HttpGraphAdapter
     return getDeckForStudy(baralhoId);
   }
 
-  startSingleCardStudy(flashcardId: string): Promise<SingleCardStudy | null> {
-    return startSingleCardStudy(flashcardId);
+  async startSingleCardStudy(flashcardId: string): Promise<SingleCardStudy | null> {
+    const res = await startSingleCardStudy(flashcardId);
+    if (!res) return null;
+    return {
+      sessionId: res.sessionId,
+      card: { ...res.card, schedule: toCardSchedule(res) },
+      due: res.due,
+      proximaRevisao: res.proximaRevisao,
+    };
   }
 
-  startDeckStudy(baralhoId: string): Promise<DeckStudySession | null> {
-    return startDeckStudy(baralhoId);
+  async startDeckStudy(baralhoId: string): Promise<DeckStudySession | null> {
+    const deck = await startDeckStudy(baralhoId);
+    return deck && { ...deck, cards: deck.cards.map(toStudyCard) };
   }
 
-  submitCardReview(input: CardReviewInput): Promise<{ success: boolean }> {
-    return submitCardReview(input);
+  async submitCardReview(input: CardReviewInput): Promise<{ success: boolean; schedule: CardSchedule | null }> {
+    const res = await submitCardReview(input);
+    return { success: res.success, schedule: toCardSchedule(res.schedule) };
   }
 
   finalizeStudySession(sessionId: string): Promise<{ success: boolean }> {

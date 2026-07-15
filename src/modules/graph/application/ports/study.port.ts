@@ -3,11 +3,27 @@
 
 export type StudyGrade = "again" | "hard" | "good" | "easy";
 
+// Agendamento SRS de um card. Mesma forma do LocalSchedule (@/lib/srs-local) —
+// declarada aqui porque o port não importa @/lib. Vem do servidor para a sessão
+// poder dizer, em cada botão, quanto tempo aquela nota daria neste card, e para
+// saber QUANDO ele vence (antes ela o repetia na hora, ignorando o horário).
+export interface CardSchedule {
+  fase: "LEARN" | "REVIEW" | "RELEARN";
+  learningStep: number;
+  dificuldade: number;
+  intervalo: number;
+  fatorEase: number;
+  proximaRevisao: string;
+  ultimaRevisao: string;
+}
+
 export interface StudyCard {
   id: string;
   pergunta: string;
   resposta: string;
   conceito: string | null;
+  // null = card novo, nunca revisado.
+  schedule: CardSchedule | null;
 }
 
 export interface SingleCardStudy {
@@ -34,6 +50,7 @@ export interface CardReviewInput {
 export interface StudyPort {
   startSingleCardStudy(flashcardId: string): Promise<SingleCardStudy | null>;
   startDeckStudy(baralhoId: string): Promise<DeckStudySession | null>;
-  submitCardReview(input: CardReviewInput): Promise<{ success: boolean }>;
+  // Devolve o agendamento resultante: quem revisou precisa saber quando o card volta.
+  submitCardReview(input: CardReviewInput): Promise<{ success: boolean; schedule: CardSchedule | null }>;
   finalizeStudySession(sessionId: string): Promise<{ success: boolean }>;
 }

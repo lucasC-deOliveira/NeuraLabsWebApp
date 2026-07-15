@@ -45,7 +45,19 @@ describe('StartDeckStudyUseCase', () => {
       titulo: 'Sabedoria',
       totalNoDeck: 3,
       cards: [
-        { id: 'fc-1', pergunta: 'P', resposta: 'R', conceito: 'C', fase: 'LEARN', learningStep: 0 },
+        {
+          id: 'fc-1',
+          pergunta: 'P',
+          resposta: 'R',
+          conceito: 'C',
+          fase: 'LEARN',
+          learningStep: 0,
+          intervalo: 0,
+          fatorEase: 2.5,
+          dificuldade: 5,
+          proximaRevisao: null,
+          ultimaRevisao: null,
+        },
       ],
     };
 

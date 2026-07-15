@@ -34,6 +34,11 @@ const dueView: FlashcardStudyView = {
   due: true,
   proximaRevisao: null,
   fase: 'LEARN',
+  learningStep: 0,
+  intervalo: 0,
+  fatorEase: 2.5,
+  dificuldade: 5,
+  ultimaRevisao: null,
 };
 
 describe('StartSingleCardStudyUseCase', () => {
@@ -61,8 +66,15 @@ describe('StartSingleCardStudyUseCase', () => {
       sessionId: 'sess-1',
       card: { id: 'fc-1', pergunta: 'P', resposta: 'R', conceito: 'C' },
       due: true,
+      // O agendamento acompanha a resposta: a interface precisa dele para dizer,
+      // em cada botão, quanto tempo aquela nota daria neste card.
       proximaRevisao: null,
+      ultimaRevisao: null,
       fase: 'LEARN',
+      learningStep: 0,
+      intervalo: 0,
+      fatorEase: 2.5,
+      dificuldade: 5,
     });
   });
 

@@ -11,6 +11,11 @@ const card = (id: string, conceito: string | null = null): StudyCardView => ({
   conceito,
   fase: 'LEARN',
   learningStep: 0,
+  intervalo: 0,
+  fatorEase: 2.5,
+  dificuldade: 5,
+  proximaRevisao: null,
+  ultimaRevisao: null,
 });
 
 class FakeStudySessionRepository implements StudySessionRepository {

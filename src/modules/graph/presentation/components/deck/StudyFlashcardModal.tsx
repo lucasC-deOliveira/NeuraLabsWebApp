@@ -69,8 +69,14 @@ async function loadCardFromVault(flashcardId: string, grafoId: string, grafoNome
     readSrsLog(dir),
   ]);
   if (!vn) return { phase: "error" };
-  const card: StudyCard = { id: vn.id, pergunta: vn.pergunta ?? "", resposta: vn.resposta ?? "", conceito: null };
   const schedule = srsLog.schedule[flashcardId];
+  const card: StudyCard = {
+    id: vn.id,
+    pergunta: vn.pergunta ?? "",
+    resposta: vn.resposta ?? "",
+    conceito: null,
+    schedule: schedule ?? null,
+  };
   if (!isDue(schedule)) return { phase: "notdue", card, graphDir: dir, proximaRevisao: schedule!.proximaRevisao };
   const sessionId = await startLocalSession(dir, null);
   return { phase: "question", card, graphDir: dir, sessionId };
@@ -109,7 +115,7 @@ function CardView({
           Ver resposta
         </Button>
       )}
-      {phase === "answer" && <GradeGrid onGrade={onGrade} />}
+      {phase === "answer" && <GradeGrid onGrade={onGrade} schedule={card.schedule} />}
     </div>
   );
 }
