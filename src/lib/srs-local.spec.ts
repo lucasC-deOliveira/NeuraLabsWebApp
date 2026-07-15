@@ -20,6 +20,7 @@ import {
   startLocalSession,
   submitLocalReview,
   finalizeLocalSession,
+  mergeSrsLogs,
   type LocalSrsLog,
   type LocalSchedule,
 } from "./srs-local";
@@ -526,5 +527,52 @@ describe("finalizeLocalSession", () => {
     await finalizeLocalSession(GRAPH_DIR, "s1");
     const written = lastWrittenLog();
     expect(written.sessions[0].endedAt).toBe(existingEnd);
+  });
+});
+
+// A agenda é do CARD, não da vista. O log saiu da pasta do grafo para a raiz do
+// vault: com o nó do sistema, o mesmo flashcard aparece em vários grafos, e um log
+// por pasta lhe daria duas agendas SM-2 divergentes. A fusão existe para as agendas
+// que já estão nas pastas não se perderem na mudança.
+describe("mergeSrsLogs", () => {
+  const schedule = (proxima: string, ultima: string): LocalSchedule => ({
+    fase: "REVIEW",
+    learningStep: 0,
+    dificuldade: 3,
+    intervalo: 10,
+    fatorEase: 2.5,
+    proximaRevisao: proxima,
+    ultimaRevisao: ultima,
+  });
+  const log = (over: Partial<LocalSrsLog> = {}): LocalSrsLog => ({ sessions: [], schedule: {}, ...over });
+
+  it("brings in a card the root does not know yet", () => {
+    const fundido = mergeSrsLogs(log(), log({ schedule: { fc1: schedule("2026-08-01", "2026-07-01") } }));
+    expect(fundido.schedule.fc1.proximaRevisao).toBe("2026-08-01");
+  });
+
+  it("keeps the most RECENT review when both know the card", () => {
+    const raiz = log({ schedule: { fc1: schedule("2026-08-01", "2026-07-10") } });
+    const antigo = log({ schedule: { fc1: schedule("2026-09-09", "2026-07-15") } });
+    // O log da pasta revisou depois: é ele que sabe o que você respondeu por último.
+    expect(mergeSrsLogs(raiz, antigo).schedule.fc1.proximaRevisao).toBe("2026-09-09");
+  });
+
+  it("does not let an older review overwrite a newer one", () => {
+    const raiz = log({ schedule: { fc1: schedule("2026-08-01", "2026-07-20") } });
+    const antigo = log({ schedule: { fc1: schedule("2026-09-09", "2026-07-01") } });
+    expect(mergeSrsLogs(raiz, antigo).schedule.fc1.proximaRevisao).toBe("2026-08-01");
+  });
+
+  it("carries the sessions over without duplicating them", () => {
+    const sessao = { id: "s1", startedAt: "2026-07-01", endedAt: null, baralhoId: null, revisoes: [] };
+    const raiz = log({ sessions: [sessao] });
+    const antigo = log({ sessions: [sessao, { ...sessao, id: "s2" }] });
+    expect(mergeSrsLogs(raiz, antigo).sessions.map((s) => s.id)).toEqual(["s1", "s2"]);
+  });
+
+  it("has nothing to do when the old log is empty", () => {
+    const raiz = log({ schedule: { fc1: schedule("2026-08-01", "2026-07-10") } });
+    expect(mergeSrsLogs(raiz, log())).toEqual(raiz);
   });
 });

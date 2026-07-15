@@ -118,7 +118,7 @@ export function VRPanel3D({
         if (isDesktop()) {
           const vaultDir = await desktop.vault.getPath().catch(() => null);
           if (vaultDir) {
-            const srsLog = await readSrsLog(graphVaultDir(vaultDir, grafoId, grafoNome));
+            const srsLog = await readSrsLog(vaultDir, graphVaultDir(vaultDir, grafoId, grafoNome));
             const now = new Date();
             novos = 0;
             for (const id of fcIds) {

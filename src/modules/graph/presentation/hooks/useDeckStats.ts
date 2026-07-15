@@ -36,7 +36,7 @@ async function reviewCounts(
   if (!isDesktop()) return { novos: fcIds.length, paraRevisar: 0 };
   const vaultDir = await desktop.vault.getPath().catch(() => null);
   if (!vaultDir) return { novos: fcIds.length, paraRevisar: 0 };
-  const srsLog = await readSrsLog(graphVaultDir(vaultDir, grafoId, grafoNome));
+  const srsLog = await readSrsLog(vaultDir, graphVaultDir(vaultDir, grafoId, grafoNome));
   return countDeckSrs(fcIds, srsLog.schedule);
 }
 

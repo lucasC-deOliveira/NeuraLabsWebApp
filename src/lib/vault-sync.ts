@@ -92,9 +92,10 @@ export async function pushVault(grafoId: string, grafoNome: string): Promise<{ c
 
   const result = await syncGraphFromVault(grafoId, { nodes, edges });
 
-  // Envia sessões SRS locais não sincronizadas
+  // Envia sessões SRS locais não sincronizadas. O log é da RAIZ do vault (a agenda
+  // é do card, não da vista); a pasta do grafo entra só para absorver o log antigo.
   try {
-    const srsLog = await readSrsLog(graphDir);
+    const srsLog = await readSrsLog(baseDir, graphDir);
     const unsynced = srsLog.sessions.filter(
       (s) => !s.syncedAt && s.revisoes.length > 0 && s.endedAt !== null,
     );
@@ -106,7 +107,7 @@ export async function pushVault(grafoId: string, grafoNome: string): Promise<{ c
         for (const s of srsLog.sessions) {
           if (unsyncedIds.has(s.id)) s.syncedAt = syncedAt;
         }
-        await writeSrsLog(graphDir, srsLog);
+        await writeSrsLog(baseDir, srsLog);
       }
     }
   } catch { /* sync de SRS é não-fatal */ }

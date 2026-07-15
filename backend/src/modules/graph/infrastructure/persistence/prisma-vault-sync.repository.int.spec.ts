@@ -60,7 +60,10 @@ describe('Vault sync (integration — neuralabs_test)', () => {
     expect(await prisma.conhecimentoAresta.count({ where: { grafoId } })).toBe(1);
   });
 
-  it('unlinks a node whose entity is absent from a non-empty vault', async () => {
+  // Sumir da pasta = "não está mais NESTE grafo", nunca "deixou de existir". Antes
+  // isto apagava a linha do nó; com o nó do sistema, apagar um .md de uma pasta
+  // destruiria o card em todos os outros grafos.
+  it('releases from the view a node whose entity is absent from a non-empty vault', async () => {
     const { userId, grafoId } = await seedGraph();
     await syncVault.execute(userId, grafoId, {
       nodes: [
@@ -76,6 +79,33 @@ describe('Vault sync (integration — neuralabs_test)', () => {
     });
 
     expect(res.removed).toBe(1);
-    expect(await prisma.nodeConhecimento.count({ where: { grafoId } })).toBe(1);
+    // A vista ficou com um; o conceito que saiu dela continua existindo.
+    expect(await prisma.grafoNode.count({ where: { grafoId } })).toBe(1);
+    expect(await prisma.conceito.findUnique({ where: { id: 'c2' } })).not.toBeNull();
+  });
+
+  // Um Push não pode apagar o que é de outra vista: a aresta é um fato entre
+  // entidades, e só as arestas DESTE grafo são reconciliadas.
+  it('does not touch an edge that lives in another graph', async () => {
+    const { userId, grafoId } = await seedGraph();
+    const outro = await prisma.grafosConhecimento.create({
+      data: { usuarioId: userId, nome: 'Outro' },
+    });
+    await syncVault.execute(userId, outro.id, {
+      nodes: [
+        { ref: 'x1', tipo: 'CONCEITO', nome: 'X' },
+        { ref: 'x2', tipo: 'CONCEITO', nome: 'Y' },
+      ],
+      edges: [{ de: 'x1', para: 'x2', relacao: 'RELACIONADO', peso: 1 }],
+    });
+    const antes = await prisma.conhecimentoAresta.count();
+
+    // Push de um grafo diferente, sem nenhuma aresta.
+    await syncVault.execute(userId, grafoId, {
+      nodes: [{ ref: 'c1', tipo: 'CONCEITO', nome: 'A' }],
+      edges: [],
+    });
+
+    expect(await prisma.conhecimentoAresta.count()).toBe(antes);
   });
 });

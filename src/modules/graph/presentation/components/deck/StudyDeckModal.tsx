@@ -54,11 +54,11 @@ type SrsLog = Awaited<ReturnType<typeof readSrsLog>>;
 // Result of resolving a deck to study — applied to component state by the effect.
 type DeckOutcome =
   | { phase: "error" }
-  | { phase: "complete"; titulo: string; totalNoDeck: number; graphDir: string | null; sessionId: string | null }
-  | { phase: "question"; titulo: string; totalNoDeck: number; graphDir: string | null; sessionId: string; queue: QueueCard[] };
+  | { phase: "complete"; titulo: string; totalNoDeck: number; srsDir: string | null; sessionId: string | null }
+  | { phase: "question"; titulo: string; totalNoDeck: number; srsDir: string | null; sessionId: string; queue: QueueCard[] };
 
-function finalizeSession(graphDir: string | null, sessionId: string): void {
-  if (graphDir) finalizeLocalSession(graphDir, sessionId).catch(() => {});
+function finalizeSession(srsDir: string | null, sessionId: string): void {
+  if (srsDir) finalizeLocalSession(srsDir, sessionId).catch(() => {});
   else graphHttp.finalizeStudySession(sessionId).catch(() => {});
 }
 
@@ -99,18 +99,24 @@ function dueCardsFrom(candidates: Array<VaultNode | undefined>, srsLog: SrsLog):
     .map((n) => toQueueCard(n, srsLog.schedule[n.id] ?? null));
 }
 
+// `dir` é a RAIZ do vault: é onde a agenda vive, porque ela é do card e não da
+// vista — o mesmo flashcard em dois grafos tem uma agenda só. A pasta do grafo
+// ainda entra, mas só para o log antigo dela ser absorvido.
 async function readVaultDir(grafoId: string, grafoNome: string): Promise<{ dir: string; nodeById: Map<string, VaultNode>; srsLog: SrsLog } | null> {
   const vaultDir = await desktop.vault.getPath().catch(() => null);
   if (!vaultDir) return null;
-  const dir = graphVaultDir(vaultDir, grafoId, grafoNome);
-  const [vaultNodes, srsLog] = await Promise.all([readAllVaultNodes(grafoId, grafoNome), readSrsLog(dir)]);
-  return { dir, nodeById: new Map(vaultNodes.map((n) => [n.id, n])), srsLog };
+  const graphDir = graphVaultDir(vaultDir, grafoId, grafoNome);
+  const [vaultNodes, srsLog] = await Promise.all([
+    readAllVaultNodes(grafoId, grafoNome),
+    readSrsLog(vaultDir, graphDir),
+  ]);
+  return { dir: vaultDir, nodeById: new Map(vaultNodes.map((n) => [n.id, n])), srsLog };
 }
 
 async function startQueue(dir: string, sessionKey: string | null, titulo: string, totalNoDeck: number, dueCards: QueueCard[]): Promise<DeckOutcome> {
-  if (dueCards.length === 0) return { phase: "complete", titulo, totalNoDeck, graphDir: dir, sessionId: null };
+  if (dueCards.length === 0) return { phase: "complete", titulo, totalNoDeck, srsDir: dir, sessionId: null };
   const sessionId = await startLocalSession(dir, sessionKey);
-  return { phase: "question", titulo, totalNoDeck, graphDir: dir, sessionId, queue: dueCards };
+  return { phase: "question", titulo, totalNoDeck, srsDir: dir, sessionId, queue: dueCards };
 }
 
 async function loadNeighborhood(ids: string[], grafoId?: string, grafoNome?: string, customTitulo?: string): Promise<DeckOutcome> {
@@ -138,12 +144,12 @@ async function loadDeckFromApi(baralhoId: string): Promise<DeckOutcome> {
   if (!deck) return { phase: "error" };
   if (deck.cards.length === 0) {
     finalizeSession(null, deck.sessionId);
-    return { phase: "complete", titulo: deck.titulo, totalNoDeck: deck.totalNoDeck, graphDir: null, sessionId: null };
+    return { phase: "complete", titulo: deck.titulo, totalNoDeck: deck.totalNoDeck, srsDir: null, sessionId: null };
   }
   // O agendamento vem do servidor (o adapter o traduz): a sessão da API sabe tanto
   // quanto a do vault. Antes chegava sempre null, e todo card parecia novo.
   const queue: QueueCard[] = orderStudyQueue(deck.cards, loadStudyOrder());
-  return { phase: "question", titulo: deck.titulo, totalNoDeck: deck.totalNoDeck, graphDir: null, sessionId: deck.sessionId, queue };
+  return { phase: "question", titulo: deck.titulo, totalNoDeck: deck.totalNoDeck, srsDir: null, sessionId: deck.sessionId, queue };
 }
 
 // Not `async` so the API call is issued synchronously in the non-desktop path.
@@ -163,11 +169,11 @@ function loadDeck(props: StudyDeckModalProps): Promise<DeckOutcome> {
 // da API o traz do servidor (que roda o mesmo SM-2). Antes o caminho da API
 // devolvia o agendamento ANTIGO, e a sessão decidia no escuro.
 async function submitReview(
-  graphDir: string | null,
+  srsDir: string | null,
   sessionId: string,
   input: { flashcardId: string; grade: ReviewGrade; tempoResposta: number },
 ): Promise<LocalSchedule | null> {
-  if (graphDir) return submitLocalReview(graphDir, sessionId, input);
+  if (srsDir) return submitLocalReview(srsDir, sessionId, input);
   const res = await graphHttp.submitCardReview({ ...input, sessaoId: sessionId } as CardReviewInput);
   return res.schedule;
 }
@@ -351,7 +357,7 @@ export function StudyDeckModal(props: StudyDeckModalProps) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [titulo, setTitulo] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [graphDir, setGraphDir] = useState<string | null>(null);
+  const [srsDir, setGraphDir] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueCard[]>([]);
   const [index, setIndex] = useState(0);
   const [totalNoDeck, setTotalNoDeck] = useState(0);
@@ -374,7 +380,7 @@ export function StudyDeckModal(props: StudyDeckModalProps) {
     if (outcome.phase === "error") { setPhase("error"); return; }
     setTitulo(outcome.titulo);
     setTotalNoDeck(outcome.totalNoDeck);
-    setGraphDir(outcome.graphDir);
+    setGraphDir(outcome.srsDir);
     if (outcome.phase === "complete") { setPhase("complete"); return; }
     setSessionId(outcome.sessionId);
     setQueue(outcome.queue);
@@ -389,7 +395,7 @@ export function StudyDeckModal(props: StudyDeckModalProps) {
     loadDeck(props)
       .then((outcome): void => {
         if (!active) {
-          if (outcome.phase === "question") finalizeSession(outcome.graphDir, outcome.sessionId);
+          if (outcome.phase === "question") finalizeSession(outcome.srsDir, outcome.sessionId);
           return;
         }
         applyDeckOutcome(outcome);
@@ -423,7 +429,7 @@ export function StudyDeckModal(props: StudyDeckModalProps) {
       return;
     }
     finalizedRef.current = true;
-    if (sessionId) finalizeSession(graphDir, sessionId);
+    if (sessionId) finalizeSession(srsDir, sessionId);
     setPhase("complete");
   };
 
@@ -442,7 +448,7 @@ export function StudyDeckModal(props: StudyDeckModalProps) {
     setPhase("saving");
     try {
       const input = { flashcardId: card.id, grade, tempoResposta: nowMs() - startedAt };
-      const newSchedule = await submitReview(graphDir, sessionId, input);
+      const newSchedule = await submitReview(srsDir, sessionId, input);
       setReviewed((r) => r + 1);
       const shouldRequeue = newSchedule && needsRequeue(newSchedule);
       const newQueue = shouldRequeue ? [...queue, { ...card, schedule: newSchedule }] : queue;
@@ -457,7 +463,7 @@ export function StudyDeckModal(props: StudyDeckModalProps) {
   const handleOpenChange = (o: boolean): void => {
     if (!o && sessionId && !finalizedRef.current) {
       finalizedRef.current = true;
-      finalizeSession(graphDir, sessionId);
+      finalizeSession(srsDir, sessionId);
     }
     onOpenChange(o);
   };

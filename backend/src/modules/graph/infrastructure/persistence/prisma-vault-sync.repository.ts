@@ -14,7 +14,7 @@ import {
   type PlannedEdge,
   type VaultNode,
 } from '../../domain/services/vault-sync';
-import { containNode, createContainedNode } from './node-containment';
+import { containNode, createContainedNode, releaseNode } from './node-containment';
 
 type Tx = Prisma.TransactionClient;
 type EntityUpserter = (tx: Tx, userId: string, n: VaultNode, now: Date) => Promise<void>;
@@ -59,8 +59,13 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     });
   }
 
-  // Unlinks graph nodes whose entity vanished from the vault (only when the vault
-  // carries nodes — an empty payload removes nothing, as a safety guard).
+  // Tira da VISTA os nós que sumiram da pasta (só quando a pasta traz nós — payload
+  // vazio não remove nada, como salvaguarda).
+  //
+  // "Sumiu da pasta" quer dizer "não está mais NESTE grafo", nunca "deixou de
+  // existir". Antes isto apagava a linha do nó e as arestas dele: com o nó do
+  // sistema, apagar um .md de uma pasta destruiria o card em todos os outros
+  // grafos. Agora só solta a contenção — a entidade, o nó e as arestas ficam.
   private async removeMissing(
     tx: Tx,
     userId: string,
@@ -70,20 +75,12 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     if (nodes.length === 0) return 0;
     const vaultRefs = new Set(nodes.map((n) => n.ref));
     const current = await tx.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
+      where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
       select: { id: true, referenciaId: true },
     });
     const ids = refsToRemove(current, vaultRefs);
-    if (ids.length) await this.deleteNodeLinks(tx, ids);
+    for (const nodeId of ids) await releaseNode(tx, grafoId, nodeId);
     return ids.length;
-  }
-
-  private async deleteNodeLinks(tx: Tx, ids: string[]): Promise<void> {
-    await tx.conhecimentoAresta.deleteMany({
-      where: { OR: [{ nodeOrigemId: { in: ids } }, { nodeDestinoId: { in: ids } }] },
-    });
-    await tx.desempenhoNo.deleteMany({ where: { nodeId: { in: ids } } });
-    await tx.nodeConhecimento.deleteMany({ where: { id: { in: ids } } });
   }
 
   private async upsertNodes(
@@ -147,20 +144,34 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     grafoId: string,
   ): Promise<Map<string, GraphNodeRef>> {
     const rows = await tx.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
+      where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
       select: { id: true, referenciaId: true, tipoNode: true },
     });
     return new Map(rows.map((r) => [r.referenciaId, r]));
   }
 
-  // Replaces all edges of the graph with the validated vault edges.
+  /**
+   * Troca as arestas DESTA VISTA pelas da pasta.
+   *
+   * Antes: `deleteMany({ where: { grafoId } })` — a aresta pertencia ao grafo.
+   * Agora a aresta é um fato entre entidades, e a vista é só quem o exibe: só as
+   * arestas entre nós que ESTE grafo contém são reconciliadas. Sem isso, um Push
+   * apagaria arestas de outros grafos.
+   *
+   * Consequência assumida: uma aresta entre dois nós que também vivem em outro
+   * grafo é um fato só. Removê-la aqui a remove de lá também — porque é a mesma
+   * aresta, não uma cópia.
+   */
   private async replaceEdges(
     tx: Tx,
     grafoId: string,
     edges: VaultPayload['edges'],
     byRef: Map<string, GraphNodeRef>,
   ): Promise<number> {
-    await tx.conhecimentoAresta.deleteMany({ where: { grafoId } });
+    const contido = { some: { grafoId } };
+    await tx.conhecimentoAresta.deleteMany({
+      where: { nodeOrigem: { contidoEm: contido }, nodeDestino: { contidoEm: contido } },
+    });
     const planned = planVaultEdges(edges, byRef);
     for (const e of planned) await this.createEdge(tx, grafoId, e);
     return planned.length;
