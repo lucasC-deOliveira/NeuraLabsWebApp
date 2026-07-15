@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@/components/link";
@@ -52,7 +53,7 @@ export function DashboardPage() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50">
-        <div className="mx-auto max-w-5xl px-4 py-6 sm:py-10 lg:px-8">
+        <PageContainer>
           <PageHeader title="NeuraLabs" subtitle="Flashcards Inteligentes com IA" />
 
           <DashboardStatCards loading={loading} dueCardCount={dueCardCount} accuracy={accuracy} />
@@ -61,7 +62,7 @@ export function DashboardPage() {
           <SubjectsGrid loading={loading} subjects={subjects} />
           <Separator className="my-4 sm:my-6" />
           <RecentActivity loading={loading} sessions={sessions} />
-        </div>
+        </PageContainer>
       </div>
       <Toaster />
     </TooltipProvider>

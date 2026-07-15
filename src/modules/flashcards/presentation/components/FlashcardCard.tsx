@@ -9,7 +9,17 @@ import type { FlashcardItem, SpacedRepetition } from "../../domain/flashcard.typ
 import type { FlashcardCriteria } from "../../domain/services/flashcard-filters";
 import { formatDistanceToNow, isOverdue, isDue, getEaseBar } from "../../domain/services/srs-status";
 import { ESTAGIO_LABELS, ESTAGIO_STYLES, truncate } from "../constants/estagio";
-import { FlashcardTags } from "./FlashcardTags";
+import { ConceptTags, type ConceptTagSelection } from "@/components/concept-tags";
+
+// Traduz o clique numa tag para o filtro desta lista: o chip compartilhado só avisa
+// o que foi clicado, sem conhecer os critérios de flashcards.
+function selectionToCriteria(selection: ConceptTagSelection): Partial<FlashcardCriteria> {
+  if (selection.topicoId) {
+    return { assuntoFilter: selection.assuntoId ?? "", topicoFilter: selection.topicoId };
+  }
+  if (selection.assuntoId) return { assuntoFilter: selection.assuntoId, topicoFilter: "" };
+  return { search: selection.conceito ?? "" };
+}
 
 function DueBadge({ sr }: { sr: SpacedRepetition | null }) {
   if (!sr) return <Badge variant="outline" className="text-[10px] h-5 px-1.5">Sem revisao</Badge>;
@@ -53,7 +63,7 @@ export function FlashcardCard({ fc, onDetail, onEdit, onDelete, onFilter }: Flas
     <Card className="group flex flex-col transition-all hover:border-primary/30 hover:shadow-sm cursor-pointer">
       <CardContent className="flex-1 px-4 pt-4 pb-2 space-y-2.5" onClick={onDetail}>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <FlashcardTags tags={conceptTags} onFilter={onFilter} />
+          <ConceptTags tags={conceptTags} onSelect={(s) => onFilter(selectionToCriteria(s))} />
           {fc.tipo && (
             <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-medium text-primary/80">
               {fc.tipo.replace("_", " ").toLowerCase()}

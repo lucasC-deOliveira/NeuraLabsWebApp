@@ -2,13 +2,30 @@
 
 import { TagIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { FlashcardConceptTag } from "../../domain/flashcard.types";
-import type { FlashcardCriteria } from "../../domain/services/flashcard-filters";
 
-interface FlashcardTagsProps {
-  tags: FlashcardConceptTag[];
-  // Clicar numa tag filtra a lista por ela; a página decide como aplicar o patch.
-  onFilter: (patch: Partial<FlashcardCriteria>) => void;
+// Chips dos conceitos aos quais um cartão está conectado no grafo, com os pais.
+// Compartilhado entre a listagem de flashcards e o baralho aberto, que mostram as
+// mesmas tags — por isso não conhece o domínio de nenhum dos dois: recebe a forma
+// abaixo e AVISA o que foi clicado; cada página decide que filtro aquilo significa.
+
+export interface ConceptTagItem {
+  conceito: string;
+  topico: string;
+  topicoId: string;
+  assunto: string;
+  assuntoId: string;
+}
+
+// O que o usuário clicou: um assunto, um tópico (com o assunto pai) ou um conceito.
+export interface ConceptTagSelection {
+  assuntoId?: string;
+  topicoId?: string;
+  conceito?: string;
+}
+
+interface ConceptTagsProps {
+  tags: ConceptTagItem[];
+  onSelect: (selection: ConceptTagSelection) => void;
 }
 
 const ASSUNTO_CHIP = "text-[10px] h-5 px-1.5 font-normal text-muted-foreground";
@@ -50,10 +67,9 @@ function FilterChip({ nome, variant, className, onClick }: FilterChipProps) {
   );
 }
 
-// Tags do flashcard derivadas dos conceitos aos quais ele está conectado no grafo e
-// dos pais desses conceitos. Mostra os três níveis distintos (deduplicados) do mais
-// amplo ao mais específico: assunto → tópico → conceito.
-export function FlashcardTags({ tags, onFilter }: FlashcardTagsProps) {
+// Mostra os três níveis distintos (deduplicados) do mais amplo ao mais específico:
+// assunto → tópico → conceito.
+export function ConceptTags({ tags, onSelect }: ConceptTagsProps) {
   const assuntos = distinctChips(tags.map((t) => ({ nome: t.assunto, id: t.assuntoId })));
   const topicos = distinctChips(tags.map((t) => ({ nome: t.topico, id: t.topicoId, assuntoId: t.assuntoId })));
   const conceitos = distinctChips(tags.map((t) => ({ nome: t.conceito })));
@@ -68,7 +84,7 @@ export function FlashcardTags({ tags, onFilter }: FlashcardTagsProps) {
           nome={a.nome}
           variant="outline"
           className={ASSUNTO_CHIP}
-          onClick={a.id ? () => onFilter({ assuntoFilter: a.id, topicoFilter: "" }) : undefined}
+          onClick={a.id ? () => onSelect({ assuntoId: a.id }) : undefined}
         />
       ))}
       {topicos.map((t) => (
@@ -77,7 +93,7 @@ export function FlashcardTags({ tags, onFilter }: FlashcardTagsProps) {
           nome={t.nome}
           variant="outline"
           className={TOPICO_CHIP}
-          onClick={t.id && t.assuntoId ? () => onFilter({ assuntoFilter: t.assuntoId, topicoFilter: t.id }) : undefined}
+          onClick={t.id && t.assuntoId ? () => onSelect({ assuntoId: t.assuntoId, topicoId: t.id }) : undefined}
         />
       ))}
       {conceitos.map((c) => (
@@ -86,7 +102,7 @@ export function FlashcardTags({ tags, onFilter }: FlashcardTagsProps) {
           nome={c.nome}
           variant="secondary"
           className={CONCEITO_CHIP}
-          onClick={() => onFilter({ search: c.nome })}
+          onClick={() => onSelect({ conceito: c.nome })}
         />
       ))}
     </div>

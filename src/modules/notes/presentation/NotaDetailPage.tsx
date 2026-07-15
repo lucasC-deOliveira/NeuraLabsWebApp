@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "@/lib/navigation";
@@ -16,22 +17,22 @@ import { formatSubtipoLabel } from "../domain/services/nota-format";
 
 function NotaLoading() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <PageContainer>
       <div className="flex items-center justify-center py-20">
         <Loader2Icon className="size-8 animate-spin text-zinc-400" />
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
 function NotaNotFound() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-20 text-center">
+    <PageContainer className="py-20 text-center">
       <p className="text-lg text-zinc-400">Nota não encontrada.</p>
       <Link href="/notes">
         <Button variant="link" className="mt-2">Voltar para notas</Button>
       </Link>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -73,7 +74,7 @@ export function NotaDetailPage() {
   if (!nota) return <NotaNotFound />;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-4 sm:space-y-6">
+    <PageContainer className="space-y-4 sm:space-y-6">
       <PageHeader
         title="Detalhes da nota"
         subtitle={
@@ -130,6 +131,6 @@ export function NotaDetailPage() {
           <ArrowRightIcon className="size-4" />
         </Button>
       </div>
-    </div>
+    </PageContainer>
   );
 }

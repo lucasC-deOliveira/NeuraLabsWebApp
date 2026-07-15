@@ -187,7 +187,16 @@ function SelectScrollDownButton({
   )
 }
 
+// Mapa valor→rótulo → itens do dropdown. O mesmo mapa deve ir no `items` do Select:
+// sem ele o Base UI mostra o VALOR CRU no gatilho (ex.: "baralho") até abrir a lista.
+function selectItems(map: Record<string, string>) {
+  return Object.entries(map).map(([value, label]) => (
+    <SelectItem key={value} value={value}>{label}</SelectItem>
+  ))
+}
+
 export {
+  selectItems,
   Select,
   SelectContent,
   SelectGroup,

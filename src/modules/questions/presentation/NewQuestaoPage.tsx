@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer, NarrowColumn } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
@@ -187,10 +188,11 @@ export function NewQuestaoPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <PageContainer>
       <PageHeader title="Nova questão" />
 
-      <div className="space-y-6">
+      {/* Formulário: o quadro da página é o padrão, os campos não. */}
+      <NarrowColumn className="space-y-6">
         <TipoSelector tipo={tipo} onSelect={setTipo} />
 
         <div className="space-y-2">
@@ -231,7 +233,7 @@ export function NewQuestaoPage() {
             {saving ? "Salvando..." : "Salvar questão"}
           </Button>
         </div>
-      </div>
-    </div>
+      </NarrowColumn>
+    </PageContainer>
   );
 }

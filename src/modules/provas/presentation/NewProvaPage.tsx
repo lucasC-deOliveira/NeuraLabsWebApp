@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer, NarrowColumn } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
@@ -16,9 +17,11 @@ export function NewProvaPage() {
   const handleCreated = (id: string): void => { router.push(`/provas/${id}`); };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <PageContainer>
       <PageHeader title="Nova prova" />
 
+      {/* Formulário: o quadro da página é o padrão, os campos não. */}
+      <NarrowColumn>
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-lg bg-muted mb-6">
         <button
@@ -44,6 +47,7 @@ export function NewProvaPage() {
       ) : (
         <ImportTab onCreated={handleCreated} />
       )}
-    </div>
+      </NarrowColumn>
+    </PageContainer>
   );
 }

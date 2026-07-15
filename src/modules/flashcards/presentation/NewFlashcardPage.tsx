@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
@@ -14,7 +15,7 @@ export function NewFlashcardPage() {
   const [mode, setMode] = useState<PageMode>("from-nota");
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-6">
+    <PageContainer className="space-y-6">
       {/* O voltar agora é do PageHeader (a rota é interna a Flashcards). */}
       <PageHeader
         title="Novo Flashcard"
@@ -31,6 +32,6 @@ export function NewFlashcardPage() {
       </div>
 
       {mode === "from-nota" ? <NewFlashcardFromNotaMode router={router} /> : <NewFlashcardManualMode router={router} />}
-    </div>
+    </PageContainer>
   );
 }

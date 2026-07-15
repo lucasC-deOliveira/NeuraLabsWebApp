@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
@@ -87,7 +88,7 @@ export default function GraphListPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Content */}
-      <div className="flex-1 mx-auto w-full max-w-7xl px-3 sm:px-5 py-6 sm:py-10">
+      <PageContainer className="flex-1">
         <PageHeader title="Meus Grafos" />
         {/* Create section */}
         <Card className="mb-8 bg-card border-border">
@@ -214,7 +215,7 @@ export default function GraphListPage() {
             onPage={setPage}
           />
         )}
-      </div>
+      </PageContainer>
 
       <DeleteGraphModal
         open={!!deleteTarget}
