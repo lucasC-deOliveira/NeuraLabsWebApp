@@ -3,14 +3,16 @@
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface FlashcardsPaginationProps {
+interface PaginationProps {
   page: number;
   totalPages: number;
   onPage: (page: number) => void;
 }
 
+// Controle de página compartilhado (flashcards, baralhos): nada específico de um
+// domínio, só "Página X de Y" + navegação.
 // Só aparece quando há mais de uma página (lista pequena não precisa de controle).
-export function FlashcardsPagination({ page, totalPages, onPage }: FlashcardsPaginationProps) {
+export function Pagination({ page, totalPages, onPage }: PaginationProps) {
   if (totalPages <= 1) return null;
 
   return (
