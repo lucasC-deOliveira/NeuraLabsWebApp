@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { flashcardEdgePairs, conceptTagsByFlashcard, type EdgeEnds } from './connected-concepts';
-import type { ConceptTag } from '../flashcard-views';
+import type { ConceptTag } from '../curriculum-views';
 
 describe('flashcardEdgePairs', () => {
   const fcNodes = new Set(['fc1']);

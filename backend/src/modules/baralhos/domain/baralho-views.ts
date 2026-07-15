@@ -1,3 +1,5 @@
+import type { ConceptTag } from '../../curriculum/domain/curriculum-views';
+
 // Grafo em que o baralho tem um nó — o baralho pertence ao usuário, não ao grafo,
 // mas pode ter sido criado a partir de um (e a listagem oferece o caminho de volta).
 export interface BaralhoOrigin {
@@ -23,6 +25,9 @@ export interface BaralhoCard {
   resposta: string;
   tipo: string | null;
   conceito: string;
+  // Conceitos aos quais o cartão está conectado no grafo (+ tópicos/assuntos pais),
+  // a mesma origem das tags da listagem de flashcards. Vazio fora de grafos.
+  conceitosConectados: ConceptTag[];
 }
 
 export interface BaralhoDetail {

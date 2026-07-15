@@ -11,6 +11,7 @@ import {
 } from '../modules/flashcards/domain/ports/flashcard-query';
 import { PrismaFlashcardRepository } from '../modules/flashcards/infrastructure/persistence/prisma-flashcard.repository';
 import { PrismaFlashcardQuery } from '../modules/flashcards/infrastructure/persistence/prisma-flashcard.query';
+import { PrismaConnectedConceptsQuery } from '../modules/curriculum/infrastructure/persistence/prisma-connected-concepts.query';
 import { ListFlashcardsUseCase } from '../modules/flashcards/application/use-cases/list-flashcards.use-case';
 import { CreateFlashcardUseCase } from '../modules/flashcards/application/use-cases/create-flashcard.use-case';
 import { UpdateFlashcardUseCase } from '../modules/flashcards/application/use-cases/update-flashcard.use-case';
@@ -49,6 +50,7 @@ import { GetStudyHistoryUseCase } from '../modules/study/application/use-cases/g
   controllers: [ContentController],
   providers: [
     { provide: FLASHCARD_REPOSITORY, useClass: PrismaFlashcardRepository },
+    PrismaConnectedConceptsQuery,
     { provide: FLASHCARD_QUERY, useClass: PrismaFlashcardQuery },
     {
       provide: ListFlashcardsUseCase,
