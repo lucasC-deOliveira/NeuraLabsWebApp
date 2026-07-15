@@ -6,7 +6,13 @@ import {
   DEFAULT_CUSTOM_CSS,
   getActiveCardCss,
 } from "./card-styles";
-import { type CardFrameId, getFrameCss } from "./card-frames";
+import {
+  type CardFrameId,
+  type FrameImageRatio,
+  getFrameCss,
+  isFrameImageUrl,
+} from "./card-frames";
+import { measureFrameImage } from "./measure-frame-image";
 
 const STORAGE_KEY = "flashcard-style";
 const CUSTOM_CSS_KEY = "flashcard-custom-css";
@@ -75,7 +81,7 @@ function persist(state: CardStyleState): void {
 }
 
 // injeta/atualiza o <style> global com o CSS do estilo + o da moldura ativa
-function applyCss(state: CardStyleState): void {
+function applyCss(state: CardStyleState, ratio: FrameImageRatio | null): void {
   if (typeof document === "undefined") return;
   let el = document.getElementById(STYLE_ELEMENT_ID) as HTMLStyleElement | null;
   if (!el) {
@@ -85,16 +91,36 @@ function applyCss(state: CardStyleState): void {
   }
   const style = getActiveCardCss(state.styleId, state.customCss);
   // A moldura vem depois para vencer o `.fc-card` de um preset/CSS personalizado.
-  el.textContent = `${style}\n${getFrameCss(state.frameId, state.frameImageUrl)}`;
+  el.textContent = `${style}\n${getFrameCss(state.frameId, state.frameImageUrl, ratio)}`;
+}
+
+// Mede a arte para o card poder assumir a forma dela. Só a última medida vale: trocar
+// de imagem antes de a anterior carregar não pode aplicar a proporção da antiga.
+function measureFrame(
+  state: CardStyleState,
+  apply: (ratio: FrameImageRatio | null) => void,
+): () => void {
+  if (state.frameId !== "image" || !isFrameImageUrl(state.frameImageUrl)) {
+    apply(null);
+    return (): void => {};
+  }
+  let cancelled = false;
+  measureFrameImage(state.frameImageUrl.trim()).then((ratio): void => {
+    if (!cancelled) apply(ratio);
+  });
+  return (): void => { cancelled = true; };
 }
 
 export function CardStyleProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<CardStyleState>(loadState);
+  const [frameRatio, setFrameRatio] = useState<FrameImageRatio | null>(null);
+
+  useEffect(() => measureFrame(state, setFrameRatio), [state]);
 
   useEffect(() => {
-    applyCss(state);
+    applyCss(state, frameRatio);
     persist(state);
-  }, [state]);
+  }, [state, frameRatio]);
 
   const setStyleId = useCallback((styleId: CardStyleId) => {
     setState((prev) => ({ ...prev, styleId }));

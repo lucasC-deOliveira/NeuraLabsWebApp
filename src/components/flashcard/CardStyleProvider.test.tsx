@@ -1,7 +1,13 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CardStyleProvider, useCardStyle } from "./CardStyleProvider";
+
+// A medida é efeito de DOM (carrega a imagem de verdade), que o jsdom não faz.
+// A arte de carta do disrupt é retrato: 221x405.
+vi.mock("./measure-frame-image", () => ({
+  measureFrameImage: vi.fn(() => Promise.resolve({ largura: 221, altura: 405 })),
+}));
 
 function Consumer() {
   const { styleId, setStyleId, frameId, setFrameId, setFrameImageUrl } = useCardStyle();
@@ -66,7 +72,15 @@ describe("CardStyleProvider", () => {
     await userEvent.click(screen.getByRole("button", { name: "image" }));
     expect(injectedCss()).not.toContain("background-image");
     await userEvent.click(screen.getByRole("button", { name: "set image url" }));
-    expect(injectedCss()).toContain('url("https://x.test/f.png")');
+    await waitFor(() => expect(injectedCss()).toContain('url("https://x.test/f.png")'));
+  });
+
+  // O card assume a forma da arte; esticar a moldura a deformava.
+  it("gives the card the ratio of the measured art", async () => {
+    renderConsumer();
+    await userEvent.click(screen.getByRole("button", { name: "image" }));
+    await userEvent.click(screen.getByRole("button", { name: "set image url" }));
+    await waitFor(() => expect(injectedCss()).toContain("aspect-ratio: 221 / 405"));
   });
 
   it("persists the frame choice", async () => {
