@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { RankGraphImportanceUseCase } from './rank-graph-importance.use-case';
-import type { ConceitoImportanceSource } from '../../domain/ports/conceito-importance-source';
-import type { ImportanceRow } from '../../domain/services/conceito-importance';
+import type { ConceitoImportanceSource } from '../../../curriculum/domain/ports/conceito-importance-source';
+import type { ImportanceRow } from '../../../curriculum/domain/services/conceito-importance';
 
 class FakeSource implements ConceitoImportanceSource {
   constructor(private readonly rows: ImportanceRow[]) {}

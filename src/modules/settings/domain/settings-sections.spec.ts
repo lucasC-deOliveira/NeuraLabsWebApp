@@ -7,7 +7,12 @@ describe("visibleSections", () => {
   });
 
   it("hides the desktop-only sections in the browser", () => {
-    expect(visibleSections(false).map((s) => s.id)).toEqual(["aparencia", "flashcards", "ia"]);
+    expect(visibleSections(false).map((s) => s.id)).toEqual([
+      "aparencia",
+      "flashcards",
+      "estudo",
+      "ia",
+    ]);
   });
 
   it("gives every section a summary, like the Android list", () => {

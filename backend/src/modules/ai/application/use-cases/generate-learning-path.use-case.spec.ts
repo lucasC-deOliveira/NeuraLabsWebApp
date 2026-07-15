@@ -5,8 +5,8 @@ import type {
   LearningGraphRepository,
 } from '../../domain/ports/learning-graph-repository';
 import type { LlmPort, LlmRequest } from '../../domain/ports/llm-port';
-import type { ConceitoImportanceSource } from '../../domain/ports/conceito-importance-source';
-import type { ImportanceRow } from '../../domain/services/conceito-importance';
+import type { ConceitoImportanceSource } from '../../../curriculum/domain/ports/conceito-importance-source';
+import type { ImportanceRow } from '../../../curriculum/domain/services/conceito-importance';
 
 class FakeGraph implements LearningGraphRepository {
   constructor(private readonly graph: LearningGraph) {}

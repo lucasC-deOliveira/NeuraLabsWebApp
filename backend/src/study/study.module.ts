@@ -46,6 +46,8 @@ import { PrismaStudyCardQuery } from '../modules/study/infrastructure/persistenc
 import { PrismaStudySessionLifecycle } from '../modules/study/infrastructure/persistence/prisma-study-session-lifecycle';
 import { PrismaStudyFlashcardQuery } from '../modules/study/infrastructure/persistence/prisma-study-flashcard.query';
 import { PrismaStudyDeckQuery } from '../modules/study/infrastructure/persistence/prisma-study-deck.query';
+import { PrismaCardImportanceQuery } from '../modules/curriculum/infrastructure/persistence/prisma-card-importance.query';
+import { PrismaConceitoImportanceRepository } from '../modules/curriculum/infrastructure/persistence/prisma-conceito-importance.repository';
 import { PrismaVaultImportSessionRepository } from '../modules/study/infrastructure/persistence/prisma-vault-import-session.repository';
 
 @Module({
@@ -57,6 +59,8 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
     { provide: STUDY_CARD_QUERY, useClass: PrismaStudyCardQuery },
     { provide: STUDY_SESSION_LIFECYCLE, useClass: PrismaStudySessionLifecycle },
     { provide: STUDY_FLASHCARD_QUERY, useClass: PrismaStudyFlashcardQuery },
+    PrismaConceitoImportanceRepository,
+    PrismaCardImportanceQuery,
     { provide: STUDY_DECK_QUERY, useClass: PrismaStudyDeckQuery },
     { provide: CLOCK, useClass: SystemClock },
     {

@@ -179,6 +179,7 @@ function toStudyCard(api: ApiDeckCard): StudyCard {
     resposta: api.resposta,
     conceito: api.conceito,
     schedule: toCardSchedule(api),
+    importancia: api.importancia,
   };
 }
 
@@ -301,7 +302,8 @@ export class HttpGraphAdapter
     if (!res) return null;
     return {
       sessionId: res.sessionId,
-      card: { ...res.card, schedule: toCardSchedule(res) },
+      // O estudo de card único não ordena fila: não há peso a carregar.
+      card: { ...res.card, schedule: toCardSchedule(res), importancia: null },
       due: res.due,
       proximaRevisao: res.proximaRevisao,
     };

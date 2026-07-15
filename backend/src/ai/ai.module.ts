@@ -197,8 +197,8 @@ import { RankGraphImportanceUseCase } from '../modules/ai/application/use-cases/
 import {
   CONCEITO_IMPORTANCE_SOURCE,
   type ConceitoImportanceSource,
-} from '../modules/ai/domain/ports/conceito-importance-source';
-import { PrismaConceitoImportanceRepository } from '../modules/ai/infrastructure/persistence/prisma-conceito-importance.repository';
+} from '../modules/curriculum/domain/ports/conceito-importance-source';
+import { PrismaConceitoImportanceRepository } from '../modules/curriculum/infrastructure/persistence/prisma-conceito-importance.repository';
 import { BuildRoadmapUseCase } from '../modules/ai/application/use-cases/build-roadmap.use-case';
 import {
   ROADMAP_TRILHA_REPOSITORY,
@@ -382,7 +382,12 @@ const graphRelationRules: RelationRulesPort = {
         rules: RelationRulesPort,
         cache: NodeInsightsCacheRepository,
       ) => new GenerateNodeInsightsUseCase(context, llm, rules, cache),
-      inject: [INSIGHT_CONTEXT_REPOSITORY, LLM_PORT, RELATION_RULES_PORT, NODE_INSIGHTS_CACHE_REPOSITORY],
+      inject: [
+        INSIGHT_CONTEXT_REPOSITORY,
+        LLM_PORT,
+        RELATION_RULES_PORT,
+        NODE_INSIGHTS_CACHE_REPOSITORY,
+      ],
     },
     {
       provide: AutoLinkGraphUseCase,

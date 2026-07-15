@@ -2,6 +2,8 @@ import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import { PrismaStudyDeckQuery } from './prisma-study-deck.query';
+import { PrismaCardImportanceQuery } from '../../../curriculum/infrastructure/persistence/prisma-card-importance.query';
+import { PrismaConceitoImportanceRepository } from '../../../curriculum/infrastructure/persistence/prisma-conceito-importance.repository';
 import { PrismaStudySessionRepository } from './prisma-study-session.repository';
 import { StartDeckStudyUseCase } from '../../application/use-cases/start-deck-study.use-case';
 
@@ -27,7 +29,10 @@ describe('Deck study (integration — neuralabs_test)', () => {
     const moduleRef = await Test.createTestingModule({ providers: [PrismaService] }).compile();
     prisma = moduleRef.get(PrismaService);
     await prisma.$connect();
-    query = new PrismaStudyDeckQuery(prisma);
+    query = new PrismaStudyDeckQuery(
+      prisma,
+      new PrismaCardImportanceQuery(prisma, new PrismaConceitoImportanceRepository(prisma)),
+    );
     startDeck = new StartDeckStudyUseCase(query, new PrismaStudySessionRepository(prisma));
   });
 

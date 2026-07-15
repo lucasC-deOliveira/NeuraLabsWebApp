@@ -4,8 +4,8 @@ import type {
   LearningGraph,
   LearningGraphRepository,
 } from '../../domain/ports/learning-graph-repository';
-import type { ConceitoImportanceSource } from '../../domain/ports/conceito-importance-source';
-import type { ImportanceRow } from '../../domain/services/conceito-importance';
+import type { ConceitoImportanceSource } from '../../../curriculum/domain/ports/conceito-importance-source';
+import type { ImportanceRow } from '../../../curriculum/domain/services/conceito-importance';
 import type { EditalCoverageSource } from '../../domain/ports/edital-coverage-source';
 import type {
   RoadmapTrilhaRepository,

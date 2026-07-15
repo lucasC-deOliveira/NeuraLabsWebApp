@@ -9,6 +9,7 @@ const card = (id: string, conceito: string | null = null): StudyCardView => ({
   pergunta: 'P',
   resposta: 'R',
   conceito,
+  importancia: null,
   fase: 'LEARN',
   learningStep: 0,
   intervalo: 0,

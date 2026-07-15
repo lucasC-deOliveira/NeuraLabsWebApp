@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2Icon, EyeIcon, CheckCircle2Icon, ClockIcon } from "lucide-react";
+import { Loader2Icon, EyeIcon, CheckCircle2Icon, ClockIcon, InfoIcon } from "lucide-react";
 import { toast } from "sonner";
 import { nowMs } from "@/lib/clock";
 import { graphHttp } from "@/modules/graph/infra/http";
@@ -27,6 +27,8 @@ import {
   type LocalSchedule,
 } from "@/lib/srs-local";
 import { formatDelay } from "@/lib/srs-preview";
+import { orderStudyQueue, hasGraphWeights } from "@/lib/study-order";
+import { loadStudyOrder } from "@/lib/study-order-preference";
 import { GradeGrid } from "./GradeGrid";
 
 interface StudyDeckModalProps {
@@ -60,8 +62,18 @@ function finalizeSession(graphDir: string | null, sessionId: string): void {
   else graphHttp.finalizeStudySession(sessionId).catch(() => {});
 }
 
+// O vault guarda os nós, não o ranking do grafo (que sai de contas sobre arestas
+// TESTA e edital, no servidor). Sem peso aqui, a sessão do vault segue a ordem do
+// baralho e avisa — a de baralho, que é o caminho da API, tem os pesos.
 function toQueueCard(n: VaultNode, schedule: LocalSchedule | null): QueueCard {
-  return { id: n.id, pergunta: n.pergunta ?? "", resposta: n.resposta ?? "", conceito: null, schedule };
+  return {
+    id: n.id,
+    pergunta: n.pergunta ?? "",
+    resposta: n.resposta ?? "",
+    conceito: null,
+    schedule,
+    importancia: null,
+  };
 }
 
 /**
@@ -130,7 +142,7 @@ async function loadDeckFromApi(baralhoId: string): Promise<DeckOutcome> {
   }
   // O agendamento vem do servidor (o adapter o traduz): a sessão da API sabe tanto
   // quanto a do vault. Antes chegava sempre null, e todo card parecia novo.
-  const queue: QueueCard[] = deck.cards;
+  const queue: QueueCard[] = orderStudyQueue(deck.cards, loadStudyOrder());
   return { phase: "question", titulo: deck.titulo, totalNoDeck: deck.totalNoDeck, graphDir: null, sessionId: deck.sessionId, queue };
 }
 
@@ -176,19 +188,33 @@ function ScheduleBadge({ schedule }: { schedule: LocalSchedule }) {
   );
 }
 
+// Quem ligou "prioridade pelo peso" e estuda um baralho fora do grafo (os
+// importados: NODEJS, Inglês) veria a ordem de sempre e acharia a opção quebrada.
+function SemPesosHint() {
+  return (
+    <div className="flex items-start gap-2 rounded-md bg-muted/60 px-3 py-2 text-[11px] text-muted-foreground">
+      <InfoIcon className="size-3.5 shrink-0 mt-px" />
+      <span>Este baralho não está no grafo, então não há pesos — a ordem é a do baralho.</span>
+    </div>
+  );
+}
+
 function DeckCardView({
   card,
   phase,
+  semPesos,
   onReveal,
   onGrade,
 }: {
   card: QueueCard;
   phase: Phase;
+  semPesos: boolean;
   onReveal: () => void;
   onGrade: (grade: ReviewGrade) => void;
 }) {
   return (
     <div className="space-y-4">
+      {semPesos && <SemPesosHint />}
       {card.schedule && <ScheduleBadge schedule={card.schedule} />}
       <FlashcardFace pergunta={card.pergunta} resposta={card.resposta} conceito={card.conceito} showAnswer={phase === "answer"} />
       {phase === "question" && (
@@ -283,6 +309,7 @@ function DeckBody({
   totalNoDeck,
   reviewed,
   waitingUntil,
+  semPesos,
   onClose,
   onReveal,
   onGrade,
@@ -293,6 +320,7 @@ function DeckBody({
   totalNoDeck: number;
   reviewed: number;
   waitingUntil: Date | null;
+  semPesos: boolean;
   onClose: () => void;
   onReveal: () => void;
   onGrade: (grade: ReviewGrade) => void;
@@ -315,7 +343,7 @@ function DeckBody({
     return <CompleteView queue={queue} totalNoDeck={totalNoDeck} reviewed={reviewed} onClose={onClose} />;
   }
   if (!card) return null;
-  return <DeckCardView card={card} phase={phase} onReveal={onReveal} onGrade={onGrade} />;
+  return <DeckCardView card={card} phase={phase} semPesos={semPesos} onReveal={onReveal} onGrade={onGrade} />;
 }
 
 export function StudyDeckModal(props: StudyDeckModalProps) {
@@ -331,6 +359,8 @@ export function StudyDeckModal(props: StudyDeckModalProps) {
   const [startedAt, setStartedAt] = useState(nowMs);
   const [prevKey, setPrevKey] = useState("");
   const [waitingUntil, setWaitingUntil] = useState<Date | null>(null);
+  // Lida uma vez: mudar a preferência no meio de uma sessão remexeria a fila.
+  const [studyOrder] = useState(loadStudyOrder);
   const finalizedRef = useRef(false);
 
   // Reset during render (react-hooks v7 forbids synchronous setState in the effect body).
@@ -370,6 +400,9 @@ export function StudyDeckModal(props: StudyDeckModalProps) {
   }, [open, baralhoId]);
 
   const card = queue[index] ?? null;
+  // Pediu prioridade por peso, mas este baralho não tem nenhum: sem o aviso, a
+  // opção pareceria quebrada.
+  const semPesos = studyOrder === "peso" && queue.length > 0 && !hasGraphWeights(queue);
 
   // Avança para o próximo card VENCIDO. Se ainda há cards mas nenhum venceu,
   // espera a hora deles em vez de repetir o card na hora.
@@ -442,6 +475,7 @@ export function StudyDeckModal(props: StudyDeckModalProps) {
             totalNoDeck={totalNoDeck}
             reviewed={reviewed}
             waitingUntil={waitingUntil}
+            semPesos={semPesos}
             onClose={() => onOpenChange(false)}
             onReveal={() => setPhase("answer")}
             onGrade={handleGrade}

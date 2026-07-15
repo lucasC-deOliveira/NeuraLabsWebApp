@@ -40,6 +40,7 @@ describe("StudyDeckModal", () => {
           fatorEase: 2.5,
           proximaRevisao: null,
           ultimaRevisao: null,
+          importancia: null,
         },
       ],
       totalNoDeck: 1,
@@ -65,6 +66,7 @@ describe("StudyDeckModal", () => {
       fatorEase: 2.5,
       proximaRevisao: null,
       ultimaRevisao: null,
+      importancia: null,
     });
 
     const responder = async (nota: string): Promise<void> => {
@@ -135,6 +137,79 @@ describe("StudyDeckModal", () => {
     });
   });
 
+  // A ordem por peso é uma preferência: sem ela, nada muda.
+  describe("ordem da sessão", () => {
+    const card = (id: string, pergunta: string, importancia: number | null): ApiDeckCard => ({
+      id,
+      pergunta,
+      resposta: "R",
+      conceito: null,
+      fase: "LEARN",
+      learningStep: 0,
+      dificuldade: 5,
+      intervalo: 0,
+      fatorEase: 2.5,
+      proximaRevisao: null,
+      ultimaRevisao: null,
+      importancia,
+    });
+
+    beforeEach(() => {
+      localStorage.clear();
+      vi.mocked(startDeckStudy).mockResolvedValue({
+        sessionId: "s1",
+        titulo: "Deck A",
+        cards: [card("c1", "Recursão?", 0.1), card("c2", "Dijkstra?", 0.9)],
+        totalNoDeck: 2,
+      });
+    });
+
+    it("opens in the deck's own order by default", async () => {
+      render(<StudyDeckModal open onOpenChange={vi.fn()} baralhoId="b1" />);
+      expect(await screen.findByText("Recursão?")).toBeInTheDocument();
+    });
+
+    it("opens with the heaviest concept when the weighted order is chosen", async () => {
+      localStorage.setItem("neuralabs.study-order", "peso");
+      render(<StudyDeckModal open onOpenChange={vi.fn()} baralhoId="b1" />);
+      expect(await screen.findByText("Dijkstra?")).toBeInTheDocument();
+    });
+
+    // Sem o aviso, quem ligou a opção acharia que ela não funciona nos importados.
+    it("says the deck has no weights, instead of silently doing nothing", async () => {
+      localStorage.setItem("neuralabs.study-order", "peso");
+      vi.mocked(startDeckStudy).mockResolvedValue({
+        sessionId: "s1",
+        titulo: "NODEJS",
+        cards: [card("c1", "O que é o event loop?", null)],
+        totalNoDeck: 1,
+      });
+
+      render(<StudyDeckModal open onOpenChange={vi.fn()} baralhoId="b1" />);
+      expect(await screen.findByText(/não está no grafo/)).toBeInTheDocument();
+    });
+
+    it("stays quiet about weights when the deck has them", async () => {
+      localStorage.setItem("neuralabs.study-order", "peso");
+      render(<StudyDeckModal open onOpenChange={vi.fn()} baralhoId="b1" />);
+      await screen.findByText("Dijkstra?");
+      expect(screen.queryByText(/não está no grafo/)).not.toBeInTheDocument();
+    });
+
+    it("stays quiet in the classic order, where weights are not promised", async () => {
+      vi.mocked(startDeckStudy).mockResolvedValue({
+        sessionId: "s1",
+        titulo: "NODEJS",
+        cards: [card("c1", "O que é o event loop?", null)],
+        totalNoDeck: 1,
+      });
+
+      render(<StudyDeckModal open onOpenChange={vi.fn()} baralhoId="b1" />);
+      await screen.findByText("O que é o event loop?");
+      expect(screen.queryByText(/não está no grafo/)).not.toBeInTheDocument();
+    });
+  });
+
   // O rótulo do botão saía de uma tabela fixa e mentia: dizia "~ 10 min" no
   // "Difícil", que num card novo agenda 1 min.
   it("mostra em cada botão o tempo que o algoritmo realmente agenda", async () => {
@@ -145,7 +220,7 @@ describe("StudyDeckModal", () => {
         {
           id: "c1", pergunta: "Card um?", resposta: "R", conceito: null,
           fase: "LEARN", learningStep: 0, dificuldade: 5, intervalo: 0, fatorEase: 2.5,
-          proximaRevisao: null, ultimaRevisao: null,
+          proximaRevisao: null, ultimaRevisao: null, importancia: null,
         },
       ],
       totalNoDeck: 1,

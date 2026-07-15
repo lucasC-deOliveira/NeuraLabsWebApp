@@ -1,8 +1,8 @@
 import {
   rankConceitoImportance,
   type RankedConceito,
-} from '../../domain/services/conceito-importance';
-import type { ConceitoImportanceSource } from '../../domain/ports/conceito-importance-source';
+} from '../../../curriculum/domain/services/conceito-importance';
+import type { ConceitoImportanceSource } from '../../../curriculum/domain/ports/conceito-importance-source';
 
 const DEFAULT_PROVA_WEIGHT = 0.6;
 
