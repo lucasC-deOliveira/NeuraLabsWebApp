@@ -1,18 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { flashcardEdgePairs, conceptTagsByFlashcard, type EdgeEnds } from './connected-concepts';
+import { nodeEdgePairs, conceptTagsByOwner, type EdgeEnds } from './connected-concepts';
 import type { ConceptTag } from '../curriculum-views';
 
-describe('flashcardEdgePairs', () => {
-  const fcNodes = new Set(['fc1']);
+describe('nodeEdgePairs', () => {
+  const ownerNodes = new Set(['fc1']);
 
   it('extracts the other end regardless of edge direction', () => {
     const edges: EdgeEnds[] = [
       { nodeOrigemId: 'fc1', nodeDestinoId: 'c1' }, // flashcard → conceito
       { nodeOrigemId: 'c2', nodeDestinoId: 'fc1' }, // conceito → flashcard
     ];
-    expect(flashcardEdgePairs(edges, fcNodes)).toEqual([
-      { fcNode: 'fc1', other: 'c1' },
-      { fcNode: 'fc1', other: 'c2' },
+    expect(nodeEdgePairs(edges, ownerNodes)).toEqual([
+      { ownerNode: 'fc1', other: 'c1' },
+      { ownerNode: 'fc1', other: 'c2' },
     ]);
   });
 
@@ -21,11 +21,11 @@ describe('flashcardEdgePairs', () => {
       { nodeOrigemId: 'fc1', nodeDestinoId: null }, // sem o outro lado
       { nodeOrigemId: 'x', nodeDestinoId: 'y' }, // não é flashcard
     ];
-    expect(flashcardEdgePairs(edges, fcNodes)).toEqual([]);
+    expect(nodeEdgePairs(edges, ownerNodes)).toEqual([]);
   });
 });
 
-describe('conceptTagsByFlashcard', () => {
+describe('conceptTagsByOwner', () => {
   const tag = (conceito: string, topico: string, assunto: string): ConceptTag => ({
     conceito,
     topico,
@@ -36,11 +36,11 @@ describe('conceptTagsByFlashcard', () => {
 
   it('groups distinct connected concepts per flashcard, sorted by name', () => {
     const pairs = [
-      { fcNode: 'nFc', other: 'nZeta' },
-      { fcNode: 'nFc', other: 'nAlpha' },
-      { fcNode: 'nFc', other: 'nAlpha' }, // duplicado
+      { ownerNode: 'nFc', other: 'nZeta' },
+      { ownerNode: 'nFc', other: 'nAlpha' },
+      { ownerNode: 'nFc', other: 'nAlpha' }, // duplicado
     ];
-    const nodeToFlashcard = new Map([['nFc', 'fc1']]);
+    const nodeToOwner = new Map([['nFc', 'fc1']]);
     const conceptNodeToId = new Map([
       ['nZeta', 'cZeta'],
       ['nAlpha', 'cAlpha'],
@@ -50,13 +50,13 @@ describe('conceptTagsByFlashcard', () => {
       ['cAlpha', tag('Alpha', 'T1', 'Bio')],
     ]);
 
-    const result = conceptTagsByFlashcard(pairs, nodeToFlashcard, conceptNodeToId, tagByConcept);
+    const result = conceptTagsByOwner(pairs, nodeToOwner, conceptNodeToId, tagByConcept);
     expect(result.get('fc1')?.map((t) => t.conceito)).toEqual(['Alpha', 'Zeta']);
   });
 
   it('drops ends that are not concept nodes', () => {
-    const pairs = [{ fcNode: 'nFc', other: 'nNota' }];
-    const result = conceptTagsByFlashcard(
+    const pairs = [{ ownerNode: 'nFc', other: 'nNota' }];
+    const result = conceptTagsByOwner(
       pairs,
       new Map([['nFc', 'fc1']]),
       new Map(), // nNota não está no mapa de conceitos

@@ -1,8 +1,8 @@
 import type { ConceptTag } from '../curriculum-views';
 
 // Lógica pura para derivar, a partir das arestas do grafo, os conceitos conectados a
-// cada flashcard. As consultas ao banco (nós, arestas, conceitos) vivem no adapter
-// Prisma; aqui só combinamos os mapas resultantes — testável sem DB.
+// um "dono" — um flashcard ou uma questão. As consultas ao banco (nós, arestas,
+// conceitos) vivem no adapter Prisma; aqui só combinamos os mapas — testável sem DB.
 
 // Um ponto de aresta pode ser nulo (arestas ligadas a notas usam outros campos).
 export interface EdgeEnds {
@@ -10,35 +10,32 @@ export interface EdgeEnds {
   nodeDestinoId: string | null;
 }
 
-// Par (nó FLASHCARD, nó do outro lado) de uma aresta incidente ao flashcard.
-export interface FlashcardEdgePair {
-  fcNode: string;
+// Par (nó do dono, nó do outro lado) de uma aresta incidente ao dono.
+export interface NodeEdgePair {
+  ownerNode: string;
   other: string;
 }
 
 /**
- * Para cada aresta incidente a um nó FLASHCARD, extrai o "outro" ponto (candidato a
- * conceito). Ignora arestas sem os dois lados ou cujo flashcard não está no conjunto.
- * @example flashcardEdgePairs(edges, new Set(["fcNodeA"]))
+ * Para cada aresta incidente a um nó dono, extrai o "outro" ponto (candidato a
+ * conceito). Ignora arestas sem os dois lados ou cujo dono não está no conjunto.
+ * @example nodeEdgePairs(edges, new Set(["ownerNodeA"]))
  */
-export function flashcardEdgePairs(
-  edges: EdgeEnds[],
-  flashcardNodeIds: Set<string>,
-): FlashcardEdgePair[] {
-  const pairs: FlashcardEdgePair[] = [];
+export function nodeEdgePairs(edges: EdgeEnds[], ownerNodeIds: Set<string>): NodeEdgePair[] {
+  const pairs: NodeEdgePair[] = [];
   for (const e of edges) {
-    const pair = edgePair(e, flashcardNodeIds);
+    const pair = edgePair(e, ownerNodeIds);
     if (pair) pairs.push(pair);
   }
   return pairs;
 }
 
-function edgePair(e: EdgeEnds, fcNodes: Set<string>): FlashcardEdgePair | null {
+function edgePair(e: EdgeEnds, ownerNodes: Set<string>): NodeEdgePair | null {
   const o = e.nodeOrigemId;
   const d = e.nodeDestinoId;
   if (!o || !d) return null;
-  if (fcNodes.has(o)) return { fcNode: o, other: d };
-  if (fcNodes.has(d)) return { fcNode: d, other: o };
+  if (ownerNodes.has(o)) return { ownerNode: o, other: d };
+  if (ownerNodes.has(d)) return { ownerNode: d, other: o };
   return null;
 }
 
@@ -46,24 +43,24 @@ function edgePair(e: EdgeEnds, fcNodes: Set<string>): FlashcardEdgePair | null {
  * Monta, por flashcard, as tags dos conceitos conectados (distintos e ordenados por
  * nome), resolvendo cada par → conceito → tag com pais.
  */
-export function conceptTagsByFlashcard(
-  pairs: FlashcardEdgePair[],
-  nodeToFlashcard: Map<string, string>, // fcNode -> flashcardId
+export function conceptTagsByOwner(
+  pairs: NodeEdgePair[],
+  nodeToOwner: Map<string, string>, // ownerNode -> flashcardId
   conceptNodeToId: Map<string, string>, // otherNode -> conceitoId
   tagByConcept: Map<string, ConceptTag>, // conceitoId -> tag
 ): Map<string, ConceptTag[]> {
-  const idsByFlashcard = collectConceptIds(pairs, nodeToFlashcard, conceptNodeToId);
-  return resolveTags(idsByFlashcard, tagByConcept);
+  const idsByOwner = collectConceptIds(pairs, nodeToOwner, conceptNodeToId);
+  return resolveTags(idsByOwner, tagByConcept);
 }
 
 function collectConceptIds(
-  pairs: FlashcardEdgePair[],
-  nodeToFlashcard: Map<string, string>,
+  pairs: NodeEdgePair[],
+  nodeToOwner: Map<string, string>,
   conceptNodeToId: Map<string, string>,
 ): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>();
-  for (const { fcNode, other } of pairs) {
-    const flashcardId = nodeToFlashcard.get(fcNode);
+  for (const { ownerNode, other } of pairs) {
+    const flashcardId = nodeToOwner.get(ownerNode);
     const conceitoId = conceptNodeToId.get(other);
     if (!flashcardId || !conceitoId) continue;
     const set = out.get(flashcardId) ?? new Set<string>();
@@ -74,11 +71,11 @@ function collectConceptIds(
 }
 
 function resolveTags(
-  idsByFlashcard: Map<string, Set<string>>,
+  idsByOwner: Map<string, Set<string>>,
   tagByConcept: Map<string, ConceptTag>,
 ): Map<string, ConceptTag[]> {
   const out = new Map<string, ConceptTag[]>();
-  for (const [flashcardId, ids] of idsByFlashcard) {
+  for (const [flashcardId, ids] of idsByOwner) {
     const tags = [...ids]
       .map((id) => tagByConcept.get(id))
       .filter((t): t is ConceptTag => t !== undefined);
