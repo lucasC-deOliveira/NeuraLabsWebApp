@@ -2,10 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { TipoNode } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import type { ConceptTag } from '../../domain/curriculum-views';
-import {
-  flashcardEdgePairs,
-  conceptTagsByFlashcard,
-} from '../../domain/services/connected-concepts';
+import { nodeEdgePairs, conceptTagsByOwner } from '../../domain/services/connected-concepts';
 import {
   parentsByConceito,
   NO_PARENTS,
@@ -14,10 +11,10 @@ import {
   type ParentMaps,
 } from '../../domain/services/concept-parents';
 
-// Leitor dos conceitos que um flashcard tem NO GRAFO (nó FLASHCARD → nó CONCEITO).
-// Vive no curriculum (shared kernel) porque mais de um contexto precisa: a listagem
-// de flashcards e o baralho aberto mostram as mesmas tags. As consultas ficam aqui;
-// a combinação dos mapas é pura, em domain/services/connected-concepts.
+// Leitor dos conceitos que uma entidade tem NO GRAFO — hoje flashcards e questões.
+// Vive no curriculum (shared kernel) porque vários contextos precisam: a listagem de
+// flashcards, o baralho aberto e a lista de questões mostram as mesmas tags. As
+// consultas ficam aqui; a combinação dos mapas é pura, em domain/services.
 
 // Os pais vêm das arestas PERTENCE_A do grafo, não de Conceito.topicoId: na prática
 // essas FKs ficam nulas (1 de 533 conceitos as tem preenchidas) e a hierarquia real
@@ -36,24 +33,46 @@ export class PrismaConnectedConceptsQuery {
    * Conceitos ligados a cada flashcard via arestas do grafo.
    * @example connected.forFlashcards('u1', ['fc1']) // Map { fc1 => [tag, tag] }
    */
-  async forFlashcards(userId: string, flashcardIds: string[]): Promise<Map<string, ConceptTag[]>> {
-    if (flashcardIds.length === 0) return new Map();
-    const nodeToFlashcard = await this.flashcardNodes(userId, flashcardIds);
-    if (nodeToFlashcard.size === 0) return new Map();
-    const edges = await this.incidentEdges([...nodeToFlashcard.keys()]);
-    const pairs = flashcardEdgePairs(edges, new Set(nodeToFlashcard.keys()));
+  forFlashcards(userId: string, flashcardIds: string[]): Promise<Map<string, ConceptTag[]>> {
+    return this.forNodes(userId, TipoNode.FLASHCARD, flashcardIds);
+  }
+
+  /**
+   * Conceitos que cada questão testa, via arestas do grafo.
+   * @example connected.forQuestions('u1', ['q1']) // Map { q1 => [tag] }
+   */
+  forQuestions(userId: string, questaoIds: string[]): Promise<Map<string, ConceptTag[]>> {
+    return this.forNodes(userId, TipoNode.QUESTION, questaoIds);
+  }
+
+  // O caminho é o mesmo para qualquer dono (flashcard, questão): achar os nós dele,
+  // olhar as arestas incidentes e ficar com as que chegam num CONCEITO.
+  private async forNodes(
+    userId: string,
+    tipo: TipoNode,
+    refIds: string[],
+  ): Promise<Map<string, ConceptTag[]>> {
+    if (refIds.length === 0) return new Map();
+    const nodeToOwner = await this.ownerNodes(userId, tipo, refIds);
+    if (nodeToOwner.size === 0) return new Map();
+    const edges = await this.incidentEdges([...nodeToOwner.keys()]);
+    const pairs = nodeEdgePairs(edges, new Set(nodeToOwner.keys()));
     const conceptNodeToId = await this.conceptNodes(
       userId,
       pairs.map((p) => p.other),
     );
     const tagByConcept = await this.conceptTags(userId, conceptNodeToId);
-    return conceptTagsByFlashcard(pairs, nodeToFlashcard, conceptNodeToId, tagByConcept);
+    return conceptTagsByOwner(pairs, nodeToOwner, conceptNodeToId, tagByConcept);
   }
 
-  // Nós FLASHCARD do usuário para os flashcards dados → mapa nodeId → flashcardId.
-  private async flashcardNodes(userId: string, ids: string[]): Promise<Map<string, string>> {
+  // Nós do usuário para as entidades dadas → mapa nodeId → referenciaId.
+  private async ownerNodes(
+    userId: string,
+    tipo: TipoNode,
+    ids: string[],
+  ): Promise<Map<string, string>> {
     const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: { usuarioId: userId, tipoNode: TipoNode.FLASHCARD, referenciaId: { in: ids } },
+      where: { usuarioId: userId, tipoNode: tipo, referenciaId: { in: ids } },
       select: { id: true, referenciaId: true },
     });
     return new Map(nodes.map((n) => [n.id, n.referenciaId]));

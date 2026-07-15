@@ -8,6 +8,8 @@ import type {
   OwnedQuestao,
   QuestaoView,
 } from '../../domain/questao';
+import type { ConceptTag } from '../../../curriculum/domain/curriculum-views';
+import { PrismaConnectedConceptsQuery } from '../../../curriculum/infrastructure/persistence/prisma-connected-concepts.query';
 
 const SELECT = {
   id: true,
@@ -27,7 +29,7 @@ type Row = Prisma.QuestaoGetPayload<{ select: typeof SELECT }>;
 const asAlternativas = (v: Prisma.JsonValue | null): AlternativaMultipla[] | null =>
   (v ?? null) as AlternativaMultipla[] | null;
 
-function toView(q: Row): QuestaoView {
+function toView(q: Row, conceitosConectados: ConceptTag[] = []): QuestaoView {
   return {
     id: q.id,
     tipo: q.tipo,
@@ -37,13 +39,18 @@ function toView(q: Row): QuestaoView {
     alternativas: asAlternativas(q.alternativas),
     conceitoId: q.conceitoId ?? null,
     conceitoNome: q.conceito?.nome ?? null,
+    conceitosConectados,
     dataCriacao: q.dataCriacao,
   };
 }
 
 @Injectable()
 export class PrismaQuestaoRepository implements QuestaoRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // Conceitos do grafo: leitor compartilhado (curriculum), o mesmo dos flashcards.
+    private readonly connected: PrismaConnectedConceptsQuery,
+  ) {}
 
   async create(userId: string, input: CreateQuestaoInput): Promise<string> {
     const { id } = await this.prisma.questao.create({
@@ -69,7 +76,12 @@ export class PrismaQuestaoRepository implements QuestaoRepository {
       orderBy: { dataCriacao: 'desc' },
       select: SELECT,
     });
-    return rows.map(toView);
+    // As tags vêm do grafo (arestas QUESTION → CONCEITO), mesmo leitor dos flashcards.
+    const connected = await this.connected.forQuestions(
+      userId,
+      rows.map((r) => r.id),
+    );
+    return rows.map((r) => toView(r, connected.get(r.id) ?? []));
   }
 
   async findById(id: string): Promise<OwnedQuestao | null> {

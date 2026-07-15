@@ -7,6 +7,7 @@ import {
   type QuestaoRepository,
 } from '../modules/questions/domain/ports/questao-repository';
 import { PrismaQuestaoRepository } from '../modules/questions/infrastructure/persistence/prisma-questao.repository';
+import { PrismaConnectedConceptsQuery } from '../modules/curriculum/infrastructure/persistence/prisma-connected-concepts.query';
 import { CreateQuestaoUseCase } from '../modules/questions/application/use-cases/create-questao.use-case';
 import { ListQuestoesUseCase } from '../modules/questions/application/use-cases/list-questoes.use-case';
 import { GetQuestaoUseCase } from '../modules/questions/application/use-cases/get-questao.use-case';
@@ -17,6 +18,7 @@ import { RemoveQuestaoUseCase } from '../modules/questions/application/use-cases
   imports: [PrismaModule, AuthModule],
   controllers: [QuestionsController],
   providers: [
+    PrismaConnectedConceptsQuery,
     { provide: QUESTAO_REPOSITORY, useClass: PrismaQuestaoRepository },
     {
       provide: CreateQuestaoUseCase,

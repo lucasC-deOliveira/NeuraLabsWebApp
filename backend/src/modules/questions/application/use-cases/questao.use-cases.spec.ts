@@ -15,6 +15,7 @@ const owned = (usuarioId: string): OwnedQuestao => ({
   enunciado: 'E',
   gabarito: 'A',
   explicacao: null,
+  conceitosConectados: [],
   alternativas: null,
   conceitoId: null,
   conceitoNome: null,

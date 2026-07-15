@@ -7,6 +7,15 @@ export interface AlternativaMultipla {
   texto: string;
 }
 
+// Tag de um conceito que a questão testa no grafo, com seus pais.
+export interface QuestaoConceptTag {
+  conceito: string;
+  topico: string;
+  topicoId: string;
+  assunto: string;
+  assuntoId: string;
+}
+
 export interface QuestaoListItem {
   id: string;
   tipo: TipoQuestao;
@@ -16,6 +25,9 @@ export interface QuestaoListItem {
   alternativas: AlternativaMultipla[] | null;
   conceitoId: string | null;
   conceitoNome: string | null;
+  // Conceitos que a questão testa segundo o grafo. É onde a ligação vive: o
+  // conceitoId acima está nulo em todas as questões.
+  conceitosConectados: QuestaoConceptTag[];
   dataCriacao: string;
 }
 

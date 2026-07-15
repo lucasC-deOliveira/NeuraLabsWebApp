@@ -1,3 +1,5 @@
+import type { ConceptTag } from '../../curriculum/domain/curriculum-views';
+
 export type TipoQuestao = 'VERDADEIRO_FALSO' | 'MULTIPLA_ESCOLHA';
 
 export interface AlternativaMultipla {
@@ -23,6 +25,9 @@ export interface QuestaoView {
   alternativas: AlternativaMultipla[] | null;
   conceitoId: string | null;
   conceitoNome: string | null;
+  // Conceitos que a questão testa segundo o grafo (+ tópicos/assuntos pais). É onde
+  // a ligação de fato vive: conceitoId acima fica nulo na prática.
+  conceitosConectados: ConceptTag[];
   dataCriacao: Date;
 }
 
