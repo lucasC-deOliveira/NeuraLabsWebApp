@@ -76,7 +76,10 @@ describe('SubmitReviewUseCase', () => {
   it('new card with good: records the review and schedules LEARN step 1', async () => {
     const res = await useCase.execute({ userId: 'u1', flashcardId: 'fc-1', grade: 'good' });
 
-    expect(res).toEqual({ success: true });
+    expect(res.success).toBe(true);
+    // O agendamento resultante volta junto: é com ele que a sessão de estudo decide
+    // se o card reaparece agora ou espera a hora marcada.
+    expect(res.schedule).toMatchObject({ fase: 'LEARN', learningStep: 1, fatorEase: 2.5 });
     const savedSession = sessions.saved[0];
     expect(savedSession.reviews).toHaveLength(1);
     // respostaUsuario omitted → stored as empty string (not undefined).

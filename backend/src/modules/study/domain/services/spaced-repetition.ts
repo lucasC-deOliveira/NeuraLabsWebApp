@@ -19,7 +19,7 @@ export interface ScheduleState {
 const LEARNING_STEPS_MIN = [1, 10];
 const GRADUATING_INTERVAL = 1; // dias ao graduar com Good
 const EASY_INTERVAL = 4; // dias ao graduar com Easy
-const STARTING_EASE = 2.5;
+export const STARTING_EASE = 2.5;
 const EASY_BONUS = 1.3;
 const LAPSE_EASE_PENALTY = 0.2;
 const LAPSE_INTERVAL_PCT = 0.2; // após lapse, intervalo = round(old * 0.2), mín 1

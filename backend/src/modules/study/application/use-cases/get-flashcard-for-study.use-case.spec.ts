@@ -13,6 +13,11 @@ const view: FlashcardStudyView = {
   due: true,
   proximaRevisao: null,
   fase: 'LEARN',
+  learningStep: 0,
+  intervalo: 0,
+  fatorEase: 2.5,
+  dificuldade: 5,
+  ultimaRevisao: null,
 };
 
 class FakeFlashcardQuery implements StudyFlashcardQuery {

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
-import type { StudyCardView } from '../../domain/ports/study-card-query';
+import { NEW_CARD_SCHEDULE, type StudyCardView } from '../../domain/ports/study-card-query';
 import type { DeckStudyView, StudyDeckQuery } from '../../domain/ports/study-deck-query';
 
 interface DeckCardRow {
@@ -8,7 +8,15 @@ interface DeckCardRow {
   pergunta: string;
   resposta: string;
   conceito: { nome: string } | null;
-  aprendizado: { proximaRevisao: Date; fase: string; learningStep: number }[];
+  aprendizado: {
+    proximaRevisao: Date;
+    ultimaRevisao: Date;
+    fase: string;
+    learningStep: number;
+    intervalo: number;
+    fatorEase: number;
+    dificuldade: number;
+  }[];
 }
 
 interface DeckRow {
@@ -22,14 +30,23 @@ function isDue(card: DeckCardRow, now: Date): boolean {
 }
 
 function toCardView(card: DeckCardRow): StudyCardView {
-  const aprendizado = card.aprendizado[0];
-  return {
+  const identidade = {
     id: card.id,
     pergunta: card.pergunta,
     resposta: card.resposta,
     conceito: card.conceito?.nome ?? null,
-    fase: aprendizado?.fase ?? 'LEARN',
-    learningStep: aprendizado?.learningStep ?? 0,
+  };
+  const aprendizado = card.aprendizado[0];
+  if (!aprendizado) return { ...identidade, ...NEW_CARD_SCHEDULE };
+  return {
+    ...identidade,
+    fase: aprendizado.fase,
+    learningStep: aprendizado.learningStep,
+    intervalo: aprendizado.intervalo,
+    fatorEase: aprendizado.fatorEase,
+    dificuldade: aprendizado.dificuldade,
+    proximaRevisao: aprendizado.proximaRevisao.toISOString(),
+    ultimaRevisao: aprendizado.ultimaRevisao.toISOString(),
   };
 }
 

@@ -95,6 +95,12 @@ function daysLater(base: Date, days: number): Date {
   return new Date(base.getTime() + days * 86_400_000);
 }
 
+// O fuzz espalha os vencimentos para não empilhar tudo no mesmo dia. Ótimo para
+// AGENDAR e péssimo para PREVER: quem só quer saber "quanto tempo isto daria?"
+// (o rótulo do botão) precisa da mesma resposta sempre, senão o texto dança a
+// cada render. Por isso é um parâmetro — ver srs-preview.ts.
+export type FuzzFn = (interval: number) => number;
+
 function fuzz(interval: number): number {
   if (interval < 3) return interval;
   const spread = Math.max(1, Math.round(interval * 0.05));
@@ -112,13 +118,23 @@ export function gradeFromLegacy(acertou: boolean, nivelConfianca: number): Revie
   return 'easy';
 }
 
-function scheduleCard(grade: ReviewGrade, existing: LocalSchedule | undefined, now: Date): LocalSchedule {
-  if (!existing || existing.fase === 'LEARN') return scheduleLearning(grade, existing, now);
+/**
+ * Aplica o SM-2: o que este grade faz com este card, agora. Puro — quem grava é
+ * submitLocalReview. `fz` permite prever sem o sorteio do fuzz (srs-preview.ts).
+ * @example scheduleCard('hard', undefined, new Date()) // card novo → +1 min, LEARN
+ */
+export function scheduleCard(
+  grade: ReviewGrade,
+  existing: LocalSchedule | undefined,
+  now: Date,
+  fz: FuzzFn = fuzz,
+): LocalSchedule {
+  if (!existing || existing.fase === 'LEARN') return scheduleLearning(grade, existing, now, fz);
   if (existing.fase === 'RELEARN') return scheduleRelearn(grade, existing, now);
-  return scheduleReview(grade, existing, now);
+  return scheduleReview(grade, existing, now, fz);
 }
 
-function scheduleLearning(grade: ReviewGrade, s: LocalSchedule | undefined, now: Date): LocalSchedule {
+function scheduleLearning(grade: ReviewGrade, s: LocalSchedule | undefined, now: Date, fz: FuzzFn): LocalSchedule {
   const ease = s?.fatorEase ?? STARTING_EASE;
   const step = s?.learningStep ?? 0;
 
@@ -129,7 +145,7 @@ function scheduleLearning(grade: ReviewGrade, s: LocalSchedule | undefined, now:
   };
 
   if (grade === 'easy') {
-    const interval = fuzz(EASY_INTERVAL);
+    const interval = fz(EASY_INTERVAL);
     return {
       fase: 'REVIEW', learningStep: 0, intervalo: interval, fatorEase: ease, dificuldade: 1,
       proximaRevisao: daysLater(now, interval).toISOString(),
@@ -148,7 +164,7 @@ function scheduleLearning(grade: ReviewGrade, s: LocalSchedule | undefined, now:
 
   const nextStep = step + 1;
   if (nextStep >= LEARNING_STEPS_MIN.length) {
-    const interval = fuzz(GRADUATING_INTERVAL);
+    const interval = fz(GRADUATING_INTERVAL);
     return {
       fase: 'REVIEW', learningStep: 0, intervalo: interval, fatorEase: ease, dificuldade: 3,
       proximaRevisao: daysLater(now, interval).toISOString(),
@@ -163,7 +179,7 @@ function scheduleLearning(grade: ReviewGrade, s: LocalSchedule | undefined, now:
   };
 }
 
-function scheduleReview(grade: ReviewGrade, s: LocalSchedule, now: Date): LocalSchedule {
+function scheduleReview(grade: ReviewGrade, s: LocalSchedule, now: Date, fz: FuzzFn): LocalSchedule {
   const { fatorEase, intervalo } = s;
 
   if (grade === 'again') {
@@ -189,7 +205,7 @@ function scheduleReview(grade: ReviewGrade, s: LocalSchedule, now: Date): LocalS
     newInterval = Math.max(intervalo + 1, Math.round(intervalo * fatorEase * EASY_BONUS));
   }
 
-  newInterval = Math.min(MAX_INTERVAL, fuzz(newInterval));
+  newInterval = Math.min(MAX_INTERVAL, fz(newInterval));
   return {
     fase: 'REVIEW', learningStep: 0, intervalo: newInterval, fatorEase: newEase,
     dificuldade: gradeToDificuldade(grade),
