@@ -9,6 +9,7 @@ import type {
   ExtractSubgraphResult,
 } from '../../domain/ports/extract-subgraph-repository';
 import type { ExtractEdge } from '../../domain/services/subgraph-extraction';
+import { containNode, createContainedNode, releaseNode } from './node-containment';
 
 @Injectable()
 export class PrismaExtractSubgraphRepository implements ExtractSubgraphRepository {
@@ -58,34 +59,43 @@ export class PrismaExtractSubgraphRepository implements ExtractSubgraphRepositor
 
   // Moves the selected nodes into the child, drops a GRAFO_REF at the centroid in
   // the parent, and rewires the boundary edges to that GRAFO_REF.
+  // "Mover" deixou de ser reapontar um FK: é o filho passar a conter e o pai a
+  // soltar. A posição vai junto porque é da vista — o nó ocupa o mesmo lugar no
+  // filho onde estava no pai.
   private async moveAndRewire(
     tx: Prisma.TransactionClient,
     c: ExtractSubgraphCommand,
     childId: string,
   ): Promise<void> {
+    for (const nodeRowId of c.nodeRowIds) {
+      const atual = await tx.grafoNode.findUnique({
+        where: { grafoId_nodeId: { grafoId: c.parentGrafoId, nodeId: nodeRowId } },
+        select: { posicaoX: true, posicaoY: true },
+      });
+      await containNode(tx, childId, nodeRowId, atual?.posicaoX, atual?.posicaoY);
+      await releaseNode(tx, c.parentGrafoId, nodeRowId);
+    }
+    // Modelo antigo (id_grafo), ainda lido por importância/roadmap/deleção: sai na fase 5.
     await tx.nodeConhecimento.updateMany({
       where: { id: { in: c.nodeRowIds } },
       data: { grafoId: childId },
     });
-    const refNode = await this.createRefNode(tx, c, childId);
-    await this.rewireEdges(tx, c, refNode.id);
+    const refNodeId = await this.createRefNode(tx, c, childId);
+    await this.rewireEdges(tx, c, refNodeId);
   }
 
   private createRefNode(
     tx: Prisma.TransactionClient,
     c: ExtractSubgraphCommand,
     childId: string,
-  ): Promise<{ id: string }> {
-    return tx.nodeConhecimento.create({
-      data: {
-        grafoId: c.parentGrafoId,
-        tipoNode: 'GRAFO_REF',
-        referenciaId: childId,
-        usuarioId: c.userId,
-        posicaoX: c.center.x,
-        posicaoY: c.center.y,
-      },
-      select: { id: true },
+  ): Promise<string> {
+    return createContainedNode(tx, {
+      usuarioId: c.userId,
+      grafoId: c.parentGrafoId,
+      tipoNode: 'GRAFO_REF',
+      referenciaId: childId,
+      posicaoX: c.center.x,
+      posicaoY: c.center.y,
     });
   }
 

@@ -3,6 +3,10 @@ import { TipoNode, TipoRelacao } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import type { QuestaoGraphWriter } from '../../domain/ports/questao-graph-writer';
 import type { ConceitoSugerido, QuestaoConceitoLink } from '../../domain/prova';
+import {
+  containNode,
+  createContainedNode,
+} from '../../../graph/infrastructure/persistence/node-containment';
 
 // Writes the question→concept relationships into a knowledge graph the way the
 // graph view reads them: a QUESTION node per question and a TESTA edge to each
@@ -77,9 +81,13 @@ export class PrismaQuestaoGraphWriter implements QuestaoGraphWriter {
   ): Promise<string> {
     const where = { usuarioId: userId, grafoId, tipoNode, referenciaId };
     const existing = await this.prisma.nodeConhecimento.findFirst({ where, select: { id: true } });
-    if (existing) return existing.id;
-    const node = await this.prisma.nodeConhecimento.create({ data: where, select: { id: true } });
-    return node.id;
+    // O nó pode existir sem a contenção (criado por um caminho antigo); garanti-la é
+    // idempotente, e sem ela ele não apareceria na vista do grafo.
+    if (existing) {
+      await containNode(this.prisma, grafoId, existing.id);
+      return existing.id;
+    }
+    return createContainedNode(this.prisma, { usuarioId: userId, grafoId, tipoNode, referenciaId });
   }
 
   private async ensureEdge(

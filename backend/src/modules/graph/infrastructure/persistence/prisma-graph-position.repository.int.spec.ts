@@ -47,13 +47,49 @@ describe('Graph positions (integration — neuralabs_test)', () => {
         posicaoY: 0,
       },
     });
+    // "Estar num grafo" é a contenção — é ela que a vista lê.
+    await prisma.grafoNode.create({
+      data: { grafoId: grafo.id, nodeId: node.id, posicaoX: 0, posicaoY: 0 },
+    });
 
     await savePositions.execute(user.id, grafo.id, {
       [`conceito:${conceito.id}`]: { x: 42, y: 24 },
     });
 
-    const updated = await prisma.nodeConhecimento.findUnique({ where: { id: node.id } });
-    expect(updated?.posicaoX).toBe(42);
-    expect(updated?.posicaoY).toBe(24);
+    // A posição é da VISTA: quem manda é a contenção.
+    const naVista = await prisma.grafoNode.findUnique({
+      where: { grafoId_nodeId: { grafoId: grafo.id, nodeId: node.id } },
+    });
+    expect(naVista?.posicaoX).toBe(42);
+    expect(naVista?.posicaoY).toBe(24);
+  });
+
+  // Arrastar um nó no grafo A não pode movê-lo no grafo B: cada vista tem a sua.
+  it('moves the node only in the graph it was dragged in', async () => {
+    const user = await prisma.usuario.create({
+      data: { nome: 'Teste', email: `u${seq++}-${Date.now()}@test.com`, senhaHash: 'x' },
+    });
+    const [a, b] = await Promise.all([
+      prisma.grafosConhecimento.create({ data: { usuarioId: user.id, nome: 'A' } }),
+      prisma.grafosConhecimento.create({ data: { usuarioId: user.id, nome: 'B' } }),
+    ]);
+    const conceito = await prisma.conceito.create({ data: { usuarioId: user.id, nome: 'C' } });
+    const node = await prisma.nodeConhecimento.create({
+      data: { usuarioId: user.id, grafoId: a.id, tipoNode: 'CONCEITO', referenciaId: conceito.id },
+    });
+    await prisma.grafoNode.createMany({
+      data: [
+        { grafoId: a.id, nodeId: node.id, posicaoX: 0, posicaoY: 0 },
+        { grafoId: b.id, nodeId: node.id, posicaoX: 7, posicaoY: 7 },
+      ],
+    });
+
+    await savePositions.execute(user.id, a.id, { [`conceito:${conceito.id}`]: { x: 42, y: 24 } });
+
+    const emB = await prisma.grafoNode.findUnique({
+      where: { grafoId_nodeId: { grafoId: b.id, nodeId: node.id } },
+    });
+    expect(emB?.posicaoX).toBe(7);
+    expect(emB?.posicaoY).toBe(7);
   });
 });

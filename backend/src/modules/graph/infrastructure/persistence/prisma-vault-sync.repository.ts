@@ -14,6 +14,7 @@ import {
   type PlannedEdge,
   type VaultNode,
 } from '../../domain/services/vault-sync';
+import { containNode, createContainedNode } from './node-containment';
 
 type Tx = Prisma.TransactionClient;
 type EntityUpserter = (tx: Tx, userId: string, n: VaultNode, now: Date) => Promise<void>;
@@ -115,21 +116,28 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     });
     if (existing) {
       await tx.nodeConhecimento.update({ where: { id: existing.id }, data: linkData(n) });
+      await containNode(tx, grafoId, existing.id);
       return true;
     }
     await this.createNodeLink(tx, userId, grafoId, n);
     return false;
   }
 
-  private createNodeLink(tx: Tx, userId: string, grafoId: string, n: VaultNode): Promise<unknown> {
-    return tx.nodeConhecimento.create({
-      data: {
-        grafoId,
-        tipoNode: n.tipo as TipoNode,
-        referenciaId: n.ref,
-        usuarioId: userId,
-        ...linkData(n),
-      },
+  private async createNodeLink(
+    tx: Tx,
+    userId: string,
+    grafoId: string,
+    n: VaultNode,
+  ): Promise<void> {
+    const dados = linkData(n);
+    await createContainedNode(tx, {
+      usuarioId: userId,
+      grafoId,
+      tipoNode: n.tipo as TipoNode,
+      referenciaId: n.ref,
+      posicaoX: dados.posicaoX,
+      posicaoY: dados.posicaoY,
+      nivelDominio: dados.nivelDominio,
     });
   }
 

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import type { AddProvaRepository } from '../../domain/ports/add-prova-repository';
+import { containNode, createContainedNode } from './node-containment';
 
 @Injectable()
 export class PrismaAddProvaRepository implements AddProvaRepository {
@@ -29,10 +30,15 @@ export class PrismaAddProvaRepository implements AddProvaRepository {
       where: { grafoId, tipoNode: 'PROVA', referenciaId: provaId },
       select: { id: true },
     });
-    if (existing) return existing.id;
-    const node = await this.prisma.nodeConhecimento.create({
-      data: { grafoId, tipoNode: 'PROVA', referenciaId: provaId, usuarioId: userId },
+    if (existing) {
+      await containNode(this.prisma, grafoId, existing.id);
+      return existing.id;
+    }
+    return createContainedNode(this.prisma, {
+      usuarioId: userId,
+      grafoId,
+      tipoNode: 'PROVA',
+      referenciaId: provaId,
     });
-    return node.id;
   }
 }

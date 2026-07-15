@@ -1,10 +1,11 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, TipoNode } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service';
 import {
   getAllowedRelations,
   isRelationAllowed,
 } from '../modules/graph/domain/services/relation-rules';
+import { createContainedNode } from '../modules/graph/infrastructure/persistence/node-containment';
 
 export interface ImportGraphNode {
   ref: string;
@@ -361,10 +362,13 @@ export async function runImportGraph(
           continue;
         }
         const refId = await createEntity(n);
-        const node = await tx.nodeConhecimento.create({
-          data: { grafoId, tipoNode: n.tipo as any, referenciaId: refId, usuarioId: userId },
+        const nodeId = await createContainedNode(tx, {
+          usuarioId: userId,
+          grafoId,
+          tipoNode: n.tipo as TipoNode,
+          referenciaId: refId,
         });
-        const entry = { refId, nodeId: node.id };
+        const entry = { refId, nodeId };
         created.set(n.ref.trim(), entry);
         byName.set(key, entry);
         createdNodeCount++;

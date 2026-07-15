@@ -98,9 +98,24 @@ export async function buildKnowledgeGraph(
   userId: string,
   grafoId: string,
 ): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
+  // O grafo é uma VISTA: mostra os nós que ele contém (grafo_nodes) e as arestas
+  // cujas DUAS pontas ele contém. Antes ambos eram filtrados pela coluna id_grafo
+  // do próprio nó/aresta — o que só funcionava porque o nó pertencia a um grafo só.
+  // Escopar a aresta pelas pontas também corrige um bug latente: `extract` move os
+  // nós para o subgrafo mas deixa as arestas internas com o id_grafo do pai, então
+  // a vista do filho não as enxergava.
   let [graphNodes, graphEdges] = await Promise.all([
-    prisma.nodeConhecimento.findMany({ where: { grafoId, usuarioId: userId } }),
-    prisma.conhecimentoAresta.findMany({ where: { grafoId } }),
+    prisma.nodeConhecimento.findMany({
+      where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
+      // A posição vem da contenção: é desta vista, não do nó.
+      include: { contidoEm: { where: { grafoId }, select: { posicaoX: true, posicaoY: true } } },
+    }),
+    prisma.conhecimentoAresta.findMany({
+      where: {
+        nodeOrigem: { contidoEm: { some: { grafoId } } },
+        nodeDestino: { contidoEm: { some: { grafoId } } },
+      },
+    }),
   ]);
 
   // Filtra nós FLASHCARD quando há muitos — 14k nós freezam o renderer SVG
@@ -136,10 +151,11 @@ export async function buildKnowledgeGraph(
     prisma.topico.findMany({ where: { id: { in: ids('TOPICO') } } }),
     prisma.conceito.findMany({ where: { id: { in: ids('CONCEITO') } } }),
     prisma.nota.findMany({ where: { id: { in: ids('NOTA') } } }),
-    // Subquery JOIN evita IN clause com 14k+ IDs — PostgreSQL usa índice no grafoId
+    // Subquery JOIN evita IN clause com 14k+ IDs. SQL cru: não é typechecado, então
+    // a contenção entra aqui à mão (grafo_nodes → NodeConhecimento).
     byType['FLASHCARD']
       ? (prisma as any)
-          .$queryRaw`SELECT f.id, LEFT(f.pergunta, 80) AS pergunta FROM flashcards f WHERE f.id IN (SELECT referencia_id FROM "NodeConhecimento" WHERE id_grafo = ${grafoId} AND "tipoNode" = 'FLASHCARD')`
+          .$queryRaw`SELECT f.id, LEFT(f.pergunta, 80) AS pergunta FROM flashcards f WHERE f.id IN (SELECT n.referencia_id FROM "NodeConhecimento" n JOIN grafo_nodes gn ON gn.id_node = n.id WHERE gn.id_grafo = ${grafoId} AND n."tipoNode" = 'FLASHCARD')`
       : Promise.resolve([]),
     prisma.textoBruto.findMany({ where: { id: { in: ids('TEXTO_BRUTO') } } }),
     prisma.baralho.findMany({ where: { id: { in: ids('BARALHO') } } }),
@@ -150,7 +166,8 @@ export async function buildKnowledgeGraph(
             id: true,
             nome: true,
             tipoRelacaoPai: true,
-            _count: { select: { nodes: true } },
+            // Quantos nós o subgrafo mostra = quantos ele contém.
+            _count: { select: { grafoNodes: true } },
           },
         })
       : Promise.resolve([]),
@@ -180,7 +197,11 @@ export async function buildKnowledgeGraph(
         ? (() => {
             const g = (grafoRefs as any[]).find((x: any) => x.id === n.referenciaId);
             return g
-              ? { nome: g.nome, nodeCount: g._count.nodes, tipoRelacao: g.tipoRelacaoPai ?? null }
+              ? {
+                  nome: g.nome,
+                  nodeCount: g._count.grafoNodes,
+                  tipoRelacao: g.tipoRelacaoPai ?? null,
+                }
               : undefined;
           })()
         : undefined;
@@ -211,8 +232,8 @@ export async function buildKnowledgeGraph(
           ? (flashcards as any[]).find((f: any) => f.id === n.referenciaId)?.pergunta
           : undefined,
       grafoRefMeta,
-      posicaoX: n.posicaoX ?? null,
-      posicaoY: n.posicaoY ?? null,
+      posicaoX: n.contidoEm[0]?.posicaoX ?? null,
+      posicaoY: n.contidoEm[0]?.posicaoY ?? null,
     };
   });
 
