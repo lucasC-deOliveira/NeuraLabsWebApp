@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import {
   NEW_CARD_SCHEDULE,
+  NO_IMPORTANCE,
   type StudyCardQuery,
   type StudyCardView,
 } from '../../domain/ports/study-card-query';
@@ -17,12 +18,15 @@ type DueRow = {
   flashcard: { id: string; pergunta: string; resposta: string; conceito: { nome: string } | null };
 };
 
+// A sessão geral (todos os vencidos do usuário) ainda não ordena por peso — só o
+// estudo de um baralho ordena. Por isso a importância aqui é nula: "não calculada".
 function toDueView(r: DueRow): StudyCardView {
   return {
     id: r.flashcard.id,
     pergunta: r.flashcard.pergunta,
     resposta: r.flashcard.resposta,
     conceito: r.flashcard.conceito?.nome ?? null,
+    ...NO_IMPORTANCE,
     fase: r.fase,
     learningStep: r.learningStep,
     intervalo: r.intervalo,
@@ -44,6 +48,7 @@ function toNewView(fc: NewRow): StudyCardView {
     resposta: fc.resposta,
     conceito: fc.conceito?.nome ?? null,
     ...NEW_CARD_SCHEDULE,
+    ...NO_IMPORTANCE,
   };
 }
 

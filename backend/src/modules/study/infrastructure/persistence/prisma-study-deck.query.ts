@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import { NEW_CARD_SCHEDULE, type StudyCardView } from '../../domain/ports/study-card-query';
 import type { DeckStudyView, StudyDeckQuery } from '../../domain/ports/study-deck-query';
+import { PrismaCardImportanceQuery } from '../../../curriculum/infrastructure/persistence/prisma-card-importance.query';
 
 interface DeckCardRow {
   id: string;
@@ -29,32 +30,40 @@ function isDue(card: DeckCardRow, now: Date): boolean {
   return !aprendizado || aprendizado.proximaRevisao <= now;
 }
 
-function toCardView(card: DeckCardRow): StudyCardView {
+type Aprendizado = DeckCardRow['aprendizado'][number];
+
+function toSchedule(
+  ap: Aprendizado,
+): Omit<StudyCardView, 'id' | 'pergunta' | 'resposta' | 'conceito' | 'importancia'> {
+  return {
+    fase: ap.fase,
+    learningStep: ap.learningStep,
+    intervalo: ap.intervalo,
+    fatorEase: ap.fatorEase,
+    dificuldade: ap.dificuldade,
+    proximaRevisao: ap.proximaRevisao.toISOString(),
+    ultimaRevisao: ap.ultimaRevisao.toISOString(),
+  };
+}
+
+function toCardView(card: DeckCardRow, importancia: number | null): StudyCardView {
   const identidade = {
     id: card.id,
     pergunta: card.pergunta,
     resposta: card.resposta,
     conceito: card.conceito?.nome ?? null,
+    importancia,
   };
-  const aprendizado = card.aprendizado[0];
-  if (!aprendizado) return { ...identidade, ...NEW_CARD_SCHEDULE };
-  return {
-    ...identidade,
-    fase: aprendizado.fase,
-    learningStep: aprendizado.learningStep,
-    intervalo: aprendizado.intervalo,
-    fatorEase: aprendizado.fatorEase,
-    dificuldade: aprendizado.dificuldade,
-    proximaRevisao: aprendizado.proximaRevisao.toISOString(),
-    ultimaRevisao: aprendizado.ultimaRevisao.toISOString(),
-  };
+  const ap = card.aprendizado[0];
+  return ap ? { ...identidade, ...toSchedule(ap) } : { ...identidade, ...NEW_CARD_SCHEDULE };
 }
 
-function toDeckView(deck: DeckRow): DeckStudyView {
+function toDeckView(deck: DeckRow, pesos: Map<string, number>): DeckStudyView {
   const now = new Date();
+  const vencidos = deck.flashcards.filter((c) => isDue(c, now));
   return {
     titulo: deck.titulo,
-    cards: deck.flashcards.filter((c) => isDue(c, now)).map(toCardView),
+    cards: vencidos.map((c) => toCardView(c, pesos.get(c.id) ?? null)),
     totalNoDeck: deck.flashcards.length,
   };
 }
@@ -62,7 +71,11 @@ function toDeckView(deck: DeckRow): DeckStudyView {
 // Read-model adapter: a deck's due cards for study.
 @Injectable()
 export class PrismaStudyDeckQuery implements StudyDeckQuery {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // Pesos do grafo: leitor compartilhado (curriculum), o mesmo do roadmap.
+    private readonly importancia: PrismaCardImportanceQuery,
+  ) {}
 
   async findDeckForStudy(userId: string, baralhoId: string): Promise<DeckStudyView | null> {
     const deck = await this.prisma.baralho.findFirst({
@@ -77,6 +90,11 @@ export class PrismaStudyDeckQuery implements StudyDeckQuery {
         },
       },
     });
-    return deck ? toDeckView(deck) : null;
+    if (!deck) return null;
+    // Só os vencidos interessam: são os únicos que a sessão vai ordenar.
+    const now = new Date();
+    const vencidos = deck.flashcards.filter((c) => isDue(c, now)).map((c) => c.id);
+    const pesos = await this.importancia.forFlashcards(userId, vencidos);
+    return toDeckView(deck, pesos);
   }
 }

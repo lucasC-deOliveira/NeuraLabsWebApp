@@ -3,6 +3,10 @@
 // much the edital emphasizes its area (breadth = how many sibling concepts the
 // edital lists under the same topic). `provaWeight` (0..1) tunes the balance.
 // Pure.
+//
+// Vive no curriculum (shared kernel) porque a importância é uma propriedade do
+// grafo, não de uma feature: nasceu para o roadmap (ai) e hoje a sessão de estudo
+// também ordena por ela.
 
 export interface ImportanceRow {
   conceitoId: string;

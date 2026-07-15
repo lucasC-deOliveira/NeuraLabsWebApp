@@ -10,6 +10,7 @@ import { isDesktop } from "@/lib/vault-bridge";
 import { findSection, type SettingsSectionId } from "../domain/settings-sections";
 import { ThemeSection } from "./components/ThemeSection";
 import { CardStyleSection } from "./components/CardStyleSection";
+import { StudyOrderSection } from "./components/StudyOrderSection";
 import { IaSectionBody } from "./components/IaSectionBody";
 import { DesktopSectionBody } from "./components/DesktopSectionBody";
 
@@ -17,6 +18,7 @@ import { DesktopSectionBody } from "./components/DesktopSectionBody";
 const SECTION_BODIES: Record<SettingsSectionId, () => React.ReactElement> = {
   aparencia: ThemeSection,
   flashcards: CardStyleSection,
+  estudo: StudyOrderSection,
   ia: IaSectionBody,
   desktop: DesktopSectionBody,
 };

@@ -76,6 +76,8 @@ async function loadCardFromVault(flashcardId: string, grafoId: string, grafoNome
     resposta: vn.resposta ?? "",
     conceito: null,
     schedule: schedule ?? null,
+    // Card único não tem fila para ordenar: o peso não faz diferença aqui.
+    importancia: null,
   };
   if (!isDue(schedule)) return { phase: "notdue", card, graphDir: dir, proximaRevisao: schedule!.proximaRevisao };
   const sessionId = await startLocalSession(dir, null);

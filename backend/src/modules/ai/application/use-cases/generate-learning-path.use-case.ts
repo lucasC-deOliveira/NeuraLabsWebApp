@@ -10,12 +10,12 @@ import { prereqLinks } from '../../domain/services/prereq-links';
 import {
   rankConceitoImportance,
   type ImportanceRow,
-} from '../../domain/services/conceito-importance';
+} from '../../../curriculum/domain/services/conceito-importance';
 import type {
   LearningEdge,
   LearningGraphRepository,
 } from '../../domain/ports/learning-graph-repository';
-import type { ConceitoImportanceSource } from '../../domain/ports/conceito-importance-source';
+import type { ConceitoImportanceSource } from '../../../curriculum/domain/ports/conceito-importance-source';
 import type { LlmMessage, LlmPort } from '../../domain/ports/llm-port';
 
 const IMPORTANCE_PROVA_WEIGHT = 0.6;

@@ -7,10 +7,10 @@ import {
   type ScoredConceito,
   type ConceitoSignal,
 } from '../../domain/services/roadmap-score';
-import type { ImportanceRow } from '../../domain/services/conceito-importance';
+import type { ImportanceRow } from '../../../curriculum/domain/services/conceito-importance';
 import type { PathStep } from '../../domain/services/learning-path';
 import type { LearningGraphRepository } from '../../domain/ports/learning-graph-repository';
-import type { ConceitoImportanceSource } from '../../domain/ports/conceito-importance-source';
+import type { ConceitoImportanceSource } from '../../../curriculum/domain/ports/conceito-importance-source';
 import type { EditalCoverageSource } from '../../domain/ports/edital-coverage-source';
 import type { RoadmapTrilhaRepository } from '../../domain/ports/roadmap-trilha-repository';
 import type { AiRoadmapBuilder, RoadmapResult } from '../../domain/ports/ai-roadmap-builder';

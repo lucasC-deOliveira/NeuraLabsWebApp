@@ -2,9 +2,9 @@
 // acrescentar uma seção é acrescentar uma entrada — sem tocar em rota nem em menu.
 // Puro: o ícone é uma chave, resolvida na camada de apresentação.
 
-export type SettingsSectionId = "aparencia" | "flashcards" | "ia" | "desktop";
+export type SettingsSectionId = "aparencia" | "flashcards" | "estudo" | "ia" | "desktop";
 
-export type SettingsIcon = "aparencia" | "flashcards" | "ia" | "desktop";
+export type SettingsIcon = "aparencia" | "flashcards" | "estudo" | "ia" | "desktop";
 
 export interface SettingsSection {
   id: SettingsSectionId;
@@ -29,6 +29,13 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     titulo: "Flashcards",
     resumo: "Estilo do card, moldura e CSS personalizado",
     icon: "flashcards",
+    desktopOnly: false,
+  },
+  {
+    id: "estudo",
+    titulo: "Estudo",
+    resumo: "Ordem da sessão de repetição espaçada",
+    icon: "estudo",
     desktopOnly: false,
   },
   {

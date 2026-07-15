@@ -19,6 +19,10 @@ export interface StudyCardView {
   dificuldade: number;
   proximaRevisao: string | null;
   ultimaRevisao: string | null;
+  // Peso do conceito deste card no grafo (0..1), para a sessão poder mostrar
+  // primeiro o que mais importa. `null` = card sem conceito no grafo (a maioria
+  // dos importados) — "não sei", que não é o mesmo que "vale zero".
+  importancia: number | null;
 }
 
 // Estado do SM-2 para um card que nunca foi revisado — não existe registro de
@@ -32,6 +36,10 @@ export const NEW_CARD_SCHEDULE = {
   proximaRevisao: null,
   ultimaRevisao: null,
 } as const;
+
+// A importância não vem do agendamento, e sim do grafo — quem monta a view a
+// preenche à parte. Fica aqui para o default não ser esquecido em cada mapper.
+export const NO_IMPORTANCE = { importancia: null } as const;
 
 // Read port: cards eligible for a new session (due reviews + brand-new cards).
 export interface StudyCardQuery {

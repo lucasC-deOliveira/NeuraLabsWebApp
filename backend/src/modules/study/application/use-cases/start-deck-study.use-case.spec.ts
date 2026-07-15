@@ -50,6 +50,7 @@ describe('StartDeckStudyUseCase', () => {
           pergunta: 'P',
           resposta: 'R',
           conceito: 'C',
+          importancia: null,
           fase: 'LEARN',
           learningStep: 0,
           intervalo: 0,

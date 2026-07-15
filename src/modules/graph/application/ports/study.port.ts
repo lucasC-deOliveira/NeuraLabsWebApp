@@ -24,6 +24,9 @@ export interface StudyCard {
   conceito: string | null;
   // null = card novo, nunca revisado.
   schedule: CardSchedule | null;
+  // Peso do conceito deste card no grafo (0..1), para a sessão poder mostrar
+  // primeiro o que mais importa. null = card fora do grafo: desconhecido, não zero.
+  importancia: number | null;
 }
 
 export interface SingleCardStudy {

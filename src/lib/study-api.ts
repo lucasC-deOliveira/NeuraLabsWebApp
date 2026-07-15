@@ -18,7 +18,8 @@ export interface ApiCardSchedule {
   ultimaRevisao: string | null;
 }
 
-export type ApiDeckCard = FlashcardData & ApiCardSchedule;
+// O card do baralho traz, além do agendamento, o peso do conceito no grafo.
+export type ApiDeckCard = FlashcardData & ApiCardSchedule & { importancia: number | null };
 
 export function submitCardReview(data: {
   flashcardId: string;
