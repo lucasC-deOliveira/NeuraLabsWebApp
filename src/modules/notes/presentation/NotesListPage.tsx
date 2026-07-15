@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ const DEFAULT_CRITERIA: NotesFilterCriteria = {
 
 function NotesLoading() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-6">
+    <PageContainer className="space-y-6">
       <div>
         <div className="h-8 w-20 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
         <div className="h-4 w-40 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse mt-2" />
@@ -35,7 +36,7 @@ function NotesLoading() {
       <div className="flex items-center justify-center py-20">
         <Loader2Icon className="size-8 animate-spin text-zinc-400" />
       </div>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -112,7 +113,7 @@ export function NotesListPage() {
   if (loading) return <NotesLoading />;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
+    <PageContainer className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Notas"
         subtitle={`${stats.total} nota${stats.total !== 1 ? "s" : ""}, ${stats.totalWords.toLocaleString("pt-BR")} palavras`}
@@ -223,6 +224,6 @@ export function NotesListPage() {
         onCancelDeleteAll={() => setShowDeleteAllDialog(false)}
         onConfirmDeleteAll={handleDeleteAll}
       />
-    </div>
+    </PageContainer>
   );
 }

@@ -17,12 +17,21 @@ export interface BaralhoListItem {
   origens: BaralhoOrigin[];
 }
 
+export interface ConceptTag {
+  conceito: string;
+  topico: string;
+  topicoId: string;
+  assunto: string;
+  assuntoId: string;
+}
+
 export interface BaralhoCard {
   id: string;
   pergunta: string;
   resposta: string;
   tipo: string | null;
   conceito: string;
+  conceitosConectados: ConceptTag[];
 }
 
 export interface BaralhoDetail {

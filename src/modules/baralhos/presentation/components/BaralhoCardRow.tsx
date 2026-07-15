@@ -4,14 +4,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
+import { ConceptTags, type ConceptTagSelection } from "@/components/concept-tags";
 import type { BaralhoCard } from "../../domain/baralho.types";
+import { formatTipoLabel } from "../../domain/services/baralho-card-filters";
 
 interface BaralhoCardRowProps {
   card: BaralhoCard;
   onRemove: () => void;
+  onSelectTag: (selection: ConceptTagSelection) => void;
 }
 
-export function BaralhoCardRow({ card, onRemove }: BaralhoCardRowProps) {
+export function BaralhoCardRow({ card, onRemove, onSelectTag }: BaralhoCardRowProps) {
+  // Conceitos conectados no grafo; fora de grafos, cai no conceito base do cartão.
+  const tags =
+    card.conceitosConectados.length > 0
+      ? card.conceitosConectados
+      : [{ conceito: card.conceito, topico: "", topicoId: "", assunto: "", assuntoId: "" }];
+
   return (
     <Card className="group">
       <CardContent className="px-4 py-3 flex items-start justify-between gap-3">
@@ -19,12 +28,10 @@ export function BaralhoCardRow({ card, onRemove }: BaralhoCardRowProps) {
           <p className="text-sm font-medium leading-snug line-clamp-2">{card.pergunta}</p>
           <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{card.resposta}</p>
           <div className="flex flex-wrap items-center gap-1 pt-0.5">
-            {card.conceito && (
-              <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal">{card.conceito}</Badge>
-            )}
+            <ConceptTags tags={tags} onSelect={onSelectTag} />
             {card.tipo && (
-              <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-medium text-primary/80">
-                {card.tipo.replace("_", " ").toLowerCase()}
+              <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-medium text-primary/80 capitalize">
+                {formatTipoLabel(card.tipo)}
               </Badge>
             )}
           </div>

@@ -10,6 +10,8 @@ import type {
 } from '../../domain/baralho-views';
 import { groupBaralhoOrigins, type BaralhoNodeRow } from '../../domain/services/baralho-origins';
 import { countDeckStats, type DeckCardSchedule } from '../../domain/services/deck-stats';
+import type { ConceptTag } from '../../../curriculum/domain/curriculum-views';
+import { PrismaConnectedConceptsQuery } from '../../../curriculum/infrastructure/persistence/prisma-connected-concepts.query';
 
 const CARD_INCLUDE = { conceito: true } satisfies Prisma.FlashcardInclude;
 type CardRow = Prisma.FlashcardGetPayload<{ include: typeof CARD_INCLUDE }>;
@@ -29,7 +31,10 @@ const scheduleOf = (card: CardSrsRow): DeckCardSchedule | null => card.aprendiza
 
 @Injectable()
 export class PrismaBaralhoQuery implements BaralhoQuery {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly connected: PrismaConnectedConceptsQuery,
+  ) {}
 
   async listBaralhos(userId: string): Promise<BaralhoListItem[]> {
     const rows = await this.prisma.baralho.findMany({
@@ -56,12 +61,17 @@ export class PrismaBaralhoQuery implements BaralhoQuery {
     });
     if (!row) return null;
     const origens = await this.origins(userId, [baralhoId]);
+    // As tags vêm do grafo, como na listagem de flashcards — mesmo leitor.
+    const connected = await this.connected.forFlashcards(
+      userId,
+      row.flashcards.map((fc) => fc.id),
+    );
     return {
       id: row.id,
       titulo: row.titulo,
       dataCriacao: row.dataCriacao,
       origens: origens.get(row.id) ?? [],
-      cards: row.flashcards.map(toCard),
+      cards: row.flashcards.map((fc) => toCard(fc, connected.get(fc.id) ?? [])),
     };
   }
 
@@ -110,12 +120,13 @@ function toListItem(row: ListRow, origens: BaralhoOrigin[], now: Date): BaralhoL
   };
 }
 
-function toCard(fc: CardRow): BaralhoCard {
+function toCard(fc: CardRow, conceitosConectados: ConceptTag[]): BaralhoCard {
   return {
     id: fc.id,
     pergunta: fc.pergunta,
     resposta: fc.resposta,
     tipo: fc.tipo ?? null,
     conceito: fc.conceito?.nome ?? '',
+    conceitosConectados,
   };
 }

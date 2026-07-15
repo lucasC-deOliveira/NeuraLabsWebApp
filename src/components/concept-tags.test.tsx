@@ -1,18 +1,24 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { FlashcardTags } from "./FlashcardTags";
-import type { FlashcardConceptTag } from "../../domain/flashcard.types";
+import { ConceptTags, type ConceptTagItem } from "./concept-tags";
 
-function tag(over: Partial<FlashcardConceptTag> = {}): FlashcardConceptTag {
-  return { conceito: "Alelos", topico: "Genética", topicoId: "t1", assunto: "Biologia", assuntoId: "a1", ...over };
+function tag(over: Partial<ConceptTagItem> = {}): ConceptTagItem {
+  return {
+    conceito: "Alelos",
+    topico: "Genética",
+    topicoId: "t1",
+    assunto: "Biologia",
+    assuntoId: "a1",
+    ...over,
+  };
 }
 
 const noop = (): void => {};
 
-describe("FlashcardTags", () => {
+describe("ConceptTags", () => {
   it("renders the connected concepts and their parent topics and subjects", () => {
-    render(<FlashcardTags tags={[tag()]} onFilter={noop} />);
+    render(<ConceptTags tags={[tag()]} onSelect={noop} />);
     expect(screen.getByText("Biologia")).toBeInTheDocument();
     expect(screen.getByText("Genética")).toBeInTheDocument();
     expect(screen.getByText("Alelos")).toBeInTheDocument();
@@ -20,9 +26,9 @@ describe("FlashcardTags", () => {
 
   it("deduplicates shared parents across multiple connected concepts", () => {
     render(
-      <FlashcardTags
+      <ConceptTags
         tags={[tag({ conceito: "Alelos" }), tag({ conceito: "Mutação" })]}
-        onFilter={noop}
+        onSelect={noop}
       />,
     );
     expect(screen.getAllByText("Biologia")).toHaveLength(1);
@@ -33,41 +39,41 @@ describe("FlashcardTags", () => {
 
   it("omits empty levels (concept without parents)", () => {
     render(
-      <FlashcardTags
+      <ConceptTags
         tags={[tag({ conceito: "Solto", topico: "", topicoId: "", assunto: "", assuntoId: "" })]}
-        onFilter={noop}
+        onSelect={noop}
       />,
     );
     expect(screen.getByText("Solto")).toBeInTheDocument();
     expect(screen.queryByText("Biologia")).not.toBeInTheDocument();
   });
 
-  it("filters by subject when its tag is clicked", async () => {
-    const onFilter = vi.fn();
-    render(<FlashcardTags tags={[tag()]} onFilter={onFilter} />);
+  it("reports the subject when its tag is clicked", async () => {
+    const onSelect = vi.fn();
+    render(<ConceptTags tags={[tag()]} onSelect={onSelect} />);
     await userEvent.click(screen.getByText("Biologia"));
-    expect(onFilter).toHaveBeenCalledWith({ assuntoFilter: "a1", topicoFilter: "" });
+    expect(onSelect).toHaveBeenCalledWith({ assuntoId: "a1" });
   });
 
-  it("filters by topic and its parent subject when a topic tag is clicked", async () => {
-    const onFilter = vi.fn();
-    render(<FlashcardTags tags={[tag()]} onFilter={onFilter} />);
+  it("reports the topic with its parent subject, so the page can filter both", async () => {
+    const onSelect = vi.fn();
+    render(<ConceptTags tags={[tag()]} onSelect={onSelect} />);
     await userEvent.click(screen.getByText("Genética"));
-    expect(onFilter).toHaveBeenCalledWith({ assuntoFilter: "a1", topicoFilter: "t1" });
+    expect(onSelect).toHaveBeenCalledWith({ assuntoId: "a1", topicoId: "t1" });
   });
 
-  it("searches by name when a concept tag is clicked", async () => {
-    const onFilter = vi.fn();
-    render(<FlashcardTags tags={[tag()]} onFilter={onFilter} />);
+  it("reports the concept by name", async () => {
+    const onSelect = vi.fn();
+    render(<ConceptTags tags={[tag()]} onSelect={onSelect} />);
     await userEvent.click(screen.getByText("Alelos"));
-    expect(onFilter).toHaveBeenCalledWith({ search: "Alelos" });
+    expect(onSelect).toHaveBeenCalledWith({ conceito: "Alelos" });
   });
 
   it("keeps a parentless tag unclickable (no id to filter by)", () => {
     render(
-      <FlashcardTags
+      <ConceptTags
         tags={[tag({ conceito: "Solto", topico: "Orfao", topicoId: "", assunto: "", assuntoId: "" })]}
-        onFilter={noop}
+        onSelect={noop}
       />,
     );
     expect(screen.getByText("Orfao").closest("button")).toBeNull();

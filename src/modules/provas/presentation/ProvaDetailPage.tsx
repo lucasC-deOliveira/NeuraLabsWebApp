@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -44,7 +45,7 @@ export function ProvaDetailPage() {
   if (!prova) return null;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <PageContainer>
       <PageHeader
         title={prova.titulo}
         subtitle={
@@ -114,6 +115,6 @@ export function ProvaDetailPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

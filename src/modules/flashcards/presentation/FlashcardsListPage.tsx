@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { useMemo, useState } from "react";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
@@ -121,7 +122,7 @@ export function FlashcardsListPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
+    <PageContainer className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Flashcards"
         subtitle={`${stats.total} flashcard${stats.total !== 1 ? "s" : ""} no total`}
@@ -247,6 +248,6 @@ export function FlashcardsListPage() {
         onCancelDeleteAll={() => setShowDeleteAllDialog(false)}
         onConfirmDeleteAll={handleDeleteAll}
       />
-    </div>
+    </PageContainer>
   );
 }

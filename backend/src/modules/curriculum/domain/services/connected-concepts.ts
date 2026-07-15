@@ -1,4 +1,4 @@
-import type { ConceptTag } from '../flashcard-views';
+import type { ConceptTag } from '../curriculum-views';
 
 // Lógica pura para derivar, a partir das arestas do grafo, os conceitos conectados a
 // cada flashcard. As consultas ao banco (nós, arestas, conceitos) vivem no adapter

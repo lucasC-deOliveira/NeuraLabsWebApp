@@ -30,15 +30,11 @@ export interface SpacedRepetition {
   estagioAprendizado: number;
 }
 
-// Tag de um conceito conectado ao flashcard no grafo, com seus pais (tópico/assunto).
-// Os ids dos pais acompanham os nomes para a lista poder filtrar pela tag exibida.
-export interface ConceptTag {
-  conceito: string;
-  topico: string;
-  topicoId: string;
-  assunto: string;
-  assuntoId: string;
-}
+// ConceptTag é vocabulário da taxonomia (assunto/tópico/conceito), que vive no
+// curriculum — o shared kernel. Reexportado aqui por conveniência dos consumidores
+// desta view.
+import type { ConceptTag } from '../../curriculum/domain/curriculum-views';
+export type { ConceptTag };
 
 export interface FlashcardView {
   id: string;

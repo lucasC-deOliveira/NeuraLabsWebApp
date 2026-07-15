@@ -7,7 +7,7 @@ const { app, BrowserWindow, shell, dialog, ipcMain, Menu } = require("electron")
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
-const { spawn, execSync } = require("child_process");
+const { spawn, exec, execSync } = require("child_process");
 
 const isDev = !app.isPackaged;
 const DEV_URL = process.env.ELECTRON_DEV_URL || "https://localhost:5173";
@@ -66,28 +66,49 @@ function formatPromptFromMessages(messages) {
   return prompt.trim();
 }
 
-function allowFirewallPort(port) {
-  // Tenta sem elevação primeiro (app rodando como admin).
+const FIREWALL_RULE = "NeuraLabs Claude Proxy";
+
+// A regra sobrevive entre execuções. Consultar é barato e NÃO pede elevação —
+// recriá-la a cada boot é que forçava um prompt de UAC toda vez.
+function firewallRuleExists(port) {
   try {
-    execSync(
-      `netsh advfirewall firewall delete rule name="NeuraLabs Claude Proxy" 2>nul & ` +
-      `netsh advfirewall firewall add rule name="NeuraLabs Claude Proxy" protocol=TCP dir=in localport=${port} action=allow profile=any`,
-      { shell: true, stdio: "pipe" }
-    );
-    console.log("Regra de firewall adicionada.");
-    return;
-  } catch {}
-  // Se falhar, pede elevação via UAC (Start-Process -Verb RunAs).
-  try {
-    execSync(
-      `powershell -Command "Start-Process -FilePath netsh -ArgumentList 'advfirewall firewall delete rule name=\\"NeuraLabs Claude Proxy\\"' -Verb RunAs -WindowStyle Hidden -Wait; ` +
-      `Start-Process -FilePath netsh -ArgumentList 'advfirewall firewall add rule name=\\"NeuraLabs Claude Proxy\\" protocol=TCP dir=in localport=${port} action=allow profile=any' -Verb RunAs -WindowStyle Hidden -Wait"`,
-      { shell: true, stdio: "pipe", timeout: 30000 }
-    );
-    console.log("Regra de firewall adicionada (elevado).");
-  } catch (e) {
-    console.error("Não foi possível adicionar regra de firewall:", e.message);
+    const out = execSync(`netsh advfirewall firewall show rule name="${FIREWALL_RULE}"`, {
+      shell: true,
+      stdio: "pipe",
+    }).toString();
+    return out.includes(String(port));
+  } catch {
+    return false;
   }
+}
+
+const addRuleCmd = (port) =>
+  `netsh advfirewall firewall add rule name="${FIREWALL_RULE}" protocol=TCP dir=in localport=${port} action=allow profile=any`;
+
+// Pede a regra com elevação, sem esperar: um -Wait aqui congelaria o app enquanto o
+// prompt de UAC estivesse na tela.
+function addRuleElevated(port) {
+  const ps =
+    `powershell -Command "Start-Process -FilePath netsh -ArgumentList 'advfirewall firewall ` +
+    `add rule name=\\"${FIREWALL_RULE}\\" protocol=TCP dir=in localport=${port} action=allow profile=any' ` +
+    `-Verb RunAs -WindowStyle Hidden"`;
+  exec(ps, { shell: true }, (e) => {
+    if (e) console.error("Não foi possível adicionar regra de firewall:", e.message);
+  });
+}
+
+// NUNCA bloqueia o processo principal. O boot cria a janela e só DEPOIS carrega o
+// conteúdo; um execSync aqui — ainda mais com prompt de UAC — deixava o app em tela
+// preta até alguém responder ao prompt.
+function allowFirewallPort(port) {
+  if (firewallRuleExists(port)) return;
+  exec(addRuleCmd(port), { shell: true }, (err) => {
+    if (!err) {
+      console.log("Regra de firewall adicionada.");
+      return;
+    }
+    addRuleElevated(port);
+  });
 }
 
 function startClaudeProxy() {

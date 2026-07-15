@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useState } from "react";
 import { Link } from "@/components/link";
@@ -72,7 +73,7 @@ export function QuestoesListPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <PageContainer>
       <ListHeader count={questoes.length} />
       {loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">Carregando...</div>
@@ -92,6 +93,6 @@ export function QuestoesListPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

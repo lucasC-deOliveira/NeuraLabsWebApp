@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { useEffect, useState } from "react";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
@@ -96,7 +97,7 @@ export function ProvasListPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <PageContainer>
       <PageHeader
         title="Provas"
         subtitle={`${provas.length} prova${provas.length !== 1 ? "s" : ""}`}
@@ -121,6 +122,6 @@ export function ProvasListPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

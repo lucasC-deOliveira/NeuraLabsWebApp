@@ -7,6 +7,7 @@ import {
   type BaralhoRepository,
 } from '../modules/baralhos/domain/ports/baralho-repository';
 import { PrismaBaralhoQuery } from '../modules/baralhos/infrastructure/persistence/prisma-baralho.query';
+import { PrismaConnectedConceptsQuery } from '../modules/curriculum/infrastructure/persistence/prisma-connected-concepts.query';
 import { PrismaBaralhoRepository } from '../modules/baralhos/infrastructure/persistence/prisma-baralho.repository';
 import {
   AddCardsToBaralhoUseCase,
@@ -23,6 +24,7 @@ import {
   imports: [AuthModule],
   controllers: [BaralhosController],
   providers: [
+    PrismaConnectedConceptsQuery,
     { provide: BARALHO_QUERY, useClass: PrismaBaralhoQuery },
     { provide: BARALHO_REPOSITORY, useClass: PrismaBaralhoRepository },
     {

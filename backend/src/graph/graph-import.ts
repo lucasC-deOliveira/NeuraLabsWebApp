@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service';
 import {
   getAllowedRelations,
@@ -125,6 +126,30 @@ function validateFields(n: ImportGraphNode, pos: string): void {
     case 'BARALHO':
       need(!!(n.titulo?.trim() || n.nome?.trim()), '"titulo" é obrigatório');
       break;
+  }
+}
+
+/**
+ * Espelha no relacional a hierarquia que a aresta PERTENCE_A declara — mesmo espírito
+ * do BARALHO CONTEM FLASHCARD abaixo, que já sincronizava a relação m2m.
+ *
+ * Sem isto o importador criava conceitos e tópicos ÓRFÃOS (sem topicoId/assuntoId) e a
+ * taxonomia passava a existir só no grafo, divergindo de quem lê pelo relacional —
+ * foi assim que 532 dos 533 conceitos ficaram sem pai.
+ */
+async function syncPertenceA(
+  tx: Prisma.TransactionClient,
+  origemTipo: string | undefined,
+  destinoTipo: string | undefined,
+  origemRefId: string,
+  destinoRefId: string,
+): Promise<void> {
+  if (origemTipo === 'CONCEITO' && destinoTipo === 'TOPICO') {
+    await tx.conceito.update({ where: { id: origemRefId }, data: { topicoId: destinoRefId } });
+    return;
+  }
+  if (origemTipo === 'TOPICO' && destinoTipo === 'ASSUNTO') {
+    await tx.topico.update({ where: { id: origemRefId }, data: { assuntoId: destinoRefId } });
   }
 }
 
@@ -379,6 +404,9 @@ export async function runImportGraph(
             where: { id: s.refId },
             data: { flashcards: { connect: { id: t.refId } } },
           });
+        }
+        if (e.relacao === 'PERTENCE_A') {
+          await syncPertenceA(tx, refTipo.get(e.origem), refTipo.get(e.destino), s.refId, t.refId);
         }
       }
       return { nodes: createdNodeCount, edges: edgeCount, reused: reusedNodeCount };

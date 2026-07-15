@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer, NarrowColumn } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
@@ -112,44 +113,47 @@ export function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-6 sm:py-8 lg:px-8 space-y-6">
+      <PageContainer className="space-y-6">
         <div className="flex items-center justify-center py-20">
           <Loader2Icon className="size-8 animate-spin text-zinc-400" />
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
+    <PageContainer className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Configuracoes"
         subtitle="Personalize a aparencia e configure a API de IA."
       />
-      <ThemeSection />
-      <Separator />
-      <CardStyleSection />
-      <Separator />
-      <AiConfigSection
-        config={config}
-        onChange={patchConfig}
-        showKey={showKey}
-        onToggleShowKey={() => setShowKey((v) => !v)}
-        saving={saving}
-        saved={saved}
-        claudeCodeEnabled={claudeCodeEnabled}
-        onSave={handleSave}
-      />
-
-      {desktopApp && (
-        <DesktopSections
-          vaultPath={vaultPath}
-          onPickVault={pickVaultFolder}
+      {/* Formulário: o quadro da página é o padrão, os campos não. */}
+      <NarrowColumn className="space-y-6 sm:space-y-8">
+        <ThemeSection />
+        <Separator />
+        <CardStyleSection />
+        <Separator />
+        <AiConfigSection
+          config={config}
+          onChange={patchConfig}
+          showKey={showKey}
+          onToggleShowKey={() => setShowKey((v) => !v)}
+          saving={saving}
+          saved={saved}
           claudeCodeEnabled={claudeCodeEnabled}
-          claudeCodeLoading={claudeCodeLoading}
-          onToggleClaudeCode={handleToggleClaudeCode}
+          onSave={handleSave}
         />
-      )}
-    </div>
+
+        {desktopApp && (
+          <DesktopSections
+            vaultPath={vaultPath}
+            onPickVault={pickVaultFolder}
+            claudeCodeEnabled={claudeCodeEnabled}
+            claudeCodeLoading={claudeCodeLoading}
+            onToggleClaudeCode={handleToggleClaudeCode}
+          />
+        )}
+      </NarrowColumn>
+    </PageContainer>
   );
 }

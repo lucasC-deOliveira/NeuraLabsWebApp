@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
@@ -14,7 +15,7 @@ export function NewNotaPage() {
   const [mode, setMode] = useState<PageMode>("ia");
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-6">
+    <PageContainer className="space-y-6">
       <PageHeader
         title="Nova Nota"
         subtitle={mode === "ia" ? "Cole texto bruto e a IA identifica notas." : "Preencha manualmente com relacoes."}
@@ -28,6 +29,6 @@ export function NewNotaPage() {
         </button>
       </div>
       {mode === "ia" ? <NewNotaIaMode router={router} /> : <NewNotaManualMode router={router} />}
-    </div>
+    </PageContainer>
   );
 }

@@ -1,3 +1,14 @@
+// Tag de um conceito com seus pais (tópico/assunto). Os ids acompanham os nomes
+// para quem exibe a tag poder filtrar por ela. Vocabulário da taxonomia: vive aqui,
+// no curriculum (shared kernel), e é consumido por flashcards, baralhos, etc.
+export interface ConceptTag {
+  conceito: string;
+  topico: string;
+  topicoId: string;
+  assunto: string;
+  assuntoId: string;
+}
+
 export interface CreateConceptInput {
   nome: string;
   assuntoId: string;
