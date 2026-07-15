@@ -20,12 +20,23 @@ export interface BaralhoItem {
   origens: BaralhoOrigin[];
 }
 
+// Tag de um conceito ao qual o cartão está conectado no grafo, com seus pais —
+// a mesma origem das tags da listagem de flashcards.
+export interface BaralhoConceptTag {
+  conceito: string;
+  topico: string;
+  topicoId: string;
+  assunto: string;
+  assuntoId: string;
+}
+
 export interface BaralhoCard {
   id: string;
   pergunta: string;
   resposta: string;
   tipo: string | null;
   conceito: string;
+  conceitosConectados: BaralhoConceptTag[];
 }
 
 export interface BaralhoDetail {

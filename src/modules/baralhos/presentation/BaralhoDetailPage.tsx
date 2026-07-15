@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { PageContainer } from "@/components/page-container";
+import { useMemo, useState } from "react";
 import { useParams } from "@/lib/navigation";
+import { paginate } from "@/lib/paginate";
+import { Pagination } from "@/components/pagination";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,16 +16,28 @@ import {
 import { toast } from "sonner";
 import { baralhosHttp } from "../infra/http";
 import { excludeCardsInDeck } from "../domain/services/filter-card-options";
+import {
+  cardTipoOptions,
+  cardTagOptions,
+  filterAndSortBaralhoCards,
+  DEFAULT_CARD_CRITERIA,
+  type BaralhoCardCriteria,
+} from "../domain/services/baralho-card-filters";
+import type { ConceptTagSelection } from "@/components/concept-tags";
+import { useBaralhoDetail } from "./hooks/useBaralhoDetail";
 import { AddCardsDialog } from "./components/AddCardsDialog";
+import { BaralhoCardsFilters } from "./components/BaralhoCardsFilters";
 import { BaralhoCardRow } from "./components/BaralhoCardRow";
 import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
-import type { BaralhoCardOption, BaralhoDetail } from "../domain/baralho.types";
+import type { BaralhoCardOption } from "../domain/baralho.types";
+
+// 10 cartões por página: são linhas altas (pergunta + resposta + tags).
+const PAGE_SIZE = 10;
 
 export function BaralhoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const baralhoId = id ?? "";
-  const [baralho, setBaralho] = useState<BaralhoDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { baralho, loading, reload } = useBaralhoDetail(baralhoId);
   const [options, setOptions] = useState<BaralhoCardOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -30,32 +45,35 @@ export function BaralhoDetailPage() {
   const [studying, setStudying] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [renaming, setRenaming] = useState(false);
+  const [criteria, setCriteria] = useState<BaralhoCardCriteria>(DEFAULT_CARD_CRITERIA);
+  const [page, setPage] = useState(1);
 
-  const load = useCallback(async (): Promise<void> => {
-    const detail = await baralhosHttp.getBaralho(baralhoId);
-    setBaralho(detail);
-    setTitulo(detail.titulo);
-    setLoading(false);
-  }, [baralhoId]);
+  const cards = useMemo(() => baralho?.cards ?? [], [baralho]);
+  const tipos = useMemo(() => cardTipoOptions(cards), [cards]);
+  const tags = useMemo(() => cardTagOptions(cards), [cards]);
+  const visible = useMemo(() => filterAndSortBaralhoCards(cards, criteria), [cards, criteria]);
+  const paged = useMemo(() => paginate(visible, page, PAGE_SIZE), [visible, page]);
 
-  useEffect(() => {
-    let cancelled = false;
-    baralhosHttp
-      .getBaralho(baralhoId)
-      .then((detail): void => {
-        if (cancelled) return;
-        setBaralho(detail);
-        setTitulo(detail.titulo);
-        setLoading(false);
-      })
-      .catch((): void => { if (!cancelled) setLoading(false); });
-    return (): void => { cancelled = true; };
-  }, [baralhoId]);
+  // Toda mudança de busca/filtro volta para a página 1.
+  const patch = (p: Partial<BaralhoCardCriteria>): void => {
+    setCriteria((prev) => ({ ...prev, ...p }));
+    setPage(1);
+  };
+
+  // Clique numa tag do cartão: o chip só avisa o que foi clicado; aqui vira filtro.
+  const selectTag = (selection: ConceptTagSelection): void => {
+    if (selection.conceito) { patch({ conceito: selection.conceito }); return; }
+    patch({ assuntoId: selection.assuntoId ?? "", topicoId: selection.topicoId ?? "" });
+  };
+  const clearFilters = (): void => {
+    setCriteria(DEFAULT_CARD_CRITERIA);
+    setPage(1);
+  };
 
   // Só oferece cartões que ainda não estão no baralho.
   const available = useMemo(
-    () => excludeCardsInDeck(options, baralho?.cards.map((c) => c.id) ?? []),
-    [options, baralho],
+    () => excludeCardsInDeck(options, cards.map((c) => c.id)),
+    [options, cards],
   );
 
   const openAdd = async (): Promise<void> => {
@@ -76,7 +94,7 @@ export function BaralhoDetailPage() {
       await baralhosHttp.addCards(baralhoId, flashcardIds);
       toast.success(`${flashcardIds.length} cartão(ões) adicionado(s)!`);
       setAdding(false);
-      await load();
+      await reload();
     } catch {
       toast.error("Erro ao adicionar os cartões.");
     } finally {
@@ -88,7 +106,7 @@ export function BaralhoDetailPage() {
     try {
       await baralhosHttp.removeCard(baralhoId, flashcardId);
       toast.success("Cartão removido do baralho.");
-      await load();
+      await reload();
     } catch {
       toast.error("Erro ao remover o cartão.");
     }
@@ -100,7 +118,7 @@ export function BaralhoDetailPage() {
       await baralhosHttp.renameBaralho(baralhoId, titulo);
       toast.success("Baralho renomeado!");
       setRenaming(false);
-      await load();
+      await reload();
     } catch {
       toast.error("Erro ao renomear. Use um título de até 120 caracteres.");
     }
@@ -116,16 +134,16 @@ export function BaralhoDetailPage() {
 
   if (!baralho) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">
+      <PageContainer className="py-20 text-center text-muted-foreground">
         <LayersIcon className="size-12 mx-auto text-zinc-300 dark:text-zinc-600 mb-4" />
         <p className="text-lg font-medium">Baralho não encontrado.</p>
         <Link href="/baralhos"><Button variant="link" className="mt-2">Voltar para os baralhos</Button></Link>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-6">
+    <PageContainer className="space-y-6">
       {renaming ? (
         <div className="flex items-center gap-2">
           <Input
@@ -143,7 +161,9 @@ export function BaralhoDetailPage() {
             <span className="flex flex-wrap items-center gap-1.5">
               <Badge variant="secondary" className="gap-1 text-[10px]">
                 <LayersIcon className="size-2.5" />
-                {baralho.cards.length} cartão{baralho.cards.length !== 1 && "es"}
+                {visible.length === cards.length
+                  ? `${cards.length} cartão${cards.length !== 1 ? "es" : ""}`
+                  : `${visible.length} de ${cards.length} cartões`}
               </Badge>
               {baralho.origens.map((origem) => (
                 <Link key={origem.grafoId} href={`/graph/${origem.grafoId}`}>
@@ -155,7 +175,7 @@ export function BaralhoDetailPage() {
               ))}
               <button
                 type="button"
-                onClick={() => setRenaming(true)}
+                onClick={() => { setTitulo(baralho.titulo); setRenaming(true); }}
                 title="Renomear baralho"
                 className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary"
               >
@@ -179,18 +199,39 @@ export function BaralhoDetailPage() {
         />
       )}
 
-      {baralho.cards.length === 0 ? (
+      {cards.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">
           <LayersIcon className="size-12 mx-auto text-zinc-300 dark:text-zinc-600 mb-4" />
           <p className="text-lg font-medium">Baralho vazio.</p>
           <p className="text-sm text-zinc-400 mt-1">Adicione cartões para começar a estudar.</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {baralho.cards.map((card) => (
-            <BaralhoCardRow key={card.id} card={card} onRemove={() => handleRemove(card.id)} />
-          ))}
-        </div>
+        <>
+          <BaralhoCardsFilters
+            criteria={criteria}
+            tipos={tipos}
+            tags={tags}
+            onPatch={patch}
+            onClear={clearFilters}
+          />
+          {visible.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Nenhum cartão encontrado com esses filtros.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {paged.items.map((card) => (
+                <BaralhoCardRow
+                  key={card.id}
+                  card={card}
+                  onRemove={() => handleRemove(card.id)}
+                  onSelectTag={selectTag}
+                />
+              ))}
+            </div>
+          )}
+          <Pagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
+        </>
       )}
 
       <AddCardsDialog
@@ -203,9 +244,9 @@ export function BaralhoDetailPage() {
       />
       <StudyDeckModal
         open={studying}
-        onOpenChange={(open) => { if (!open) { setStudying(false); void load(); } }}
+        onOpenChange={(open) => { if (!open) { setStudying(false); void reload(); } }}
         baralhoId={baralhoId}
       />
-    </div>
+    </PageContainer>
   );
 }

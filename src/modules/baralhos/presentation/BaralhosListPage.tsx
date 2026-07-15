@@ -1,5 +1,6 @@
 "use client";
 
+import { PageContainer } from "@/components/page-container";
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header/PageHeader";
@@ -10,6 +11,7 @@ import { Pagination } from "@/components/pagination";
 import { baralhosHttp } from "../infra/http";
 import { toExportPayload, exportFileName } from "../domain/services/export-baralhos";
 import { downloadJson, readJsonFile } from "./services/download-json";
+import { forgetCachedBaralho } from "./services/baralho-detail-cache";
 import { useBaralhosList } from "./hooks/useBaralhosList";
 import {
   filterAndSortBaralhos,
@@ -71,6 +73,8 @@ export function BaralhosListPage() {
     if (!deleteTarget) return;
     try {
       await baralhosHttp.deleteBaralho(deleteTarget.id);
+      // Sem isso, reabrir a URL do baralho excluído o mostraria a partir do cache.
+      forgetCachedBaralho(deleteTarget.id);
       toast.success("Baralho removido! Os cartões continuam nos seus flashcards.");
       setDeleteTarget(null);
       await reload();
@@ -102,7 +106,7 @@ export function BaralhosListPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
+    <PageContainer className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Baralhos"
         subtitle={
@@ -191,6 +195,6 @@ export function BaralhosListPage() {
         onOpenChange={(open) => { if (!open) { setStudyId(null); void reload(); } }}
         baralhoId={studyId}
       />
-    </div>
+    </PageContainer>
   );
 }

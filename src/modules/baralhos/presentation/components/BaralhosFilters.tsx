@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectTrigger, SelectValue, selectItems } from "@/components/ui/select";
 import { SearchIcon, XIcon, FilterXIcon, FlameIcon } from "lucide-react";
 import type { BaralhoOrigin } from "../../domain/baralho.types";
 import {
@@ -18,12 +18,26 @@ interface BaralhosFiltersProps {
   onClear: () => void;
 }
 
+// Mapas valor→rótulo: alimentam os itens e o `items` do Select (sem ele, o gatilho
+// mostra o valor cru — ex.: "recentes").
+const SORT_ITEMS: Record<string, string> = {
+  recentes: "Mais recentes",
+  alfabetica: "Alfabetica",
+  cartoes: "Mais cartões",
+  estudar: "Mais para estudar",
+};
+
+const grafoItems = (origins: BaralhoOrigin[]): Record<string, string> =>
+  Object.fromEntries([["", "Todos os grafos"], ...origins.map((o) => [o.grafoId, o.nome])]);
+
 // Fora do componente para não pesar na complexidade dele (gate: máx. 12).
 function isDirty(criteria: BaralhoCriteria): boolean {
   return countActiveBaralhoFilters(criteria) > 0 || criteria.search.trim() !== "";
 }
 
 export function BaralhosFilters({ criteria, origins, onPatch, onClear }: BaralhosFiltersProps) {
+  const grafos = grafoItems(origins);
+
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
       <div className="relative flex-1">
@@ -57,25 +71,23 @@ export function BaralhosFilters({ criteria, origins, onPatch, onClear }: Baralho
       </Button>
 
       {origins.length > 0 && (
-        <Select value={criteria.grafoId} onValueChange={(v) => onPatch({ grafoId: v ?? "" })}>
-          <SelectTrigger className="sm:w-[170px]"><SelectValue placeholder="Todos os grafos" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Todos os grafos</SelectItem>
-            {origins.map((origem) => (
-              <SelectItem key={origem.grafoId} value={origem.grafoId}>{origem.nome}</SelectItem>
-            ))}
-          </SelectContent>
+        <Select
+          items={grafos}
+          value={criteria.grafoId}
+          onValueChange={(v) => onPatch({ grafoId: v ?? "" })}
+        >
+          <SelectTrigger className="sm:w-[170px]"><SelectValue /></SelectTrigger>
+          <SelectContent>{selectItems(grafos)}</SelectContent>
         </Select>
       )}
 
-      <Select value={criteria.sortBy} onValueChange={(v) => onPatch({ sortBy: v as BaralhoSort })}>
+      <Select
+        items={SORT_ITEMS}
+        value={criteria.sortBy}
+        onValueChange={(v) => onPatch({ sortBy: (v ?? "recentes") as BaralhoSort })}
+      >
         <SelectTrigger className="sm:w-[170px]"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="recentes">Mais recentes</SelectItem>
-          <SelectItem value="alfabetica">Alfabetica</SelectItem>
-          <SelectItem value="cartoes">Mais cartões</SelectItem>
-          <SelectItem value="estudar">Mais para estudar</SelectItem>
-        </SelectContent>
+        <SelectContent>{selectItems(SORT_ITEMS)}</SelectContent>
       </Select>
 
       {isDirty(criteria) && (
