@@ -5,6 +5,7 @@ import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { PlusIcon, Trash2Icon, SearchIcon, XIcon, Loader2Icon, LayersIcon } from "lucide-react";
 import { toast } from "sonner";
 import { flashcardsHttp } from "../infra/http";
@@ -121,28 +122,26 @@ export function FlashcardsListPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-heading font-semibold">Flashcards</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {stats.total} flashcard{stats.total !== 1 && "s"} no total
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {stats.total > 0 && (
-            <Button variant="outline" className="text-red-500 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/30 h-9" onClick={() => setShowDeleteAllDialog(true)}>
-              <Trash2Icon className="size-3.5 mr-1" />
-              Todos
-            </Button>
-          )}
-          <Link href="/flashcards/new">
-            <Button className="w-full sm:w-auto">
-              <PlusIcon className="size-4 mr-1" />
-              Novo flashcard
-            </Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Flashcards"
+        subtitle={`${stats.total} flashcard${stats.total !== 1 ? "s" : ""} no total`}
+        actions={
+          <>
+            {stats.total > 0 && (
+              <Button variant="outline" className="text-red-500 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/30 h-9" onClick={() => setShowDeleteAllDialog(true)}>
+                <Trash2Icon className="size-3.5 mr-1" />
+                Todos
+              </Button>
+            )}
+            <Link href="/flashcards/new">
+              <Button className="w-full sm:w-auto">
+                <PlusIcon className="size-4 mr-1" />
+                Novo flashcard
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       <FlashcardsStatsBar stats={stats} />
       <Separator />

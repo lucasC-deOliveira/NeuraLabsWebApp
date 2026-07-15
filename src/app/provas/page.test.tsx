@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import ProvasPage from "./page";
 import { listProvas } from "@/lib/provas-api";
 
+vi.mock("@/lib/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/provas-api", () => ({ listProvas: vi.fn(), deleteProva: vi.fn() }));
 vi.mock("@/components/link", () => ({ Link: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

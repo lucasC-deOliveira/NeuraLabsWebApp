@@ -11,7 +11,7 @@ vi.mock("@/lib/notes-api", () => ({
   generateFlashcardsFromNota: vi.fn(),
 }));
 vi.mock("@/components/link", () => ({ Link: ({ children }: { children: React.ReactNode }) => children }));
-vi.mock("@/lib/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+vi.mock("@/lib/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => {

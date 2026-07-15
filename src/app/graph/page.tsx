@@ -1,12 +1,13 @@
 "use client";
 
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
 import { graphHttp } from "@/modules/graph/infra/http";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeftIcon, PlusIcon, Trash2Icon, Loader2Icon, FolderIcon, SearchXIcon, TagIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, Loader2Icon, FolderIcon, SearchXIcon, TagIcon } from "lucide-react";
 import { toast } from "sonner";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { graphVaultDir } from "@/lib/vault-sync";
@@ -85,19 +86,9 @@ export default function GraphListPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* Header */}
-      <header className="border-b border-border px-3 sm:px-5 py-2.5 sm:py-3">
-        <div className="mx-auto flex max-w-7xl items-center gap-2 sm:gap-3">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
-            <ArrowLeftIcon className="mr-1 size-4" />
-            <span className="hidden sm:inline">Voltar</span>
-          </Button>
-          <h1 className="text-base sm:text-lg font-semibold">Meus Grafos</h1>
-        </div>
-      </header>
-
       {/* Content */}
       <div className="flex-1 mx-auto w-full max-w-7xl px-3 sm:px-5 py-6 sm:py-10">
+        <PageHeader title="Meus Grafos" />
         {/* Create section */}
         <Card className="mb-8 bg-card border-border">
           <CardContent className="pt-6">

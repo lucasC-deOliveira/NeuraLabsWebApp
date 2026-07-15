@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { PlusIcon, Loader2Icon, DownloadIcon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { paginate } from "@/lib/paginate";
@@ -103,39 +103,37 @@ export function BaralhosListPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-heading font-semibold">Baralhos</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {visible.length === baralhos.length
-              ? `${baralhos.length} baralho${baralhos.length !== 1 ? "s" : ""} no total`
-              : `${visible.length} de ${baralhos.length} baralhos`}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="h-9" disabled={baralhos.length === 0} onClick={handleExport}>
-            <DownloadIcon className="size-3.5 mr-1" />
-            Exportar
-          </Button>
-          <Button variant="outline" className="h-9" onClick={() => fileInput.current?.click()}>
-            <UploadIcon className="size-3.5 mr-1" />
-            Importar
-          </Button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => { void handleImport(e.target.files?.[0]); e.target.value = ""; }}
-          />
-          <Button onClick={() => setCreating(true)}>
-            <PlusIcon className="size-4 mr-1" />
-            Novo baralho
-          </Button>
-        </div>
-      </div>
-
-      <Separator />
+      <PageHeader
+        title="Baralhos"
+        subtitle={
+          visible.length === baralhos.length
+            ? `${baralhos.length} baralho${baralhos.length !== 1 ? "s" : ""} no total`
+            : `${visible.length} de ${baralhos.length} baralhos`
+        }
+        actions={
+          <>
+            <Button variant="outline" className="h-9" disabled={baralhos.length === 0} onClick={handleExport}>
+              <DownloadIcon className="size-3.5 mr-1" />
+              Exportar
+            </Button>
+            <Button variant="outline" className="h-9" onClick={() => fileInput.current?.click()}>
+              <UploadIcon className="size-3.5 mr-1" />
+              Importar
+            </Button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => { void handleImport(e.target.files?.[0]); e.target.value = ""; }}
+            />
+            <Button onClick={() => setCreating(true)}>
+              <PlusIcon className="size-4 mr-1" />
+              Novo baralho
+            </Button>
+          </>
+        }
+      />
 
       {baralhos.length > 0 && (
         <BaralhosFilters

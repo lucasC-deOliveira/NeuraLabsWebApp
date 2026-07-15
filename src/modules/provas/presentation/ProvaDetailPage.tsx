@@ -1,13 +1,12 @@
 "use client";
 
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useRouter } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  ArrowLeftIcon, EyeIcon, EyeOffIcon, ListIcon, KeyIcon,
-} from "lucide-react";
+import { EyeIcon, EyeOffIcon, ListIcon, KeyIcon } from "lucide-react";
 import { toast } from "sonner";
 import { provasHttp } from "../infra/http";
 import type { ProvaDetail } from "../domain/prova.types";
@@ -46,23 +45,19 @@ export function ProvaDetailPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex items-start gap-3 mb-6">
-        <Button variant="ghost" size="icon" className="shrink-0 mt-0.5" onClick={() => router.push("/provas")}>
-          <ArrowLeftIcon className="size-4" />
-        </Button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold leading-snug">{prova.titulo}</h1>
-          {prova.descricao && (
-            <p className="text-sm text-muted-foreground mt-1">{prova.descricao}</p>
-          )}
-          <div className="flex items-center gap-2 mt-2">
-            <Badge variant="outline" className="text-xs">
-              {prova.questoes.length} {prova.questoes.length === 1 ? "questão" : "questões"}
-            </Badge>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title={prova.titulo}
+        subtitle={
+          <span className="flex flex-col gap-2">
+            {prova.descricao && <span>{prova.descricao}</span>}
+            <span>
+              <Badge variant="outline" className="text-xs">
+                {prova.questoes.length} {prova.questoes.length === 1 ? "questão" : "questões"}
+              </Badge>
+            </span>
+          </span>
+        }
+      />
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-lg bg-muted mb-6">

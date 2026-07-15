@@ -1,9 +1,9 @@
 "use client";
 
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
-import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, UploadCloudIcon } from "lucide-react";
+import { UploadCloudIcon } from "lucide-react";
 import { ManualTab } from "./components/ManualTab";
 import { ImportTab } from "./components/ImportTab";
 
@@ -17,12 +17,7 @@ export function NewProvaPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-8">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/provas")}>
-          <ArrowLeftIcon className="size-4" />
-        </Button>
-        <h1 className="text-xl font-bold">Nova prova</h1>
-      </div>
+      <PageHeader title="Nova prova" />
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-lg bg-muted mb-6">

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { PlusIcon, Trash2Icon, ClipboardListIcon, ChevronRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import { provasHttp } from "../infra/http";
@@ -96,20 +97,18 @@ export function ProvasListPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Provas</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {provas.length} prova{provas.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <Link href="/provas/new">
-          <Button className="gap-2">
-            <PlusIcon className="size-4" />
-            Nova prova
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Provas"
+        subtitle={`${provas.length} prova${provas.length !== 1 ? "s" : ""}`}
+        actions={
+          <Link href="/provas/new">
+            <Button className="gap-2">
+              <PlusIcon className="size-4" />
+              Nova prova
+            </Button>
+          </Link>
+        }
+      />
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">Carregando...</div>

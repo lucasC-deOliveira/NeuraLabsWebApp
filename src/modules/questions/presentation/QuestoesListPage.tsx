@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useState } from "react";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
@@ -11,18 +12,18 @@ import { QuestaoCard } from "./components/QuestaoCard";
 
 function ListHeader({ count }: { count: number }) {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div>
-        <h1 className="text-2xl font-bold">Questões</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{count} questão{count !== 1 ? "ões" : ""}</p>
-      </div>
-      <Link href="/questions/new">
-        <Button className="gap-2">
-          <PlusIcon className="size-4" />
-          Nova questão
-        </Button>
-      </Link>
-    </div>
+    <PageHeader
+      title="Questões"
+      subtitle={`${count} questão${count !== 1 ? "ões" : ""}`}
+      actions={
+        <Link href="/questions/new">
+          <Button className="gap-2">
+            <PlusIcon className="size-4" />
+            Nova questão
+          </Button>
+        </Link>
+      }
+    />
   );
 }
 

@@ -12,7 +12,7 @@ vi.mock("@/lib/content-api", () => ({
   deleteAllFlashcards: vi.fn(),
 }));
 vi.mock("@/components/link", () => ({ Link: ({ children }: { children: React.ReactNode }) => children }));
-vi.mock("@/lib/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+vi.mock("@/lib/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/components/flashcard/CardStyleProvider", () => ({
   useCardStyle: () => ({ cardStyle: "default", setCardStyle: vi.fn() }),
 }));

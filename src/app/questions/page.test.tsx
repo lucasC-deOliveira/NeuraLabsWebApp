@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import QuestoesPage from "./page";
 import { listQuestoes } from "@/lib/questions-api";
 
+vi.mock("@/lib/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/questions-api", () => ({ listQuestoes: vi.fn(), deleteQuestao: vi.fn() }));
 vi.mock("@/components/link", () => ({ Link: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
