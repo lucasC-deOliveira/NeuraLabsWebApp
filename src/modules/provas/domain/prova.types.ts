@@ -11,6 +11,15 @@ export interface ProvaListItem {
   dataCriacao: string;
 }
 
+// Tag de um conceito que a questão testa no grafo, com tópico e assunto pais.
+export interface ProvaConceptTag {
+  conceito: string;
+  topico: string;
+  topicoId: string;
+  assunto: string;
+  assuntoId: string;
+}
+
 export interface ProvaQuestaoItem {
   ordem: number;
   id: string;
@@ -20,6 +29,9 @@ export interface ProvaQuestaoItem {
   gabarito: string;
   explicacao: string | null;
   conceitoNome: string | null;
+  // A taxonomia da questão vem do grafo (arestas QUESTION → CONCEITO), não da FK
+  // conceitoNome — é o que alimenta os filtros da prova aberta.
+  conceitosConectados: ProvaConceptTag[];
 }
 
 export interface ProvaDetail {

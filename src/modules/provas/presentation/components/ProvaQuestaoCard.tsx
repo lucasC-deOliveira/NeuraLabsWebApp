@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2Icon, CircleIcon, KeyIcon } from "lucide-react";
+import { ConceptTags, type ConceptTagSelection } from "@/components/concept-tags";
 import type { ProvaQuestaoItem } from "../../domain/prova.types";
 
 const TIPO_LABEL: Record<string, string> = {
@@ -9,10 +10,13 @@ const TIPO_LABEL: Record<string, string> = {
   MULTIPLA_ESCOLHA: "Múltipla escolha",
 };
 
-export function ProvaQuestaoCard({ pq, numero, showGabarito }: {
+export function ProvaQuestaoCard({ pq, numero, showGabarito, onSelectTag }: {
   pq: ProvaQuestaoItem;
+  // O número da prova (ordem + 1), não a posição na tela: com filtro ou paginação
+  // a questão 47 continua sendo a 47.
   numero: number;
   showGabarito: boolean;
+  onSelectTag: (selection: ConceptTagSelection) => void;
 }) {
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3">
@@ -25,11 +29,9 @@ export function ProvaQuestaoCard({ pq, numero, showGabarito }: {
             <Badge variant="outline" className="text-[11px] h-5 px-1.5">
               {TIPO_LABEL[pq.tipo]}
             </Badge>
-            {pq.conceitoNome && (
-              <Badge variant="outline" className="text-[11px] h-5 px-1.5 text-zinc-500">
-                {pq.conceitoNome}
-              </Badge>
-            )}
+            {/* As tags do grafo dizem o mesmo que a FK conceitoNome, e com os pais
+                — e são clicáveis, viram filtro. */}
+            <ConceptTags tags={pq.conceitosConectados} onSelect={onSelectTag} />
           </div>
           <p className="text-sm font-medium leading-snug">{pq.enunciado}</p>
         </div>
@@ -95,9 +97,11 @@ export function GabaritoCompacto({ questoes }: { questoes: ProvaQuestaoItem[] })
         Gabarito
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {questoes.map((q, i) => (
+        {questoes.map((q) => (
           <div key={q.id} className="flex items-center gap-2.5 text-sm">
-            <span className="text-xs text-muted-foreground w-5 text-right shrink-0">{i + 1}.</span>
+            {/* ordem + 1, não a posição na grade: com filtro, a resposta da questão
+                47 tem de continuar rotulada 47. */}
+            <span className="text-xs text-muted-foreground w-5 text-right shrink-0">{q.ordem + 1}.</span>
             {q.tipo === "VERDADEIRO_FALSO" ? (
               <span
                 className={`font-bold ${

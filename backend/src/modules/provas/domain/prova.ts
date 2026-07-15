@@ -1,3 +1,5 @@
+import type { ConceptTag } from '../../curriculum/domain/curriculum-views';
+
 export type TipoQuestaoParsed = 'VERDADEIRO_FALSO' | 'MULTIPLA_ESCOLHA';
 
 export interface ParsedAlternativa {
@@ -137,6 +139,10 @@ export interface ProvaDetailQuestao {
   gabarito: string;
   explicacao: string | null;
   conceitoNome: string | null;
+  // Conceitos que a questão testa no grafo, com tópico e assunto pais — a mesma
+  // taxonomia da lista de questões (shared kernel `curriculum`), e o que alimenta
+  // os filtros da prova aberta. Vazio quando a questão não está ligada ao grafo.
+  conceitosConectados: ConceptTag[];
   imagens: ProvaImagemRef[];
 }
 

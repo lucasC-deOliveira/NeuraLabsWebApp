@@ -16,6 +16,15 @@ export interface ProvaImagemRef {
   alternativa: string | null;
 }
 
+// Tag de um conceito que a questão testa no grafo, com os pais.
+export interface ProvaConceptTag {
+  conceito: string;
+  topico: string;
+  topicoId: string;
+  assunto: string;
+  assuntoId: string;
+}
+
 export interface ProvaQuestaoItem {
   ordem: number;
   id: string;
@@ -25,6 +34,7 @@ export interface ProvaQuestaoItem {
   gabarito: string;
   explicacao: string | null;
   conceitoNome: string | null;
+  conceitosConectados: ProvaConceptTag[];
   imagens: ProvaImagemRef[];
 }
 
