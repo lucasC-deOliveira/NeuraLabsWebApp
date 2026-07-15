@@ -29,6 +29,13 @@ export type TipoFlashcard =
   | "RELACIONAL"
   | "ERRO_COMUM";
 
+export interface ConceptTag {
+  conceito: string;
+  topico: string;
+  topicoId: string;
+  assunto: string;
+  assuntoId: string;
+}
 export interface FlashcardListItem {
   id: string;
   tipo: TipoFlashcard | null;
@@ -39,6 +46,7 @@ export interface FlashcardListItem {
   topicoId: string;
   assunto: string;
   assuntoId: string;
+  conceitosConectados: ConceptTag[];
   dataCriacao: Date;
   spacedRepetition: SpacedRepetition | null;
 }

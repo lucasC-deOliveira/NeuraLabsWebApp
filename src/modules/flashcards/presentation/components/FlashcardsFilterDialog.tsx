@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { FilterIcon, ArrowUpDownIcon, XIcon } from "lucide-react";
 import type { AssuntoOption } from "../../domain/flashcard.types";
-import type { FlashcardCriteria, StatusFilter, FlashcardSort } from "../../domain/services/flashcard-filters";
+import type { FlashcardCriteria, StatusFilter, FlashcardSort, TipoFilter } from "../../domain/services/flashcard-filters";
+import { TIPO_LABELS, TIPO_OPTIONS } from "../constants/tipo";
 
 interface FlashcardsFilterDialogProps {
   open: boolean;
@@ -19,6 +20,7 @@ interface FlashcardsFilterDialogProps {
   activeFilterCount: number;
   onAssunto: (v: string) => void;
   onTopico: (v: string) => void;
+  onTipo: (v: TipoFilter) => void;
   onStatus: (v: StatusFilter) => void;
   onSort: (v: FlashcardSort) => void;
   onClear: () => void;
@@ -26,7 +28,7 @@ interface FlashcardsFilterDialogProps {
 
 export function FlashcardsFilterDialog({
   open, onOpenChange, criteria, filterData, availableTopicos, activeFilterCount,
-  onAssunto, onTopico, onStatus, onSort, onClear,
+  onAssunto, onTopico, onTipo, onStatus, onSort, onClear,
 }: FlashcardsFilterDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -66,6 +68,17 @@ export function FlashcardsFilterDialog({
               </Select>
             </div>
           )}
+
+          <div className="space-y-2">
+            <Label>Tipo</Label>
+            <Select value={criteria.tipoFilter} onValueChange={(v) => onTipo((v ?? "") as TipoFilter)}>
+              <SelectTrigger><SelectValue placeholder="Todos os tipos" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todos</SelectItem>
+                {TIPO_OPTIONS.map((t) => (<SelectItem key={t} value={t}>{TIPO_LABELS[t]}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="space-y-2">
             <Label>Status</Label>

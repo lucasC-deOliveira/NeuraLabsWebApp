@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { PencilIcon, Trash2Icon, CalendarDaysIcon } from "lucide-react";
 import type { FlashcardItem, SpacedRepetition } from "../../domain/flashcard.types";
+import type { FlashcardCriteria } from "../../domain/services/flashcard-filters";
 import { formatDistanceToNow, isOverdue, isDue, getEaseBar } from "../../domain/services/srs-status";
 import { ESTAGIO_LABELS, ESTAGIO_STYLES, truncate } from "../constants/estagio";
+import { FlashcardTags } from "./FlashcardTags";
 
 function DueBadge({ sr }: { sr: SpacedRepetition | null }) {
   if (!sr) return <Badge variant="outline" className="text-[10px] h-5 px-1.5">Sem revisao</Badge>;
@@ -34,19 +36,24 @@ interface FlashcardCardProps {
   onDetail: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onFilter: (patch: Partial<FlashcardCriteria>) => void;
 }
 
-export function FlashcardCard({ fc, onDetail, onEdit, onDelete }: FlashcardCardProps) {
+export function FlashcardCard({ fc, onDetail, onEdit, onDelete, onFilter }: FlashcardCardProps) {
   const sr = fc.spacedRepetition;
   const stage = sr?.estagioAprendizado;
   const stageStyle = stage && stage > 0 ? ESTAGIO_STYLES[stage] : null;
   const stop = (e: React.MouseEvent, fn: () => void): void => { e.stopPropagation(); fn(); };
+  // Conceitos conectados no grafo; fora de grafos, cai no conceito base do flashcard.
+  const conceptTags = fc.conceitosConectados.length > 0
+    ? fc.conceitosConectados
+    : [{ conceito: fc.conceito, topico: fc.topico, topicoId: fc.topicoId, assunto: fc.assunto, assuntoId: fc.assuntoId }];
 
   return (
     <Card className="group flex flex-col transition-all hover:border-primary/30 hover:shadow-sm cursor-pointer">
       <CardContent className="flex-1 px-4 pt-4 pb-2 space-y-2.5" onClick={onDetail}>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-medium">{fc.conceito}</Badge>
+          <FlashcardTags tags={conceptTags} onFilter={onFilter} />
           {fc.tipo && (
             <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-medium text-primary/80">
               {fc.tipo.replace("_", " ").toLowerCase()}
@@ -68,12 +75,6 @@ export function FlashcardCard({ fc, onDetail, onEdit, onDelete }: FlashcardCardP
               {ESTAGIO_LABELS[stage]}
             </div>
           )}
-        </div>
-
-        <div className="flex items-center gap-1 text-[10px] text-zinc-400">
-          <span className="font-medium text-zinc-500 dark:text-zinc-400">{fc.assunto}</span>
-          <span>/</span>
-          <span>{fc.topico}</span>
         </div>
 
         {sr && (

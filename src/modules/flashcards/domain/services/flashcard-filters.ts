@@ -1,14 +1,16 @@
 // Pure filter / sort / stats pipeline for the flashcards list.
-import type { FlashcardItem } from "../flashcard.types";
+import type { FlashcardConceptTag, FlashcardItem, TipoFlashcard } from "../flashcard.types";
 import { isOverdue, isDue } from "./srs-status";
 
 export type StatusFilter = "all" | "due" | "not-due" | "overdue" | "new" | "mastered";
 export type FlashcardSort = "date" | "difficulty" | "interval" | "alpha";
+export type TipoFilter = TipoFlashcard | "";
 
 export interface FlashcardCriteria {
   search: string;
   assuntoFilter: string;
   topicoFilter: string;
+  tipoFilter: TipoFilter;
   statusFilter: StatusFilter;
   sortBy: FlashcardSort;
 }
@@ -27,13 +29,43 @@ const MASTERED_STAGE = 5;
 function matchesSearch(fc: FlashcardItem, search: string): boolean {
   if (!search) return true;
   const l = search.toLowerCase();
+  return matchesOwnText(fc, l) || matchesTagText(fc.conceitosConectados, l);
+}
+
+function matchesOwnText(fc: FlashcardItem, lowered: string): boolean {
   return (
-    fc.pergunta.toLowerCase().includes(l) ||
-    fc.resposta.toLowerCase().includes(l) ||
-    (fc.conceito ?? "").toLowerCase().includes(l) ||
-    fc.topico.toLowerCase().includes(l) ||
-    fc.assunto.toLowerCase().includes(l)
+    fc.pergunta.toLowerCase().includes(lowered) ||
+    fc.resposta.toLowerCase().includes(lowered) ||
+    (fc.conceito ?? "").toLowerCase().includes(lowered) ||
+    fc.topico.toLowerCase().includes(lowered) ||
+    fc.assunto.toLowerCase().includes(lowered)
   );
+}
+
+// A busca cobre as tags exibidas no card (conceitos conectados no grafo + pais).
+function matchesTagText(tags: FlashcardConceptTag[], lowered: string): boolean {
+  return tags.some(
+    (t) =>
+      t.conceito.toLowerCase().includes(lowered) ||
+      t.topico.toLowerCase().includes(lowered) ||
+      t.assunto.toLowerCase().includes(lowered),
+  );
+}
+
+// Assunto/tópico casam pelo conceito base OU por qualquer conceito conectado no
+// grafo — o card exibe as duas origens como tag, então as duas têm de filtrar.
+function matchesAssunto(fc: FlashcardItem, assuntoId: string): boolean {
+  if (!assuntoId) return true;
+  return fc.assuntoId === assuntoId || fc.conceitosConectados.some((t) => t.assuntoId === assuntoId);
+}
+
+function matchesTopico(fc: FlashcardItem, topicoId: string): boolean {
+  if (!topicoId) return true;
+  return fc.topicoId === topicoId || fc.conceitosConectados.some((t) => t.topicoId === topicoId);
+}
+
+function matchesTipo(fc: FlashcardItem, tipo: TipoFilter): boolean {
+  return !tipo || fc.tipo === tipo;
 }
 
 function matchesStatus(fc: FlashcardItem, status: StatusFilter, now: Date): boolean {
@@ -70,8 +102,9 @@ export function filterAndSortFlashcards(
   const result = cards.filter(
     (fc) =>
       matchesSearch(fc, criteria.search) &&
-      (!criteria.assuntoFilter || fc.assuntoId === criteria.assuntoFilter) &&
-      (!criteria.topicoFilter || fc.topicoId === criteria.topicoFilter) &&
+      matchesAssunto(fc, criteria.assuntoFilter) &&
+      matchesTopico(fc, criteria.topicoFilter) &&
+      matchesTipo(fc, criteria.tipoFilter) &&
       matchesStatus(fc, criteria.statusFilter, now),
   );
   return result.sort(COMPARATORS[criteria.sortBy]);
@@ -97,6 +130,7 @@ export function countActiveFilters(criteria: FlashcardCriteria): number {
   return [
     criteria.assuntoFilter || null,
     criteria.topicoFilter || null,
+    criteria.tipoFilter || null,
     criteria.statusFilter !== "all" ? "1" : null,
     criteria.sortBy !== "date" ? "1" : null,
   ].filter(Boolean).length;
