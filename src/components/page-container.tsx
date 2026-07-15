@@ -17,12 +17,3 @@ export function PageContainer({ children, className }: PageContainerProps) {
     </div>
   );
 }
-
-/**
- * Coluna estreita para formulários dentro do quadro padrão: o header e as bordas
- * da página continuam alinhados com o resto do app, mas os campos não se esticam
- * por 1152px. Fica alinhada à esquerda, sob o header.
- */
-export function NarrowColumn({ children, className }: PageContainerProps) {
-  return <div className={`w-full max-w-2xl ${className ?? ""}`}>{children}</div>;
-}

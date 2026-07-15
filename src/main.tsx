@@ -32,6 +32,7 @@ import GraphPage from "@/app/graph/page";
 import GraphDetailPage from "@/app/graph/[id]/page";
 import VRPage from "@/app/vr/[id]/page";
 import SettingsPage from "@/app/settings/page";
+import SettingsSectionPage from "@/app/settings/[secao]/page";
 import LoginPage from "@/app/login/page";
 import RegisterPage from "@/app/register/page";
 import QuestoesPage from "@/app/questions/page";
@@ -82,6 +83,7 @@ function App() {
           <Route path="/provas/new" element={<RequireAuth><NewProvaPage /></RequireAuth>} />
           <Route path="/provas/:id" element={<RequireAuth><ProvaDetailPage /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+          <Route path="/settings/:secao" element={<RequireAuth><SettingsSectionPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster />

@@ -1,30 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import SettingsPage from "./page";
-import { getConfigAI } from "@/lib/settings-api";
 
-vi.mock("@/lib/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
-vi.mock("@/lib/settings-api", () => ({ getConfigAI: vi.fn(), saveConfigAI: vi.fn() }));
-vi.mock("@/lib/vault-bridge", () => ({
-  isDesktop: () => false,
-  desktop: { claudeCode: { getConfig: vi.fn(() => Promise.resolve({ enabled: false, savedApiConfig: null })) } },
+vi.mock("@/lib/navigation", () => ({ usePathname: () => "/settings", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+vi.mock("@/components/link", () => ({
+  Link: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }));
-vi.mock("@/components/color-theme-provider", () => ({
-  useColorTheme: () => ({ colorTheme: "default", setColorTheme: vi.fn() }),
-}));
-vi.mock("@/components/flashcard/CardStyleProvider", () => ({
-  useCardStyle: () => ({ cardStyle: "default", setCardStyle: vi.fn() }),
-}));
-vi.mock("@/components/flashcard/FlashcardFace", () => ({ FlashcardFace: () => null }));
+vi.mock("@/lib/vault-bridge", () => ({ isDesktop: () => false, desktop: {} }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => vi.clearAllMocks());
 
 describe("SettingsPage", () => {
-  it("loads the saved AI config into the form", async () => {
-    vi.mocked(getConfigAI).mockResolvedValue({ apiKey: "sk-secret", baseUrl: "http://api", modelo: "gpt-4o" });
+  it("lists the settings sections, each linking to its own screen", async () => {
     render(<SettingsPage />);
-    expect(getConfigAI).toHaveBeenCalled();
-    expect(await screen.findByDisplayValue("gpt-4o")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Aparência/ })).toHaveAttribute("href", "/settings/aparencia");
+    expect(screen.getByRole("link", { name: /Flashcards/ })).toHaveAttribute("href", "/settings/flashcards");
+    expect(screen.getByRole("link", { name: /Conexão com IA/ })).toHaveAttribute("href", "/settings/ia");
+  });
+
+  it("summarizes what is inside each section", () => {
+    render(<SettingsPage />);
+    expect(screen.getByText("Chave da API, endereço e modelo")).toBeInTheDocument();
+  });
+
+  // Vault e Claude Code não existem no navegador — a entrada não deve aparecer lá.
+  it("hides the desktop section outside the desktop app", () => {
+    render(<SettingsPage />);
+    expect(screen.queryByText("Desktop")).not.toBeInTheDocument();
   });
 });
