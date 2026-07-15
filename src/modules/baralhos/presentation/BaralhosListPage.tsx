@@ -1,0 +1,198 @@
+"use client";
+
+import { useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { PlusIcon, Loader2Icon, DownloadIcon, UploadIcon } from "lucide-react";
+import { toast } from "sonner";
+import { paginate } from "@/lib/paginate";
+import { Pagination } from "@/components/pagination";
+import { baralhosHttp } from "../infra/http";
+import { toExportPayload, exportFileName } from "../domain/services/export-baralhos";
+import { downloadJson, readJsonFile } from "./services/download-json";
+import { useBaralhosList } from "./hooks/useBaralhosList";
+import {
+  filterAndSortBaralhos,
+  originOptions,
+  DEFAULT_BARALHO_CRITERIA,
+  type BaralhoCriteria,
+} from "../domain/services/baralho-filters";
+import { BaralhoCard } from "./components/BaralhoCard";
+import { NewBaralhoCard } from "./components/NewBaralhoCard";
+import { BaralhosFilters } from "./components/BaralhosFilters";
+import { CreateBaralhoDialog } from "./components/CreateBaralhoDialog";
+import { ConfirmDeleteBaralhoDialog } from "./components/ConfirmDeleteBaralhoDialog";
+import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
+import type { BaralhoItem } from "../domain/baralho.types";
+
+// 11 cartões por página: com o cartão "Novo baralho" ocupando a primeira vaga, a
+// grade de 3 colunas fecha em 12 sem deixar buraco na última linha.
+const PAGE_SIZE = 11;
+
+export function BaralhosListPage() {
+  const { baralhos, loading, reload } = useBaralhosList();
+  const [creating, setCreating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<BaralhoItem | null>(null);
+  const [studyId, setStudyId] = useState<string | null>(null);
+  const [criteria, setCriteria] = useState<BaralhoCriteria>(DEFAULT_BARALHO_CRITERIA);
+  const [page, setPage] = useState(1);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const origins = useMemo(() => originOptions(baralhos), [baralhos]);
+  const visible = useMemo(() => filterAndSortBaralhos(baralhos, criteria), [baralhos, criteria]);
+  const paged = useMemo(() => paginate(visible, page, PAGE_SIZE), [visible, page]);
+
+  // Toda mudança de filtro/busca/ordenação volta para a página 1.
+  const patch = (p: Partial<BaralhoCriteria>): void => {
+    setCriteria((prev) => ({ ...prev, ...p }));
+    setPage(1);
+  };
+  const clearFilters = (): void => {
+    setCriteria(DEFAULT_BARALHO_CRITERIA);
+    setPage(1);
+  };
+
+  const handleCreate = async (titulo: string): Promise<void> => {
+    setSubmitting(true);
+    try {
+      await baralhosHttp.createBaralho(titulo, []);
+      toast.success("Baralho criado!");
+      setCreating(false);
+      await reload();
+    } catch {
+      toast.error("Erro ao criar o baralho. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const confirmDelete = async (): Promise<void> => {
+    if (!deleteTarget) return;
+    try {
+      await baralhosHttp.deleteBaralho(deleteTarget.id);
+      toast.success("Baralho removido! Os cartões continuam nos seus flashcards.");
+      setDeleteTarget(null);
+      await reload();
+    } catch {
+      toast.error("Erro ao remover o baralho. Tente novamente.");
+    }
+  };
+
+  // O export precisa dos cartões, que a listagem não traz — busca cada baralho.
+  const handleExport = async (): Promise<void> => {
+    try {
+      const details = await Promise.all(baralhos.map((b) => baralhosHttp.getBaralho(b.id)));
+      downloadJson(exportFileName(new Date()), toExportPayload(details));
+      toast.success(`${details.length} baralho(s) exportado(s)!`);
+    } catch {
+      toast.error("Erro ao exportar os baralhos.");
+    }
+  };
+
+  const handleImport = async (file: File | undefined): Promise<void> => {
+    if (!file) return;
+    try {
+      const { count } = await baralhosHttp.importBaralhos(await readJsonFile(file));
+      toast.success(`${count} baralho(s) importado(s)!`);
+      await reload();
+    } catch {
+      toast.error("Arquivo inválido ou sem baralhos para importar.");
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-heading font-semibold">Baralhos</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            {visible.length === baralhos.length
+              ? `${baralhos.length} baralho${baralhos.length !== 1 ? "s" : ""} no total`
+              : `${visible.length} de ${baralhos.length} baralhos`}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="h-9" disabled={baralhos.length === 0} onClick={handleExport}>
+            <DownloadIcon className="size-3.5 mr-1" />
+            Exportar
+          </Button>
+          <Button variant="outline" className="h-9" onClick={() => fileInput.current?.click()}>
+            <UploadIcon className="size-3.5 mr-1" />
+            Importar
+          </Button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => { void handleImport(e.target.files?.[0]); e.target.value = ""; }}
+          />
+          <Button onClick={() => setCreating(true)}>
+            <PlusIcon className="size-4 mr-1" />
+            Novo baralho
+          </Button>
+        </div>
+      </div>
+
+      <Separator />
+
+      {baralhos.length > 0 && (
+        <BaralhosFilters
+          criteria={criteria}
+          origins={origins}
+          onPatch={patch}
+          onClear={clearFilters}
+        />
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2Icon className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          {baralhos.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhum baralho ainda. Crie um para agrupar os flashcards que você quer estudar junto.
+            </p>
+          )}
+          {baralhos.length > 0 && visible.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhum baralho encontrado com esses filtros.
+            </p>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <NewBaralhoCard onClick={() => setCreating(true)} />
+            {paged.items.map((baralho) => (
+              <BaralhoCard
+                key={baralho.id}
+                baralho={baralho}
+                onStudy={() => setStudyId(baralho.id)}
+                onDelete={() => setDeleteTarget(baralho)}
+              />
+            ))}
+          </div>
+          <Pagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
+        </>
+      )}
+
+      <CreateBaralhoDialog
+        open={creating}
+        onOpenChange={setCreating}
+        submitting={submitting}
+        onCreate={handleCreate}
+      />
+      <ConfirmDeleteBaralhoDialog
+        titulo={deleteTarget?.titulo ?? null}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+      />
+      <StudyDeckModal
+        open={studyId !== null}
+        onOpenChange={(open) => { if (!open) { setStudyId(null); void reload(); } }}
+        baralhoId={studyId}
+      />
+    </div>
+  );
+}

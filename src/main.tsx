@@ -22,6 +22,8 @@ import { getToken } from "@/lib/api";
 import DashboardPage from "@/app/page";
 import FlashcardsPage from "@/app/flashcards/page";
 import NewFlashcardPage from "@/app/flashcards/new/page";
+import BaralhosPage from "@/app/baralhos/page";
+import BaralhoDetailPage from "@/app/baralhos/[id]/page";
 import NotesPage from "@/app/notes/page";
 import NewNotePage from "@/app/notes/new/page";
 import NoteDetailPage from "@/app/notes/[id]/page";
@@ -66,6 +68,8 @@ function App() {
           <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
           <Route path="/flashcards" element={<RequireAuth><FlashcardsPage /></RequireAuth>} />
           <Route path="/flashcards/new" element={<RequireAuth><NewFlashcardPage /></RequireAuth>} />
+          <Route path="/baralhos" element={<RequireAuth><BaralhosPage /></RequireAuth>} />
+          <Route path="/baralhos/:id" element={<RequireAuth><BaralhoDetailPage /></RequireAuth>} />
           <Route path="/notes" element={<RequireAuth><NotesPage /></RequireAuth>} />
           <Route path="/notes/new" element={<RequireAuth><NewNotePage /></RequireAuth>} />
           <Route path="/notes/:id" element={<RequireAuth><NoteDetailPage /></RequireAuth>} />
