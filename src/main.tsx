@@ -28,11 +28,11 @@ import BaralhoDetailPage from "@/app/baralhos/[id]/page";
 import NotesPage from "@/app/notes/page";
 import NewNotePage from "@/app/notes/new/page";
 import NoteDetailPage from "@/app/notes/[id]/page";
-import StudyPage from "@/app/study/page";
 import GraphPage from "@/app/graph/page";
 import GraphDetailPage from "@/app/graph/[id]/page";
 import VRPage from "@/app/vr/[id]/page";
 import SettingsPage from "@/app/settings/page";
+import SettingsSectionPage from "@/app/settings/[secao]/page";
 import LoginPage from "@/app/login/page";
 import RegisterPage from "@/app/register/page";
 import QuestoesPage from "@/app/questions/page";
@@ -74,7 +74,6 @@ function App() {
           <Route path="/notes" element={<RequireAuth><NotesPage /></RequireAuth>} />
           <Route path="/notes/new" element={<RequireAuth><NewNotePage /></RequireAuth>} />
           <Route path="/notes/:id" element={<RequireAuth><NoteDetailPage /></RequireAuth>} />
-          <Route path="/study" element={<RequireAuth><StudyPage /></RequireAuth>} />
           <Route path="/graph" element={<RequireAuth><GraphPage /></RequireAuth>} />
           <Route path="/graph/:id" element={<RequireAuth><GraphDetailPage /></RequireAuth>} />
           <Route path="/vr/:id" element={<RequireAuth><VRPage /></RequireAuth>} />
@@ -84,6 +83,7 @@ function App() {
           <Route path="/provas/new" element={<RequireAuth><NewProvaPage /></RequireAuth>} />
           <Route path="/provas/:id" element={<RequireAuth><ProvaDetailPage /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+          <Route path="/settings/:secao" element={<RequireAuth><SettingsSectionPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster />

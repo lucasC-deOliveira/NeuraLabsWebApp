@@ -7,7 +7,6 @@ import {
   HelpCircleIcon,
   ClipboardListIcon,
   FileTextIcon,
-  FlameIcon,
   NetworkIcon,
   SettingsIcon,
   ArrowLeftIcon,
@@ -26,7 +25,6 @@ const CRUMB_ICONS: Record<CrumbIcon, LucideIcon> = {
   questions: HelpCircleIcon,
   provas: ClipboardListIcon,
   notes: FileTextIcon,
-  study: FlameIcon,
   graph: NetworkIcon,
   settings: SettingsIcon,
 };
@@ -39,13 +37,13 @@ interface PageHeaderProps {
   actions?: React.ReactNode;
 }
 
-function Crumbs({ pathname }: { pathname: string }) {
+// O caminho até onde você está, como a barra de endereço do Explorer: os ancestrais
+// são links e a página atual fecha a trilha.
+function Crumbs({ pathname, current }: { pathname: string; current: string }) {
   const crumbs = resolveCrumbs(pathname);
-  if (crumbs.length === 0) return null;
-
   return (
     <nav aria-label="Trilha" className="hidden items-center gap-1.5 text-xs text-muted-foreground md:flex">
-      {crumbs.map((crumb, i) => {
+      {crumbs.map((crumb) => {
         const Icon = CRUMB_ICONS[crumb.icon];
         return (
           <span key={crumb.href} className="flex items-center gap-1.5">
@@ -53,10 +51,15 @@ function Crumbs({ pathname }: { pathname: string }) {
               <Icon className="size-3" />
               {crumb.name}
             </Link>
-            {i < crumbs.length - 1 && <span aria-hidden="true">/</span>}
+            <span aria-hidden="true">/</span>
           </span>
         );
       })}
+      {/* A página atual fecha o caminho, como a pasta aberta no Explorer: aparece,
+          mas não é link — clicar nela não levaria a lugar nenhum. */}
+      <span aria-current="page" className="truncate font-medium text-foreground/70">
+        {current}
+      </span>
     </nav>
   );
 }
@@ -82,7 +85,7 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
                 <ArrowLeftIcon className="size-3.5" />
               </Button>
             )}
-            <Crumbs pathname={pathname} />
+            <Crumbs pathname={pathname} current={title} />
           </div>
           <h1 className="mt-2 truncate font-heading text-2xl font-semibold sm:text-3xl">{title}</h1>
           {subtitle && <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{subtitle}</p>}

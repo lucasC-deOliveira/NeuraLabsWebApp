@@ -9,7 +9,6 @@ export type CrumbIcon =
   | "questions"
   | "provas"
   | "notes"
-  | "study"
   | "graph"
   | "settings";
 
@@ -28,7 +27,6 @@ const SECTIONS: Crumb[] = [
   { name: "Questões", href: "/questions", icon: "questions" },
   { name: "Provas", href: "/provas", icon: "provas" },
   { name: "Notas", href: "/notes", icon: "notes" },
-  { name: "Estudar", href: "/study", icon: "study" },
   { name: "Grafo", href: "/graph", icon: "graph" },
   { name: "Configurações", href: "/settings", icon: "settings" },
 ];
@@ -42,8 +40,9 @@ function sectionOf(pathname: string): Crumb | null {
 }
 
 /**
- * Ancestrais da página atual, do mais amplo ao mais específico. Não inclui a própria
- * página — o título dela é o fim da trilha e o header já o mostra.
+ * Ancestrais da página atual, do mais amplo ao mais específico — os "diretórios"
+ * acima dela, todos navegáveis. Quem monta a trilha fecha o caminho com a página
+ * atual (que não é link, como a pasta aberta no Explorer).
  * @example resolveCrumbs("/baralhos/abc") // [Home, Baralhos]
  */
 export function resolveCrumbs(pathname: string): Crumb[] {

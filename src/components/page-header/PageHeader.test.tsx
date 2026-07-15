@@ -32,11 +32,12 @@ describe("PageHeader", () => {
     expect(screen.getByRole("button", { name: "Novo baralho" })).toBeInTheDocument();
   });
 
-  it("builds the trail from the route", () => {
-    renderAt("/baralhos/abc");
+  it("builds the trail from the route, ending at the current page", () => {
+    renderAt("/baralhos/abc", { title: "Meu baralho" });
     const trail = screen.getByLabelText("Trilha");
     expect(trail).toHaveTextContent("Home");
     expect(trail).toHaveTextContent("Baralhos");
+    expect(trail).toHaveTextContent("Meu baralho");
   });
 
   it("links a crumb to its section", () => {
@@ -44,9 +45,24 @@ describe("PageHeader", () => {
     expect(screen.getByRole("link", { name: /Baralhos/ })).toHaveAttribute("href", "/baralhos");
   });
 
-  it("has no trail on the dashboard", () => {
-    renderAt("/");
-    expect(screen.queryByLabelText("Trilha")).not.toBeInTheDocument();
+  // O caminho tem de terminar onde você está, como a barra do Explorer — mas a
+  // pasta aberta não é um link para si mesma.
+  it("shows the section itself at its root", () => {
+    renderAt("/baralhos", { title: "Baralhos" });
+    const trail = screen.getByLabelText("Trilha");
+    expect(trail).toHaveTextContent("Home");
+    expect(trail).toHaveTextContent("Baralhos");
+    expect(screen.queryByRole("link", { name: /^Baralhos$/ })).not.toBeInTheDocument();
+  });
+
+  it("does not link the current page to itself", () => {
+    renderAt("/baralhos/abc", { title: "Meu baralho" });
+    expect(screen.queryByRole("link", { name: "Meu baralho" })).not.toBeInTheDocument();
+  });
+
+  it("shows the dashboard as the root of the path", () => {
+    renderAt("/", { title: "NeuraLabs" });
+    expect(screen.getByLabelText("Trilha")).toHaveTextContent("NeuraLabs");
   });
 
   it("offers back inside a section", () => {

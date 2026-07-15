@@ -33,7 +33,7 @@ export function RecentActivity({ loading, sessions }: { loading: boolean; sessio
         <Card className="border-dashed border-zinc-300 dark:border-zinc-700">
           <CardContent className="py-6 sm:py-8 text-center">
             <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">Nenhuma sessão de estudo ainda.</p>
-            <Link href="/study">
+            <Link href="/baralhos">
               <Button variant="link">Começar a estudar</Button>
             </Link>
           </CardContent>
