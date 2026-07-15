@@ -4,12 +4,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2Icon } from "lucide-react";
 import { useCardStyle } from "@/components/flashcard/CardStyleProvider";
-import { CARD_FRAMES, frameImageCss } from "@/components/flashcard/card-frames";
+import { CARD_FRAMES, isFrameImageUrl } from "@/components/flashcard/card-frames";
 
 // A URL só vira CSS se for uma fonte de imagem aceitável; sem aviso, uma URL
 // recusada simplesmente não faria nada e pareceria um bug.
 function isRejectedUrl(url: string): boolean {
-  return url.trim() !== "" && frameImageCss(url) === "";
+  return url.trim() !== "" && !isFrameImageUrl(url);
 }
 
 export function CardFramePicker() {
@@ -58,8 +58,8 @@ export function CardFramePicker() {
             spellCheck={false}
           />
           <p className="text-[11px] text-muted-foreground">
-            Aceita http(s), file:// (imagem local, no app desktop) e data:image. A imagem é
-            esticada atrás do card, com o conteúdo por dentro.
+            Aceita http(s), file:// (imagem local, no app desktop) e data:image. O card assume
+            a forma da moldura, então a arte não deforma — e o conteúdo fica por dentro.
           </p>
           {isRejectedUrl(frameImageUrl) && (
             <p className="text-[11px] text-red-500">

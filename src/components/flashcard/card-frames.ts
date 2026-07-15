@@ -15,6 +15,17 @@ export interface CardFrame {
   css: string;
 }
 
+// Com moldura, a moldura É o card: pergunta e resposta perdem caixa, borda e fundo e
+// ficam direto sobre ela, centralizadas. É o que o disrupt faz — lá o box só existe
+// quando NÃO há moldura (`!imageSrc ? "border-2 bg-black" : ""`); com arte, sobra ela.
+const NO_BOX_CSS = `.fc-pergunta, .fc-resposta {
+  border: none;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  text-align: center;
+}`;
+
 // Molduras metálicas: o brilho vem de paradas claras no meio do gradiente.
 const GOLD_GRADIENT =
   "linear-gradient(150deg, #6b4f16, #d9b95c 30%, #f7ecc0 45%, #d9b95c 60%, #6b4f16)";
@@ -29,13 +40,15 @@ const ROYAL_GRADIENT =
 // que é translúcida (bg-muted/40), e engole o texto.
 const frameCss = (background: string, extra = ""): string =>
   `.fc-card {
-  padding: 0.75rem;
+  padding: 1.5rem;
   border-radius: 1rem;
+  justify-content: center;
   background-image: linear-gradient(var(--card), var(--card)), ${background};
   background-clip: content-box, border-box;
   background-origin: content-box, border-box;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.2);${extra}
-}`;
+}
+${NO_BOX_CSS}`;
 
 export const CARD_FRAMES: CardFrame[] = [
   {
@@ -90,24 +103,56 @@ export function getCardFrame(id: CardFrameId): CardFrame {
 // url() e viraria CSS solto.
 const SAFE_IMAGE_URL = /^(https?:\/\/|file:\/\/\/|data:image\/)[^"')\\\s]+$/i;
 
+/** Endereço aceitável para uma moldura de imagem? */
+export function isFrameImageUrl(url: string): boolean {
+  return SAFE_IMAGE_URL.test(url.trim());
+}
+
+// Dimensões naturais da arte. O CSS não as conhece — quem chama mede a imagem.
+export interface FrameImageRatio {
+  largura: number;
+  altura: number;
+}
+
+// O card não pode crescer sem limite: molduras de carta são retrato e altas, e a
+// altura sai da largura. Limitar a altura e derivar a largura mantém a proporção.
+const MAX_CARD_HEIGHT = "70vh";
+// Vão da arte, em % da largura do card: o topo das molduras costuma ter ornamento.
+const FRAME_PADDING = "13% 9% 10%";
+
 /**
- * CSS da moldura de imagem informada pelo usuário; string vazia se a URL não for
- * uma fonte de imagem aceitável.
- * @example frameImageCss("https://exemplo.com/moldura.png")
+ * CSS da moldura de imagem. O CARD ASSUME A FORMA DA MOLDURA: a arte mantém a
+ * proporção original e o card se ajusta a ela — esticar a moldura para caber no
+ * card deformava o ornamento.
+ *
+ * Sem a medida (imagem ainda carregando, ou que falhou) não há moldura: melhor
+ * nenhuma do que uma arte deformada.
+ * @example frameImageCss("https://x/moldura.png", { largura: 221, altura: 405 })
  */
-export function frameImageCss(url: string): string {
+export function frameImageCss(url: string, ratio: FrameImageRatio | null): string {
   const trimmed = url.trim();
-  if (!SAFE_IMAGE_URL.test(trimmed)) return "";
+  if (!isFrameImageUrl(trimmed) || !ratio || ratio.altura <= 0) return "";
+  const proporcao = (ratio.largura / ratio.altura).toFixed(4);
   return `.fc-card {
-  padding: 2rem;
+  aspect-ratio: ${ratio.largura} / ${ratio.altura};
+  max-width: min(100%, calc(${MAX_CARD_HEIGHT} * ${proporcao}));
+  margin-inline: auto;
+  overflow-y: auto;
+  justify-content: center;
+  padding: ${FRAME_PADDING};
   border-radius: 1rem;
   background-image: url("${trimmed}");
   background-size: 100% 100%;
   background-repeat: no-repeat;
-}`;
+}
+${NO_BOX_CSS}`;
 }
 
 /** CSS da moldura ativa (preset ou imagem do usuário). */
-export function getFrameCss(id: CardFrameId, imageUrl: string): string {
-  return id === "image" ? frameImageCss(imageUrl) : getCardFrame(id).css;
+export function getFrameCss(
+  id: CardFrameId,
+  imageUrl: string,
+  ratio: FrameImageRatio | null = null,
+): string {
+  return id === "image" ? frameImageCss(imageUrl, ratio) : getCardFrame(id).css;
 }
