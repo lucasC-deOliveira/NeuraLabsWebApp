@@ -1,6 +1,13 @@
 // Filtro e ordenação dos cartões DENTRO de um baralho aberto (a listagem de
 // baralhos tem o seu próprio, em baralho-filters). Lógica pura.
-import type { BaralhoCard, BaralhoConceptTag } from "../baralho.types";
+// O casamento por tags é compartilhado com a lista de questões (@/lib).
+import {
+  matchesConceptTags,
+  matchesTagText,
+  conceptTagOptions,
+  type ConceptTagOptions,
+} from "@/lib/concept-tag-filters";
+import type { BaralhoCard } from "../baralho.types";
 
 export type BaralhoCardSort = "baralho" | "conceito" | "tipo";
 
@@ -23,15 +30,6 @@ export const DEFAULT_CARD_CRITERIA: BaralhoCardCriteria = {
   sortBy: "baralho",
 };
 
-function matchesTagText(tags: BaralhoConceptTag[], term: string): boolean {
-  return tags.some(
-    (t) =>
-      t.conceito.toLowerCase().includes(term) ||
-      t.topico.toLowerCase().includes(term) ||
-      t.assunto.toLowerCase().includes(term),
-  );
-}
-
 function matchesSearch(card: BaralhoCard, search: string): boolean {
   const term = search.trim().toLowerCase();
   if (!term) return true;
@@ -40,16 +38,6 @@ function matchesSearch(card: BaralhoCard, search: string): boolean {
     card.resposta.toLowerCase().includes(term) ||
     card.conceito.toLowerCase().includes(term) ||
     matchesTagText(card.conceitosConectados, term)
-  );
-}
-
-// Um cartão pode estar ligado a vários conceitos: casar por qualquer um deles.
-function matchesTags(card: BaralhoCard, criteria: BaralhoCardCriteria): boolean {
-  const tags = card.conceitosConectados;
-  return (
-    (!criteria.assuntoId || tags.some((t) => t.assuntoId === criteria.assuntoId)) &&
-    (!criteria.topicoId || tags.some((t) => t.topicoId === criteria.topicoId)) &&
-    (!criteria.conceito || tags.some((t) => t.conceito === criteria.conceito))
   );
 }
 
@@ -72,7 +60,7 @@ export function filterAndSortBaralhoCards(
     (card) =>
       matchesSearch(card, criteria.search) &&
       (!criteria.tipo || card.tipo === criteria.tipo) &&
-      matchesTags(card, criteria),
+      matchesConceptTags(card, criteria),
   );
   return result.sort(COMPARATORS[criteria.sortBy]);
 }
@@ -87,56 +75,9 @@ export function cardTipoOptions(cards: BaralhoCard[]): string[] {
   return [...tipos].sort();
 }
 
-export interface AssuntoOption {
-  id: string;
-  nome: string;
-}
-
-export interface TopicoOption {
-  id: string;
-  nome: string;
-  assuntoId: string;
-}
-
-export interface CardTagOptions {
-  assuntos: AssuntoOption[];
-  topicos: TopicoOption[];
-  conceitos: string[];
-}
-
-const byNome = (a: { nome: string }, b: { nome: string }): number => a.nome.localeCompare(b.nome);
-
-/**
- * Assuntos, tópicos e conceitos distintos presentes nas tags deste baralho — os
- * filtros só oferecem o que existe aqui dentro.
- * @example cardTagOptions(cards).assuntos // [{ id: "a1", nome: "Biologia" }]
- */
-interface TagAccumulator {
-  assuntos: Map<string, AssuntoOption>;
-  topicos: Map<string, TopicoOption>;
-  conceitos: Set<string>;
-}
-
-function collectTag(acc: TagAccumulator, tag: BaralhoConceptTag): void {
-  if (tag.assuntoId) acc.assuntos.set(tag.assuntoId, { id: tag.assuntoId, nome: tag.assunto });
-  if (tag.topicoId) {
-    acc.topicos.set(tag.topicoId, { id: tag.topicoId, nome: tag.topico, assuntoId: tag.assuntoId });
-  }
-  if (tag.conceito) acc.conceitos.add(tag.conceito);
-}
-
-export function cardTagOptions(cards: BaralhoCard[]): CardTagOptions {
-  const assuntos = new Map<string, AssuntoOption>();
-  const topicos = new Map<string, TopicoOption>();
-  const conceitos = new Set<string>();
-  for (const card of cards) {
-    for (const tag of card.conceitosConectados) collectTag({ assuntos, topicos, conceitos }, tag);
-  }
-  return {
-    assuntos: [...assuntos.values()].sort(byNome),
-    topicos: [...topicos.values()].sort(byNome),
-    conceitos: [...conceitos].sort((a, b) => a.localeCompare(b)),
-  };
+/** Níveis presentes nas tags deste baralho, para alimentar os filtros. */
+export function cardTagOptions(cards: BaralhoCard[]): ConceptTagOptions {
+  return conceptTagOptions(cards);
 }
 
 /** Filtros ativos, para o rótulo. A busca não conta: já está visível na tela. */

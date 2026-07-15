@@ -9,14 +9,14 @@ import {
   formatTipoLabel,
   type BaralhoCardCriteria,
   type BaralhoCardSort,
-  type CardTagOptions,
 } from "../../domain/services/baralho-card-filters";
+import { topicosOfAssunto, type ConceptTagOptions } from "@/lib/concept-tag-filters";
 
 interface BaralhoCardsFiltersProps {
   criteria: BaralhoCardCriteria;
   // Só o que existe neste baralho.
   tipos: string[];
-  tags: CardTagOptions;
+  tags: ConceptTagOptions;
   onPatch: (patch: Partial<BaralhoCardCriteria>) => void;
   onClear: () => void;
 }
@@ -43,17 +43,11 @@ function isDirty(criteria: BaralhoCardCriteria): boolean {
   return countActiveCardFilters(criteria) > 0 || criteria.search.trim() !== "";
 }
 
-// Escolher um assunto restringe os tópicos oferecidos aos dele.
-function topicosOf(tags: CardTagOptions, assuntoId: string): CardTagOptions["topicos"] {
-  if (!assuntoId) return tags.topicos;
-  return tags.topicos.filter((t) => t.assuntoId === assuntoId);
-}
-
 export function BaralhoCardsFilters({
   criteria, tipos, tags, onPatch, onClear,
 }: BaralhoCardsFiltersProps) {
   const assuntos = namedItems("Todos os assuntos", tags.assuntos);
-  const topicos = namedItems("Todos os tópicos", topicosOf(tags, criteria.assuntoId));
+  const topicos = namedItems("Todos os tópicos", topicosOfAssunto(tags, criteria.assuntoId));
   const conceitos = conceitoItems(tags.conceitos);
   const tiposMap = tipoItems(tipos);
 
