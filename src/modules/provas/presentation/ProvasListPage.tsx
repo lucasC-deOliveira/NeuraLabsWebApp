@@ -1,15 +1,27 @@
 "use client";
 
 import { PageContainer } from "@/components/page-container";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { PlusIcon, Trash2Icon, ClipboardListIcon, ChevronRightIcon } from "lucide-react";
 import { toast } from "sonner";
+import { paginate } from "@/lib/paginate";
+import { Pagination } from "@/components/pagination";
 import { provasHttp } from "../infra/http";
 import type { ProvaListItem } from "../domain/prova.types";
+import {
+  filterAndSortProvas,
+  DEFAULT_PROVA_CRITERIA,
+  type ProvaCriteria,
+} from "../domain/services/prova-filters";
+import { useProvasList } from "./hooks/useProvasList";
+import { ProvasFilters } from "./components/ProvasFilters";
+
+// 11 por página: as linhas são baixas, cabem mais que os cartões de questão.
+const PAGE_SIZE = 11;
 
 function EmptyState() {
   return (
@@ -67,18 +79,26 @@ function ProvaRow({ prova, deleting, onDelete }: {
   );
 }
 
-export function ProvasListPage() {
-  const [provas, setProvas] = useState<ProvaListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+const contarProvas = (n: number): string => `${n} prova${n !== 1 ? "s" : ""}`;
 
-  useEffect(() => {
-    provasHttp
-      .listProvas()
-      .then(setProvas)
-      .catch(() => toast.error("Erro ao carregar provas"))
-      .finally(() => setLoading(false));
-  }, []);
+export function ProvasListPage() {
+  const { provas, loading, remove } = useProvasList();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [criteria, setCriteria] = useState<ProvaCriteria>(DEFAULT_PROVA_CRITERIA);
+  const [page, setPage] = useState(1);
+
+  const visible = useMemo(() => filterAndSortProvas(provas, criteria), [provas, criteria]);
+  const paged = useMemo(() => paginate(visible, page, PAGE_SIZE), [visible, page]);
+
+  // Toda mudança de busca/filtro volta para a página 1.
+  const patch = (p: Partial<ProvaCriteria>): void => {
+    setCriteria((prev) => ({ ...prev, ...p }));
+    setPage(1);
+  };
+  const clearFilters = (): void => {
+    setCriteria(DEFAULT_PROVA_CRITERIA);
+    setPage(1);
+  };
 
   const handleDelete = async (e: React.MouseEvent, id: string): Promise<void> => {
     e.preventDefault();
@@ -87,7 +107,7 @@ export function ProvasListPage() {
     setDeletingId(id);
     try {
       await provasHttp.deleteProva(id);
-      setProvas((prev) => prev.filter((p) => p.id !== id));
+      remove(id);
       toast.success("Prova excluída");
     } catch {
       toast.error("Erro ao excluir");
@@ -97,10 +117,14 @@ export function ProvasListPage() {
   };
 
   return (
-    <PageContainer>
+    <PageContainer className="space-y-4">
       <PageHeader
         title="Provas"
-        subtitle={`${provas.length} prova${provas.length !== 1 ? "s" : ""}`}
+        subtitle={
+          visible.length === provas.length
+            ? contarProvas(provas.length)
+            : `${visible.length} de ${contarProvas(provas.length)}`
+        }
         actions={
           <Link href="/provas/new">
             <Button className="gap-2">
@@ -116,11 +140,21 @@ export function ProvasListPage() {
       ) : provas.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="space-y-3">
-          {provas.map((p) => (
-            <ProvaRow key={p.id} prova={p} deleting={deletingId === p.id} onDelete={(e) => handleDelete(e, p.id)} />
-          ))}
-        </div>
+        <>
+          <ProvasFilters criteria={criteria} onPatch={patch} onClear={clearFilters} />
+          {visible.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Nenhuma prova encontrada com esses filtros.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {paged.items.map((p) => (
+                <ProvaRow key={p.id} prova={p} deleting={deletingId === p.id} onDelete={(e) => handleDelete(e, p.id)} />
+              ))}
+            </div>
+          )}
+          <Pagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
+        </>
       )}
     </PageContainer>
   );

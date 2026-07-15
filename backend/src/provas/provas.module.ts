@@ -30,6 +30,7 @@ import {
   type QuestaoGraphWriter,
 } from '../modules/provas/domain/ports/questao-graph-writer';
 import { PrismaProvaRepository } from '../modules/provas/infrastructure/persistence/prisma-prova.repository';
+import { PrismaConnectedConceptsQuery } from '../modules/curriculum/infrastructure/persistence/prisma-connected-concepts.query';
 import {
   EDITAL_REPOSITORY,
   type EditalRepository,
@@ -65,6 +66,7 @@ import { SuggestQuestaoConceitosUseCase } from '../modules/provas/application/us
   ],
   controllers: [ProvasController],
   providers: [
+    PrismaConnectedConceptsQuery,
     { provide: PROVA_REPOSITORY, useClass: PrismaProvaRepository },
     { provide: CONCEITO_CATALOG_SOURCE, useClass: PrismaConceitoCatalog },
     { provide: QUESTAO_GRAPH_WRITER, useClass: PrismaQuestaoGraphWriter },

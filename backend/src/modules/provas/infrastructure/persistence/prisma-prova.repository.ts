@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
+import { PrismaConnectedConceptsQuery } from '../../../curriculum/infrastructure/persistence/prisma-connected-concepts.query';
+import type { ConceptTag } from '../../../curriculum/domain/curriculum-views';
 import type { CreatedProva, ProvaRepository } from '../../domain/ports/prova-repository';
 import type {
   CreateProvaFromParsedInput,
@@ -34,7 +36,11 @@ const asAlternativas = (v: Prisma.JsonValue | null): ParsedAlternativa[] | null 
 
 @Injectable()
 export class PrismaProvaRepository implements ProvaRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // Conceitos do grafo: leitor compartilhado (curriculum), o mesmo das questões.
+    private readonly connected: PrismaConnectedConceptsQuery,
+  ) {}
 
   async create(userId: string, input: CreateProvaInput): Promise<string> {
     const prova = await this.prisma.prova.create({
@@ -75,7 +81,14 @@ export class PrismaProvaRepository implements ProvaRepository {
       where: { id },
       include: PROVA_DETAIL_INCLUDE,
     });
-    return prova ? toOwnedDetail(prova) : null;
+    if (!prova) return null;
+    // As tags vêm do grafo (arestas QUESTION → CONCEITO), mesmo leitor da lista de
+    // questões — a prova só reúne questões, a taxonomia é a delas.
+    const connected = await this.connected.forQuestions(
+      prova.usuarioId,
+      prova.questoes.map((pq) => pq.questao.id),
+    );
+    return toOwnedDetail(prova, connected);
   }
 
   async findOwner(id: string): Promise<{ usuarioId: string } | null> {
@@ -120,7 +133,10 @@ const PROVA_DETAIL_INCLUDE = {
 
 type ProvaDetailRow = Prisma.ProvaGetPayload<{ include: typeof PROVA_DETAIL_INCLUDE }>;
 
-function toOwnedDetail(prova: ProvaDetailRow): OwnedProvaDetail {
+function toOwnedDetail(
+  prova: ProvaDetailRow,
+  connected: Map<string, ConceptTag[]>,
+): OwnedProvaDetail {
   return {
     usuarioId: prova.usuarioId,
     detail: {
@@ -128,7 +144,7 @@ function toOwnedDetail(prova: ProvaDetailRow): OwnedProvaDetail {
       titulo: prova.titulo,
       descricao: prova.descricao ?? null,
       dataCriacao: prova.dataCriacao,
-      questoes: prova.questoes.map(toDetailQuestao),
+      questoes: prova.questoes.map((pq) => toDetailQuestao(pq, connected.get(pq.questao.id) ?? [])),
     },
   };
 }
@@ -137,7 +153,7 @@ type QuestaoRow = Prisma.ProvaQuestaoGetPayload<{
   include: { questao: { select: typeof QUESTAO_SELECT } };
 }>;
 
-function toDetailQuestao(pq: QuestaoRow): ProvaDetailQuestao {
+function toDetailQuestao(pq: QuestaoRow, conceitosConectados: ConceptTag[]): ProvaDetailQuestao {
   return {
     ordem: pq.ordem,
     id: pq.questao.id,
@@ -147,6 +163,7 @@ function toDetailQuestao(pq: QuestaoRow): ProvaDetailQuestao {
     gabarito: pq.questao.gabarito,
     explicacao: pq.questao.explicacao ?? null,
     conceitoNome: pq.questao.conceito?.nome ?? null,
+    conceitosConectados,
     imagens: pq.questao.imagens.map((img) => ({
       id: img.id,
       ordem: img.ordem,
