@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import SettingsPage from "./page";
 import { getConfigAI } from "@/lib/settings-api";
 
+vi.mock("@/lib/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/lib/settings-api", () => ({ getConfigAI: vi.fn(), saveConfigAI: vi.fn() }));
 vi.mock("@/lib/vault-bridge", () => ({
   isDesktop: () => false,

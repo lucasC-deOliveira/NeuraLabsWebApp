@@ -1,14 +1,14 @@
 "use client";
 
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "@/lib/navigation";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { MarkdownContent } from "@/components/markdown-content";
-import { Loader2Icon, ArrowLeftIcon, BrainIcon, ArrowRightIcon } from "lucide-react";
+import { Loader2Icon, BrainIcon, ArrowRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import { notesHttp } from "../infra/http";
 import type { NotaDetail } from "../domain/nota.types";
@@ -74,32 +74,25 @@ export function NotaDetailPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-4 sm:space-y-6">
-      <Link href="/notes" className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
-        <ArrowLeftIcon className="size-4" />
-        <span>Voltar para notas</span>
-      </Link>
-
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-xl sm:text-2xl font-bold">Detalhes da nota</h1>
+      <PageHeader
+        title="Detalhes da nota"
+        subtitle={
+          <span className="flex flex-wrap items-center gap-2">
             {nota.subtipo && (
               <Badge variant="outline" className="text-xs text-violet-600 border-violet-300 dark:border-violet-700 dark:text-violet-400">
                 {formatSubtipoLabel(nota.subtipo)}
               </Badge>
             )}
-          </div>
-          <p className="text-xs text-zinc-400">
-            Criada em {new Date(nota.dataCriacao).toLocaleString("pt-BR")}
-          </p>
-        </div>
-        <Button onClick={handleGenerateFlashcards} disabled={generating} className="w-full sm:w-auto flex-shrink-0">
-          {generating ? <Loader2Icon className="size-4 mr-1 animate-spin" /> : <BrainIcon className="size-4 mr-1" />}
-          {generating ? "Gerando..." : "Gerar flashcards"}
-        </Button>
-      </div>
-
-      <Separator />
+            <span>Criada em {new Date(nota.dataCriacao).toLocaleString("pt-BR")}</span>
+          </span>
+        }
+        actions={
+          <Button onClick={handleGenerateFlashcards} disabled={generating} className="flex-shrink-0">
+            {generating ? <Loader2Icon className="size-4 mr-1 animate-spin" /> : <BrainIcon className="size-4 mr-1" />}
+            {generating ? "Gerando..." : "Gerar flashcards"}
+          </Button>
+        }
+      />
 
       {nota.conceitosRelacionados.length > 0 && (
         <Card className="border-zinc-200 dark:border-zinc-800">

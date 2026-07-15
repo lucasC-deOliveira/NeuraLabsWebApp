@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
@@ -52,10 +53,7 @@ export function DashboardPage() {
     <TooltipProvider>
       <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50">
         <div className="mx-auto max-w-5xl px-4 py-6 sm:py-10 lg:px-8">
-          <header className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">NeuraLabs</h1>
-            <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">Flashcards Inteligentes com IA</p>
-          </header>
+          <PageHeader title="NeuraLabs" subtitle="Flashcards Inteligentes com IA" />
 
           <DashboardStatCards loading={loading} dueCardCount={dueCardCount} accuracy={accuracy} />
           <QuickActions />

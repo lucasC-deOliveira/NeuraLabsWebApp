@@ -665,6 +665,14 @@ html[data-neon="true"] .graph-toolbar {
     inset 0 0 8px -6px var(--primary);
 }
 
+/* Neon também no header da página (a moldura acesa do disrupt) */
+html[data-neon="true"] .app-page-header {
+  border-color: var(--primary);
+  box-shadow:
+    0 0 16px -2px var(--primary),
+    inset 0 0 10px -6px var(--primary);
+}
+
 /* Neon também no painel de informações (borda esquerda) */
 html[data-neon="true"] .app-infopanel {
   border-left: 1px solid var(--primary);

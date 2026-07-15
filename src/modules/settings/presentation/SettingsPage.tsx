@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Loader2Icon } from "lucide-react";
@@ -121,14 +122,10 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold">Configuracoes</h1>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          Personalize a aparencia e configure a API de IA.
-        </p>
-      </div>
-
-      <Separator />
+      <PageHeader
+        title="Configuracoes"
+        subtitle="Personalize a aparencia e configure a API de IA."
+      />
       <ThemeSection />
       <Separator />
       <CardStyleSection />

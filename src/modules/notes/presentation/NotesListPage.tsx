@@ -14,6 +14,7 @@ import {
   filterAndSortNotas, computeNotesStats, countActiveFilters,
   type NotesFilterCriteria, type TimeFilter, type FcFilter, type SortOrder,
 } from "../domain/services/nota-filters";
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { NotesStatsBar } from "./components/NotesStatsBar";
 import { NoteCard } from "./components/NoteCard";
 import { NotesFilterDialog } from "./components/NotesFilterDialog";
@@ -112,14 +113,11 @@ export function NotesListPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8 lg:px-8 space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold">Notas</h1>
-          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-            {stats.total} nota{stats.total !== 1 && "s"}, {stats.totalWords.toLocaleString("pt-BR")} palavras
-          </p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        title="Notas"
+        subtitle={`${stats.total} nota${stats.total !== 1 ? "s" : ""}, ${stats.totalWords.toLocaleString("pt-BR")} palavras`}
+        actions={
+        <>
           {notas.length > 0 && (
             <Button variant="outline" className="text-red-500 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/30 h-9" onClick={() => setShowDeleteAllDialog(true)}>
               <Trash2Icon className="size-3.5 mr-1" />
@@ -132,8 +130,9 @@ export function NotesListPage() {
               Nova nota
             </Button>
           </Link>
-        </div>
-      </div>
+        </>
+        }
+      />
 
       <NotesStatsBar stats={stats} />
       <Separator />

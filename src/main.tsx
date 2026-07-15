@@ -14,6 +14,7 @@ import {
 import { ThemeProvider } from "next-themes";
 import { ColorThemeProvider } from "@/components/color-theme-provider";
 import { CardStyleProvider } from "@/components/flashcard/CardStyleProvider";
+import { PomodoroProvider } from "@/components/page-header/PomodoroProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/app-shell";
@@ -102,7 +103,10 @@ createRoot(document.getElementById("root")!).render(
       >
         <ColorThemeProvider>
           <CardStyleProvider>
-            <App />
+            {/* Acima do App: o pomodoro do header não pode zerar ao navegar. */}
+            <PomodoroProvider>
+              <App />
+            </PomodoroProvider>
           </CardStyleProvider>
         </ColorThemeProvider>
       </ThemeProvider>

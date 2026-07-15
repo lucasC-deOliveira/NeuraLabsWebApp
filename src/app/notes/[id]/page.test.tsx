@@ -4,7 +4,7 @@ import NotaDetailPage from "./page";
 import { getNotaById } from "@/lib/notes-api";
 
 vi.mock("@/lib/notes-api", () => ({ getNotaById: vi.fn(), generateFlashcardsFromNota: vi.fn() }));
-vi.mock("@/lib/navigation", () => ({
+vi.mock("@/lib/navigation", () => ({ usePathname: () => "/",
   useParams: () => ({ id: "n1" }),
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));

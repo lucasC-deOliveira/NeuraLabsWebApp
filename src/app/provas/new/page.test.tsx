@@ -9,7 +9,7 @@ vi.mock("@/lib/provas-api", () => ({
   parseProvaUpload: vi.fn(),
 }));
 vi.mock("@/lib/questions-api", () => ({ listQuestoes: vi.fn(() => Promise.resolve([])) }));
-vi.mock("@/lib/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+vi.mock("@/lib/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("@/components/link", () => ({ Link: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
