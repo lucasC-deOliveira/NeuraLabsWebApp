@@ -13,10 +13,10 @@ import {
   filterAndSortFlashcards, computeFlashcardStats, countActiveFilters,
   type FlashcardCriteria, type StatusFilter, type FlashcardSort, type TipoFilter,
 } from "../domain/services/flashcard-filters";
-import { paginate } from "../domain/services/paginate";
+import { paginate } from "@/lib/paginate";
 import { useFlashcardsData } from "./hooks/useFlashcardsData";
 import { FlashcardsStatsBar } from "./components/FlashcardsStatsBar";
-import { FlashcardsPagination } from "./components/FlashcardsPagination";
+import { Pagination } from "@/components/pagination";
 import { FlashcardsFilterDialog } from "./components/FlashcardsFilterDialog";
 import { FlashcardsActiveFilters } from "./components/FlashcardsActiveFilters";
 import { FlashcardCard } from "./components/FlashcardCard";
@@ -219,7 +219,7 @@ export function FlashcardsListPage() {
               />
             ))}
           </div>
-          <FlashcardsPagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
+          <Pagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
         </>
       )}
 
