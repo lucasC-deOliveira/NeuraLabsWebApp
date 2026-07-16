@@ -54,7 +54,7 @@ export class PrismaAvailableItemsQuery implements AvailableItemsQuery {
   // Map of tipoNode -> referenciaIds already linked into the graph (to exclude).
   private async refsInGraph(userId: string, grafoId: string): Promise<Record<string, string[]>> {
     const existing = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
+      where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
       select: { referenciaId: true, tipoNode: true },
     });
     const inGraph: Record<string, string[]> = {};

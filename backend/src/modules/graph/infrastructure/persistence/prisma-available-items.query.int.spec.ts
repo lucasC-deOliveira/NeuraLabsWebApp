@@ -69,9 +69,10 @@ describe('Available items query (integration — neuralabs_test)', () => {
     const fc = await prisma.flashcard.create({
       data: { usuarioId: userId, pergunta: 'Q', resposta: 'A' },
     });
-    await prisma.nodeConhecimento.create({
+    const node = await prisma.nodeConhecimento.create({
       data: { usuarioId: userId, grafoId, tipoNode: 'FLASHCARD', referenciaId: fc.id },
     });
+    await prisma.grafoNode.create({ data: { grafoId, nodeId: node.id } });
 
     const view = await query.listForGraph(userId, grafoId);
     expect(view.flashcards).toHaveLength(0);

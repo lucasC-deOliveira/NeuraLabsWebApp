@@ -62,7 +62,7 @@ export class PrismaInsightContextRepository implements InsightContextRepository 
     nodeId: string,
   ): Promise<InsightContext | null> {
     const target = await this.prisma.nodeConhecimento.findFirst({
-      where: { grafoId, usuarioId: userId, referenciaId: nodeId },
+      where: { usuarioId: userId, referenciaId: nodeId, contidoEm: { some: { grafoId } } },
       select: { id: true, tipoNode: true },
     });
     if (!target) return null;

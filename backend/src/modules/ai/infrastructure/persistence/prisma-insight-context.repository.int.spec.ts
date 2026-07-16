@@ -63,6 +63,10 @@ describe('Insight context (integration — neuralabs_test)', () => {
         }),
       ),
     );
+    // "Estar no grafo" é a contenção — é ela que o repositório lê.
+    await prisma.grafoNode.createMany({
+      data: nodes.map((n) => ({ grafoId: grafo.id, nodeId: n.id })),
+    });
     await prisma.conhecimentoAresta.create({
       data: {
         grafoId: grafo.id,

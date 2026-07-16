@@ -282,7 +282,7 @@ export async function runImportGraph(
 
       // reuso por tipo::nome dos nós já presentes
       const existing = await tx.nodeConhecimento.findMany({
-        where: { grafoId, usuarioId: userId },
+        where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
         select: { id: true, tipoNode: true, referenciaId: true },
       });
       const refsByTipo = new Map<string, string[]>();

@@ -37,7 +37,7 @@ export async function refIdsByType(
   grafoId: string,
 ): Promise<Record<string, string[]>> {
   const nodes = await prisma.nodeConhecimento.findMany({
-    where: { grafoId, usuarioId: userId },
+    where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
     select: { tipoNode: true, referenciaId: true },
   });
   const ids: Record<string, string[]> = {};

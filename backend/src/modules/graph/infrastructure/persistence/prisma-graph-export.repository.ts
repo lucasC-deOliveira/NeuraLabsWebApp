@@ -19,7 +19,7 @@ export class PrismaGraphExportRepository implements GraphExportRepository {
 
   listNodes(grafoId: string, userId: string): Promise<ExportNodeRow[]> {
     return this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
+      where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
       select: {
         tipoNode: true,
         referenciaId: true,

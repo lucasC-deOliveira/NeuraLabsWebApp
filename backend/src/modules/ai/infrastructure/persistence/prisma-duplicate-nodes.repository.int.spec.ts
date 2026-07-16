@@ -49,9 +49,10 @@ describe('Duplicate nodes (integration — neuralabs_test)', () => {
       ['ASSUNTO', assunto.id],
       ['CONCEITO', conceito.id],
     ] as const) {
-      await prisma.nodeConhecimento.create({
+      const node = await prisma.nodeConhecimento.create({
         data: { usuarioId: user.id, grafoId: grafo.id, tipoNode, referenciaId },
       });
+      await prisma.grafoNode.create({ data: { grafoId: grafo.id, nodeId: node.id } });
     }
 
     const nodes = await repo.loadGraphNodes(user.id, grafo.id);

@@ -25,7 +25,7 @@ export class PrismaLearningGraphRepository implements LearningGraphRepository {
         select: { nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true },
       }),
       this.prisma.nodeConhecimento.findMany({
-        where: { grafoId, usuarioId: userId },
+        where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
         select: { id: true, referenciaId: true },
       }),
     ]);

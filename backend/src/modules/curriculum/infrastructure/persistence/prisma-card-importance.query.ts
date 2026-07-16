@@ -10,19 +10,15 @@ import { PrismaConceitoImportanceRepository } from './prisma-conceito-importance
 // roadmap: a importância que a sessão de estudo usa é a que o grafo já mostra.
 const PROVA_WEIGHT = 0.6;
 
-// Nó de um card no grafo, com o grafo a que pertence.
-interface CardNode {
-  id: string;
-  referenciaId: string;
-  grafoId: string;
-}
-
-const conceptKey = (grafoId: string, conceitoId: string): string => `${grafoId}:${conceitoId}`;
-
 /**
  * Read-model: o quanto cada flashcard importa, segundo os pesos do grafo — mesma
  * conta do roadmap e do selo 🔥 (frequência em provas + ênfase do edital).
  * Compartilhado (curriculum): a importância é do grafo, não de uma feature.
+ *
+ * O ranking é GLOBAL por usuário, uma escala só. Antes era por grafo, e a chave do
+ * peso era (grafo, conceito) — o que deixou de fazer sentido quando o nó passou a
+ * ser do sistema: um conceito vive em vários grafos, e o card não pertence a
+ * nenhum. É a simplificação que a migração habilitou.
  * @example cards.forFlashcards('u1', ['fc1']) // Map { fc1 => 0.9 }
  */
 @Injectable()
@@ -40,27 +36,26 @@ export class PrismaCardImportanceQuery {
     const ownerNodeToCard = new Map(cardNodes.map((n) => [n.id, n.referenciaId]));
     const edges = await this.incidentEdges([...ownerNodeToCard.keys()]);
     const pairs = nodeEdgePairs(edges, new Set(ownerNodeToCard.keys()));
-    const conceptNodeToKey = await this.conceptNodeKeys(
+    const conceptNodeToId = await this.conceptNodeIds(
       userId,
       pairs.map((p) => p.other),
     );
-    const pesos = await this.rankGraphs(userId, graphsOf(conceptNodeToKey));
-    return cardImportanceByOwner(pairs, ownerNodeToCard, conceptNodeToKey, pesos);
+    const pesos = await this.rankAll(userId);
+    return cardImportanceByOwner(pairs, ownerNodeToCard, conceptNodeToId, pesos);
   }
 
-  // Nó sem grafo fica de fora: a importância é normalizada dentro de um grafo, e
-  // sem ele não há com o que comparar.
-  private async cardNodes(userId: string, flashcardIds: string[]): Promise<CardNode[]> {
-    const nodes = await this.prisma.nodeConhecimento.findMany({
+  private async cardNodes(
+    userId: string,
+    flashcardIds: string[],
+  ): Promise<{ id: string; referenciaId: string }[]> {
+    return this.prisma.nodeConhecimento.findMany({
       where: {
         usuarioId: userId,
         tipoNode: TipoNode.FLASHCARD,
         referenciaId: { in: flashcardIds },
-        grafoId: { not: null },
       },
-      select: { id: true, referenciaId: true, grafoId: true },
+      select: { id: true, referenciaId: true },
     });
-    return nodes.flatMap((n) => (n.grafoId ? [{ ...n, grafoId: n.grafoId }] : []));
   }
 
   private async incidentEdges(
@@ -72,41 +67,23 @@ export class PrismaCardImportanceQuery {
     });
   }
 
-  // Dos nós do outro lado das arestas, os que são CONCEITO → nodeId → "grafo:conceito".
-  private async conceptNodeKeys(userId: string, nodeIds: string[]): Promise<Map<string, string>> {
+  // Dos nós do outro lado das arestas, os que são CONCEITO → nodeId → conceitoId.
+  private async conceptNodeIds(userId: string, nodeIds: string[]): Promise<Map<string, string>> {
     if (nodeIds.length === 0) return new Map();
     const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: {
-        usuarioId: userId,
-        tipoNode: TipoNode.CONCEITO,
-        id: { in: nodeIds },
-        grafoId: { not: null },
-      },
-      select: { id: true, referenciaId: true, grafoId: true },
+      where: { usuarioId: userId, tipoNode: TipoNode.CONCEITO, id: { in: nodeIds } },
+      select: { id: true, referenciaId: true },
     });
-    return new Map(
-      nodes.flatMap((n) =>
-        n.grafoId ? [[n.id, conceptKey(n.grafoId, n.referenciaId)] as const] : [],
-      ),
-    );
+    return new Map(nodes.map((n) => [n.id, n.referenciaId]));
   }
 
-  // O ranking é por grafo (a escala é normalizada dentro dele), então cada grafo
-  // envolvido é ranqueado uma vez e os resultados entram no mesmo mapa.
-  private async rankGraphs(userId: string, grafoIds: string[]): Promise<Map<string, number>> {
+  // Uma escala só, para todos os conceitos do usuário.
+  private async rankAll(userId: string): Promise<Map<string, number>> {
+    const rows = await this.conceitos.load(userId);
     const pesos = new Map<string, number>();
-    for (const grafoId of grafoIds) {
-      const rows = await this.conceitos.load(userId, grafoId);
-      for (const r of rankConceitoImportance(rows, PROVA_WEIGHT)) {
-        pesos.set(conceptKey(grafoId, r.conceitoId), r.importancia);
-      }
+    for (const r of rankConceitoImportance(rows, PROVA_WEIGHT)) {
+      pesos.set(r.conceitoId, r.importancia);
     }
     return pesos;
   }
-}
-
-function graphsOf(conceptNodeToKey: Map<string, string>): string[] {
-  const grafos = new Set<string>();
-  for (const chave of conceptNodeToKey.values()) grafos.add(chave.split(':')[0]);
-  return [...grafos];
 }

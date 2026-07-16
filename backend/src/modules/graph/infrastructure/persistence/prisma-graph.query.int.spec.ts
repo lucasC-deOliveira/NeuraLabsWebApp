@@ -40,9 +40,11 @@ describe('Graph query (integration — neuralabs_test)', () => {
 
   async function seedAssuntoNode(userId: string, grafoId: string, nome: string): Promise<string> {
     const assunto = await prisma.assunto.create({ data: { usuarioId: userId, nome } });
-    await prisma.nodeConhecimento.create({
+    const node = await prisma.nodeConhecimento.create({
       data: { usuarioId: userId, grafoId, tipoNode: 'ASSUNTO', referenciaId: assunto.id },
     });
+    // 'Estar no grafo' é a contenção — é ela que a listagem lê.
+    await prisma.grafoNode.create({ data: { grafoId, nodeId: node.id } });
     return assunto.id;
   }
 
@@ -64,6 +66,7 @@ describe('Graph query (integration — neuralabs_test)', () => {
     const target = await prisma.nodeConhecimento.create({
       data: { usuarioId: userId, grafoId, tipoNode: 'CONCEITO', referenciaId: `ref-${seq++}` },
     });
+    await prisma.grafoNode.create({ data: { grafoId, nodeId: target.id } });
     await prisma.conhecimentoAresta.create({
       data: { grafoId, nodeOrigemId: assuntoNode, nodeDestinoId: target.id, tipoRelacao, peso: 1 },
     });

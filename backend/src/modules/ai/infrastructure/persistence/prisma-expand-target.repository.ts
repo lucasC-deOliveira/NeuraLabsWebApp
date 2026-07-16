@@ -17,7 +17,7 @@ export class PrismaExpandTargetRepository implements ExpandTargetRepository {
     nodeId: string,
   ): Promise<ExpandTarget | null> {
     const inGraph = await this.prisma.nodeConhecimento.findFirst({
-      where: { grafoId, usuarioId: userId, referenciaId: nodeId },
+      where: { usuarioId: userId, referenciaId: nodeId, contidoEm: { some: { grafoId } } },
       select: { tipoNode: true },
     });
     if (!inGraph) return null;

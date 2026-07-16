@@ -16,7 +16,7 @@ export class PrismaCompletenessRepository implements CompletenessRepository {
     const [structural, ncNodes, pertenceEdges] = await Promise.all([
       loadStructuralNodes(this.prisma, userId, grafoId),
       this.prisma.nodeConhecimento.findMany({
-        where: { grafoId, usuarioId: userId },
+        where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
         select: { id: true, tipoNode: true, referenciaId: true },
       }),
       this.prisma.conhecimentoAresta.findMany({

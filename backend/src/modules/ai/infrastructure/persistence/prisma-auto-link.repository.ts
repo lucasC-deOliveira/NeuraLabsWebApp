@@ -38,7 +38,7 @@ export class PrismaAutoLinkRepository implements AutoLinkRepository {
         select: { nodeOrigemId: true, nodeDestinoId: true },
       }),
       this.prisma.nodeConhecimento.findMany({
-        where: { grafoId, usuarioId: userId },
+        where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
         select: { id: true, referenciaId: true },
       }),
     ]);
