@@ -22,6 +22,12 @@ export interface GraphNodeType {
   grafoRefMeta?: GrafoRefMeta;
   /** Assunto-raiz do grafo: fixo no centro, ancora o layout, não-deletável. */
   isRoot?: boolean;
+  /**
+   * Nó puxado para a vista pela expansão de um subgrafo — o valor é o id da tile
+   * (GRAFO_REF) que o trouxe. Retrair a tile remove tudo que carrega esta marca.
+   * Ausente nos nós próprios do grafo.
+   */
+  expandedFrom?: string;
 }
 
 export interface GraphEdgeType {
@@ -29,6 +35,8 @@ export interface GraphEdgeType {
   target: string;
   type: string;
   peso: number;
+  // Aresta injetada junto com a expansão de um subgrafo (id da tile de origem).
+  expandedFrom?: string;
 }
 
 export interface EdgeView {
