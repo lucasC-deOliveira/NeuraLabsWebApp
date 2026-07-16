@@ -416,6 +416,10 @@ export function useGraphController(graphId: string) {
     state: {
       layout,
       edges,
+      // Nós/arestas crus (pré-layout): a expansão de subgrafo os funde para injetar
+      // ou remover a vista de um subgrafo dentro desta.
+      rawNodes,
+      rawEdges,
       filteredNodes,
       filteredEdges,
       selectedNode: liveSelectedNode,

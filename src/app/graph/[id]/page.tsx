@@ -50,6 +50,11 @@ import { useGraphSettings } from "@/modules/graph/presentation/hooks/useGraphSet
 import type { GrafoInfoDetail } from "@/modules/graph/domain/types/graph.types";
 import { CreateSubgrafoModal } from "@/modules/graph/presentation/components/vault/CreateSubgrafoModal";
 import { ExtractSubgrafoModal } from "@/modules/graph/presentation/components/vault/ExtractSubgrafoModal";
+import {
+  expandSubgraphIntoView,
+  retractSubgraphFromView,
+  isSubgraphExpanded,
+} from "@/modules/graph/domain/services/subgraph-expansion";
 import { CreateNodeModal } from "@/modules/graph/presentation/components/create-node/CreateNodeModal";
 import { ImportJsonModal } from "@/modules/graph/presentation/components/vault/ImportJsonModal";
 import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeManagerModal";
@@ -208,6 +213,34 @@ export default function GraphPage() {
 
   const handleOpenGrafoRef = (childGrafoId: string) => {
     router.push(`/graph/${childGrafoId}`);
+  };
+
+  // Expande o subgrafo DENTRO desta vista: busca a vista do filho e a funde ao redor
+  // da tile, sem navegar. `refNode` é o nó GRAFO_REF do menu (id = id do subgrafo);
+  // usamos a posição atual dele na tela como âncora do cluster.
+  const handleExpandGrafoRef = async (menuNode: { id: string; x?: number; y?: number }) => {
+    const tile = controller.state.rawNodes.find((n) => n.id === menuNode.id);
+    if (!tile) return;
+    try {
+      const child = await graphHttp.getGraphNodes(menuNode.id);
+      // A âncora é onde a tile está AGORA na tela (posição do layout), não a salva.
+      const anchor = { ...tile, posicaoX: menuNode.x ?? tile.posicaoX, posicaoY: menuNode.y ?? tile.posicaoY };
+      const view = { nodes: controller.state.rawNodes, edges: controller.state.rawEdges };
+      const next = expandSubgraphIntoView(view, anchor, child);
+      controller.actions.setRawNodes(next.nodes);
+      controller.actions.setRawEdges(next.edges);
+    } catch {
+      toast.error("Não foi possível expandir o subgrafo.");
+    }
+  };
+
+  const handleRetractGrafoRef = (refId: string) => {
+    const next = retractSubgraphFromView(
+      { nodes: controller.state.rawNodes, edges: controller.state.rawEdges },
+      refId,
+    );
+    controller.actions.setRawNodes(next.nodes);
+    controller.actions.setRawEdges(next.edges);
   };
 
   const handleSplitByBaralho = async () => {
@@ -841,12 +874,29 @@ export default function GraphPage() {
             style={{ left: nodeMenu.x, top: nodeMenu.y }}
           >
             {nodeMenu.node?.group === "GRAFO_REF" && (
-              <button
-                className="w-full px-3 py-1.5 text-sm text-left font-medium text-violet-600 dark:text-violet-400 hover:bg-accent hover:text-accent-foreground"
-                onClick={() => { handleOpenGrafoRef(nodeMenu.node.id); setNodeMenu(null); }}
-              >
-                Abrir subgrafo →
-              </button>
+              <>
+                {isSubgraphExpanded(controller.state.rawNodes, nodeMenu.node.id) ? (
+                  <button
+                    className="w-full px-3 py-1.5 text-sm text-left font-medium text-violet-600 dark:text-violet-400 hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => { handleRetractGrafoRef(nodeMenu.node.id); setNodeMenu(null); }}
+                  >
+                    Retrair subgrafo
+                  </button>
+                ) : (
+                  <button
+                    className="w-full px-3 py-1.5 text-sm text-left font-medium text-violet-600 dark:text-violet-400 hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => { void handleExpandGrafoRef(nodeMenu.node); setNodeMenu(null); }}
+                  >
+                    Expandir subgrafo
+                  </button>
+                )}
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => { handleOpenGrafoRef(nodeMenu.node.id); setNodeMenu(null); }}
+                >
+                  Abrir subgrafo →
+                </button>
+              </>
             )}
             <button
               className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
