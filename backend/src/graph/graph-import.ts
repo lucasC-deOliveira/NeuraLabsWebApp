@@ -375,7 +375,10 @@ export async function runImportGraph(
       }
 
       const existingEdges = await tx.conhecimentoAresta.findMany({
-        where: { grafoId },
+        where: {
+          nodeOrigem: { contidoEm: { some: { grafoId } } },
+          nodeDestino: { contidoEm: { some: { grafoId } } },
+        },
         select: { nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true },
       });
       const seen = new Set(
@@ -390,7 +393,6 @@ export async function runImportGraph(
         if (seen.has(key)) continue;
         await tx.conhecimentoAresta.create({
           data: {
-            grafoId,
             nodeOrigemId: s.nodeId,
             nodeDestinoId: t.nodeId,
             tipoRelacao: e.relacao as any,

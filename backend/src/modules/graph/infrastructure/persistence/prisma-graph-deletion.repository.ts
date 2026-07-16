@@ -1,20 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { type Prisma, type TipoNode } from '@prisma/client';
+import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
-import type {
-  GraphDeletionExecution,
-  GraphDeletionRepository,
-} from '../../domain/ports/graph-deletion-repository';
+import type { GraphDeletionRepository } from '../../domain/ports/graph-deletion-repository';
 import type {
   DeletableNode,
   NodeDeletionRepository,
 } from '../../domain/ports/node-deletion-repository';
-import type { GraphMember } from '../../domain/services/graph-deletion-plan';
 
 type EntityDeleter = (tx: Prisma.TransactionClient, refId: string) => Promise<void>;
 
-// Single adapter for both deletion ports: deleteGraph and deleteNode share the
-// per-type entity removal (entityDeleters), so they live together here.
+// Adapter dos dois ports de deleção. Eles fazem coisas diferentes: apagar o GRAFO
+// remove só a vista (a contenção); apagar o NÓ remove a entidade de verdade
+// (entityDeleters). Ficam juntos porque são a mesma área do banco.
 @Injectable()
 export class PrismaGraphDeletionRepository
   implements GraphDeletionRepository, NodeDeletionRepository
@@ -29,50 +26,22 @@ export class PrismaGraphDeletionRepository
     return g !== null;
   }
 
-  async listMembers(grafoId: string, userId: string): Promise<GraphMember[]> {
-    return this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
-      select: { tipoNode: true, referenciaId: true },
-    });
+  // Apagar o grafo apaga a VISTA: o cascade leva as linhas de grafo_nodes (que nós
+  // ele mostrava e onde), e nada mais. As entidades e os nós ficam — eles são do
+  // sistema, e podem estar em outros grafos.
+  async deleteGraph(grafoId: string): Promise<void> {
+    await this.prisma.grafosConhecimento.delete({ where: { id: grafoId } });
   }
 
-  async existsInOtherGraph(
-    userId: string,
-    tipoNode: string,
-    referenciaId: string,
-    exceptGrafoId: string,
-  ): Promise<boolean> {
-    const count = await this.prisma.nodeConhecimento.count({
-      where: {
-        referenciaId,
-        tipoNode: tipoNode as TipoNode,
-        usuarioId: userId,
-        grafoId: { not: exceptGrafoId },
-      },
-    });
-    return count > 0;
-  }
-
-  async deleteGraph(userId: string, grafoId: string, plan: GraphDeletionExecution): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      // Detach kept flashcards from dying concepts so the cascade spares them.
-      if (plan.detachConceptIds.length > 0) {
-        await tx.flashcard.updateMany({
-          where: { conceitoId: { in: plan.detachConceptIds }, usuarioId: userId },
-          data: { conceitoId: null },
-        });
-      }
-      for (const member of plan.ordered) {
-        await this.deleteEntity(tx, member.tipoNode, member.referenciaId);
-      }
-      // Deleting the graph cascades to its links (NodeConhecimento) and edges.
-      await tx.grafosConhecimento.delete({ where: { id: grafoId } });
-    });
-  }
-
+  // `grafoId` opcional: quando vem, exige que o nó esteja NAQUELA vista (é o botão
+  // de excluir dentro de um grafo). O nó em si não pertence a grafo nenhum.
   async findNode(userId: string, refId: string, grafoId?: string): Promise<DeletableNode | null> {
     const node = await this.prisma.nodeConhecimento.findFirst({
-      where: { referenciaId: refId, usuarioId: userId, ...(grafoId ? { grafoId } : {}) },
+      where: {
+        referenciaId: refId,
+        usuarioId: userId,
+        ...(grafoId ? { contidoEm: { some: { grafoId } } } : {}),
+      },
       select: { id: true, tipoNode: true, referenciaId: true },
     });
     return node ?? null;

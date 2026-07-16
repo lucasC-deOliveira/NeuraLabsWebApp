@@ -6,6 +6,7 @@ import type {
   LearningGraphRepository,
 } from '../../domain/ports/learning-graph-repository';
 import { loadStructuralNodes } from './structural-nodes';
+import { edgesOfGraph } from '../../../graph/infrastructure/persistence/node-containment';
 
 @Injectable()
 export class PrismaLearningGraphRepository implements LearningGraphRepository {
@@ -21,7 +22,7 @@ export class PrismaLearningGraphRepository implements LearningGraphRepository {
   private async loadEdges(userId: string, grafoId: string): Promise<LearningEdge[]> {
     const [rawEdges, ncNodes] = await Promise.all([
       this.prisma.conhecimentoAresta.findMany({
-        where: { grafoId },
+        where: edgesOfGraph(grafoId),
         select: { nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true },
       }),
       this.prisma.nodeConhecimento.findMany({

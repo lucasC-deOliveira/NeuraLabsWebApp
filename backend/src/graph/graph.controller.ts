@@ -109,13 +109,10 @@ export class GraphController {
   }
 
   @Delete('graphs/:id')
-  deleteGraph(
-    @CurrentUser() userId: string,
-    @Param('id') id: string,
-    @Query('keep') keep?: string,
-  ) {
-    const keepTypes = keep ? keep.split(',').filter(Boolean) : [];
-    return this.deleteGraphUseCase.execute(userId, id, keepTypes);
+  // Apaga a VISTA, não o conteúdo. O `keep` (tipos a preservar) saiu com o nó do
+  // sistema: nada é apagado, então não havia mais o que escolher.
+  deleteGraph(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.deleteGraphUseCase.execute(userId, id);
   }
 
   @Get('graphs/:id/info')

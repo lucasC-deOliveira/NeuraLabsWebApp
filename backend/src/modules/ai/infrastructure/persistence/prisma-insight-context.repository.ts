@@ -134,7 +134,11 @@ export class PrismaInsightContextRepository implements InsightContextRepository 
   private async adjacentNcIds(grafoId: string, ncIds: string[]): Promise<Set<string>> {
     if (ncIds.length === 0) return new Set();
     const edges = await this.prisma.conhecimentoAresta.findMany({
-      where: { grafoId, OR: [{ nodeOrigemId: { in: ncIds } }, { nodeDestinoId: { in: ncIds } }] },
+      where: {
+        OR: [{ nodeOrigemId: { in: ncIds } }, { nodeDestinoId: { in: ncIds } }],
+        nodeOrigem: { contidoEm: { some: { grafoId } } },
+        nodeDestino: { contidoEm: { some: { grafoId } } },
+      },
       select: { nodeOrigemId: true, nodeDestinoId: true },
     });
     const src = new Set(ncIds);

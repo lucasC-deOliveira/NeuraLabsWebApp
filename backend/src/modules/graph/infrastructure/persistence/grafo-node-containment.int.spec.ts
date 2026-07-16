@@ -43,12 +43,11 @@ describe('GrafoNode: contenção (integração — neuralabs_test)', () => {
   const seedGrafo = async (userId: string, nome: string): Promise<string> =>
     (await prisma.grafosConhecimento.create({ data: { usuarioId: userId, nome } })).id;
 
-  const seedNode = async (userId: string, grafoId: string | null): Promise<string> =>
+  const seedNode = async (userId: string): Promise<string> =>
     (
       await prisma.nodeConhecimento.create({
         data: {
           usuarioId: userId,
-          grafoId,
           tipoNode: TipoNode.CONCEITO,
           referenciaId: 'c-' + seq++,
         },
@@ -63,7 +62,7 @@ describe('GrafoNode: contenção (integração — neuralabs_test)', () => {
   it('lets one node be contained by several graphs', async () => {
     const userId = await seedUser();
     const [a, b] = [await seedGrafo(userId, 'A'), await seedGrafo(userId, 'B')];
-    const nodeId = await seedNode(userId, a);
+    const nodeId = await seedNode(userId);
 
     await contain(a, nodeId);
     await contain(b, nodeId);
@@ -80,7 +79,7 @@ describe('GrafoNode: contenção (integração — neuralabs_test)', () => {
   it('keeps a position per graph for the same node', async () => {
     const userId = await seedUser();
     const [a, b] = [await seedGrafo(userId, 'A'), await seedGrafo(userId, 'B')];
-    const nodeId = await seedNode(userId, a);
+    const nodeId = await seedNode(userId);
 
     await contain(a, nodeId, 1, 2);
     await contain(b, nodeId, 300, 400);
@@ -96,7 +95,7 @@ describe('GrafoNode: contenção (integração — neuralabs_test)', () => {
   it('refuses to contain the same node twice in one graph', async () => {
     const userId = await seedUser();
     const a = await seedGrafo(userId, 'A');
-    const nodeId = await seedNode(userId, a);
+    const nodeId = await seedNode(userId);
 
     await contain(a, nodeId);
     await expect(contain(a, nodeId)).rejects.toThrow();
@@ -108,7 +107,7 @@ describe('GrafoNode: contenção (integração — neuralabs_test)', () => {
     const userId = await seedUser();
     const [a, b] = [await seedGrafo(userId, 'A'), await seedGrafo(userId, 'B')];
     // grafoId: null — na Fase 5 o nó não terá dono; aqui já provamos que sobrevive.
-    const nodeId = await seedNode(userId, null);
+    const nodeId = await seedNode(userId);
     await contain(a, nodeId);
     await contain(b, nodeId);
 
@@ -122,7 +121,7 @@ describe('GrafoNode: contenção (integração — neuralabs_test)', () => {
   it('drops the containment when the node itself is deleted', async () => {
     const userId = await seedUser();
     const a = await seedGrafo(userId, 'A');
-    const nodeId = await seedNode(userId, null);
+    const nodeId = await seedNode(userId);
     await contain(a, nodeId);
 
     await prisma.nodeConhecimento.delete({ where: { id: nodeId } });

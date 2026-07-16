@@ -4,6 +4,7 @@ import { PrismaService } from '../../../../prisma/prisma.service';
 import type { CompletenessRepository } from '../../domain/ports/completeness-repository';
 import type { AssessmentContextData, NamedEntity } from '../../domain/services/assessment-context';
 import { loadStructuralNodes, type StructuralNode, type StructuralTipo } from './structural-nodes';
+import { edgesOfGraph } from '../../../graph/infrastructure/persistence/node-containment';
 
 const byTipo = (nodes: StructuralNode[], tipo: StructuralTipo): NamedEntity[] =>
   nodes.filter((n) => n.tipo === tipo).map((n) => ({ id: n.id, nome: n.nome }));
@@ -20,7 +21,7 @@ export class PrismaCompletenessRepository implements CompletenessRepository {
         select: { id: true, tipoNode: true, referenciaId: true },
       }),
       this.prisma.conhecimentoAresta.findMany({
-        where: { grafoId, tipoRelacao: 'PERTENCE_A' as TipoRelacao },
+        where: { tipoRelacao: 'PERTENCE_A' as TipoRelacao, ...edgesOfGraph(grafoId) },
         select: { nodeOrigemId: true, nodeDestinoId: true },
       }),
     ]);

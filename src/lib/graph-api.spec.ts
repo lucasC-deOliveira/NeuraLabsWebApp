@@ -20,13 +20,12 @@ describe("graph-api graphs CRUD", () => {
     expect(lastCall()[0]).toBe("/graph/graphs/g1/info");
   });
 
-  it("deleteGrafo appends ?keep only when keepTypes is given", async () => {
-    await g.deleteGrafo("g1", { keepTypes: ["FLASHCARD", "BARALHO"] });
-    expect(lastCall()[0]).toBe("/graph/graphs/g1?keep=FLASHCARD,BARALHO");
+  // Apagar o grafo apaga a VISTA: o `?keep` (tipos de entidade a preservar) saiu
+  // porque nada é apagado — não havia mais o que escolher.
+  it("deleteGrafo hits the graph endpoint, with nothing to choose", async () => {
     await g.deleteGrafo("g1");
     expect(lastCall()[0]).toBe("/graph/graphs/g1");
-    await g.deleteGrafo("g1", { keepTypes: [] });
-    expect(lastCall()[0]).toBe("/graph/graphs/g1");
+    expect(lastCall()[1]).toMatchObject({ method: "DELETE" });
   });
 
   it("subgrafo create/extract/expand and rename/visual state", async () => {

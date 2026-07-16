@@ -40,7 +40,7 @@ describe('Graph export (integration — neuralabs_test)', () => {
   it('returns the graph header and its node rows', async () => {
     const { userId, grafoId } = await seedGraph();
     const node = await prisma.nodeConhecimento.create({
-      data: { usuarioId: userId, grafoId, tipoNode: 'CONCEITO', referenciaId: 'c1', posicaoX: 5 },
+      data: { usuarioId: userId, tipoNode: 'CONCEITO', referenciaId: 'c1' },
     });
     await prisma.grafoNode.create({ data: { grafoId, nodeId: node.id, posicaoX: 5 } });
 

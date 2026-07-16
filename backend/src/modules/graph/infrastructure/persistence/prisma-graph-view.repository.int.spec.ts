@@ -48,7 +48,7 @@ describe('Graph view (integration — neuralabs_test)', () => {
     const { userId, grafoId } = await seedGraph();
     const assunto = await prisma.assunto.create({ data: { usuarioId: userId, nome: 'A' } });
     const node = await prisma.nodeConhecimento.create({
-      data: { usuarioId: userId, grafoId, tipoNode: 'ASSUNTO', referenciaId: assunto.id },
+      data: { usuarioId: userId, tipoNode: 'ASSUNTO', referenciaId: assunto.id },
     });
     // A vista mostra o que o grafo CONTÉM — não é mais a coluna id_grafo do nó.
     await prisma.grafoNode.create({ data: { grafoId, nodeId: node.id } });
@@ -57,28 +57,37 @@ describe('Graph view (integration — neuralabs_test)', () => {
     expect(view.nodes.some((n) => n.type === 'ASSUNTO')).toBe(true);
   });
 
-  // O ponto da migração: o nó é do sistema e pode aparecer em vários grafos. Aqui a
-  // coluna id_grafo aponta para OUTRO grafo — quem manda é a contenção.
-  it('shows a node contained by this graph even when its old grafoId points elsewhere', async () => {
+  // O ponto da migração: o nó é do sistema — o MESMO nó aparece em quantos grafos o
+  // contiverem, sem cópia. Antes isso exigia uma linha de nó por grafo.
+  it('shows the same node in every graph that contains it', async () => {
     const { userId, grafoId } = await seedGraph();
     const outro = await prisma.grafosConhecimento.create({
       data: { usuarioId: userId, nome: 'Outro' },
     });
     const assunto = await prisma.assunto.create({ data: { usuarioId: userId, nome: 'A' } });
     const node = await prisma.nodeConhecimento.create({
-      data: { usuarioId: userId, grafoId: outro.id, tipoNode: 'ASSUNTO', referenciaId: assunto.id },
+      data: { usuarioId: userId, tipoNode: 'ASSUNTO', referenciaId: assunto.id },
     });
-    await prisma.grafoNode.create({ data: { grafoId, nodeId: node.id } });
+    await prisma.grafoNode.createMany({
+      data: [
+        { grafoId, nodeId: node.id },
+        { grafoId: outro.id, nodeId: node.id },
+      ],
+    });
 
-    const view = await repo.loadView(userId, grafoId);
-    expect(view.nodes.some((n) => n.id === assunto.id)).toBe(true);
+    for (const g of [grafoId, outro.id]) {
+      const view = await repo.loadView(userId, g);
+      expect(view.nodes.some((n) => n.id === assunto.id)).toBe(true);
+    }
+    // Um nó só, duas vistas.
+    expect(await prisma.nodeConhecimento.count()).toBe(1);
   });
 
-  it('hides a node the graph does not contain, even if its old grafoId points here', async () => {
+  it('hides a node the graph does not contain', async () => {
     const { userId, grafoId } = await seedGraph();
     const assunto = await prisma.assunto.create({ data: { usuarioId: userId, nome: 'A' } });
     await prisma.nodeConhecimento.create({
-      data: { usuarioId: userId, grafoId, tipoNode: 'ASSUNTO', referenciaId: assunto.id },
+      data: { usuarioId: userId, tipoNode: 'ASSUNTO', referenciaId: assunto.id },
     });
 
     const view = await repo.loadView(userId, grafoId);

@@ -1,25 +1,14 @@
-import type { GraphMember } from '../services/graph-deletion-plan';
-
-// Ordered execution plan for deleting a graph's member entities.
-export interface GraphDeletionExecution {
-  // Member entities to delete, in dependency-safe order.
-  ordered: GraphMember[];
-  // Concept ids whose flashcards must be detached first (when keeping flashcards).
-  detachConceptIds: string[];
-}
-
-// Persistence port for deleting a knowledge graph and the entities it owns.
+// Persistence port para apagar um grafo. O grafo é uma VISTA: apagá-lo apaga a
+// contenção (que nós ele mostrava, e onde), nunca as entidades — elas pertencem ao
+// sistema e podem estar em outros grafos.
+//
+// Este port era bem maior: tinha listMembers, existsInOtherGraph e um plano
+// ordenado de deleção (GraphDeletionExecution). Tudo existia para decidir quais
+// entidades morriam junto com o grafo — pergunta que deixou de fazer sentido
+// quando o nó passou a ser do sistema. Apagar entidade é o DeleteNodeUseCase.
 export interface GraphDeletionRepository {
   graphExists(grafoId: string, userId: string): Promise<boolean>;
-  listMembers(grafoId: string, userId: string): Promise<GraphMember[]>;
-  // Whether the entity is also a member of another graph owned by the user.
-  existsInOtherGraph(
-    userId: string,
-    tipoNode: string,
-    referenciaId: string,
-    exceptGrafoId: string,
-  ): Promise<boolean>;
-  deleteGraph(userId: string, grafoId: string, plan: GraphDeletionExecution): Promise<void>;
+  deleteGraph(grafoId: string): Promise<void>;
 }
 
 export const GRAPH_DELETION_REPOSITORY = Symbol('GRAPH_DELETION_REPOSITORY');

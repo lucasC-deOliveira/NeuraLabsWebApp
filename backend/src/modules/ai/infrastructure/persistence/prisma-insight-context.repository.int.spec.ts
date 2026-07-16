@@ -59,7 +59,7 @@ describe('Insight context (integration — neuralabs_test)', () => {
     const nodes = await Promise.all(
       concepts.map((c) =>
         prisma.nodeConhecimento.create({
-          data: { usuarioId: user.id, grafoId: grafo.id, tipoNode: 'CONCEITO', referenciaId: c.id },
+          data: { usuarioId: user.id, tipoNode: 'CONCEITO', referenciaId: c.id },
         }),
       ),
     );
@@ -69,7 +69,6 @@ describe('Insight context (integration — neuralabs_test)', () => {
     });
     await prisma.conhecimentoAresta.create({
       data: {
-        grafoId: grafo.id,
         nodeOrigemId: nodes[0].id,
         nodeDestinoId: nodes[1].id,
         tipoRelacao: 'PREREQUISITO',

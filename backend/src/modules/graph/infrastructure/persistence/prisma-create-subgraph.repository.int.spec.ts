@@ -50,7 +50,7 @@ describe('Subgraph creation (integration — neuralabs_test)', () => {
     const child = await prisma.grafosConhecimento.findUnique({ where: { id: childId } });
     expect(child).toMatchObject({ parentGrafoId: grafoId, tipoRelacaoPai: 'APROFUNDA' });
     const ref = await prisma.nodeConhecimento.findFirst({
-      where: { grafoId, tipoNode: 'GRAFO_REF', referenciaId: childId },
+      where: { tipoNode: 'GRAFO_REF', referenciaId: childId, contidoEm: { some: { grafoId } } },
     });
     expect(ref).not.toBeNull();
   });

@@ -51,7 +51,11 @@ describe('Add prova to graph (integration — neuralabs_test)', () => {
     const second = await addProva.execute(userId, grafoId, provaId);
 
     expect(second.nodeId).toBe(first.nodeId);
-    expect(await prisma.nodeConhecimento.count({ where: { grafoId, tipoNode: 'PROVA' } })).toBe(1);
+    expect(
+      await prisma.nodeConhecimento.count({
+        where: { tipoNode: 'PROVA', contidoEm: { some: { grafoId } } },
+      }),
+    ).toBe(1);
   });
 
   it('throws when the exam is not owned', async () => {

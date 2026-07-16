@@ -36,7 +36,7 @@ export class PrismaGraphNodeRepository implements GraphNodeRepository {
     refId: string,
   ): Promise<{ id: string } | null> {
     const node = await this.prisma.nodeConhecimento.findFirst({
-      where: { referenciaId: refId, usuarioId: userId, grafoId },
+      where: { referenciaId: refId, usuarioId: userId, contidoEm: { some: { grafoId } } },
       select: { id: true },
     });
     return node ? { id: node.id } : null;

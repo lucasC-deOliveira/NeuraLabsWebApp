@@ -70,7 +70,7 @@ describe('Available items query (integration — neuralabs_test)', () => {
       data: { usuarioId: userId, pergunta: 'Q', resposta: 'A' },
     });
     const node = await prisma.nodeConhecimento.create({
-      data: { usuarioId: userId, grafoId, tipoNode: 'FLASHCARD', referenciaId: fc.id },
+      data: { usuarioId: userId, tipoNode: 'FLASHCARD', referenciaId: fc.id },
     });
     await prisma.grafoNode.create({ data: { grafoId, nodeId: node.id } });
 

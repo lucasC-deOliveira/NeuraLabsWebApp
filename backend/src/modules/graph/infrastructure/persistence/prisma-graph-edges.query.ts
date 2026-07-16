@@ -14,7 +14,10 @@ export class PrismaGraphEdgesQuery implements GraphEdgesQuery {
 
   async listForGraph(userId: string, grafoId: string): Promise<GraphEdgeView[]> {
     const edges = await this.prisma.conhecimentoAresta.findMany({
-      where: { grafoId },
+      where: {
+        nodeOrigem: { contidoEm: { some: { grafoId } } },
+        nodeDestino: { contidoEm: { some: { grafoId } } },
+      },
       include: { nodeOrigem: true, nodeDestino: true },
     });
     const owned = edges.filter(

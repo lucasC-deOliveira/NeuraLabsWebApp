@@ -293,12 +293,9 @@ model GrafosConhecimento {
   parent  GrafosConhecimento?  @relation("GrafoHierarquia", fields: [parentGrafoId], references: [id], onDelete: SetNull)
   filhos  GrafosConhecimento[] @relation("GrafoHierarquia")
 
-  // `nodes`: os nós cuja coluna id_grafo aponta para cá (modelo antigo, ainda a
-  // fonte da verdade). `grafoNodes`: a contenção (modelo novo). Convivem durante a
-  // migração; `nodes` sai na Fase 5.
-  nodes             NodeConhecimento[]
+  // O grafo é uma VISTA: ele CONTÉM nós. Não tem mais `nodes` nem `arestas` — o nó
+  // é do sistema e a aresta liga nós, não vistas.
   grafoNodes        GrafoNode[]
-  arestas           ConhecimentoAresta[]
   roadmapTrilhas    RoadmapTrilha[]
   nodeEmbeddings    NodeEmbedding[]
   duplicateVerdicts DuplicateVerdictCache?
@@ -398,31 +395,33 @@ enum TipoNode {
   EDITAL
 }
 
+// O nó é do SISTEMA: um por (usuário, tipo, referência). Grafos e subgrafos apenas
+// o contêm (GrafoNode) — apagar um grafo apaga a vista, não o nó.
+//
+// Tinha `grafoId` e a mesma entidade precisava de uma linha por grafo, o que
+// impedia ligar um card de um grafo a um conceito de outro: era o que travava a
+// classificação do acervo. A posição foi para a contenção, porque é da vista.
 model NodeConhecimento {
-  id        String  @id @default(cuid())
-  usuarioId String  @map("id_usuario")
-  grafoId   String? @map("id_grafo")
+  id        String @id @default(cuid())
+  usuarioId String @map("id_usuario")
 
   tipoNode TipoNode
 
   referenciaId String @map("referencia_id")
 
-  posicaoX          Float?   @default(0.0) @map("posicao_x")
-  posicaoY          Float?   @default(0.0) @map("posicao_y")
   nivelDominio      Float    @default(0.0) @map("nivel_dominio")
-  // @updatedAt: bumps on any node write (posição, domínio, criação) — alimenta a
-  // assinatura do cache da view do grafo (invalidação automática).
+  // @updatedAt: bumps on any node write (domínio, criação) — alimenta a assinatura
+  // do cache da view do grafo (invalidação automática).
   ultimaAtualizacao DateTime @default(now()) @updatedAt @map("ultima_atualizacao")
 
-  usuario Usuario             @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  grafo   GrafosConhecimento? @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   arestasOrigem  ConhecimentoAresta[] @relation("NodeOrigem")
   arestasDestino ConhecimentoAresta[] @relation("NodeDestino")
   desempenho     DesempenhoNo[]
   contidoEm      GrafoNode[]
 
-  @@unique([usuarioId, grafoId, tipoNode, referenciaId], name: "_node_unique")
+  @@unique([usuarioId, tipoNode, referenciaId], name: "_node_unique")
 }
 
 // Contenção: que grafos MOSTRAM este nó. O nó é do sistema (único por usuário +
@@ -450,9 +449,11 @@ model GrafoNode {
   @@map("grafo_nodes")
 }
 
+// A aresta liga NÓS — é um fato entre entidades, não propriedade de uma vista. Um
+// grafo mostra a aresta quando contém as duas pontas. Tinha `grafoId`, redundante
+// desde sempre: a unique dela nunca o incluiu.
 model ConhecimentoAresta {
-  id      String  @id @default(cuid())
-  grafoId String? @map("id_grafo")
+  id String @id @default(cuid())
 
   nodeOrigemId  String? @map("id_node_origem")
   nodeDestinoId String? @map("id_node_destino")
@@ -465,7 +466,6 @@ model ConhecimentoAresta {
   // seria detectado pela assinatura do cache da view. @updatedAt bumpa em create/edit.
   ultimaAtualizacao DateTime @default(now()) @updatedAt @map("ultima_atualizacao")
 
-  grafo       GrafosConhecimento? @relation(fields: [grafoId], references: [id], onDelete: Cascade)
   nodeOrigem  NodeConhecimento?   @relation("NodeOrigem", fields: [nodeOrigemId], references: [id], onDelete: Cascade)
   nodeDestino NodeConhecimento?   @relation("NodeDestino", fields: [nodeDestinoId], references: [id], onDelete: Cascade)
   notaOrigem  Nota?               @relation("ArestaNotaOrigem", fields: [notaOrigemId], references: [id], onDelete: Cascade)

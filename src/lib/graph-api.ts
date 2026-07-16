@@ -60,13 +60,11 @@ export function listGraphAssuntos(): Promise<GraphAssunto[]> {
 export function createGrafo(nome: string, descricao?: string): Promise<{ id: string }> {
   return apiFetch("/graph/graphs", { method: "POST", body: JSON.stringify({ nome, descricao }) });
 }
-// Deleta o grafo. Por padrão remove também as entidades estruturais (ASSUNTO/
-// TOPICO/CONCEITO) e as reutilizáveis; `keepTypes` lista os tipos de entidade a
-// PRESERVAR (FLASHCARD/BARALHO/QUESTION/NOTA/PROVA/TEXTO_BRUTO). Entidades
-// compartilhadas com outro grafo nunca são deletadas (só desvinculadas).
-export async function deleteGrafo(grafoId: string, options?: { keepTypes?: string[] }): Promise<void> {
-  const keep = options?.keepTypes?.length ? `?keep=${options.keepTypes.join(",")}` : "";
-  await apiFetch(`/graph/graphs/${grafoId}${keep}`, { method: "DELETE" });
+// Deleta o grafo — a VISTA. Os nós são do sistema: continuam existindo, e nos
+// outros grafos onde aparecem. O `keepTypes` saiu junto: não havia mais o que
+// escolher preservar, porque nada é apagado.
+export async function deleteGrafo(grafoId: string): Promise<void> {
+  await apiFetch(`/graph/graphs/${grafoId}`, { method: "DELETE" });
 }
 export function getGrafoInfo(grafoId: string): Promise<GrafoInfoDetail | null> {
   return apiFetch(`/graph/graphs/${grafoId}/info`);

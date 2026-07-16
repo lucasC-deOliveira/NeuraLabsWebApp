@@ -43,7 +43,10 @@ function buildWhere(userId: string, query: GraphListQuery): Prisma.GrafosConheci
   const created = dateRange(query.createdFrom, query.createdTo);
   if (created) where.dataCriacao = created;
   if (query.assuntoIds?.length)
-    where.nodes = { some: { tipoNode: TipoNode.ASSUNTO, referenciaId: { in: query.assuntoIds } } };
+    // Filtrar grafo por assunto = o grafo CONTÉM um nó daquele assunto.
+    where.grafoNodes = {
+      some: { node: { tipoNode: TipoNode.ASSUNTO, referenciaId: { in: query.assuntoIds } } },
+    };
   return where;
 }
 
