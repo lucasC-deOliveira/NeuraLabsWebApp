@@ -10,6 +10,9 @@ class FakeGraphRepository implements GraphRepository {
   async rename(userId: string, grafoId: string, name: string): Promise<void> {
     this.renamed.push({ userId, grafoId, name });
   }
+  async findRootId(): Promise<string | null> {
+    return null;
+  }
 }
 
 describe('RenameGraphUseCase', () => {
