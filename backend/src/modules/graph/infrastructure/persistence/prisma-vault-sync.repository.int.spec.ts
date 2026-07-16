@@ -96,9 +96,11 @@ describe('Vault sync (integration — neuralabs_test)', () => {
         { ref: 'x1', tipo: 'CONCEITO', nome: 'X' },
         { ref: 'x2', tipo: 'CONCEITO', nome: 'Y' },
       ],
-      edges: [{ de: 'x1', para: 'x2', relacao: 'RELACIONADO', peso: 1 }],
+      edges: [{ origem: 'x1', destino: 'x2', relacao: 'PREREQUISITO', peso: 1 }],
     });
     const antes = await prisma.conhecimentoAresta.count();
+    // Sem isto o teste passaria à toa: comparar zero com zero não prova nada.
+    expect(antes).toBe(1);
 
     // Push de um grafo diferente, sem nenhuma aresta.
     await syncVault.execute(userId, grafoId, {
