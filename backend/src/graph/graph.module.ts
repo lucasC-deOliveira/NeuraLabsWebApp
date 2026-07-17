@@ -345,6 +345,12 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
       inject: [VAULT_SYNC_REPOSITORY],
     },
   ],
-  exports: [DeleteNodeUseCase, CreateEdgeUseCase, CreateNodeUseCase, CreateDeckUseCase],
+  exports: [
+    DeleteNodeUseCase,
+    CreateEdgeUseCase,
+    CreateNodeUseCase,
+    CreateDeckUseCase,
+    AddExistingNodeUseCase,
+  ],
 })
 export class GraphModule {}
