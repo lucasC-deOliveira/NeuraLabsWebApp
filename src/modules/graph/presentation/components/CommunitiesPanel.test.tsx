@@ -19,6 +19,7 @@ function setup(communities: unknown[] = [community]) {
       open
       onOpenChange={vi.fn()}
       communities={communities as never}
+      onSelectCommunity={vi.fn()}
       onCreateDeck={onCreateDeck}
       onHighlightCommunity={onHighlightCommunity}
       onSummarizeCommunity={onSummarizeCommunity}

@@ -404,6 +404,107 @@ export default function GraphPage() {
     if (items.length > 0) toast.success(`${items.length} nó(s) copiado(s)`);
   };
 
+  // Duplo-clique abre o que o nó É: subgrafo expande/retrai, baralho e flashcard
+  // abrem sua visualização. Nos demais tipos, centraliza.
+  const handleNodeDoubleClick = (node: any) => {
+    if (node.group === "GRAFO_REF") {
+      if (isSubgraphExpanded(controller.state.rawNodes, node.id)) handleRetractGrafoRef(node.id);
+      else void handleExpandGrafoRef(node);
+      return;
+    }
+    if (node.group === "BARALHO") { setViewDeckId(node.id); return; }
+    if (node.group === "FLASHCARD") { setViewFlashcardId(node.id); return; }
+    controller.interactions.focusNode(node);
+  };
+
+  const clearSelectionAndMenus = () => {
+    setNodeMenu(null);
+    controller.actions.setSelectedNodeIds(new Set());
+    controller.actions.setSelectedNode(null);
+  };
+
+  // ── Ações em lote sobre a seleção ────────────────────────────────────────────
+  const selectedItems = () =>
+    toClipItems(controller.state.filteredNodes, controller.state.selectedNodeIds);
+
+  // Delete: remove a seleção DESTE grafo (contenção — as entidades ficam no app).
+  const deleteSelection = async () => {
+    const items = selectedItems();
+    if (items.length === 0) return;
+    try {
+      await releaseContainment(items);
+      undo.push({
+        label: `Remover ${items.length} nó(s) do grafo`,
+        invert: () => addContainment(items),
+        redo: () => releaseContainment(items),
+      });
+      clearSelectionAndMenus();
+      toast.success(`${items.length} nó(s) removido(s) do grafo`);
+    } catch {
+      toast.error("Não foi possível remover a seleção");
+    }
+  };
+
+  const selectedFlashcardIds = () =>
+    controller.state.filteredNodes
+      .filter((n: any) => controller.state.selectedNodeIds.has(n.id) && n.group === "FLASHCARD")
+      .map((n: any) => n.id);
+
+  const studySelection = () => {
+    const ids = selectedFlashcardIds();
+    if (ids.length === 0) { toast.error("Nenhum flashcard na seleção."); return; }
+    setNeighborhoodStudyIds(ids);
+  };
+
+  // Expande cada nó aplicável da seleção, um por vez (cada um entra no undo).
+  const expandSelectionWithAi = async () => {
+    const nodes = controller.state.filteredNodes.filter(
+      (n: any) => controller.state.selectedNodeIds.has(n.id) && expandActionFor(n.group),
+    );
+    if (nodes.length === 0) { toast.error("Nenhum nó expansível na seleção."); return; }
+    for (const node of nodes) await runNodeExpansion(node);
+  };
+
+  // F enquadra a seleção na tela; sem seleção, enquadra o grafo inteiro.
+  const fitSelection = () => {
+    const all = controller.state.layout;
+    const sel = all.filter((n: any) => controller.state.selectedNodeIds.has(n.id));
+    controller.interactions.fitToNodes(sel.length > 0 ? sel : all);
+  };
+
+  // Ctrl+E: cresce a seleção UMA onda de vizinhos diretos (repetível — cada
+  // aperto avança mais um anel). A base é a seleção de antes da onda.
+  const growSelection = () => {
+    const sel = controller.state.selectedNodeIds;
+    if (sel.size === 0) return;
+    const next = new Set(sel);
+    for (const e of controller.state.filteredEdges as any[]) {
+      const s = typeof e.source === "object" ? e.source.id : e.source;
+      const t = typeof e.target === "object" ? e.target.id : e.target;
+      if (sel.has(s)) next.add(t);
+      if (sel.has(t)) next.add(s);
+    }
+    controller.actions.setSelectedNodeIds(next);
+    if (next.size > sel.size) toast(`Seleção cresceu para ${next.size} nós`);
+  };
+
+  const invertSelection = () => {
+    const sel = controller.state.selectedNodeIds;
+    const next = new Set<string>(
+      controller.state.filteredNodes.filter((n: any) => !sel.has(n.id)).map((n: any) => n.id),
+    );
+    controller.actions.setSelectedNodeIds(next);
+    controller.actions.setSelectedNode(null);
+  };
+
+  const selectAllOfType = (group: string) => {
+    const ids = controller.state.filteredNodes
+      .filter((n: any) => n.group === group)
+      .map((n: any) => n.id);
+    controller.actions.setSelectedNodeIds(new Set(ids));
+    toast(`${ids.length} nó(s) do tipo selecionado(s)`);
+  };
+
   const undoLast = async () => {
     if (!undo.canUndo) { toast("Nada para desfazer"); return; }
     const tid = toast.loading(`Desfazendo: ${undo.nextUndoLabel}...`);
@@ -428,18 +529,24 @@ export default function GraphPage() {
 
   // Um ref carrega sempre os handlers mais recentes, para o listener (ligado uma
   // vez) não capturar estado obsoleto (seleção, clipboard, pilha de undo).
-  const shortcutsRef = useRef({ selectAllNodes, copyToClipboard, cutSelection, pasteClipboard, undoLast, redoLast });
-  shortcutsRef.current = { selectAllNodes, copyToClipboard, cutSelection, pasteClipboard, undoLast, redoLast };
+  const shortcutsRef = useRef({ selectAllNodes, copyToClipboard, cutSelection, pasteClipboard, undoLast, redoLast, clearSelectionAndMenus, fitSelection, deleteSelection, growSelection, invertSelection });
+  shortcutsRef.current = { selectAllNodes, copyToClipboard, cutSelection, pasteClipboard, undoLast, redoLast, clearSelectionAndMenus, fitSelection, deleteSelection, growSelection, invertSelection };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t?.isContentEditable) return;
-      if (!(e.ctrlKey || e.metaKey)) return;
       const s = shortcutsRef.current;
+      if (e.key === "Escape") { s.clearSelectionAndMenus(); return; }
+      if (e.key === "Delete") { void s.deleteSelection(); return; }
+      // F enquadra (como o zoom-to-fit de editores de canvas); sem modificador.
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "f") { s.fitSelection(); return; }
+      if (!(e.ctrlKey || e.metaKey)) return;
       const k = e.key.toLowerCase();
       // Ctrl+Y ou Ctrl+Shift+Z = refazer (as duas convenções); Ctrl+Z = desfazer.
       if (k === "z" && e.shiftKey) { e.preventDefault(); void s.redoLast(); }
+      else if (k === "i" && e.shiftKey) { e.preventDefault(); s.invertSelection(); }
+      else if (k === "e") { e.preventDefault(); s.growSelection(); }
       else if (k === "a") { e.preventDefault(); s.selectAllNodes(); }
       else if (k === "c") { e.preventDefault(); s.copyToClipboard(); }
       else if (k === "x") { e.preventDefault(); void s.cutSelection(); }
@@ -881,6 +988,7 @@ export default function GraphPage() {
             nodeStats={nodeStats}
             hiddenTypes={controller.state.hiddenTypes}
             onToggleType={controller.actions.toggleNodeType}
+            onSelectType={selectAllOfType}
             relationStats={relationStats}
             hiddenRelations={controller.state.hiddenRelations}
             onToggleRelation={controller.actions.toggleRelation}
@@ -965,6 +1073,7 @@ export default function GraphPage() {
               gapBridges={gapBridges}
               highlightedCommunityIds={highlightedCommunityNodeIds}
               onNodeClick={controller.actions.selectNode}
+              onNodeDoubleClick={handleNodeDoubleClick}
               onNodeContextMenu={(node, x, y) => setNodeMenu({ node, x, y })}
               onNodeHover={controller.actions.setHoveredNodeId}
               onNodeDragStart={controller.interactions.startDragNode}
@@ -1066,6 +1175,59 @@ export default function GraphPage() {
             className="fixed z-50 min-w-44 rounded-md border bg-popover text-popover-foreground shadow-md py-1"
             style={{ left: nodeMenu.x, top: nodeMenu.y }}
           >
+            {/* Botão direito NUMA seleção múltipla: menu de lote no lugar do menu do nó. */}
+            {controller.state.selectedNodeIds.size > 1 && controller.state.selectedNodeIds.has(nodeMenu.node?.id) ? (
+              <>
+                <div className="px-3 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  {controller.state.selectedNodeIds.size} nós selecionados
+                </div>
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => { setNodeMenu(null); studySelection(); }}
+                >
+                  Estudar a seleção
+                </button>
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left font-medium text-violet-600 dark:text-violet-400 hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => { setNodeMenu(null); void expandSelectionWithAi(); }}
+                >
+                  Expandir com IA
+                </button>
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => { setNodeMenu(null); setGenerateDeckConfirm({ node: nodeMenu.node, flashcardIds: selectedFlashcardIds() }); }}
+                >
+                  Criar baralho com os flashcards
+                </button>
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => { setNodeMenu(null); setIsExtractSubgrafoOpen(true); }}
+                >
+                  Extrair para subgrafo…
+                </button>
+                <div className="my-1 h-px bg-border" />
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => { setNodeMenu(null); copyToClipboard(); }}
+                >
+                  Copiar
+                </button>
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => { setNodeMenu(null); void cutSelection(); }}
+                >
+                  Recortar
+                </button>
+                <div className="my-1 h-px bg-border" />
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left text-red-600 dark:text-red-400 hover:bg-accent"
+                  onClick={() => { setNodeMenu(null); void deleteSelection(); }}
+                >
+                  Remover do grafo (Del)
+                </button>
+              </>
+            ) : (
+              <>
             {nodeMenu.node?.group === "GRAFO_REF" && (
               <>
                 {isSubgraphExpanded(controller.state.rawNodes, nodeMenu.node.id) ? (
@@ -1105,6 +1267,12 @@ export default function GraphPage() {
             )}
             <button
               className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+              onClick={() => { const g = nodeMenu.node?.group; setNodeMenu(null); if (g) selectAllOfType(g); }}
+            >
+              Selecionar todos do tipo
+            </button>
+            <button
+              className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
               onClick={() => {
                 setEditingNode(nodeMenu.node);
                 setNodeMenu(null);
@@ -1132,6 +1300,8 @@ export default function GraphPage() {
             >
               Excluir do aplicativo
             </button>
+              </>
+            )}
           </div>
         </>
       )}
@@ -1289,6 +1459,12 @@ export default function GraphPage() {
           } catch { toast.error("Erro ao criar baralho."); }
         }}
         onHighlightCommunity={setHighlightedCommunityId}
+        onSelectCommunity={(community) => {
+          controller.actions.setSelectedNodeIds(new Set(community.nodes.map((n) => n.id)));
+          controller.actions.setSelectedNode(null);
+          setCommunitiesOpen(false);
+          toast(`${community.nodes.length} nós da comunidade selecionados`);
+        }}
         onSummarizeCommunity={(community) => {
           setCommunitySummary({ label: community.label, nodeIds: community.nodes.map(n => n.id) });
           setCommunitiesOpen(false);

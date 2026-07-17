@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { PlusIcon, NetworkIcon, FileTextIcon } from "lucide-react";
+import { PlusIcon, NetworkIcon, FileTextIcon, MousePointer2Icon } from "lucide-react";
 import type { Community } from "@/lib/graph-communities";
 import { TYPE_COLORS } from "@/lib/graph-metrics";
 
@@ -19,6 +19,8 @@ interface CommunitiesPanelProps {
   onCreateDeck: (community: Community) => void;
   onHighlightCommunity: (communityId: string | null) => void;
   onSummarizeCommunity: (community: Community) => void;
+  /** Seleciona os nós da comunidade no grafo (vira uma seleção múltipla normal). */
+  onSelectCommunity: (community: Community) => void;
 }
 
 function countNodeTypes(community: Community): Map<string, number> {
@@ -34,6 +36,7 @@ export function CommunitiesPanel({
   onCreateDeck,
   onHighlightCommunity,
   onSummarizeCommunity,
+  onSelectCommunity,
 }: CommunitiesPanelProps) {
   const handleOpenChange = (v: boolean): void => {
     if (!v) onHighlightCommunity(null);
@@ -62,6 +65,7 @@ export function CommunitiesPanel({
               onHighlight={onHighlightCommunity}
               onCreateDeck={onCreateDeck}
               onSummarize={onSummarizeCommunity}
+              onSelect={onSelectCommunity}
             />
           ))}
         </div>
@@ -84,11 +88,13 @@ function CommunityCard({
   onHighlight,
   onCreateDeck,
   onSummarize,
+  onSelect,
 }: {
   community: Community;
   onHighlight: (communityId: string | null) => void;
   onCreateDeck: (community: Community) => void;
   onSummarize: (community: Community) => void;
+  onSelect: (community: Community) => void;
 }) {
   const typeCount = countNodeTypes(community);
   const flashcardCount = typeCount.get("FLASHCARD") ?? 0;
@@ -116,6 +122,15 @@ function CommunityCard({
             ))}
           </div>
           <div className="flex flex-wrap gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs h-7"
+              onClick={(e) => { e.stopPropagation(); onSelect(community); }}
+            >
+              <MousePointer2Icon className="size-3" />
+              Selecionar
+            </Button>
             <Button
               size="sm"
               variant="outline"

@@ -117,7 +117,13 @@ export function useGraphController(graphId: string) {
   useEffect(() => () => cancelAnimationFrame(introRafRef.current), []);
 
 
-  const handleMarqueeSelect = useCallback((ids: string[]) => {
+  // additive (Shift no marquee): soma os nós do retângulo à seleção atual.
+  const handleMarqueeSelect = useCallback((ids: string[], additive?: boolean) => {
+    if (additive) {
+      setSelectedNodeIds((prev) => new Set([...prev, ...ids]));
+      setSelectedNode(null);
+      return;
+    }
     setSelectedNodeIds(new Set(ids));
     setSelectedNode(
       ids.length === 1

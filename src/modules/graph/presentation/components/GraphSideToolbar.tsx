@@ -50,6 +50,8 @@ type Props = {
   nodeStats: Record<string, number>;
   hiddenTypes: Set<string>;
   onToggleType: (type: string) => void;
+  /** Seleciona no grafo todos os nós de um tipo (ponte camadas → seleção). */
+  onSelectType?: (type: string) => void;
 
   relationStats: Record<string, number>;
   hiddenRelations: Set<string>;
@@ -125,9 +127,9 @@ function RangeFilter({
 }
 
 const TOOLS: Array<{ id: GraphTool; icon: typeof MousePointer2Icon; label: string }> = [
-  { id: "select", icon: MousePointer2Icon, label: "Selecionar (V)" },
+  { id: "select", icon: MousePointer2Icon, label: "Selecionar (V) — arraste no vazio p/ seleção múltipla; Shift soma" },
   { id: "marquee", icon: BoxSelectIcon, label: "Seleção múltipla (M)" },
-  { id: "hand", icon: HandIcon, label: "Mover o grafo (H)" },
+  { id: "hand", icon: HandIcon, label: "Mover o grafo (H) — ou arraste com o botão do meio" },
 ];
 
 function SearchFilters({
@@ -308,6 +310,7 @@ function LayersPanel({
   nodeStats,
   hiddenTypes,
   onToggleType,
+  onSelectType,
   relationStats,
   hiddenRelations,
   onToggleRelation,
@@ -316,6 +319,7 @@ function LayersPanel({
   nodeStats: Record<string, number>;
   hiddenTypes: Set<string>;
   onToggleType: (type: string) => void;
+  onSelectType?: (type: string) => void;
   relationStats: Record<string, number>;
   hiddenRelations: Set<string>;
   onToggleRelation: (type: string) => void;
@@ -328,6 +332,7 @@ function LayersPanel({
         entries={Object.entries(nodeStats)}
         hidden={hiddenTypes}
         onToggle={onToggleType}
+        onSelect={onSelectType}
         colorOf={(t) => getNodeColors(t, isDark).border}
         labelOf={(t) => NODE_TYPE_DISPLAY[t as keyof typeof NODE_TYPE_DISPLAY]?.label ?? t}
         emptyText="Nenhum nó no grafo"
@@ -350,6 +355,7 @@ function LayerSection({
   entries,
   hidden,
   onToggle,
+  onSelect,
   colorOf,
   labelOf,
   emptyText,
@@ -358,6 +364,7 @@ function LayerSection({
   entries: [string, number][];
   hidden: Set<string>;
   onToggle: (type: string) => void;
+  onSelect?: (type: string) => void;
   colorOf: (type: string) => string;
   labelOf: (type: string) => string;
   emptyText: string;
@@ -376,7 +383,7 @@ function LayerSection({
       ) : (
         <div className="space-y-1">
           {entries.map(([type, count]) => (
-            <LayerRow key={type} label={labelOf(type)} color={colorOf(type)} count={count} hidden={hidden.has(type)} onToggle={() => onToggle(type)} />
+            <LayerRow key={type} label={labelOf(type)} color={colorOf(type)} count={count} hidden={hidden.has(type)} onToggle={() => onToggle(type)} onSelect={onSelect ? () => onSelect(type) : undefined} />
           ))}
         </div>
       )}
@@ -384,18 +391,27 @@ function LayerSection({
   );
 }
 
-function LayerRow({ label, color, count, hidden, onToggle }: { label: string; color: string; count: number; hidden: boolean; onToggle: () => void }) {
+function LayerRow({ label, color, count, hidden, onToggle, onSelect }: { label: string; color: string; count: number; hidden: boolean; onToggle: () => void; onSelect?: () => void }) {
   return (
-    <button
+    <div
       onClick={onToggle}
       title={hidden ? "Mostrar" : "Ocultar"}
-      className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors hover:bg-accent ${hidden ? "opacity-45" : ""}`}
+      className={`w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded transition-colors hover:bg-accent cursor-pointer group ${hidden ? "opacity-45" : ""}`}
     >
       <div className="size-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
       <span className={`flex-1 truncate text-left ${hidden ? "line-through" : ""}`}>{label}</span>
+      {onSelect && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onSelect(); }}
+          title="Selecionar todos deste tipo no grafo"
+          className="opacity-0 group-hover:opacity-100 text-primary hover:scale-110 transition"
+        >
+          <MousePointer2Icon className="size-3.5" />
+        </button>
+      )}
       <span className="text-xs text-muted-foreground">{count}</span>
       {hidden ? <EyeOffIcon className="size-3.5 text-muted-foreground" /> : <EyeIcon className="size-3.5 text-primary" />}
-    </button>
+    </div>
   );
 }
 
@@ -412,6 +428,7 @@ export function GraphSideToolbar({
   nodeStats,
   hiddenTypes,
   onToggleType,
+  onSelectType,
   relationStats,
   hiddenRelations,
   onToggleRelation,
@@ -490,6 +507,7 @@ export function GraphSideToolbar({
             nodeStats={nodeStats}
             hiddenTypes={hiddenTypes}
             onToggleType={onToggleType}
+            onSelectType={onSelectType}
             relationStats={relationStats}
             hiddenRelations={hiddenRelations}
             onToggleRelation={onToggleRelation}

@@ -30,10 +30,11 @@ type Props = {
   gapBridges?: any[];
   highlightedCommunityIds?: Set<string> | null;
   onNodeClick: (node: any, additive?: boolean) => void;
+  onNodeDoubleClick?: (node: any) => void;
   onNodeContextMenu?: (node: any, clientX: number, clientY: number) => void;
   onNodeDragStart: (nodeId: string, e: PointerEvent) => void;
   onPanStart: (clientX: number, clientY: number) => void;
-  onMarqueeStart: (clientX: number, clientY: number) => void;
+  onMarqueeStart: (clientX: number, clientY: number, additive?: boolean) => void;
   onWheel: (e: WheelEvent) => void;
   onNodeHover: (nodeId: string | null) => void;
 };
@@ -239,7 +240,7 @@ export function GraphRenderer({
   selectedNodeIds, marquee, highContrast = false,
   focusMode = false, focusDepth = 1, matchedIds = null,
   showClusters = false,
-  onNodeClick, onNodeContextMenu, onNodeDragStart,
+  onNodeClick, onNodeDoubleClick, onNodeContextMenu, onNodeDragStart,
   onPanStart, onMarqueeStart, onWheel, onNodeHover,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -633,12 +634,14 @@ export function GraphRenderer({
       onPointerDown={(e) => {
         pointerDownPos.current = { x: e.clientX, y: e.clientY };
         didDrag.current = false;
-        if (tool === "hand") {
+        // Botão do meio = pan em qualquer ferramenta (o marquee na V tirou o
+        // pan do arrasto em área vazia; o meio é a saída universal).
+        if (e.button === 1 || tool === "hand") {
           startDirectPan(e.clientX, e.clientY);
           onPanStart(e.clientX, e.clientY);
           return;
         }
-        if (tool === "marquee") { onMarqueeStart(e.clientX, e.clientY); return; }
+        if (tool === "marquee") { onMarqueeStart(e.clientX, e.clientY, e.shiftKey); return; }
         const { gx, gy } = toGraph(e.clientX, e.clientY);
         const hit = S.current.visNodes.find((n:any) => isHit(n, gx, gy))
                  ?? S.current.nodes.find((n:any) => isHit(n, gx, gy));
@@ -646,8 +649,9 @@ export function GraphRenderer({
           (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId);
           onNodeDragStart(hit.id, e.nativeEvent);
         } else {
-          startDirectPan(e.clientX, e.clientY);
-          onPanStart(e.clientX, e.clientY);
+          // Ferramenta V em área vazia: arrasto = seleção múltipla (estilo
+          // Figma); Shift soma à seleção atual. Pan fica no H e no botão do meio.
+          onMarqueeStart(e.clientX, e.clientY, e.shiftKey);
         }
       }}
 
@@ -664,7 +668,15 @@ export function GraphRenderer({
         const { gx, gy } = toGraph(e.clientX, e.clientY);
         const hit = S.current.visNodes.find((n:any) => isHit(n, gx, gy))
                  ?? S.current.nodes.find((n:any) => isHit(n, gx, gy));
-        hit ? onNodeClick(hit, e.ctrlKey || e.metaKey) : onNodeClick(null);
+        hit ? onNodeClick(hit, e.ctrlKey || e.metaKey || e.shiftKey) : onNodeClick(null);
+      }}
+
+      onDoubleClick={(e) => {
+        if (!onNodeDoubleClick || didDrag.current) return;
+        const { gx, gy } = toGraph(e.clientX, e.clientY);
+        const hit = S.current.visNodes.find((n:any) => isHit(n, gx, gy))
+                 ?? S.current.nodes.find((n:any) => isHit(n, gx, gy));
+        if (hit) onNodeDoubleClick(hit);
       }}
 
       onContextMenu={(e) => {
