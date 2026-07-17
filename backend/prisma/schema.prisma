@@ -293,7 +293,11 @@ model GrafosConhecimento {
   parent  GrafosConhecimento?  @relation("GrafoHierarquia", fields: [parentGrafoId], references: [id], onDelete: SetNull)
   filhos  GrafosConhecimento[] @relation("GrafoHierarquia")
 
+  // `nodes`: os nós cuja coluna id_grafo aponta para cá (modelo antigo, ainda a
+  // fonte da verdade). `grafoNodes`: a contenção (modelo novo). Convivem durante a
+  // migração; `nodes` sai na Fase 5.
   nodes             NodeConhecimento[]
+  grafoNodes        GrafoNode[]
   arestas           ConhecimentoAresta[]
   roadmapTrilhas    RoadmapTrilha[]
   nodeEmbeddings    NodeEmbedding[]
@@ -416,8 +420,34 @@ model NodeConhecimento {
   arestasOrigem  ConhecimentoAresta[] @relation("NodeOrigem")
   arestasDestino ConhecimentoAresta[] @relation("NodeDestino")
   desempenho     DesempenhoNo[]
+  contidoEm      GrafoNode[]
 
   @@unique([usuarioId, grafoId, tipoNode, referenciaId], name: "_node_unique")
+}
+
+// Contenção: que grafos MOSTRAM este nó. O nó é do sistema (único por usuário +
+// tipo + referência); o grafo é uma vista sobre ele. A posição vive aqui porque é
+// da vista, não do nó: o mesmo conceito ocupa lugares diferentes em cada grafo.
+//
+// Fase 1 da migração: a tabela é populada a partir de NodeConhecimento.grafoId,
+// que continua sendo a fonte da verdade até a Fase 2 passar as leituras para cá.
+model GrafoNode {
+  grafoId String @map("id_grafo")
+  nodeId  String @map("id_node")
+
+  posicaoX Float? @default(0.0) @map("posicao_x")
+  posicaoY Float? @default(0.0) @map("posicao_y")
+
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+
+  grafo GrafosConhecimento @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+  node  NodeConhecimento   @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@id([grafoId, nodeId])
+  // Um nó é lido pelos seus grafos ("onde isto aparece?") tanto quanto pelo grafo
+  // ("o que tem aqui?") — o @@id só cobre o segundo.
+  @@index([nodeId])
+  @@map("grafo_nodes")
 }
 
 model ConhecimentoAresta {

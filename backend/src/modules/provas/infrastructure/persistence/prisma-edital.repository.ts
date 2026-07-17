@@ -4,6 +4,10 @@ import { PrismaService } from '../../../../prisma/prisma.service';
 import type { EditalRepository } from '../../domain/ports/edital-repository';
 import type { CreateEditalInput, Edital } from '../../domain/prova';
 import { EditalAlreadyLinkedError, ProvaAlreadyHasEditalError } from '../../domain/errors';
+import {
+  containNode,
+  createContainedNode,
+} from '../../../graph/infrastructure/persistence/node-containment';
 
 // Persists editais and their 1:1 link to a prova, materializing the EDITAL node
 // and a REGE edge to the prova's node. Mirrors the graph node/edge writes done by
@@ -97,9 +101,13 @@ export class PrismaEditalRepository implements EditalRepository {
   ): Promise<string> {
     const where = { usuarioId: userId, grafoId, tipoNode, referenciaId };
     const existing = await this.prisma.nodeConhecimento.findFirst({ where, select: { id: true } });
-    if (existing) return existing.id;
-    const node = await this.prisma.nodeConhecimento.create({ data: where, select: { id: true } });
-    return node.id;
+    // Idem ao writer de questões: o nó pode existir sem a contenção, e sem ela ele
+    // não apareceria na vista do grafo.
+    if (existing) {
+      await containNode(this.prisma, grafoId, existing.id);
+      return existing.id;
+    }
+    return createContainedNode(this.prisma, { usuarioId: userId, grafoId, tipoNode, referenciaId });
   }
 
   private async ensureEdge(

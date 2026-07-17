@@ -5,6 +5,7 @@ import type {
   CreateSubgraphInput,
   CreateSubgraphRepository,
 } from '../../domain/ports/create-subgraph-repository';
+import { createContainedNode } from './node-containment';
 
 @Injectable()
 export class PrismaCreateSubgraphRepository implements CreateSubgraphRepository {
@@ -25,17 +26,15 @@ export class PrismaCreateSubgraphRepository implements CreateSubgraphRepository 
   ): Promise<{ grafoId: string; grafoRefNodeId: string }> {
     return this.prisma.$transaction(async (tx) => {
       const filho = await this.createChildGraph(tx, userId, parentGrafoId, input);
-      const refNode = await tx.nodeConhecimento.create({
-        data: {
-          grafoId: parentGrafoId,
-          tipoNode: 'GRAFO_REF',
-          referenciaId: filho.id,
-          usuarioId: userId,
-          posicaoX: input.posX ?? 0,
-          posicaoY: input.posY ?? 0,
-        },
+      await createContainedNode(tx, {
+        usuarioId: userId,
+        grafoId: parentGrafoId,
+        tipoNode: 'GRAFO_REF',
+        referenciaId: filho.id,
+        posicaoX: input.posX,
+        posicaoY: input.posY,
       });
-      return { grafoId: filho.id, grafoRefNodeId: refNode.referenciaId };
+      return { grafoId: filho.id, grafoRefNodeId: filho.id };
     });
   }
 

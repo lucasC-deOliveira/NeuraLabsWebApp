@@ -1,5 +1,11 @@
 // SRS local (desktop-only). Armazena sessões e revisões em _srs.json no vault.
 // Ao fazer Push, as sessões não sincronizadas são enviadas ao backend.
+//
+// O log vive na RAIZ do vault, não na pasta do grafo. A agenda é do CARD: quando o
+// mesmo flashcard aparece em dois grafos — que é o ponto do nó ser do sistema —, um
+// log por pasta daria a ele duas agendas SM-2 divergentes, cada uma achando que
+// sabe quando você esquece. `readSrsLog` funde o log antigo da pasta na primeira
+// leitura, para as agendas já existentes não se perderem.
 import { desktop } from "./vault-bridge";
 
 export const SRS_LOG_FILENAME = "_srs.json";
@@ -42,10 +48,12 @@ export interface LocalSrsLog {
 
 // ---- leitura / escrita ----
 
-export async function readSrsLog(graphDir: string): Promise<LocalSrsLog> {
+const emptyLog = (): LocalSrsLog => ({ sessions: [], schedule: {} });
+
+async function loadLog(dir: string): Promise<LocalSrsLog | null> {
   try {
-    const content = await desktop.vault.readFile(graphDir, SRS_LOG_FILENAME);
-    if (!content) return { sessions: [], schedule: {} };
+    const content = await desktop.vault.readFile(dir, SRS_LOG_FILENAME);
+    if (!content) return null;
     const parsed = JSON.parse(content) as LocalSrsLog;
     // migração: garante campos novos nas schedules existentes
     for (const [id, s] of Object.entries(parsed.schedule ?? {})) {
@@ -53,14 +61,45 @@ export async function readSrsLog(graphDir: string): Promise<LocalSrsLog> {
       if (s.learningStep == null) parsed.schedule[id].learningStep = 0;
       if (!s.fatorEase) parsed.schedule[id].fatorEase = 2.5;
     }
-    return parsed;
+    return { sessions: parsed.sessions ?? [], schedule: parsed.schedule ?? {} };
   } catch {
-    return { sessions: [], schedule: {} };
+    return null;
   }
 }
 
-export async function writeSrsLog(graphDir: string, log: LocalSrsLog): Promise<void> {
-  await desktop.vault.writeFile(graphDir, SRS_LOG_FILENAME, JSON.stringify(log, null, 2));
+/**
+ * Log do vault. `legacyGraphDir` é a pasta de um grafo cujo _srs.json antigo ainda
+ * deve ser absorvido — o card manda na agenda, então dois logs viram um.
+ * @example readSrsLog(vaultDir, graphDir)
+ */
+export async function readSrsLog(vaultDir: string, legacyGraphDir?: string): Promise<LocalSrsLog> {
+  const raiz = (await loadLog(vaultDir)) ?? emptyLog();
+  if (!legacyGraphDir || legacyGraphDir === vaultDir) return raiz;
+  const antigo = await loadLog(legacyGraphDir);
+  if (!antigo) return raiz;
+  const fundido = mergeSrsLogs(raiz, antigo);
+  await writeSrsLog(vaultDir, fundido);
+  return fundido;
+}
+
+/**
+ * Funde o log da pasta no da raiz. Em conflito vence a revisão mais RECENTE: ela é
+ * a que sabe o que você respondeu por último. Puro.
+ * @example mergeSrsLogs(raiz, daPasta)
+ */
+export function mergeSrsLogs(raiz: LocalSrsLog, antigo: LocalSrsLog): LocalSrsLog {
+  const schedule = { ...raiz.schedule };
+  for (const [id, s] of Object.entries(antigo.schedule)) {
+    const atual = schedule[id];
+    if (!atual || new Date(s.ultimaRevisao) > new Date(atual.ultimaRevisao)) schedule[id] = s;
+  }
+  const conhecidas = new Set(raiz.sessions.map((s) => s.id));
+  const sessions = [...raiz.sessions, ...antigo.sessions.filter((s) => !conhecidas.has(s.id))];
+  return { sessions, schedule };
+}
+
+export async function writeSrsLog(vaultDir: string, log: LocalSrsLog): Promise<void> {
+  await desktop.vault.writeFile(vaultDir, SRS_LOG_FILENAME, JSON.stringify(log, null, 2));
 }
 
 // ---- verificação de vencimento ----

@@ -3,6 +3,7 @@ import { type SubtipoNota, type TipoNode } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import type { NodeCreationRepository } from '../../domain/ports/node-creation-repository';
 import type { CreateNodeInput } from '../../domain/services/node-creation';
+import { createContainedNode } from './node-containment';
 
 type EntityCreator = (userId: string, input: CreateNodeInput, now: Date) => Promise<string>;
 
@@ -25,16 +26,14 @@ export class PrismaNodeCreationRepository implements NodeCreationRepository {
   ): Promise<{ nodeId: string }> {
     const now = new Date();
     const entityId = await this.entityCreators[input.tipoNode](userId, input, now);
-    await this.prisma.nodeConhecimento.create({
-      data: {
-        grafoId,
-        tipoNode: input.tipoNode as TipoNode,
-        referenciaId: entityId,
-        usuarioId: userId,
-        posicaoX: input.posicaoX ?? null,
-        posicaoY: input.posicaoY ?? null,
-        nivelDominio: input.nivelDominio ?? 0,
-      },
+    await createContainedNode(this.prisma, {
+      usuarioId: userId,
+      grafoId,
+      tipoNode: input.tipoNode as TipoNode,
+      referenciaId: entityId,
+      posicaoX: input.posicaoX,
+      posicaoY: input.posicaoY,
+      nivelDominio: input.nivelDominio,
     });
     return { nodeId: entityId };
   }

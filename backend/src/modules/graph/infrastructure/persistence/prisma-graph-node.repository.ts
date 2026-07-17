@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type TipoNode } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import type { GraphNodeRepository } from '../../domain/ports/graph-node-repository';
+import { createContainedNode } from './node-containment';
 
 @Injectable()
 export class PrismaGraphNodeRepository implements GraphNodeRepository {
@@ -21,14 +22,11 @@ export class PrismaGraphNodeRepository implements GraphNodeRepository {
     tipoNode: string,
     entityId: string,
   ): Promise<void> {
-    await this.prisma.nodeConhecimento.create({
-      data: {
-        grafoId,
-        tipoNode: tipoNode as TipoNode,
-        referenciaId: entityId,
-        usuarioId: userId,
-        nivelDominio: 0,
-      },
+    await createContainedNode(this.prisma, {
+      usuarioId: userId,
+      grafoId,
+      tipoNode: tipoNode as TipoNode,
+      referenciaId: entityId,
     });
   }
 

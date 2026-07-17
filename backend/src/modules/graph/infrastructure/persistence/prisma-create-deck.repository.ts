@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import type { CreateDeckRepository } from '../../domain/ports/create-deck-repository';
+import { containNode, createContainedNode } from './node-containment';
 
 @Injectable()
 export class PrismaCreateDeckRepository implements CreateDeckRepository {
@@ -30,14 +31,13 @@ export class PrismaCreateDeckRepository implements CreateDeckRepository {
   ): Promise<string> {
     return this.prisma.$transaction(async (tx) => {
       const baralho = await this.createDeckRow(tx, userId, titulo, flashcardIds);
-      const baralhoNode = await tx.nodeConhecimento.create({
-        data: { grafoId, tipoNode: 'BARALHO', referenciaId: baralho.id, usuarioId: userId },
+      const baralhoNodeId = await createContainedNode(tx, {
+        usuarioId: userId,
+        grafoId,
+        tipoNode: 'BARALHO',
+        referenciaId: baralho.id,
       });
-      await this.linkFlashcards(
-        tx,
-        { userId, grafoId, baralhoNodeId: baralhoNode.id },
-        flashcardIds,
-      );
+      await this.linkFlashcards(tx, { userId, grafoId, baralhoNodeId }, flashcardIds);
       return baralho.id;
     });
   }
@@ -99,15 +99,18 @@ export class PrismaCreateDeckRepository implements CreateDeckRepository {
     userId: string,
     flashcardId: string,
   ): Promise<string> {
-    const existing = await tx.nodeConhecimento.findFirst({
-      where: { grafoId, usuarioId: userId, tipoNode: 'FLASHCARD', referenciaId: flashcardId },
-      select: { id: true },
-    });
-    if (existing) return existing.id;
-    const created = await tx.nodeConhecimento.create({
-      data: { grafoId, tipoNode: 'FLASHCARD', referenciaId: flashcardId, usuarioId: userId },
-      select: { id: true },
-    });
-    return created.id;
+    const no = {
+      usuarioId: userId,
+      grafoId,
+      tipoNode: 'FLASHCARD' as const,
+      referenciaId: flashcardId,
+    };
+    const existing = await tx.nodeConhecimento.findFirst({ where: no, select: { id: true } });
+    // A contenção pode faltar (nó de um caminho antigo); garanti-la é idempotente.
+    if (existing) {
+      await containNode(tx, grafoId, existing.id);
+      return existing.id;
+    }
+    return createContainedNode(tx, no);
   }
 }

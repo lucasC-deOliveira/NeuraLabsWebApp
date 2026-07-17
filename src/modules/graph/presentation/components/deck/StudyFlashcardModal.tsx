@@ -38,8 +38,8 @@ type Phase = "loading" | "question" | "answer" | "saving" | "done" | "notdue" | 
 // Result of resolving a card to study — applied to component state by the effect.
 type CardOutcome =
   | { phase: "error" }
-  | { phase: "notdue"; card: StudyCard; graphDir: string | null; proximaRevisao: string | null }
-  | { phase: "question"; card: StudyCard; graphDir: string | null; sessionId: string };
+  | { phase: "notdue"; card: StudyCard; srsDir: string | null; proximaRevisao: string | null }
+  | { phase: "question"; card: StudyCard; srsDir: string | null; sessionId: string };
 
 function formatProxima(iso: string): string {
   const d = new Date(iso);
@@ -55,18 +55,20 @@ function formatProxima(iso: string): string {
   return `em ${dias} dias (${data})`;
 }
 
-function finalizeSession(graphDir: string | null, sessionId: string): void {
-  if (graphDir) finalizeLocalSession(graphDir, sessionId).catch(() => {});
+function finalizeSession(srsDir: string | null, sessionId: string): void {
+  if (srsDir) finalizeLocalSession(srsDir, sessionId).catch(() => {});
   else graphHttp.finalizeStudySession(sessionId).catch(() => {});
 }
 
 async function loadCardFromVault(flashcardId: string, grafoId: string, grafoNome: string): Promise<CardOutcome> {
   const vaultDir = await desktop.vault.getPath().catch(() => null);
   if (!vaultDir) return { phase: "error" };
-  const dir = graphVaultDir(vaultDir, grafoId, grafoNome);
+  // A agenda vive na raiz do vault (é do card, não da vista); a pasta do grafo só
+  // entra para o log antigo dela ser absorvido.
+  const graphDir = graphVaultDir(vaultDir, grafoId, grafoNome);
   const [vn, srsLog] = await Promise.all([
     findVaultNode(grafoId, grafoNome, flashcardId, "FLASHCARD"),
-    readSrsLog(dir),
+    readSrsLog(vaultDir, graphDir),
   ]);
   if (!vn) return { phase: "error" };
   const schedule = srsLog.schedule[flashcardId];
@@ -79,16 +81,16 @@ async function loadCardFromVault(flashcardId: string, grafoId: string, grafoNome
     // Card único não tem fila para ordenar: o peso não faz diferença aqui.
     importancia: null,
   };
-  if (!isDue(schedule)) return { phase: "notdue", card, graphDir: dir, proximaRevisao: schedule!.proximaRevisao };
-  const sessionId = await startLocalSession(dir, null);
-  return { phase: "question", card, graphDir: dir, sessionId };
+  if (!isDue(schedule)) return { phase: "notdue", card, srsDir: vaultDir, proximaRevisao: schedule!.proximaRevisao };
+  const sessionId = await startLocalSession(vaultDir, null);
+  return { phase: "question", card, srsDir: vaultDir, sessionId };
 }
 
 async function loadCardFromApi(flashcardId: string): Promise<CardOutcome> {
   const res = await graphHttp.startSingleCardStudy(flashcardId).catch(() => null);
   if (!res) return { phase: "error" };
-  if (res.due && res.sessionId) return { phase: "question", card: res.card, graphDir: null, sessionId: res.sessionId };
-  return { phase: "notdue", card: res.card, graphDir: null, proximaRevisao: res.proximaRevisao };
+  if (res.due && res.sessionId) return { phase: "question", card: res.card, srsDir: null, sessionId: res.sessionId };
+  return { phase: "notdue", card: res.card, srsDir: null, proximaRevisao: res.proximaRevisao };
 }
 
 // Not `async` so the API call is issued synchronously in the non-desktop path.
@@ -180,7 +182,7 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, 
   const [proximaRevisao, setProximaRevisao] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<number>(nowMs);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [graphDir, setGraphDir] = useState<string | null>(null);
+  const [srsDir, setGraphDir] = useState<string | null>(null);
   const [prevKey, setPrevKey] = useState("");
   const finalizedRef = useRef(false);
 
@@ -194,7 +196,7 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, 
   const applyCardOutcome = (outcome: CardOutcome): void => {
     if (outcome.phase === "error") { setPhase("error"); return; }
     setCard(outcome.card);
-    setGraphDir(outcome.graphDir);
+    setGraphDir(outcome.srsDir);
     if (outcome.phase === "notdue") {
       setProximaRevisao(outcome.proximaRevisao);
       setPhase("notdue");
@@ -212,7 +214,7 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, 
     loadCard(flashcardId, grafoId, grafoNome)
       .then((outcome): void => {
         if (!active) {
-          if (outcome.phase === "question") finalizeSession(outcome.graphDir, outcome.sessionId);
+          if (outcome.phase === "question") finalizeSession(outcome.srsDir, outcome.sessionId);
           return;
         }
         applyCardOutcome(outcome);
@@ -226,10 +228,10 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, 
     if (!card) return;
     setPhase("saving");
     try {
-      if (graphDir && sessionId) {
-        await submitLocalReview(graphDir, sessionId, { flashcardId: card.id, grade, tempoResposta: nowMs() - startedAt });
+      if (srsDir && sessionId) {
+        await submitLocalReview(srsDir, sessionId, { flashcardId: card.id, grade, tempoResposta: nowMs() - startedAt });
         finalizedRef.current = true;
-        await finalizeLocalSession(graphDir, sessionId).catch(() => {});
+        await finalizeLocalSession(srsDir, sessionId).catch(() => {});
       } else if (sessionId) {
         await graphHttp.submitCardReview({ flashcardId: card.id, grade, tempoResposta: nowMs() - startedAt, sessaoId: sessionId });
         finalizedRef.current = true;
@@ -246,7 +248,7 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, 
   const handleOpenChange = (o: boolean): void => {
     if (!o && sessionId && !finalizedRef.current) {
       finalizedRef.current = true;
-      finalizeSession(graphDir, sessionId);
+      finalizeSession(srsDir, sessionId);
     }
     onOpenChange(o);
   };
