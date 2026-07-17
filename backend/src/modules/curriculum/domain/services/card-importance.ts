@@ -4,8 +4,8 @@ import type { NodeEdgePair } from './connected-concepts';
 // já calculada dos conceitos do grafo. As consultas (nós, arestas, ranking) vivem
 // no adapter Prisma; aqui só combinamos os mapas — testável sem DB.
 //
-// A chave do conceito leva o grafo (`grafoId:conceitoId`) porque a importância é
-// normalizada por grafo: o mesmo conceito em dois grafos tem duas escalas.
+// A chave do conceito é o id dele: a importância é global por usuário — uma
+// escala só, porque o conceito é um só em qualquer vista.
 
 /**
  * Importância (0..1) de cada card: a do seu conceito MAIS importante — um card

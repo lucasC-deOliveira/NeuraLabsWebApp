@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import type { CreateDeckRepository } from '../../domain/ports/create-deck-repository';
-import { containNode, createContainedNode } from './node-containment';
+import { createContainedNode } from './node-containment';
 
 @Injectable()
 export class PrismaCreateDeckRepository implements CreateDeckRepository {
@@ -84,7 +84,6 @@ export class PrismaCreateDeckRepository implements CreateDeckRepository {
     );
     await tx.conhecimentoAresta.create({
       data: {
-        grafoId: args.grafoId,
         nodeOrigemId: args.baralhoNodeId,
         nodeDestinoId: fcNodeId,
         tipoRelacao: 'CONTEM',
@@ -93,24 +92,20 @@ export class PrismaCreateDeckRepository implements CreateDeckRepository {
     });
   }
 
-  private async ensureFlashcardNode(
+  // O "ensure" agora é o próprio createContainedNode: ele reusa o nó da entidade
+  // (que pode já existir por causa de outro grafo) e garante a contenção. O
+  // findFirst que existia aqui virou redundante.
+  private ensureFlashcardNode(
     tx: Prisma.TransactionClient,
     grafoId: string,
     userId: string,
     flashcardId: string,
   ): Promise<string> {
-    const no = {
+    return createContainedNode(tx, {
       usuarioId: userId,
       grafoId,
-      tipoNode: 'FLASHCARD' as const,
+      tipoNode: 'FLASHCARD',
       referenciaId: flashcardId,
-    };
-    const existing = await tx.nodeConhecimento.findFirst({ where: no, select: { id: true } });
-    // A contenção pode faltar (nó de um caminho antigo); garanti-la é idempotente.
-    if (existing) {
-      await containNode(tx, grafoId, existing.id);
-      return existing.id;
-    }
-    return createContainedNode(tx, no);
+    });
   }
 }

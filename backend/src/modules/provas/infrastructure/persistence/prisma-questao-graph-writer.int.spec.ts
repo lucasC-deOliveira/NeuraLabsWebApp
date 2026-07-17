@@ -86,11 +86,16 @@ describe('PrismaQuestaoGraphWriter (integration — neuralabs_test)', () => {
     ]);
 
     const questionNodes = await prisma.nodeConhecimento.findMany({
-      where: { grafoId: s.grafoId, tipoNode: 'QUESTION' },
+      where: { tipoNode: 'QUESTION', contidoEm: { some: { grafoId: s.grafoId } } },
     });
     expect(questionNodes.map((n) => n.referenciaId).sort()).toEqual([s.q1, s.q2].sort());
 
-    const edges = await prisma.conhecimentoAresta.findMany({ where: { grafoId: s.grafoId } });
+    const edges = await prisma.conhecimentoAresta.findMany({
+      where: {
+        nodeOrigem: { contidoEm: { some: { grafoId: s.grafoId } } },
+        nodeDestino: { contidoEm: { some: { grafoId: s.grafoId } } },
+      },
+    });
     expect(edges).toHaveLength(3); // q1→esterificação, q1→craqueamento, q2→craqueamento
     expect(edges.every((e) => e.tipoRelacao === 'TESTA')).toBe(true);
   });
@@ -103,8 +108,13 @@ describe('PrismaQuestaoGraphWriter (integration — neuralabs_test)', () => {
     await writer.linkQuestoesToGrafo(s.userId, s.grafoId, links);
     await writer.linkQuestoesToGrafo(s.userId, s.grafoId, links);
 
-    const nodes = await prisma.nodeConhecimento.count({ where: { grafoId: s.grafoId } });
-    const edges = await prisma.conhecimentoAresta.count({ where: { grafoId: s.grafoId } });
+    const nodes = await prisma.grafoNode.count({ where: { grafoId: s.grafoId } });
+    const edges = await prisma.conhecimentoAresta.count({
+      where: {
+        nodeOrigem: { contidoEm: { some: { grafoId: s.grafoId } } },
+        nodeDestino: { contidoEm: { some: { grafoId: s.grafoId } } },
+      },
+    });
     expect(nodes).toBe(2); // one QUESTION + one CONCEITO
     expect(edges).toBe(1);
   });

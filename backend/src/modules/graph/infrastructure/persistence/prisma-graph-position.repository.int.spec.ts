@@ -40,11 +40,8 @@ describe('Graph positions (integration — neuralabs_test)', () => {
     const node = await prisma.nodeConhecimento.create({
       data: {
         usuarioId: user.id,
-        grafoId: grafo.id,
         tipoNode: 'CONCEITO',
         referenciaId: conceito.id,
-        posicaoX: 0,
-        posicaoY: 0,
       },
     });
     // "Estar num grafo" é a contenção — é ela que a vista lê.
@@ -75,7 +72,7 @@ describe('Graph positions (integration — neuralabs_test)', () => {
     ]);
     const conceito = await prisma.conceito.create({ data: { usuarioId: user.id, nome: 'C' } });
     const node = await prisma.nodeConhecimento.create({
-      data: { usuarioId: user.id, grafoId: a.id, tipoNode: 'CONCEITO', referenciaId: conceito.id },
+      data: { usuarioId: user.id, tipoNode: 'CONCEITO', referenciaId: conceito.id },
     });
     await prisma.grafoNode.createMany({
       data: [

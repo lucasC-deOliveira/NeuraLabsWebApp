@@ -47,16 +47,18 @@ describe('Graph edges (integration — neuralabs_test)', () => {
     const grafo = await prisma.grafosConhecimento.create({
       data: { usuarioId: user.id, nome: 'G' },
     });
-    await prisma.nodeConhecimento.create({
-      data: { usuarioId: user.id, grafoId: grafo.id, tipoNode: 'NOTA', referenciaId: 'nota-ref' },
+    const nota = await prisma.nodeConhecimento.create({
+      data: { usuarioId: user.id, tipoNode: 'NOTA', referenciaId: 'nota-ref' },
     });
-    await prisma.nodeConhecimento.create({
-      data: {
-        usuarioId: user.id,
-        grafoId: grafo.id,
-        tipoNode: 'CONCEITO',
-        referenciaId: 'conceito-ref',
-      },
+    const conceito = await prisma.nodeConhecimento.create({
+      data: { usuarioId: user.id, tipoNode: 'CONCEITO', referenciaId: 'conceito-ref' },
+    });
+    // Ligar dois nós exige que o grafo os CONTENHA — é o que ele enxerga.
+    await prisma.grafoNode.createMany({
+      data: [
+        { grafoId: grafo.id, nodeId: nota.id },
+        { grafoId: grafo.id, nodeId: conceito.id },
+      ],
     });
     return { userId: user.id, grafoId: grafo.id };
   }
@@ -73,7 +75,14 @@ describe('Graph edges (integration — neuralabs_test)', () => {
     const { userId, grafoId } = await seedGraphWithTwoNodes();
     const res = await createEdge.execute(define(userId, grafoId));
     expect(res.edgeId).toBeTruthy();
-    expect(await prisma.conhecimentoAresta.count({ where: { grafoId } })).toBe(1);
+    expect(
+      await prisma.conhecimentoAresta.count({
+        where: {
+          nodeOrigem: { contidoEm: { some: { grafoId } } },
+          nodeDestino: { contidoEm: { some: { grafoId } } },
+        },
+      }),
+    ).toBe(1);
   });
 
   it('rejects a duplicate edge', async () => {
@@ -88,6 +97,13 @@ describe('Graph edges (integration — neuralabs_test)', () => {
     const { userId, grafoId } = await seedGraphWithTwoNodes();
     const { edgeId } = await createEdge.execute(define(userId, grafoId));
     await deleteEdge.execute(userId, grafoId, edgeId);
-    expect(await prisma.conhecimentoAresta.count({ where: { grafoId } })).toBe(0);
+    expect(
+      await prisma.conhecimentoAresta.count({
+        where: {
+          nodeOrigem: { contidoEm: { some: { grafoId: grafoId } } },
+          nodeDestino: { contidoEm: { some: { grafoId: grafoId } } },
+        },
+      }),
+    ).toBe(0);
   });
 });

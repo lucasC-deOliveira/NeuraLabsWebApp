@@ -57,25 +57,23 @@ describe('cardImportanceByOwner', () => {
     expect(out.size).toBe(0);
   });
 
-  // A importância é normalizada por grafo: o mesmo conceito em outro grafo é outra
-  // entrada, e a chave leva o grafo justamente para não misturar as escalas.
-  it('keeps graphs apart, so the same concept in another graph is another entry', () => {
-    const doisGrafos = new Map([
-      ['c1', 'g1:dijkstra'],
-      ['c9', 'g2:dijkstra'],
+  // O conceito é UM só, em qualquer grafo: a escala é global por usuário. Antes a
+  // chave levava o grafo (`g1:dijkstra`), porque o nó pertencia a um grafo e a
+  // importância era normalizada dentro dele — com o nó do sistema isso caiu.
+  it('gives the same weight to a concept no matter which graph shows it', () => {
+    const mesmoConceito = new Map([
+      ['c1', 'dijkstra'],
+      ['c9', 'dijkstra'],
     ]);
-    const pesos = new Map([
-      ['g1:dijkstra', 0.9],
-      ['g2:dijkstra', 0.2],
-    ]);
+    const pesos = new Map([['dijkstra', 0.9]]);
     const out = cardImportanceByOwner(
       [pair('n1', 'c1'), pair('n2', 'c9')],
       donos,
-      doisGrafos,
+      mesmoConceito,
       pesos,
     );
     expect(out.get('fc-1')).toBe(0.9);
-    expect(out.get('fc-2')).toBe(0.2);
+    expect(out.get('fc-2')).toBe(0.9);
   });
 
   it('has nothing to say about an empty graph', () => {

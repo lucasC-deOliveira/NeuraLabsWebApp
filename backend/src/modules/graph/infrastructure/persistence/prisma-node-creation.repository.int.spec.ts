@@ -57,7 +57,7 @@ describe('Node creation (integration — neuralabs_test)', () => {
       nome: 'Mitose',
     });
     const link = await prisma.nodeConhecimento.findFirst({
-      where: { grafoId, referenciaId: nodeId },
+      where: { referenciaId: nodeId, contidoEm: { some: { grafoId } } },
     });
     expect(link?.tipoNode).toBe('CONCEITO');
   });

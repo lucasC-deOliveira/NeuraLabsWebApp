@@ -16,7 +16,7 @@ export class PrismaNodeContentSearchQuery implements NodeContentSearchQuery {
 
   async matchingNodeRefs(userId: string, grafoId: string, term: string): Promise<string[]> {
     const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
+      where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
       select: { referenciaId: true, tipoNode: true },
     });
     const byType: Record<string, string[]> = {};

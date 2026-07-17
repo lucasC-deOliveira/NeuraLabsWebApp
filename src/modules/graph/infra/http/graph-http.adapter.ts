@@ -57,6 +57,7 @@ import {
   listBaralhosInGrafo,
   populateGraphFromBaralho,
   expandNode,
+  classifyFlashcard,
   planGraphFromEdital,
   buildGraphFromEdital,
   rankGraphImportance,
@@ -106,6 +107,7 @@ import type {
   GenerateGraphResult,
   BaralhoItem,
   PopulateFromBaralhoResult,
+  ClassifyFlashcardResult,
   EditalBuildResult,
   RankedConceitoView,
   TokenUsageView,
@@ -200,6 +202,10 @@ export class HttpGraphAdapter
     return expandNode(grafoId, nodeId);
   }
 
+  classifyFlashcard(grafoId: string, nodeId: string): Promise<ClassifyFlashcardResult> {
+    return classifyFlashcard(grafoId, nodeId);
+  }
+
   listUserGraphs(params?: GraphListParams): Promise<GraphListResult> {
     return listUserGraphs(params);
   }
@@ -212,8 +218,8 @@ export class HttpGraphAdapter
     return createGrafo(nome, descricao);
   }
 
-  deleteGrafo(grafoId: string, options?: { keepTypes?: string[] }): Promise<void> {
-    return deleteGrafo(grafoId, options);
+  deleteGrafo(grafoId: string): Promise<void> {
+    return deleteGrafo(grafoId);
   }
 
   getGraphNodes(grafoId?: string): Promise<{ nodes: GraphNodeType[]; edges: GraphEdgeType[] }> {

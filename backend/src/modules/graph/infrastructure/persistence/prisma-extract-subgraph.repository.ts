@@ -23,22 +23,36 @@ export class PrismaExtractSubgraphRepository implements ExtractSubgraphRepositor
     return parent !== null;
   }
 
-  findExtractableNodes(
+  // A posição vem da contenção no PAI: é de lá que o nó está saindo, e é lá que
+  // ele tem coordenadas.
+  async findExtractableNodes(
     userId: string,
     parentGrafoId: string,
     referenciaIds: string[],
   ): Promise<ExtractableNode[]> {
-    return this.prisma.nodeConhecimento.findMany({
-      where: { grafoId: parentGrafoId, usuarioId: userId, referenciaId: { in: referenciaIds } },
-      select: { id: true, posicaoX: true, posicaoY: true },
+    const noPai = { grafoId: parentGrafoId };
+    const nodes = await this.prisma.nodeConhecimento.findMany({
+      where: { usuarioId: userId, referenciaId: { in: referenciaIds }, contidoEm: { some: noPai } },
+      select: {
+        id: true,
+        contidoEm: { where: noPai, select: { posicaoX: true, posicaoY: true } },
+      },
     });
+    return nodes.map(({ id, contidoEm }) => ({
+      id,
+      posicaoX: contidoEm[0]?.posicaoX ?? null,
+      posicaoY: contidoEm[0]?.posicaoY ?? null,
+    }));
   }
 
+  // Arestas que tocam os nós escolhidos, dentro da vista do pai.
   findEdgesTouching(parentGrafoId: string, nodeRowIds: string[]): Promise<ExtractEdge[]> {
+    const noPai = { contidoEm: { some: { grafoId: parentGrafoId } } };
     return this.prisma.conhecimentoAresta.findMany({
       where: {
-        grafoId: parentGrafoId,
         OR: [{ nodeOrigemId: { in: nodeRowIds } }, { nodeDestinoId: { in: nodeRowIds } }],
+        nodeOrigem: noPai,
+        nodeDestino: noPai,
       },
       select: { id: true, nodeOrigemId: true, nodeDestinoId: true },
     });
@@ -75,11 +89,6 @@ export class PrismaExtractSubgraphRepository implements ExtractSubgraphRepositor
       await containNode(tx, childId, nodeRowId, atual?.posicaoX, atual?.posicaoY);
       await releaseNode(tx, c.parentGrafoId, nodeRowId);
     }
-    // Modelo antigo (id_grafo), ainda lido por importância/roadmap/deleção: sai na fase 5.
-    await tx.nodeConhecimento.updateMany({
-      where: { id: { in: c.nodeRowIds } },
-      data: { grafoId: childId },
-    });
     const refNodeId = await this.createRefNode(tx, c, childId);
     await this.rewireEdges(tx, c, refNodeId);
   }

@@ -48,7 +48,6 @@ describe('PrismaEditalRepository (integration — neuralabs_test)', () => {
     await prisma.nodeConhecimento.create({
       data: {
         usuarioId: user.id,
-        grafoId: grafo.id,
         tipoNode: 'CONCEITO',
         referenciaId: conceito.id,
       },
@@ -67,13 +66,13 @@ describe('PrismaEditalRepository (integration — neuralabs_test)', () => {
     });
 
     const editalNode = await prisma.nodeConhecimento.findFirst({
-      where: { grafoId, tipoNode: 'EDITAL', referenciaId: editalId },
+      where: { tipoNode: 'EDITAL', referenciaId: editalId, contidoEm: { some: { grafoId } } },
     });
     const conceitoNode = await prisma.nodeConhecimento.findFirst({
-      where: { grafoId, tipoNode: 'CONCEITO', referenciaId: conceitoId },
+      where: { tipoNode: 'CONCEITO', referenciaId: conceitoId, contidoEm: { some: { grafoId } } },
     });
     const edges = await prisma.conhecimentoAresta.findMany({
-      where: { grafoId, tipoRelacao: 'COBRE', nodeOrigemId: editalNode!.id },
+      where: { tipoRelacao: 'COBRE', nodeOrigemId: editalNode!.id },
     });
     expect(edges).toHaveLength(1);
     expect(edges[0].nodeDestinoId).toBe(conceitoNode!.id);

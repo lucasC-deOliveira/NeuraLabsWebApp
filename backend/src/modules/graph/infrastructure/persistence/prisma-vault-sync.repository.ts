@@ -108,16 +108,30 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     n: VaultNode,
   ): Promise<boolean> {
     const existing = await tx.nodeConhecimento.findFirst({
-      where: { grafoId, referenciaId: n.ref, usuarioId: userId },
+      where: { referenciaId: n.ref, usuarioId: userId, contidoEm: { some: { grafoId } } },
       select: { id: true },
     });
-    if (existing) {
-      await tx.nodeConhecimento.update({ where: { id: existing.id }, data: linkData(n) });
-      await containNode(tx, grafoId, existing.id);
-      return true;
+    if (!existing) {
+      await this.createNodeLink(tx, userId, grafoId, n);
+      return false;
     }
-    await this.createNodeLink(tx, userId, grafoId, n);
-    return false;
+    await this.updateNodeLink(tx, grafoId, existing.id, n);
+    return true;
+  }
+
+  private async updateNodeLink(
+    tx: Tx,
+    grafoId: string,
+    nodeId: string,
+    n: VaultNode,
+  ): Promise<void> {
+    const dados = linkData(n);
+    // O nó guarda o domínio (é do usuário); a posição do .md é desta vista.
+    await tx.nodeConhecimento.update({
+      where: { id: nodeId },
+      data: { nivelDominio: dados.nivelDominio },
+    });
+    await containNode(tx, grafoId, nodeId, dados.posicaoX, dados.posicaoY);
   }
 
   private async createNodeLink(
@@ -180,7 +194,6 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
   private createEdge(tx: Tx, grafoId: string, e: PlannedEdge): Promise<unknown> {
     return tx.conhecimentoAresta.create({
       data: {
-        grafoId,
         nodeOrigemId: e.nodeOrigemId,
         nodeDestinoId: e.nodeDestinoId,
         tipoRelacao: e.relacao as TipoRelacao,

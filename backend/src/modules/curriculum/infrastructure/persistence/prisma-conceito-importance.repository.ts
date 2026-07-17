@@ -16,18 +16,23 @@ interface ConceitoNode {
 export class PrismaConceitoImportanceRepository implements ConceitoImportanceSource {
   constructor(private readonly prisma: PrismaService) {}
 
-  async load(userId: string, grafoId: string, provaId?: string): Promise<ImportanceRow[]> {
-    const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId, tipoNode: TipoNode.CONCEITO },
-      select: { id: true, referenciaId: true },
-    });
+  /**
+   * Linhas de importância dos conceitos. Sem `grafoId`, ranqueia TODOS os conceitos
+   * do usuário numa escala só — é o que a sessão de estudo quer, já que o card não
+   * pertence mais a um grafo. Com `grafoId`, só os daquela vista (o roadmap é de um
+   * grafo).
+   * @example load('u1') // global | load('u1', 'g1') // só a vista g1
+   */
+  async load(userId: string, grafoId?: string, provaId?: string): Promise<ImportanceRow[]> {
+    const nodes = await this.conceitoNodes(userId, grafoId);
     if (nodes.length === 0) return [];
     const nodeIds = nodes.map((n) => n.id);
-    const origem = provaId ? await this.provaQuestionNodeIds(grafoId, provaId) : undefined;
+    const origem =
+      grafoId && provaId ? await this.provaQuestionNodeIds(grafoId, provaId) : undefined;
     const [nome, parentTopico, provaFreq] = await Promise.all([
       this.conceitoNames(nodes),
-      this.parentTopicoRefs(grafoId, nodeIds),
-      this.testaCounts(grafoId, nodeIds, origem),
+      this.parentTopicoRefs(nodeIds),
+      this.testaCounts(nodeIds, origem),
     ]);
     return nodes.map((n) => ({
       conceitoId: n.referenciaId,
@@ -35,6 +40,17 @@ export class PrismaConceitoImportanceRepository implements ConceitoImportanceSou
       topicoId: parentTopico.get(n.id) ?? null,
       provaFreq: provaFreq.get(n.id) ?? 0,
     }));
+  }
+
+  private conceitoNodes(userId: string, grafoId?: string): Promise<ConceitoNode[]> {
+    return this.prisma.nodeConhecimento.findMany({
+      where: {
+        usuarioId: userId,
+        tipoNode: TipoNode.CONCEITO,
+        ...(grafoId ? { contidoEm: { some: { grafoId } } } : {}),
+      },
+      select: { id: true, referenciaId: true },
+    });
   }
 
   // QUESTION node ids of the given exam's questions, to scope the TESTA counts.
@@ -46,7 +62,11 @@ export class PrismaConceitoImportanceRepository implements ConceitoImportanceSou
     const questaoIds = links.map((l) => l.questaoId);
     if (questaoIds.length === 0) return [];
     const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, tipoNode: TipoNode.QUESTION, referenciaId: { in: questaoIds } },
+      where: {
+        tipoNode: TipoNode.QUESTION,
+        referenciaId: { in: questaoIds },
+        contidoEm: { some: { grafoId } },
+      },
       select: { id: true },
     });
     return nodes.map((n) => n.id);
@@ -61,9 +81,12 @@ export class PrismaConceitoImportanceRepository implements ConceitoImportanceSou
   }
 
   // Maps each concept node id to its parent TOPIC's referenciaId (via PERTENCE_A).
-  private async parentTopicoRefs(grafoId: string, nodeIds: string[]): Promise<Map<string, string>> {
+  //
+  // A aresta não é mais filtrada por grafo: os nós já delimitam o escopo, e a aresta
+  // é um fato entre eles, não propriedade de uma vista.
+  private async parentTopicoRefs(nodeIds: string[]): Promise<Map<string, string>> {
     const edges = await this.prisma.conhecimentoAresta.findMany({
-      where: { grafoId, tipoRelacao: TipoRelacao.PERTENCE_A, nodeOrigemId: { in: nodeIds } },
+      where: { tipoRelacao: TipoRelacao.PERTENCE_A, nodeOrigemId: { in: nodeIds } },
       select: { nodeOrigemId: true, nodeDestino: { select: { referenciaId: true } } },
     });
     const byNode = new Map<string, string>();
@@ -73,15 +96,16 @@ export class PrismaConceitoImportanceRepository implements ConceitoImportanceSou
     return byNode;
   }
 
+  // Quantas questões testam cada conceito. Sem filtro de grafo: uma questão de
+  // outro grafo que testa este conceito CONTA — é o fim do silo, e o ponto da
+  // migração.
   private async testaCounts(
-    grafoId: string,
     nodeIds: string[],
     origemNodeIds?: string[],
   ): Promise<Map<string, number>> {
     const groups = await this.prisma.conhecimentoAresta.groupBy({
       by: ['nodeDestinoId'],
       where: {
-        grafoId,
         tipoRelacao: TipoRelacao.TESTA,
         nodeDestinoId: { in: nodeIds },
         ...(origemNodeIds ? { nodeOrigemId: { in: origemNodeIds } } : {}),

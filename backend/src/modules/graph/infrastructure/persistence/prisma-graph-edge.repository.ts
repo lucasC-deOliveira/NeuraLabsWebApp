@@ -17,7 +17,7 @@ export class PrismaGraphEdgeRepository implements GraphEdgeRepository {
     referenciaId: string,
   ): Promise<GraphNodeRef | null> {
     const node = await this.prisma.nodeConhecimento.findFirst({
-      where: { referenciaId, usuarioId: userId, grafoId },
+      where: { referenciaId, usuarioId: userId, contidoEm: { some: { grafoId } } },
       select: { id: true, tipoNode: true },
     });
     return node ? { id: node.id, tipoNode: node.tipoNode } : null;
@@ -30,8 +30,8 @@ export class PrismaGraphEdgeRepository implements GraphEdgeRepository {
     tipoRelacao: string,
   ): Promise<boolean> {
     const dup = await this.prisma.conhecimentoAresta.findFirst({
+      // A aresta é única por (origem, destino, tipo) — o grafo nunca entrou nessa chave.
       where: {
-        grafoId,
         nodeOrigemId: sourceNodeId,
         nodeDestinoId: targetNodeId,
         tipoRelacao: tipoRelacao as TipoRelacao,
@@ -44,7 +44,6 @@ export class PrismaGraphEdgeRepository implements GraphEdgeRepository {
   async createEdge(data: CreateEdgeData): Promise<{ id: string }> {
     const edge = await this.prisma.conhecimentoAresta.create({
       data: {
-        grafoId: data.grafoId,
         nodeOrigemId: data.sourceNodeId,
         nodeDestinoId: data.targetNodeId,
         tipoRelacao: data.tipoRelacao as TipoRelacao,
@@ -61,7 +60,8 @@ export class PrismaGraphEdgeRepository implements GraphEdgeRepository {
     userId: string,
   ): Promise<{ id: string } | null> {
     const edge = await this.prisma.conhecimentoAresta.findFirst({
-      where: { id: edgeId, grafoId, nodeOrigem: { usuarioId: userId } },
+      // A aresta é do usuário (pelas pontas); o grafo é só quem a exibe.
+      where: { id: edgeId, nodeOrigem: { usuarioId: userId, contidoEm: { some: { grafoId } } } },
       select: { id: true },
     });
     return edge ? { id: edge.id } : null;

@@ -9,7 +9,7 @@ export class PrismaDuplicateMergeRepository implements DuplicateMergeRepository 
 
   async findNodeLinkId(userId: string, grafoId: string, refId: string): Promise<string | null> {
     const nc = await this.prisma.nodeConhecimento.findFirst({
-      where: { grafoId, usuarioId: userId, referenciaId: refId },
+      where: { usuarioId: userId, referenciaId: refId, contidoEm: { some: { grafoId } } },
       select: { id: true },
     });
     return nc?.id ?? null;

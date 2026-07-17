@@ -38,15 +38,10 @@ describe('Subgraph extraction (integration — neuralabs_test)', () => {
   let seq = 0;
   async function seedNode(userId: string, grafoId: string, referenciaId: string): Promise<string> {
     const node = await prisma.nodeConhecimento.create({
-      data: {
-        usuarioId: userId,
-        grafoId,
-        tipoNode: 'CONCEITO',
-        referenciaId,
-        posicaoX: 0,
-        posicaoY: 0,
-      },
+      data: { usuarioId: userId, tipoNode: 'CONCEITO', referenciaId },
     });
+    // A posição é da vista: mora na contenção.
+    await prisma.grafoNode.create({ data: { grafoId, nodeId: node.id, posicaoX: 0, posicaoY: 0 } });
     return node.id;
   }
 
@@ -61,7 +56,6 @@ describe('Subgraph extraction (integration — neuralabs_test)', () => {
     const outer = await seedNode(user.id, parent.id, 'ref-outer');
     const edge = await prisma.conhecimentoAresta.create({
       data: {
-        grafoId: parent.id,
         nodeOrigemId: inner,
         nodeDestinoId: outer,
         tipoRelacao: 'RELACIONADO',
@@ -75,10 +69,15 @@ describe('Subgraph extraction (integration — neuralabs_test)', () => {
     });
 
     expect(res).toMatchObject({ movedCount: 1, rewiredEdgeCount: 1 });
-    const movedNode = await prisma.nodeConhecimento.findUnique({ where: { id: inner } });
-    expect(movedNode?.grafoId).toBe(res.grafoId);
+    // 'Mover' virou trocar a contenção: o filho passa a conter, o pai solta. O nó
+    // é o mesmo — ele não pertence a grafo nenhum.
+    const vistas = await prisma.grafoNode.findMany({
+      where: { nodeId: inner },
+      select: { grafoId: true },
+    });
+    expect(vistas.map((v) => v.grafoId)).toEqual([res.grafoId]);
     const ref = await prisma.nodeConhecimento.findFirst({
-      where: { grafoId: parent.id, tipoNode: 'GRAFO_REF' },
+      where: { tipoNode: 'GRAFO_REF', contidoEm: { some: { grafoId: parent.id } } },
     });
     const rewired = await prisma.conhecimentoAresta.findUnique({ where: { id: edge.id } });
     expect(rewired?.nodeOrigemId).toBe(ref?.id);

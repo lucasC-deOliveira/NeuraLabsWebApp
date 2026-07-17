@@ -39,9 +39,10 @@ describe('Graph export (integration — neuralabs_test)', () => {
 
   it('returns the graph header and its node rows', async () => {
     const { userId, grafoId } = await seedGraph();
-    await prisma.nodeConhecimento.create({
-      data: { usuarioId: userId, grafoId, tipoNode: 'CONCEITO', referenciaId: 'c1', posicaoX: 5 },
+    const node = await prisma.nodeConhecimento.create({
+      data: { usuarioId: userId, tipoNode: 'CONCEITO', referenciaId: 'c1' },
     });
+    await prisma.grafoNode.create({ data: { grafoId, nodeId: node.id, posicaoX: 5 } });
 
     expect(await repo.findGraph(grafoId, userId)).toEqual({ id: grafoId, nome: 'Bio' });
     const rows = await repo.listNodes(grafoId, userId);

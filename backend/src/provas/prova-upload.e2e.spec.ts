@@ -136,11 +136,16 @@ describe('provas routes (e2e)', () => {
     ]);
 
     const questionNodes = await prisma.nodeConhecimento.findMany({
-      where: { grafoId: grafo.id, tipoNode: 'QUESTION' },
+      where: { tipoNode: 'QUESTION', contidoEm: { some: { grafoId: grafo.id } } },
     });
     expect(questionNodes).toHaveLength(1);
 
-    const edges = await prisma.conhecimentoAresta.findMany({ where: { grafoId: grafo.id } });
+    const edges = await prisma.conhecimentoAresta.findMany({
+      where: {
+        nodeOrigem: { contidoEm: { some: { grafoId: grafo.id } } },
+        nodeDestino: { contidoEm: { some: { grafoId: grafo.id } } },
+      },
+    });
     expect(edges).toHaveLength(2);
     expect(edges.every((e) => e.tipoRelacao === 'TESTA')).toBe(true);
   });

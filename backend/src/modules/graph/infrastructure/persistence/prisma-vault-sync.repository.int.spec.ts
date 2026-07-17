@@ -57,7 +57,14 @@ describe('Vault sync (integration — neuralabs_test)', () => {
 
     expect(res).toMatchObject({ created: 2, edges: 1, removed: 0 });
     expect(await prisma.conceito.count()).toBe(2);
-    expect(await prisma.conhecimentoAresta.count({ where: { grafoId } })).toBe(1);
+    expect(
+      await prisma.conhecimentoAresta.count({
+        where: {
+          nodeOrigem: { contidoEm: { some: { grafoId } } },
+          nodeDestino: { contidoEm: { some: { grafoId } } },
+        },
+      }),
+    ).toBe(1);
   });
 
   // Sumir da pasta = "não está mais NESTE grafo", nunca "deixou de existir". Antes

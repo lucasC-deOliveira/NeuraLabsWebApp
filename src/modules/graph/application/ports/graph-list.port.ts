@@ -6,5 +6,5 @@ export interface GraphListPort {
   listUserGraphs(params?: GraphListParams): Promise<GraphListResult>;
   listGraphAssuntos(): Promise<GraphAssunto[]>;
   createGrafo(nome: string, descricao?: string): Promise<{ id: string }>;
-  deleteGrafo(grafoId: string, options?: { keepTypes?: string[] }): Promise<void>;
+  deleteGrafo(grafoId: string): Promise<void>;
 }

@@ -280,6 +280,11 @@ export function expandNode(
   return apiFetch(`/ai/graph/graphs/${grafoId}/nodes/${nodeId}/expand`, { method: "POST" });
 }
 
+export interface ClassifyFlashcardResult { conceitos: number; linked: number; }
+export function classifyFlashcard(grafoId: string, nodeId: string): Promise<ClassifyFlashcardResult> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/nodes/${nodeId}/classify-flashcard`, { method: "POST" });
+}
+
 // ── Resumo de comunidade ───────────────────────────────────────────────────
 export function generateCommunitySummary(
   grafoId: string,

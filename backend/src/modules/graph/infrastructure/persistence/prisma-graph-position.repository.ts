@@ -5,8 +5,7 @@ import type { GraphPositionRepository } from '../../domain/ports/graph-position-
 import type { PositionUpdate } from '../../domain/services/position-plan';
 
 // Move o nó NESTA vista. A posição vive na contenção porque é dela: arrastar um nó
-// no grafo A não pode movê-lo no grafo B. O nó também é atualizado enquanto a
-// coluna existir (modelo antigo, sai na fase 5).
+// no grafo A não pode movê-lo no grafo B.
 async function moveNode(
   tx: Prisma.TransactionClient,
   userId: string,
@@ -21,10 +20,10 @@ async function moveNode(
   };
   const nos = await tx.nodeConhecimento.findMany({ where, select: { id: true } });
   if (nos.length === 0) return;
-  const nodeId = { in: nos.map((n) => n.id) };
-  const posicao = { posicaoX: u.x, posicaoY: u.y };
-  await tx.grafoNode.updateMany({ where: { grafoId, nodeId }, data: posicao });
-  await tx.nodeConhecimento.updateMany({ where: { id: nodeId }, data: posicao });
+  await tx.grafoNode.updateMany({
+    where: { grafoId, nodeId: { in: nos.map((n) => n.id) } },
+    data: { posicaoX: u.x, posicaoY: u.y },
+  });
 }
 
 @Injectable()
