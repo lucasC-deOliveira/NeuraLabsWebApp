@@ -24,6 +24,7 @@ import { GapDetectionModal } from "@/modules/graph/presentation/components/ai/Ga
 import { GenerateGraphModal } from "@/modules/graph/presentation/components/ai/GenerateGraphModal";
 import { LinkEditalProvaModal } from "@/modules/graph/presentation/components/ai/LinkEditalProvaModal";
 import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLinkModal";
+import { ClassifyDeckModal } from "@/modules/graph/presentation/components/ai/ClassifyDeckModal";
 import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/DuplicatesModal";
 import { CommunitySummaryModal } from "@/modules/graph/presentation/components/ai/CommunitySummaryModal";
 import { MissingPrereqsModal } from "@/modules/graph/presentation/components/ai/MissingPrereqsModal";
@@ -132,6 +133,8 @@ export default function GraphPage() {
   const [generateGraphOpen, setGenerateGraphOpen] = useState(false);
   // IA automática
   const [autoLinkOpen, setAutoLinkOpen] = useState(false);
+  // Classificação do acervo em lotes (Fase 6): id do baralho em classificação.
+  const [classifyDeckId, setClassifyDeckId] = useState<string | null>(null);
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [missingPrereqsOpen, setMissingPrereqsOpen] = useState(false);
   const [communitySummary, setCommunitySummary] = useState<{ label: string; nodeIds: string[] } | null>(null);
@@ -1265,6 +1268,18 @@ export default function GraphPage() {
                 {expandActionFor(nodeMenu.node?.group)?.label}
               </button>
             )}
+            {nodeMenu.node?.group === "BARALHO" && (
+              <button
+                className="w-full px-3 py-1.5 text-sm text-left font-medium text-violet-600 dark:text-violet-400 hover:bg-accent hover:text-accent-foreground"
+                onClick={() => {
+                  const deckId = nodeMenu.node.id;
+                  setNodeMenu(null);
+                  openAiTool(() => setClassifyDeckId(deckId));
+                }}
+              >
+                Classificar acervo (lotes)
+              </button>
+            )}
             <button
               className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
               onClick={() => { const g = nodeMenu.node?.group; setNodeMenu(null); if (g) selectAllOfType(g); }}
@@ -1517,6 +1532,13 @@ export default function GraphPage() {
         onOpenChange={setAutoLinkOpen}
         grafoId={graphId}
         onApplied={finishAiWrite("Auto-conectar nós")}
+      />
+      <ClassifyDeckModal
+        open={!!classifyDeckId}
+        onOpenChange={(open) => { if (!open) setClassifyDeckId(null); }}
+        grafoId={graphId}
+        baralhoId={classifyDeckId ?? ""}
+        onApplied={finishAiWrite("Classificar acervo do baralho")}
       />
       <DuplicatesModal
         open={duplicatesOpen}

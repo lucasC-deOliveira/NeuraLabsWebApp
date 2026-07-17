@@ -176,6 +176,42 @@ export function populateGraphFromBaralho(grafoId: string, baralhoId: string): Pr
   return apiFetch(`/ai/graph/graphs/${grafoId}/baralhos/${baralhoId}/populate`, { method: "POST" });
 }
 
+// ── Classificação do acervo em lotes (Fase 6) ──────────────────────────────
+export interface ClassificationPlanConcept { nome: string; topico: string; descricao: string; flashcardIds: string[]; }
+export interface ClassificationPlanPayload {
+  assuntos: Array<{ nome: string; descricao: string }>;
+  topicos: Array<{ nome: string; assunto: string; descricao: string }>;
+  conceitos: ClassificationPlanConcept[];
+}
+export interface DeckClassificationChunkResult {
+  baralhoNome: string;
+  totalCards: number;
+  classifiedCards: number;
+  chunkCards: Array<{ id: string; pergunta: string; resposta: string }>;
+  plan: ClassificationPlanPayload | null; // null = baralho todo classificado
+}
+export interface ApplyClassificationResult { assuntos: number; topicos: number; conceitos: number; linkedCards: number; }
+export function planDeckClassificationChunk(
+  grafoId: string,
+  baralhoId: string,
+  chunkSize?: number,
+): Promise<DeckClassificationChunkResult> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/baralhos/${baralhoId}/classification/plan`, {
+    method: "POST",
+    body: JSON.stringify({ chunkSize }),
+  });
+}
+export function applyDeckClassificationChunk(
+  grafoId: string,
+  baralhoId: string,
+  plan: ClassificationPlanPayload,
+): Promise<ApplyClassificationResult> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/baralhos/${baralhoId}/classification/apply`, {
+    method: "POST",
+    body: JSON.stringify({ plan }),
+  });
+}
+
 export function addInsightsToGraph(
   grafoId: string,
   sourceNodeId: string,
