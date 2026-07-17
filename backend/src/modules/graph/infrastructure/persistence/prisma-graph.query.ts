@@ -43,7 +43,10 @@ function buildWhere(userId: string, query: GraphListQuery): Prisma.GrafosConheci
   const created = dateRange(query.createdFrom, query.createdTo);
   if (created) where.dataCriacao = created;
   if (query.assuntoIds?.length)
-    where.nodes = { some: { tipoNode: TipoNode.ASSUNTO, referenciaId: { in: query.assuntoIds } } };
+    // Filtrar grafo por assunto = o grafo CONTÉM um nó daquele assunto.
+    where.grafoNodes = {
+      some: { node: { tipoNode: TipoNode.ASSUNTO, referenciaId: { in: query.assuntoIds } } },
+    };
   return where;
 }
 
@@ -149,6 +152,27 @@ export class PrismaGraphQuery implements GraphQuery {
     return { items, total, page: query.page, pageSize: query.pageSize };
   }
 
+  // Um assunto pode estar em VÁRIOS dos grafos pedidos (o nó é do sistema; o grafo
+  // só o contém), então cada par (grafo, assunto) vira uma linha — que é a forma
+  // que groupAssuntos espera.
+  private async assuntoNodesOf(
+    userId: string,
+    graphIds: string[],
+  ): Promise<{ id: string; grafoId: string; referenciaId: string }[]> {
+    const emAlgum = { grafoId: { in: graphIds } };
+    const rows = await this.prisma.nodeConhecimento.findMany({
+      where: { usuarioId: userId, tipoNode: TipoNode.ASSUNTO, contidoEm: { some: emAlgum } },
+      select: {
+        id: true,
+        referenciaId: true,
+        contidoEm: { where: emAlgum, select: { grafoId: true } },
+      },
+    });
+    return rows.flatMap((n) =>
+      n.contidoEm.map((c) => ({ id: n.id, grafoId: c.grafoId, referenciaId: n.referenciaId })),
+    );
+  }
+
   // Tags de assunto (nós ASSUNTO → nome da entidade Assunto) por grafo da página,
   // já com o peso de prioridade derivado das conexões de cada nó.
   private async assuntosByGraph(
@@ -156,10 +180,7 @@ export class PrismaGraphQuery implements GraphQuery {
     graphIds: string[],
   ): Promise<Map<string, GraphAssunto[]>> {
     if (graphIds.length === 0) return new Map();
-    const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: { usuarioId: userId, grafoId: { in: graphIds }, tipoNode: TipoNode.ASSUNTO },
-      select: { id: true, grafoId: true, referenciaId: true },
-    });
+    const nodes = await this.assuntoNodesOf(userId, graphIds);
     const [names, weights] = await Promise.all([
       this.assuntoNames(
         userId,
@@ -193,7 +214,7 @@ export class PrismaGraphQuery implements GraphQuery {
 
   async listAssuntos(userId: string): Promise<GraphAssunto[]> {
     const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: { usuarioId: userId, grafoId: { not: null }, tipoNode: TipoNode.ASSUNTO },
+      where: { usuarioId: userId, tipoNode: TipoNode.ASSUNTO, contidoEm: { some: {} } },
       distinct: ['referenciaId'],
       select: { referenciaId: true },
     });

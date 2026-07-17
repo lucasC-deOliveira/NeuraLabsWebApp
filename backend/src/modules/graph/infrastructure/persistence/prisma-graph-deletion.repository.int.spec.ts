@@ -10,6 +10,7 @@ import { DeleteNodeUseCase } from '../../application/use-cases/delete-node.use-c
 // shared-entity rule.
 
 const TABLES = [
+  '"grafo_nodes"',
   '"ConhecimentoAresta"',
   '"NodeConhecimento"',
   '"conceitos"',
@@ -51,9 +52,10 @@ describe('Graph deletion (integration — neuralabs_test)', () => {
 
   async function linkConcept(userId: string, grafoId: string, nome: string): Promise<string> {
     const conceito = await prisma.conceito.create({ data: { usuarioId: userId, nome } });
-    await prisma.nodeConhecimento.create({
-      data: { usuarioId: userId, grafoId, tipoNode: 'CONCEITO', referenciaId: conceito.id },
+    const node = await prisma.nodeConhecimento.create({
+      data: { usuarioId: userId, tipoNode: 'CONCEITO', referenciaId: conceito.id },
     });
+    await prisma.grafoNode.create({ data: { grafoId, nodeId: node.id } });
     return conceito.id;
   }
 
@@ -71,7 +73,10 @@ describe('Graph deletion (integration — neuralabs_test)', () => {
     expect(await prisma.nodeConhecimento.count()).toBe(0);
   });
 
-  it('deletes the graph and its owned concepts', async () => {
+  // A decisão: apagar o grafo apaga a VISTA. Antes este teste afirmava o oposito
+  // ("deletes the graph and its owned concepts") — o grafo levava o conteúdo junto,
+  // e um card classificado sumia porque você apagou uma vista dele.
+  it('deletes the view, keeping the nodes and their entities', async () => {
     const userId = await seedUser();
     const grafo = await prisma.grafosConhecimento.create({
       data: { usuarioId: userId, nome: 'G' },
@@ -79,26 +84,37 @@ describe('Graph deletion (integration — neuralabs_test)', () => {
     await linkConcept(userId, grafo.id, 'C1');
     await linkConcept(userId, grafo.id, 'C2');
 
-    await deleteGraph.execute(userId, grafo.id, []);
+    await deleteGraph.execute(userId, grafo.id);
 
     expect(await prisma.grafosConhecimento.count()).toBe(0);
-    expect(await prisma.conceito.count()).toBe(0);
+    // A vista some…
+    expect(await prisma.grafoNode.count()).toBe(0);
+    // …e o conteúdo fica.
+    expect(await prisma.conceito.count()).toBe(2);
+    expect(await prisma.nodeConhecimento.count()).toBe(2);
   });
 
-  it('keeps an entity shared with another graph (only unlinks it)', async () => {
+  it('leaves the other graphs of a shared node untouched', async () => {
     const userId = await seedUser();
     const g1 = await prisma.grafosConhecimento.create({ data: { usuarioId: userId, nome: 'G1' } });
     const g2 = await prisma.grafosConhecimento.create({ data: { usuarioId: userId, nome: 'G2' } });
     const conceito = await prisma.conceito.create({ data: { usuarioId: userId, nome: 'Shared' } });
-    for (const grafoId of [g1.id, g2.id]) {
-      await prisma.nodeConhecimento.create({
-        data: { usuarioId: userId, grafoId, tipoNode: 'CONCEITO', referenciaId: conceito.id },
-      });
-    }
+    // Um nó só, contido pelos dois grafos — o ponto do nó ser do sistema.
+    const node = await prisma.nodeConhecimento.create({
+      data: { usuarioId: userId, tipoNode: 'CONCEITO', referenciaId: conceito.id },
+    });
+    await prisma.grafoNode.createMany({
+      data: [
+        { grafoId: g1.id, nodeId: node.id },
+        { grafoId: g2.id, nodeId: node.id },
+      ],
+    });
 
-    await deleteGraph.execute(userId, g1.id, []);
+    await deleteGraph.execute(userId, g1.id);
 
     expect(await prisma.conceito.count()).toBe(1);
     expect(await prisma.nodeConhecimento.count()).toBe(1);
+    const restantes = await prisma.grafoNode.findMany({ select: { grafoId: true } });
+    expect(restantes.map((r) => r.grafoId)).toEqual([g2.id]);
   });
 });

@@ -38,9 +38,10 @@ describe('Node content search query (integration — neuralabs_test)', () => {
     const nota = await prisma.nota.create({
       data: { usuarioId: user.id, titulo: 'N', conteudo: content },
     });
-    await prisma.nodeConhecimento.create({
-      data: { usuarioId: user.id, grafoId: grafo.id, tipoNode: 'NOTA', referenciaId: nota.id },
+    const node = await prisma.nodeConhecimento.create({
+      data: { usuarioId: user.id, tipoNode: 'NOTA', referenciaId: nota.id },
     });
+    await prisma.grafoNode.create({ data: { grafoId: grafo.id, nodeId: node.id } });
     return { userId: user.id, grafoId: grafo.id };
   }
 

@@ -48,7 +48,8 @@ describe('Graph repository (integration — neuralabs_test)', () => {
     const grafo = await prisma.grafosConhecimento.findUnique({ where: { id } });
     expect(grafo?.nome).toBe('Biology');
 
-    const nodeCount = await prisma.nodeConhecimento.count({ where: { grafoId: id } });
+    // O grafo nasce sem conter nada.
+    const nodeCount = await prisma.grafoNode.count({ where: { grafoId: id } });
     expect(nodeCount).toBe(0);
   });
 

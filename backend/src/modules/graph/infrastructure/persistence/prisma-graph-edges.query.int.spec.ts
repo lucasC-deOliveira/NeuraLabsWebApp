@@ -47,7 +47,6 @@ describe('Graph edges query (integration — neuralabs_test)', () => {
     const origem = await prisma.nodeConhecimento.create({
       data: {
         usuarioId: user.id,
-        grafoId: grafo.id,
         tipoNode: 'ASSUNTO',
         referenciaId: assunto.id,
       },
@@ -55,14 +54,19 @@ describe('Graph edges query (integration — neuralabs_test)', () => {
     const destino = await prisma.nodeConhecimento.create({
       data: {
         usuarioId: user.id,
-        grafoId: grafo.id,
         tipoNode: 'CONCEITO',
         referenciaId: conceito.id,
       },
     });
+    // A vista mostra a aresta quando contém as DUAS pontas.
+    await prisma.grafoNode.createMany({
+      data: [
+        { grafoId: grafo.id, nodeId: origem.id },
+        { grafoId: grafo.id, nodeId: destino.id },
+      ],
+    });
     await prisma.conhecimentoAresta.create({
       data: {
-        grafoId: grafo.id,
         nodeOrigemId: origem.id,
         nodeDestinoId: destino.id,
         tipoRelacao: 'CONTEM',

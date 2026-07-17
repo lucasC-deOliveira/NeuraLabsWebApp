@@ -27,7 +27,7 @@ export class PrismaAddProvaRepository implements AddProvaRepository {
   // render time from the exam's questions (see buildKnowledgeGraph).
   async linkProva(userId: string, grafoId: string, provaId: string): Promise<string> {
     const existing = await this.prisma.nodeConhecimento.findFirst({
-      where: { grafoId, tipoNode: 'PROVA', referenciaId: provaId },
+      where: { tipoNode: 'PROVA', referenciaId: provaId, contidoEm: { some: { grafoId } } },
       select: { id: true },
     });
     if (existing) {

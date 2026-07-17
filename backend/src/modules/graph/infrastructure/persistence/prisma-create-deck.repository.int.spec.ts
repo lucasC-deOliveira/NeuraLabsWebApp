@@ -62,7 +62,13 @@ describe('Deck creation (integration — neuralabs_test)', () => {
       titulo: 'Bio',
     });
     expect(
-      await prisma.conhecimentoAresta.count({ where: { grafoId, tipoRelacao: 'CONTEM' } }),
+      await prisma.conhecimentoAresta.count({
+        where: {
+          tipoRelacao: 'CONTEM',
+          nodeOrigem: { contidoEm: { some: { grafoId } } },
+          nodeDestino: { contidoEm: { some: { grafoId } } },
+        },
+      }),
     ).toBe(1);
   });
 

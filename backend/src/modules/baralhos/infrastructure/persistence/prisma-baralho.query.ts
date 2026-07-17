@@ -81,10 +81,16 @@ export class PrismaBaralhoQuery implements BaralhoQuery {
     baralhoIds: string[],
   ): Promise<Map<string, BaralhoOrigin[]>> {
     if (baralhoIds.length === 0) return new Map();
-    const nodes = await this.prisma.nodeConhecimento.findMany({
+    // As origens de um baralho são os grafos que o CONTÊM — podem ser vários, que é
+    // o que "origens" sempre quis dizer. Antes vinham da coluna id_grafo do nó, que
+    // só sabia apontar para um.
+    const rows = await this.prisma.nodeConhecimento.findMany({
       where: { usuarioId: userId, tipoNode: TipoNode.BARALHO, referenciaId: { in: baralhoIds } },
-      select: { referenciaId: true, grafoId: true },
+      select: { referenciaId: true, contidoEm: { select: { grafoId: true } } },
     });
+    const nodes = rows.flatMap((n) =>
+      n.contidoEm.map((c) => ({ referenciaId: n.referenciaId, grafoId: c.grafoId })),
+    );
     return groupBaralhoOrigins(nodes, await this.graphNames(nodes));
   }
 

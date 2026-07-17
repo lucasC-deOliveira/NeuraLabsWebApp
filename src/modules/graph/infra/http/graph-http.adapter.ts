@@ -212,8 +212,8 @@ export class HttpGraphAdapter
     return createGrafo(nome, descricao);
   }
 
-  deleteGrafo(grafoId: string, options?: { keepTypes?: string[] }): Promise<void> {
-    return deleteGrafo(grafoId, options);
+  deleteGrafo(grafoId: string): Promise<void> {
+    return deleteGrafo(grafoId);
   }
 
   getGraphNodes(grafoId?: string): Promise<{ nodes: GraphNodeType[]; edges: GraphEdgeType[] }> {

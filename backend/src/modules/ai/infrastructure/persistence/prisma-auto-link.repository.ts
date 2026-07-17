@@ -3,6 +3,7 @@ import { PrismaService } from '../../../../prisma/prisma.service';
 import type { AutoLinkData, AutoLinkRepository } from '../../domain/ports/auto-link-repository';
 import type { AutoLinkNode } from '../../domain/services/auto-link-suggestions';
 import { loadStructuralNodes, refIdsByType } from './structural-nodes';
+import { edgesOfGraph } from '../../../graph/infrastructure/persistence/node-containment';
 
 @Injectable()
 export class PrismaAutoLinkRepository implements AutoLinkRepository {
@@ -34,11 +35,11 @@ export class PrismaAutoLinkRepository implements AutoLinkRepository {
   private async loadExistingPairs(userId: string, grafoId: string): Promise<Set<string>> {
     const [edges, ncNodes] = await Promise.all([
       this.prisma.conhecimentoAresta.findMany({
-        where: { grafoId },
+        where: edgesOfGraph(grafoId),
         select: { nodeOrigemId: true, nodeDestinoId: true },
       }),
       this.prisma.nodeConhecimento.findMany({
-        where: { grafoId, usuarioId: userId },
+        where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
         select: { id: true, referenciaId: true },
       }),
     ]);

@@ -5,7 +5,8 @@ import type { ImportanceRow } from '../services/conceito-importance';
 // given, provaFreq counts only that exam's questions (a graph may have several
 // provas); otherwise every question's. Only the adapter knows the node/edge tables.
 export interface ConceitoImportanceSource {
-  load(userId: string, grafoId: string, provaId?: string): Promise<ImportanceRow[]>;
+  // Sem grafoId: todos os conceitos do usuário, numa escala só. Com: só os da vista.
+  load(userId: string, grafoId?: string, provaId?: string): Promise<ImportanceRow[]>;
 }
 
 export const CONCEITO_IMPORTANCE_SOURCE = Symbol('CONCEITO_IMPORTANCE_SOURCE');

@@ -62,7 +62,7 @@ export class PrismaClusterNodesRepository implements ClusterNodesRepository {
     nodeIds: string[],
   ): Promise<Record<string, string[]>> {
     const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId, referenciaId: { in: nodeIds } },
+      where: { usuarioId: userId, referenciaId: { in: nodeIds }, contidoEm: { some: { grafoId } } },
       select: { tipoNode: true, referenciaId: true },
     });
     const ids: Record<string, string[]> = {};

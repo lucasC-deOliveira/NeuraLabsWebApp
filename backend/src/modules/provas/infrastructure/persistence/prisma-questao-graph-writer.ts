@@ -79,8 +79,10 @@ export class PrismaQuestaoGraphWriter implements QuestaoGraphWriter {
     tipoNode: TipoNode,
     referenciaId: string,
   ): Promise<string> {
-    const where = { usuarioId: userId, grafoId, tipoNode, referenciaId };
-    const existing = await this.prisma.nodeConhecimento.findFirst({ where, select: { id: true } });
+    const existing = await this.prisma.nodeConhecimento.findFirst({
+      where: { usuarioId: userId, tipoNode, referenciaId, contidoEm: { some: { grafoId } } },
+      select: { id: true },
+    });
     // O nó pode existir sem a contenção (criado por um caminho antigo); garanti-la é
     // idempotente, e sem ela ele não apareceria na vista do grafo.
     if (existing) {
@@ -101,6 +103,6 @@ export class PrismaQuestaoGraphWriter implements QuestaoGraphWriter {
       select: { id: true },
     });
     if (existing) return;
-    await this.prisma.conhecimentoAresta.create({ data: { grafoId, ...where } });
+    await this.prisma.conhecimentoAresta.create({ data: where });
   }
 }

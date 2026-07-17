@@ -12,7 +12,13 @@ export class PrismaEditalCoverageRepository implements EditalCoverageSource {
   async load(userId: string, grafoId: string, editalId?: string): Promise<Set<string>> {
     const origem = editalId ? { referenciaId: editalId, tipoNode: TipoNode.EDITAL } : undefined;
     const edges = await this.prisma.conhecimentoAresta.findMany({
-      where: { grafoId, tipoRelacao: TipoRelacao.COBRE, ...(origem ? { nodeOrigem: origem } : {}) },
+      // O filtro do edital e o da vista miram o MESMO nodeOrigem: precisam ser um
+      // objeto só, ou o segundo apaga o primeiro.
+      where: {
+        tipoRelacao: TipoRelacao.COBRE,
+        nodeOrigem: { ...(origem ?? {}), contidoEm: { some: { grafoId } } },
+        nodeDestino: { contidoEm: { some: { grafoId } } },
+      },
       select: { nodeDestino: { select: { referenciaId: true, usuarioId: true } } },
     });
     const covered = new Set<string>();

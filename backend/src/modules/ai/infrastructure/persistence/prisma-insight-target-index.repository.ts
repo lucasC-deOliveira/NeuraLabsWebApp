@@ -17,7 +17,7 @@ export class PrismaInsightTargetIndexRepository implements InsightTargetIndexRep
     sourceNodeId: string,
   ): Promise<InsightTargetContext | null> {
     const source = await this.prisma.nodeConhecimento.findFirst({
-      where: { grafoId, usuarioId: userId, referenciaId: sourceNodeId },
+      where: { usuarioId: userId, referenciaId: sourceNodeId, contidoEm: { some: { grafoId } } },
       select: { tipoNode: true },
     });
     if (!source) return null;

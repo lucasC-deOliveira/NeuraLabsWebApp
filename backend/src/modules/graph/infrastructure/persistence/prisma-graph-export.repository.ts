@@ -17,16 +17,21 @@ export class PrismaGraphExportRepository implements GraphExportRepository {
     });
   }
 
-  listNodes(grafoId: string, userId: string): Promise<ExportNodeRow[]> {
-    return this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId },
+  // A posição vem da contenção — é desta vista que o vault está exportando.
+  async listNodes(grafoId: string, userId: string): Promise<ExportNodeRow[]> {
+    const nodes = await this.prisma.nodeConhecimento.findMany({
+      where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
       select: {
         tipoNode: true,
         referenciaId: true,
-        posicaoX: true,
-        posicaoY: true,
         nivelDominio: true,
+        contidoEm: { where: { grafoId }, select: { posicaoX: true, posicaoY: true } },
       },
     });
+    return nodes.map(({ contidoEm, ...n }) => ({
+      ...n,
+      posicaoX: contidoEm[0]?.posicaoX ?? null,
+      posicaoY: contidoEm[0]?.posicaoY ?? null,
+    }));
   }
 }

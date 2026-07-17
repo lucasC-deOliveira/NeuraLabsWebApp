@@ -12,7 +12,7 @@ export class PrismaNodeTypesRepository implements NodeTypesRepository {
     refIds: string[],
   ): Promise<Map<string, string>> {
     const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, usuarioId: userId, referenciaId: { in: refIds } },
+      where: { usuarioId: userId, referenciaId: { in: refIds }, contidoEm: { some: { grafoId } } },
       select: { referenciaId: true, tipoNode: true },
     });
     return new Map(nodes.map((n) => [n.referenciaId, n.tipoNode]));

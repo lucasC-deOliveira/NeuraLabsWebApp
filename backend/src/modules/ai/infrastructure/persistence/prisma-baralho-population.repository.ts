@@ -29,7 +29,11 @@ export class PrismaBaralhoPopulationRepository implements BaralhoPopulationRepos
 
   async loadFlashcardNodeRefs(grafoId: string, flashcardIds: string[]): Promise<Set<string>> {
     const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId, tipoNode: 'FLASHCARD', referenciaId: { in: flashcardIds } },
+      where: {
+        tipoNode: 'FLASHCARD',
+        referenciaId: { in: flashcardIds },
+        contidoEm: { some: { grafoId } },
+      },
       select: { referenciaId: true },
     });
     return new Set(nodes.map((n) => n.referenciaId));

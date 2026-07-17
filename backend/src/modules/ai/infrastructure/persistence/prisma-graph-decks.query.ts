@@ -21,11 +21,11 @@ export class PrismaGraphDecksQuery implements GraphDecksQuery {
   private async resolveBaralhoIds(grafoId: string): Promise<string[]> {
     const [direct, refs] = await Promise.all([
       this.prisma.nodeConhecimento.findMany({
-        where: { grafoId, tipoNode: 'BARALHO' },
+        where: { tipoNode: 'BARALHO', contidoEm: { some: { grafoId } } },
         select: { referenciaId: true },
       }),
       this.prisma.nodeConhecimento.findMany({
-        where: { grafoId, tipoNode: 'GRAFO_REF' },
+        where: { tipoNode: 'GRAFO_REF', contidoEm: { some: { grafoId } } },
         select: { referenciaId: true },
       }),
     ]);
@@ -37,7 +37,7 @@ export class PrismaGraphDecksQuery implements GraphDecksQuery {
   private async subgraphDeckIds(subgraphIds: string[]): Promise<string[]> {
     if (subgraphIds.length === 0) return [];
     const nodes = await this.prisma.nodeConhecimento.findMany({
-      where: { grafoId: { in: subgraphIds }, tipoNode: 'BARALHO' },
+      where: { tipoNode: 'BARALHO', contidoEm: { some: { grafoId: { in: subgraphIds } } } },
       select: { referenciaId: true },
     });
     return nodes.map((n) => n.referenciaId);

@@ -69,12 +69,12 @@ export default function GraphListPage() {
     }
   };
 
-  const confirmDeleteGrafo = async (keepTypes: string[]) => {
+  const confirmDeleteGrafo = async () => {
     if (!deleteTarget) return;
     const { id, nome } = deleteTarget;
     setDeletingGrafo(true);
     try {
-      await graphHttp.deleteGrafo(id, { keepTypes });
+      await graphHttp.deleteGrafo(id);
       toast.success(`Grafo "${nome}" removido`);
       setDeleteTarget(null);
       reload();

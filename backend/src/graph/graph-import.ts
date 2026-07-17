@@ -282,7 +282,7 @@ export async function runImportGraph(
 
       // reuso por tipo::nome dos nós já presentes
       const existing = await tx.nodeConhecimento.findMany({
-        where: { grafoId, usuarioId: userId },
+        where: { usuarioId: userId, contidoEm: { some: { grafoId } } },
         select: { id: true, tipoNode: true, referenciaId: true },
       });
       const refsByTipo = new Map<string, string[]>();
@@ -375,7 +375,10 @@ export async function runImportGraph(
       }
 
       const existingEdges = await tx.conhecimentoAresta.findMany({
-        where: { grafoId },
+        where: {
+          nodeOrigem: { contidoEm: { some: { grafoId } } },
+          nodeDestino: { contidoEm: { some: { grafoId } } },
+        },
         select: { nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true },
       });
       const seen = new Set(
@@ -390,7 +393,6 @@ export async function runImportGraph(
         if (seen.has(key)) continue;
         await tx.conhecimentoAresta.create({
           data: {
-            grafoId,
             nodeOrigemId: s.nodeId,
             nodeDestinoId: t.nodeId,
             tipoRelacao: e.relacao as any,
