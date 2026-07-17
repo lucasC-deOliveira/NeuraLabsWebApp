@@ -15,6 +15,8 @@ function setup(overrides: Record<string, unknown> = {}) {
     onToggleShowClusters: vi.fn(),
     onOpenSettings: vi.fn(),
     onToggle3D: vi.fn(),
+    onUndo: vi.fn(),
+    onRedo: vi.fn(),
   };
   const props = {
     legendVisible: true,
@@ -23,6 +25,8 @@ function setup(overrides: Record<string, unknown> = {}) {
     focusMode: false,
     showClusters: false,
     is3D: false,
+    canUndo: false,
+    canRedo: false,
     ...handlers,
     ...overrides,
   };
@@ -32,12 +36,14 @@ function setup(overrides: Record<string, unknown> = {}) {
 
 describe("GraphToolbar", () => {
   it("wires each icon button (in JSX order) to its handler", async () => {
-    const h = setup();
+    const h = setup({ canUndo: true, canRedo: true });
     const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(9);
+    expect(buttons).toHaveLength(11);
 
-    // ordem: zoomIn, zoomOut, physics, contrast, focus, clusters, legend, 3D, settings
+    // ordem: undo, redo, zoomIn, zoomOut, physics, contrast, focus, clusters, legend, 3D, settings
     const expected = [
+      h.onUndo,
+      h.onRedo,
       h.onZoomIn,
       h.onZoomOut,
       h.onTogglePhysics,

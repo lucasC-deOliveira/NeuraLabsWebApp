@@ -26,18 +26,36 @@ export class PrismaExpandTargetRepository implements ExpandTargetRepository {
   }
 
   private async loadEntity(tipo: string, nodeId: string): Promise<NameDesc> {
-    if (tipo === 'ASSUNTO')
-      return named(await this.prisma.assunto.findFirst({ where: { id: nodeId } }));
-    if (tipo === 'TOPICO')
-      return named(await this.prisma.topico.findFirst({ where: { id: nodeId } }));
-    if (tipo === 'CONCEITO')
-      return named(await this.prisma.conceito.findFirst({ where: { id: nodeId } }));
+    return (await this.loadNamed(tipo, nodeId)) ?? this.loadText(tipo, nodeId);
+  }
+
+  // Structural entities carry a name + description directly (nome/descricao).
+  private async loadNamed(tipo: string, nodeId: string): Promise<NameDesc | null> {
+    const where = { id: nodeId };
+    if (tipo === 'ASSUNTO') return named(await this.prisma.assunto.findFirst({ where }));
+    if (tipo === 'TOPICO') return named(await this.prisma.topico.findFirst({ where }));
+    if (tipo === 'CONCEITO') return named(await this.prisma.conceito.findFirst({ where }));
+    return null;
+  }
+
+  // Content entities expose their text under different fields (título/conteúdo,
+  // pergunta/resposta), so they map onto name/desc explicitly.
+  private async loadText(tipo: string, nodeId: string): Promise<NameDesc> {
+    const where = { id: nodeId };
     if (tipo === 'NOTA') {
-      const n = await this.prisma.nota.findFirst({ where: { id: nodeId } });
-      return { nome: n?.titulo ?? '', desc: (n?.conteudo ?? '').slice(0, 2000) };
+      const n = await this.prisma.nota.findFirst({ where });
+      return textNameDesc(n?.titulo, n?.conteudo);
+    }
+    if (tipo === 'FLASHCARD') {
+      const f = await this.prisma.flashcard.findFirst({ where });
+      return textNameDesc(f?.pergunta, f?.resposta);
     }
     return { nome: '', desc: '' };
   }
+}
+
+function textNameDesc(nome: string | null | undefined, desc: string | null | undefined): NameDesc {
+  return { nome: nome ?? '', desc: (desc ?? '').slice(0, 2000) };
 }
 
 function named(entity: { nome: string; descricao: string | null } | null): NameDesc {

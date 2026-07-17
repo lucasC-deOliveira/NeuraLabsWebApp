@@ -8,8 +8,10 @@ import {
   EyeOffIcon,
   FocusIcon,
   OrbitIcon,
+  Redo2Icon,
   SettingsIcon,
   SquareIcon,
+  Undo2Icon,
   ZoomInIcon,
   ZoomOutIcon,
 } from "lucide-react";
@@ -37,16 +39,23 @@ type Props = {
   onOpenSettings: () => void;
   is3D: boolean;
   onToggle3D: () => void;
+
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 };
 
 function ToolbarButton({
   label,
   active = false,
+  disabled = false,
   onClick,
   children,
 }: {
   label: string;
   active?: boolean;
+  disabled?: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -57,6 +66,7 @@ function ToolbarButton({
           <Button
             variant={active ? "secondary" : "ghost"}
             size="icon"
+            disabled={disabled}
             className={`size-8 text-primary ${active ? "ring-1 ring-primary/50" : ""}`}
             onClick={onClick}
           >
@@ -85,10 +95,21 @@ export function GraphToolbar({
   onOpenSettings,
   is3D,
   onToggle3D,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: Props) {
   return (
     <TooltipProvider delay={200}>
       <div className="graph-toolbar absolute bottom-3 right-3 z-10 flex flex-row items-center gap-1 rounded-md border bg-background/90 backdrop-blur-sm p-1 shadow-sm">
+        <ToolbarButton label="Desfazer (Ctrl+Z)" disabled={!canUndo} onClick={onUndo}>
+          <Undo2Icon className="size-4" />
+        </ToolbarButton>
+        <ToolbarButton label="Refazer (Ctrl+Y)" disabled={!canRedo} onClick={onRedo}>
+          <Redo2Icon className="size-4" />
+        </ToolbarButton>
+        <div className="w-px h-5 bg-border" />
         <ToolbarButton label="Aumentar zoom" onClick={onZoomIn}>
           <ZoomInIcon className="size-4" />
         </ToolbarButton>
