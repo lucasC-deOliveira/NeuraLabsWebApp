@@ -10,7 +10,7 @@ import { GenerateDeckModal } from "@/modules/graph/presentation/components/deck/
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/modules/graph/presentation/components/PropertiesPanel";
 
-import { ArrowLeftIcon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon, LayersIcon } from "lucide-react";
+import { ArrowLeftIcon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -23,7 +23,6 @@ import { CommunitiesPanel } from "@/modules/graph/presentation/components/Commun
 import { GapDetectionModal } from "@/modules/graph/presentation/components/ai/GapDetectionModal";
 import { GenerateGraphModal } from "@/modules/graph/presentation/components/ai/GenerateGraphModal";
 import { LinkEditalProvaModal } from "@/modules/graph/presentation/components/ai/LinkEditalProvaModal";
-import { GenerateGraphFromBaralhoModal } from "@/modules/graph/presentation/components/ai/GenerateGraphFromBaralhoModal";
 import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLinkModal";
 import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/DuplicatesModal";
 import { CommunitySummaryModal } from "@/modules/graph/presentation/components/ai/CommunitySummaryModal";
@@ -50,6 +49,20 @@ import { useGraphSettings } from "@/modules/graph/presentation/hooks/useGraphSet
 import type { GrafoInfoDetail } from "@/modules/graph/domain/types/graph.types";
 import { CreateSubgrafoModal } from "@/modules/graph/presentation/components/vault/CreateSubgrafoModal";
 import { ExtractSubgrafoModal } from "@/modules/graph/presentation/components/vault/ExtractSubgrafoModal";
+import {
+  expandSubgraphIntoView,
+  retractSubgraphFromView,
+  isSubgraphExpanded,
+} from "@/modules/graph/domain/services/subgraph-expansion";
+import { expandActionFor, type ExpandKind } from "@/modules/graph/presentation/services/node-expand-action";
+import {
+  toClipItems,
+  readClipboard,
+  writeClipboard,
+  clearClipboard,
+} from "@/modules/graph/presentation/services/node-clipboard";
+import { useUndoStack } from "@/modules/graph/presentation/hooks/useUndoStack";
+import { createdBetween, type GraphIdSnapshot } from "@/modules/graph/presentation/services/graph-diff";
 import { CreateNodeModal } from "@/modules/graph/presentation/components/create-node/CreateNodeModal";
 import { ImportJsonModal } from "@/modules/graph/presentation/components/vault/ImportJsonModal";
 import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeManagerModal";
@@ -82,6 +95,7 @@ export default function GraphPage() {
   const isDark = resolvedTheme === "dark" || theme === "dark";
 
   const controller = useGraphController(graphId);
+  const undo = useUndoStack();
 
   // busca com filtros poderosos (texto, tipo, domínio, prioridade, conexões)
   const search = useGraphSearch(
@@ -116,7 +130,6 @@ export default function GraphPage() {
   const [highlightedGap, setHighlightedGap] = useState<StructuralGap | null>(null);
   const [neighborhoodStudyIds, setNeighborhoodStudyIds] = useState<string[] | null>(null);
   const [generateGraphOpen, setGenerateGraphOpen] = useState(false);
-  const [generateFromBaralhoOpen, setGenerateFromBaralhoOpen] = useState(false);
   // IA automática
   const [autoLinkOpen, setAutoLinkOpen] = useState(false);
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
@@ -209,6 +222,234 @@ export default function GraphPage() {
   const handleOpenGrafoRef = (childGrafoId: string) => {
     router.push(`/graph/${childGrafoId}`);
   };
+
+  // Expande o subgrafo DENTRO desta vista: busca a vista do filho e a funde ao redor
+  // da tile, sem navegar. `refNode` é o nó GRAFO_REF do menu (id = id do subgrafo);
+  // usamos a posição atual dele na tela como âncora do cluster.
+  // Injeta a estrutura do subgrafo na vista atual (sem tocar no undo). Reusado pelo
+  // expandir e pelo refazer, para o redo não empurrar uma nova entrada de undo.
+  const injectSubgraphIntoView = async (menuNode: { id: string; x?: number; y?: number }): Promise<boolean> => {
+    const tile = controller.state.rawNodes.find((n) => n.id === menuNode.id);
+    if (!tile) return false;
+    const child = await graphHttp.getGraphNodes(menuNode.id);
+    // A âncora é onde a tile está AGORA na tela (posição do layout), não a salva.
+    const anchor = { ...tile, posicaoX: menuNode.x ?? tile.posicaoX, posicaoY: menuNode.y ?? tile.posicaoY };
+    const next = expandSubgraphIntoView({ nodes: controller.state.rawNodes, edges: controller.state.rawEdges }, anchor, child);
+    controller.actions.setRawNodes(next.nodes);
+    controller.actions.setRawEdges(next.edges);
+    return true;
+  };
+
+  const handleExpandGrafoRef = async (menuNode: { id: string; x?: number; y?: number }) => {
+    try {
+      if (!(await injectSubgraphIntoView(menuNode))) return;
+      undo.push({
+        label: "Expandir subgrafo",
+        invert: () => handleRetractGrafoRef(menuNode.id),
+        redo: () => { void injectSubgraphIntoView(menuNode); },
+      });
+    } catch {
+      toast.error("Não foi possível expandir o subgrafo.");
+    }
+  };
+
+  const handleRetractGrafoRef = (refId: string) => {
+    const next = retractSubgraphFromView(
+      { nodes: controller.state.rawNodes, edges: controller.state.rawEdges },
+      refId,
+    );
+    controller.actions.setRawNodes(next.nodes);
+    controller.actions.setRawEdges(next.edges);
+  };
+
+  // Expande um nó com IA, roteando pelo tipo: baralho classifica seus flashcards,
+  // nós estruturais geram sub-nós, um flashcard é ligado aos conceitos que define.
+  const expandByKind = async (kind: ExpandKind, nodeId: string): Promise<string> => {
+    if (kind === "populate") {
+      const r = await graphHttp.populateGraphFromBaralho(graphId, nodeId);
+      return `Criados: ${r.assuntos} assunto(s), ${r.topicos} tópico(s), ${r.conceitos} conceito(s)`;
+    }
+    if (kind === "classify") {
+      const r = await graphHttp.classifyFlashcard(graphId, nodeId);
+      const novos = r.conceitos ? ` (${r.conceitos} novo(s))` : "";
+      return `Ligado a ${r.linked} conceito(s)${novos}`;
+    }
+    const r = await graphHttp.expandNode(graphId, nodeId);
+    const parts = [
+      r.topicos && `${r.topicos} tópico(s)`,
+      r.conceitos && `${r.conceitos} conceito(s)`,
+      r.notas && `${r.notas} nota(s)`,
+      r.flashcards && `${r.flashcards} flashcard(s)`,
+    ].filter(Boolean);
+    return `Criados: ${parts.join(", ") || "nenhum"}`;
+  };
+
+  // Snapshot autoritativo dos ids do grafo (nós + arestas com id) para o diff de undo.
+  const snapshotGraphIds = async (): Promise<GraphIdSnapshot> => {
+    const [g, edges] = await Promise.all([graphHttp.getGraphNodes(graphId), graphHttp.getGraphEdges(graphId)]);
+    return { nodeIds: g.nodes.map((n) => n.id), edgeIds: edges.map((e) => e.id) };
+  };
+
+  // Registra no undo o que a escrita de IA criou: apaga as arestas por id (as que
+  // ligam nós que já existiam) e os nós novos (que cascateiam suas próprias arestas).
+  const pushAiUndo = (before: GraphIdSnapshot, after: GraphIdSnapshot, label: string): void => {
+    const { nodeIds, edgeIds } = createdBetween(before, after);
+    if (nodeIds.length === 0 && edgeIds.length === 0) return;
+    undo.push({
+      label: `IA: ${label} (${nodeIds.length} nó, ${edgeIds.length} aresta)`,
+      invert: async () => {
+        await Promise.all(edgeIds.map((id) => graphHttp.deleteEdge(id, graphId).catch(() => {})));
+        await Promise.all(nodeIds.map((id) => graphHttp.deleteGraphNode(id, graphId).catch(() => {})));
+        await refreshGraph();
+      },
+    });
+  };
+
+  const runNodeExpansion = async (node: any) => {
+    const action = expandActionFor(node?.group);
+    if (!node || !action) return;
+    const tid = toast.loading("Expandindo nó com IA...");
+    try {
+      const before = await snapshotGraphIds();
+      const msg = await expandByKind(action.kind, node.id);
+      pushAiUndo(before, await snapshotGraphIds(), action.label);
+      toast.success(msg, { id: tid });
+      await refreshGraph();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao expandir", { id: tid });
+    }
+  };
+
+  // As escritas de IA que expandem o grafo acontecem DENTRO dos modais, então o
+  // snapshot "antes" é tirado ao abrir o modal e comparado quando a operação avisa
+  // que terminou. Assim qualquer expansão (por texto, auto-conexão, pré-requisitos,
+  // insights) entra na mesma pilha de undo das operações por nó.
+  const aiBeforeRef = useRef<GraphIdSnapshot | null>(null);
+  const beginAiWrite = (): void => {
+    aiBeforeRef.current = null;
+    void snapshotGraphIds().then((s) => { aiBeforeRef.current = s; });
+  };
+  const finishAiWrite = (label: string) => async (): Promise<void> => {
+    const before = aiBeforeRef.current;
+    aiBeforeRef.current = null;
+    if (before) pushAiUndo(before, await snapshotGraphIds(), label);
+    await refreshGraph();
+  };
+  // Abre um modal de IA já registrando o estado "antes" para o undo.
+  const openAiTool = (open: () => void): void => { closeToolbarModals(); beginAiWrite(); open(); };
+
+  // ── Atalhos: selecionar tudo / copiar / recortar / colar / desfazer ──────────
+  // Copiar/recortar/colar operam sobre a CONTENÇÃO (o nó é do sistema): colar
+  // adiciona a mesma entidade a este grafo; recortar soltou a contenção na origem.
+  const selectAllNodes = () => {
+    const ids = controller.state.filteredNodes.map((n: any) => n.id);
+    controller.actions.setSelectedNodeIds(new Set(ids));
+  };
+
+  const copySelection = (mode: "copy" | "cut") => {
+    const items = toClipItems(controller.state.filteredNodes, controller.state.selectedNodeIds);
+    if (items.length === 0) return [];
+    writeClipboard({ items, mode, sourceGrafoId: graphId });
+    return items;
+  };
+
+  // Adiciona/solta a contenção de um conjunto de itens neste grafo, e reflete na vista.
+  const addContainment = async (items: { entityId: string; tipoNode: string }[]) => {
+    await Promise.all(items.map((i) => graphHttp.addNodeToGraph(graphId, i.tipoNode, { entityId: i.entityId })));
+    await refreshGraph();
+  };
+  const releaseContainment = async (items: { entityId: string }[]) => {
+    await Promise.all(items.map((i) => graphHttp.removeNodeFromGraph(i.entityId, graphId)));
+    await refreshGraph();
+  };
+
+  const cutSelection = async () => {
+    const items = copySelection("cut");
+    if (items.length === 0) return;
+    try {
+      await releaseContainment(items);
+      undo.push({
+        label: `Recortar ${items.length} nó(s)`,
+        invert: () => addContainment(items),
+        redo: () => releaseContainment(items),
+      });
+      toast.success(`${items.length} nó(s) recortado(s) — cole em outro grafo`);
+    } catch {
+      toast.error("Não foi possível recortar");
+    }
+  };
+
+  const pasteClipboard = async () => {
+    const clip = readClipboard();
+    if (!clip) return;
+    const present = new Set(controller.state.rawNodes.map((n: any) => n.id));
+    const toAdd = clip.items.filter((i) => !present.has(i.entityId));
+    if (toAdd.length === 0) { toast("Esses nós já estão neste grafo"); return; }
+    try {
+      await addContainment(toAdd);
+      undo.push({
+        label: `Colar ${toAdd.length} nó(s)`,
+        invert: () => releaseContainment(toAdd),
+        redo: () => addContainment(toAdd),
+      });
+      if (clip.mode === "cut") clearClipboard();
+      toast.success(`${toAdd.length} nó(s) colado(s)`);
+    } catch {
+      toast.error("Não foi possível colar");
+    }
+  };
+
+  const copyToClipboard = () => {
+    const items = copySelection("copy");
+    if (items.length > 0) toast.success(`${items.length} nó(s) copiado(s)`);
+  };
+
+  const undoLast = async () => {
+    if (!undo.canUndo) { toast("Nada para desfazer"); return; }
+    const tid = toast.loading(`Desfazendo: ${undo.nextUndoLabel}...`);
+    try {
+      await undo.undo();
+      toast.success("Desfeito", { id: tid });
+    } catch {
+      toast.error("Não foi possível desfazer", { id: tid });
+    }
+  };
+
+  const redoLast = async () => {
+    if (!undo.canRedo) { toast("Nada para refazer"); return; }
+    const tid = toast.loading(`Refazendo: ${undo.nextRedoLabel}...`);
+    try {
+      await undo.redo();
+      toast.success("Refeito", { id: tid });
+    } catch {
+      toast.error("Não foi possível refazer", { id: tid });
+    }
+  };
+
+  // Um ref carrega sempre os handlers mais recentes, para o listener (ligado uma
+  // vez) não capturar estado obsoleto (seleção, clipboard, pilha de undo).
+  const shortcutsRef = useRef({ selectAllNodes, copyToClipboard, cutSelection, pasteClipboard, undoLast, redoLast });
+  shortcutsRef.current = { selectAllNodes, copyToClipboard, cutSelection, pasteClipboard, undoLast, redoLast };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t?.isContentEditable) return;
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const s = shortcutsRef.current;
+      const k = e.key.toLowerCase();
+      // Ctrl+Y ou Ctrl+Shift+Z = refazer (as duas convenções); Ctrl+Z = desfazer.
+      if (k === "z" && e.shiftKey) { e.preventDefault(); void s.redoLast(); }
+      else if (k === "a") { e.preventDefault(); s.selectAllNodes(); }
+      else if (k === "c") { e.preventDefault(); s.copyToClipboard(); }
+      else if (k === "x") { e.preventDefault(); void s.cutSelection(); }
+      else if (k === "v") { e.preventDefault(); void s.pasteClipboard(); }
+      else if (k === "z") { e.preventDefault(); void s.undoLast(); }
+      else if (k === "y") { e.preventDefault(); void s.redoLast(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const handleSplitByBaralho = async () => {
     const baralhos = controller.state.filteredNodes.filter((n: any) => n.group === "BARALHO");
@@ -534,28 +775,21 @@ export default function GraphPage() {
           } />
           <DropdownMenuContent align="end" className="w-64">
             <DropdownMenuLabel>Construir</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => { closeToolbarModals(); setGenerateGraphOpen(true); }}>
+            <DropdownMenuItem onClick={() => openAiTool(() => setGenerateGraphOpen(true))}>
               <WandSparklesIcon className="size-4 shrink-0 text-violet-500" />
               <div>
                 <div className="font-medium">Gerar grafo por texto</div>
                 <div className="text-[11px] text-muted-foreground">Cria nós a partir de qualquer material</div>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { closeToolbarModals(); setGenerateFromBaralhoOpen(true); }}>
-              <LayersIcon className="size-4 shrink-0 text-violet-500" />
-              <div>
-                <div className="font-medium">Expandir grafo com baralho</div>
-                <div className="text-[11px] text-muted-foreground">Adiciona tópicos e conceitos dos flashcards</div>
-              </div>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { closeToolbarModals(); setAutoLinkOpen(true); }}>
+            <DropdownMenuItem onClick={() => openAiTool(() => setAutoLinkOpen(true))}>
               <Link2Icon className="size-4 shrink-0 text-violet-500" />
               <div>
                 <div className="font-medium">Auto-conectar nós</div>
                 <div className="text-[11px] text-muted-foreground">Sugere arestas faltantes com IA</div>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { closeToolbarModals(); setMissingPrereqsOpen(true); }}>
+            <DropdownMenuItem onClick={() => openAiTool(() => setMissingPrereqsOpen(true))}>
               <GitBranchIcon className="size-4 shrink-0 text-violet-500" />
               <div>
                 <div className="font-medium">Pré-requisitos faltantes</div>
@@ -690,6 +924,10 @@ export default function GraphPage() {
             onOpenSettings={() => { closeToolbarModals(); setIsSettingsOpen(true); }}
             is3D={is3D}
             onToggle3D={() => setIs3D((v) => !v)}
+            canUndo={undo.canUndo}
+            canRedo={undo.canRedo}
+            onUndo={() => void undoLast()}
+            onRedo={() => void redoLast()}
           />
           {has3DBeenOpened && (
             <div className={`absolute inset-0${!is3D ? " invisible pointer-events-none" : ""}`}>
@@ -796,20 +1034,8 @@ export default function GraphPage() {
             if (ids.length === 0) { toast.error("Nenhum flashcard na vizinhança."); return; }
             setNeighborhoodStudyIds(ids);
           }}
-          onGenerateInsights={() => setInsightsNode(controller.state.selectedNode ?? null)}
-          onExpandNode={async () => {
-            const node = controller.state.selectedNode;
-            if (!node) return;
-            const tid = toast.loading("Expandindo nó com IA...");
-            try {
-              const r = await graphHttp.expandNode(graphId, node.id);
-              const parts = [r.topicos && `${r.topicos} tópico(s)`, r.conceitos && `${r.conceitos} conceito(s)`, r.notas && `${r.notas} nota(s)`, r.flashcards && `${r.flashcards} flashcard(s)`].filter(Boolean);
-              toast.success(`Criados: ${parts.join(", ") || "nenhum"}`, { id: tid });
-              await refreshGraph();
-            } catch (e) {
-              toast.error(e instanceof Error ? e.message : "Erro ao expandir", { id: tid });
-            }
-          }}
+          onGenerateInsights={() => { beginAiWrite(); setInsightsNode(controller.state.selectedNode ?? null); }}
+          onExpandNode={() => runNodeExpansion(controller.state.selectedNode)}
           onSelectNode={(nodeId) => {
             const node = controller.state.layout.find((n) => n.id === nodeId);
             if (!node) return;
@@ -841,11 +1067,40 @@ export default function GraphPage() {
             style={{ left: nodeMenu.x, top: nodeMenu.y }}
           >
             {nodeMenu.node?.group === "GRAFO_REF" && (
+              <>
+                {isSubgraphExpanded(controller.state.rawNodes, nodeMenu.node.id) ? (
+                  <button
+                    className="w-full px-3 py-1.5 text-sm text-left font-medium text-violet-600 dark:text-violet-400 hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => { handleRetractGrafoRef(nodeMenu.node.id); setNodeMenu(null); }}
+                  >
+                    Retrair subgrafo
+                  </button>
+                ) : (
+                  <button
+                    className="w-full px-3 py-1.5 text-sm text-left font-medium text-violet-600 dark:text-violet-400 hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => { void handleExpandGrafoRef(nodeMenu.node); setNodeMenu(null); }}
+                  >
+                    Expandir subgrafo
+                  </button>
+                )}
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => { handleOpenGrafoRef(nodeMenu.node.id); setNodeMenu(null); }}
+                >
+                  Abrir subgrafo →
+                </button>
+              </>
+            )}
+            {expandActionFor(nodeMenu.node?.group) && (
               <button
                 className="w-full px-3 py-1.5 text-sm text-left font-medium text-violet-600 dark:text-violet-400 hover:bg-accent hover:text-accent-foreground"
-                onClick={() => { handleOpenGrafoRef(nodeMenu.node.id); setNodeMenu(null); }}
+                onClick={() => {
+                  const node = nodeMenu.node;
+                  setNodeMenu(null);
+                  void runNodeExpansion(node);
+                }}
               >
-                Abrir subgrafo →
+                {expandActionFor(nodeMenu.node?.group)?.label}
               </button>
             )}
             <button
@@ -1000,7 +1255,7 @@ export default function GraphPage() {
         grafoId={graphId}
         nodeId={insightsNode?.id ?? null}
         nodeLabel={insightsNode?.label}
-        onAdded={refreshGraph}
+        onAdded={finishAiWrite("Insights da IA")}
       />
       <StudyDeckModal
         open={!!studyDeckId}
@@ -1060,7 +1315,7 @@ export default function GraphPage() {
         open={generateGraphOpen}
         onOpenChange={setGenerateGraphOpen}
         grafoId={graphId}
-        onGenerated={refreshGraph}
+        onGenerated={finishAiWrite("Gerar grafo por texto")}
       />
       <LinkEditalProvaModal
         key={controller.state.selectedNode?.id ?? "none"}
@@ -1081,17 +1336,11 @@ export default function GraphPage() {
           .map((n: any) => ({ id: n.id, label: n.label }))}
         onLinked={refreshGraph}
       />
-      <GenerateGraphFromBaralhoModal
-        open={generateFromBaralhoOpen}
-        onOpenChange={setGenerateFromBaralhoOpen}
-        grafoId={graphId}
-        onGenerated={refreshGraph}
-      />
       <AutoLinkModal
         open={autoLinkOpen}
         onOpenChange={setAutoLinkOpen}
         grafoId={graphId}
-        onApplied={refreshGraph}
+        onApplied={finishAiWrite("Auto-conectar nós")}
       />
       <DuplicatesModal
         open={duplicatesOpen}
@@ -1103,7 +1352,7 @@ export default function GraphPage() {
         open={missingPrereqsOpen}
         onOpenChange={setMissingPrereqsOpen}
         grafoId={graphId}
-        onAdded={refreshGraph}
+        onAdded={finishAiWrite("Pré-requisitos faltantes")}
       />
       <CommunitySummaryModal
         open={!!communitySummary}

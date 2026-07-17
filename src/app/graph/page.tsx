@@ -8,13 +8,14 @@ import { graphHttp } from "@/modules/graph/infra/http";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PlusIcon, Trash2Icon, Loader2Icon, FolderIcon, SearchXIcon, TagIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, Loader2Icon, FolderIcon, SearchXIcon, TagIcon, NetworkIcon, ChevronRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { graphVaultDir } from "@/lib/vault-sync";
 import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 import { DeleteGraphModal } from "@/modules/graph/presentation/components/vault/DeleteGraphModal";
 import { useGraphList } from "@/modules/graph/presentation/hooks/useGraphList";
+import { useMasterGraph } from "@/modules/graph/presentation/hooks/useMasterGraph";
 import { useGraphAssuntos } from "@/modules/graph/presentation/hooks/useGraphAssuntos";
 import { GraphListFilters } from "@/modules/graph/presentation/components/GraphListFilters";
 import { GraphListPagination } from "@/modules/graph/presentation/components/GraphListPagination";
@@ -22,6 +23,12 @@ import { GraphListPagination } from "@/modules/graph/presentation/components/Gra
 export default function GraphListPage() {
   const router = useRouter();
   const { params, result, loading, setFilter, setPage, reload } = useGraphList();
+  // O master é fixo no topo, fora da paginação — o app tem um grafo só. Um contador
+  // o recarrega quando algo muda (ex.: apagar um subgrafo muda a contagem de tiles).
+  const [masterRefresh, setMasterRefresh] = useState(0);
+  const master = useMasterGraph(masterRefresh);
+  // A lista de baixo mostra os SUBGRAFOS; o master já está fixo acima.
+  const subgrafos = result.items.filter((g) => g.parentGrafoId != null);
   const assuntos = useGraphAssuntos();
   const [creatingGrafo, setCreatingGrafo] = useState(false);
   const [newGrafoName, setNewGrafoName] = useState("");
@@ -78,6 +85,7 @@ export default function GraphListPage() {
       toast.success(`Grafo "${nome}" removido`);
       setDeleteTarget(null);
       reload();
+      setMasterRefresh((n) => n + 1);
     } catch (e) {
       toast.error("Erro ao remover grafo");
     } finally {
@@ -90,12 +98,40 @@ export default function GraphListPage() {
       {/* Content */}
       <PageContainer className="flex-1">
         <PageHeader title="Meus Grafos" />
+
+        {/* Master fixo no topo: o app tem UM grafo de conhecimento; tudo o mais é
+            subgrafo dele. Abre o grafo completo, com todos os subgrafos como tiles. */}
+        {master && (
+          <Card
+            className="mb-6 cursor-pointer border-primary/30 bg-primary/5 transition-colors hover:border-primary/60"
+            onClick={() => router.push(`/graph/${master.id}`)}
+          >
+            <CardContent className="flex items-center gap-4 py-5">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+                <NetworkIcon className="size-6 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-primary/70">
+                  Seu grafo de conhecimento
+                </p>
+                <h2 className="truncate text-base font-semibold">{master.nome}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {master.filhosCount
+                    ? `${master.filhosCount} subgrafo${master.filhosCount === 1 ? "" : "s"} — abrir o grafo completo`
+                    : "Abrir o grafo completo"}
+                </p>
+              </div>
+              <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Create section */}
         <Card className="mb-8 bg-card border-border">
           <CardContent className="pt-6">
-            <h2 className="text-sm font-medium mb-2">Novo grafo de conhecimento</h2>
+            <h2 className="text-sm font-medium mb-2">Novo subgrafo</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Crie um grafo vazio para organizar seus estudos em um contexto específico.
+              Um recorte do seu conhecimento (uma matéria, um tema). Nasce dentro do seu grafo.
             </p>
             <div className="flex gap-2 max-w-md">
               <input
@@ -126,7 +162,7 @@ export default function GraphListPage() {
           <div className="flex items-center justify-center py-12">
             <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
           </div>
-        ) : result.items.length === 0 ? (
+        ) : subgrafos.length === 0 ? (
           <div className="text-center py-16">
             <div className="size-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
               {hasActiveFilters ? (
@@ -136,7 +172,7 @@ export default function GraphListPage() {
               )}
             </div>
             <h3 className="text-lg font-semibold mb-2">
-              {hasActiveFilters ? "Nenhum grafo encontrado" : "Nenhum grafo criado"}
+              {hasActiveFilters ? "Nenhum subgrafo encontrado" : "Nenhum subgrafo ainda"}
             </h3>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
               {hasActiveFilters
@@ -146,7 +182,7 @@ export default function GraphListPage() {
           </div>
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {result.items.map((g) => (
+            {subgrafos.map((g) => (
               <Card
                 key={g.id}
                 className="cursor-pointer hover:border-primary/50 dark:hover:border-primary/50 transition-colors bg-card border-border"

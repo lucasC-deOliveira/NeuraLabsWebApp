@@ -26,6 +26,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SideButton } from "./SideButton";
 import type { GraphTool } from "./GraphRenderer";
 import { getNodeColors, getRelationColor } from "../services/graph-style.service";
 import { NODE_TYPE_DISPLAY, RELATION_LABELS } from "../../constants/graph-ui.constants";
@@ -128,38 +129,6 @@ const TOOLS: Array<{ id: GraphTool; icon: typeof MousePointer2Icon; label: strin
   { id: "marquee", icon: BoxSelectIcon, label: "Seleção múltipla (M)" },
   { id: "hand", icon: HandIcon, label: "Mover o grafo (H)" },
 ];
-
-function SideButton({
-  label,
-  active = false,
-  ringed = false,
-  onClick,
-  children,
-}: {
-  label: string;
-  active?: boolean;
-  ringed?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant={active ? "secondary" : "ghost"}
-            size="icon"
-            className={`size-8 text-primary ${active || ringed ? "ring-1 ring-primary/50" : ""}`}
-            onClick={onClick}
-          >
-            {children}
-          </Button>
-        }
-      />
-      <TooltipContent side="right">{label}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 function SearchFilters({
   filters,

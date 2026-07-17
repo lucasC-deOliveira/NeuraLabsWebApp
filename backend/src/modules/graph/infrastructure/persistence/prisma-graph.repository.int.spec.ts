@@ -4,12 +4,20 @@ import { PrismaService } from '../../../../prisma/prisma.service';
 import { PrismaGraphRepository } from './prisma-graph.repository';
 import { CreateGraphUseCase } from '../../application/use-cases/create-graph.use-case';
 import { RenameGraphUseCase } from '../../application/use-cases/rename-graph.use-case';
+import { MASTER_GRAPH_NAME } from '../../application/use-cases/create-graph.use-case';
+import { PrismaCreateSubgraphRepository } from './prisma-create-subgraph.repository';
 
 // Integration of the Prisma graph adapter against the real DB (neuralabs_test),
 // driven by the Create/Rename graph use-cases. Graphs start empty (no root
 // subject) and rename only touches the graph's own name.
 
-const TABLES = ['"NodeConhecimento"', '"grafos_conhecimento"', '"assuntos"', '"usuarios"'];
+const TABLES = [
+  '"grafo_nodes"',
+  '"NodeConhecimento"',
+  '"grafos_conhecimento"',
+  '"assuntos"',
+  '"usuarios"',
+];
 
 describe('Graph repository (integration — neuralabs_test)', () => {
   let prisma: PrismaService;
@@ -21,7 +29,7 @@ describe('Graph repository (integration — neuralabs_test)', () => {
     prisma = moduleRef.get(PrismaService);
     await prisma.$connect();
     const repo = new PrismaGraphRepository(prisma);
-    createGraph = new CreateGraphUseCase(repo);
+    createGraph = new CreateGraphUseCase(repo, new PrismaCreateSubgraphRepository(prisma));
     renameGraph = new RenameGraphUseCase(repo);
   });
 
@@ -41,16 +49,42 @@ describe('Graph repository (integration — neuralabs_test)', () => {
     return user.id;
   }
 
-  it('creates an empty graph with no root subject', async () => {
+  // "Criar grafo" cria um SUBGRAFO do master — o app tem um grafo só. O master é
+  // criado sob demanda, e o novo grafo pendura nele por um GRAFO_REF.
+  it('creates a subgraph under a lazily-created master', async () => {
     const userId = await seedUser();
     const { id } = await createGraph.execute(userId, 'Biology');
 
     const grafo = await prisma.grafosConhecimento.findUnique({ where: { id } });
     expect(grafo?.nome).toBe('Biology');
 
-    // O grafo nasce sem conter nada.
-    const nodeCount = await prisma.grafoNode.count({ where: { grafoId: id } });
-    expect(nodeCount).toBe(0);
+    // O master nasceu como raiz; o novo grafo tem o master como pai.
+    const master = await prisma.grafosConhecimento.findFirst({
+      where: { usuarioId: userId, parentGrafoId: null },
+    });
+    expect(master?.nome).toBe(MASTER_GRAPH_NAME);
+    expect(grafo?.parentGrafoId).toBe(master?.id);
+
+    // E o master o mostra via um nó GRAFO_REF contido.
+    const ref = await prisma.nodeConhecimento.findFirst({
+      where: {
+        tipoNode: 'GRAFO_REF',
+        referenciaId: id,
+        contidoEm: { some: { grafoId: master!.id } },
+      },
+    });
+    expect(ref).not.toBeNull();
+  });
+
+  it('creates only one master across several graphs', async () => {
+    const userId = await seedUser();
+    await createGraph.execute(userId, 'A');
+    await createGraph.execute(userId, 'B');
+
+    const roots = await prisma.grafosConhecimento.count({
+      where: { usuarioId: userId, parentGrafoId: null },
+    });
+    expect(roots).toBe(1);
   });
 
   it('renames the graph', async () => {

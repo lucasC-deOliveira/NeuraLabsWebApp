@@ -203,8 +203,9 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
     },
     {
       provide: CreateGraphUseCase,
-      useFactory: (graphs: GraphRepository) => new CreateGraphUseCase(graphs),
-      inject: [GRAPH_REPOSITORY],
+      useFactory: (graphs: GraphRepository, subgraphs: CreateSubgraphRepository) =>
+        new CreateGraphUseCase(graphs, subgraphs),
+      inject: [GRAPH_REPOSITORY, CREATE_SUBGRAPH_REPOSITORY],
     },
     {
       provide: RenameGraphUseCase,

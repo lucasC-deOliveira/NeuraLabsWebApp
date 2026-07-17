@@ -57,6 +57,7 @@ import {
   listBaralhosInGrafo,
   populateGraphFromBaralho,
   expandNode,
+  classifyFlashcard,
   planGraphFromEdital,
   buildGraphFromEdital,
   rankGraphImportance,
@@ -106,6 +107,7 @@ import type {
   GenerateGraphResult,
   BaralhoItem,
   PopulateFromBaralhoResult,
+  ClassifyFlashcardResult,
   EditalBuildResult,
   RankedConceitoView,
   TokenUsageView,
@@ -198,6 +200,10 @@ export class HttpGraphAdapter
 {
   expandNode(grafoId: string, nodeId: string): Promise<{ topicos: number; conceitos: number; notas: number; flashcards: number }> {
     return expandNode(grafoId, nodeId);
+  }
+
+  classifyFlashcard(grafoId: string, nodeId: string): Promise<ClassifyFlashcardResult> {
+    return classifyFlashcard(grafoId, nodeId);
   }
 
   listUserGraphs(params?: GraphListParams): Promise<GraphListResult> {
