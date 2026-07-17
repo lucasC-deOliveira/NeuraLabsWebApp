@@ -135,6 +135,10 @@ export interface PopulateFromBaralhoResult {
   conceitos: number;
   baralhoNome: string;
 }
+export interface ClassifyFlashcardResult {
+  conceitos: number;
+  linked: number;
+}
 export interface EditalBuildResult {
   assuntos: number;
   topicos: number;
@@ -218,6 +222,7 @@ export interface GraphAiPort {
   listBaralhosInGrafo(grafoId: string): Promise<BaralhoItem[]>;
   populateGraphFromBaralho(grafoId: string, baralhoId: string): Promise<PopulateFromBaralhoResult>;
   expandNode(grafoId: string, nodeId: string): Promise<{ topicos: number; conceitos: number; notas: number; flashcards: number }>;
+  classifyFlashcard(grafoId: string, nodeId: string): Promise<ClassifyFlashcardResult>;
   // Edital-driven completion: upload the notice PDF → plan (mirrors its hierarchy,
   // reuses existing nodes) → build persists the missing ones.
   planGraphFromEdital(grafoId: string, edital: File): Promise<{ plan: unknown; programa: string }>;
