@@ -5,9 +5,11 @@ import { SparklesIcon, WandSparklesIcon, BookOpenIcon, EyeIcon, GraduationCapIco
 import type { PropertiesNode, DeckStats } from "./properties-panel.types";
 import type { NotaMeta } from "../../hooks/useNotaMeta";
 import { SUBTIPO_LABELS, TIPO_NOTA_LABELS, formatPanelDate, domainColor } from "./properties-panel.labels";
+import { expandActionFor } from "../../services/node-expand-action";
 
 const AI_TYPES = ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA", "FLASHCARD"];
-const EXPAND_TYPES = ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA"];
+// Nós estruturais têm uma vizinhança de flashcards que dá para estudar de uma vez.
+const STRUCTURAL_TYPES = ["ASSUNTO", "TOPICO", "CONCEITO", "NOTA"];
 
 function DomainBar({ dominio }: { dominio: number }) {
   return (
@@ -76,8 +78,9 @@ function improveHandler(
 
 export function NodeAiSection({ node, onGenerateInsights, onExpandNode, onImproveFlashcard, onImproveQuestao, onImproveNota }: AiProps) {
   const onImprove = improveHandler(node.tipoReal, { flashcard: onImproveFlashcard, questao: onImproveQuestao, nota: onImproveNota });
-  const showStandard = AI_TYPES.includes(node.tipoReal) && (!!onGenerateInsights || !!onExpandNode);
-  if (!showStandard && !onImprove) return null;
+  const showStandard = AI_TYPES.includes(node.tipoReal) && !!onGenerateInsights;
+  const expandAction = onExpandNode ? expandActionFor(node.tipoReal) : null;
+  if (!showStandard && !expandAction && !onImprove) return null;
   return (
     <>
       <div className="rounded-lg border border-violet-500/25 bg-violet-500/5 p-3 space-y-2">
@@ -91,7 +94,7 @@ export function NodeAiSection({ node, onGenerateInsights, onExpandNode, onImprov
             Insights da IA
           </Button>
         )}
-        {showStandard && onExpandNode && EXPAND_TYPES.includes(node.tipoReal) && (
+        {expandAction && onExpandNode && (
           <Button
             size="sm"
             variant="outline"
@@ -99,7 +102,7 @@ export function NodeAiSection({ node, onGenerateInsights, onExpandNode, onImprov
             onClick={onExpandNode}
           >
             <WandSparklesIcon className="size-3.5" />
-            Expandir com IA
+            {expandAction.label}
           </Button>
         )}
         {onImprove && (
@@ -163,7 +166,7 @@ function QuizStudyAction({ node, onStudyProva, onStudyQuestao }: {
 }
 
 function NeighborhoodAction({ node, onStudyNeighborhood }: { node: PropertiesNode; onStudyNeighborhood?: () => void }) {
-  if (!onStudyNeighborhood || !EXPAND_TYPES.includes(node.tipoReal)) return null;
+  if (!onStudyNeighborhood || !STRUCTURAL_TYPES.includes(node.tipoReal)) return null;
   return (
     <>
       <Button

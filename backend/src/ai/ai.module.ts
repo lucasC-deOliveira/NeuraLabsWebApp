@@ -105,6 +105,7 @@ import {
 import { PrismaExpandTargetRepository } from '../modules/ai/infrastructure/persistence/prisma-expand-target.repository';
 import { PrismaGraphNameIndexRepository } from '../modules/ai/infrastructure/persistence/prisma-graph-name-index.repository';
 import { ExpandNodeUseCase } from '../modules/ai/application/use-cases/expand-node.use-case';
+import { ClassifyFlashcardUseCase } from '../modules/ai/application/use-cases/classify-flashcard.use-case';
 import { FillKnowledgeGapsUseCase } from '../modules/ai/application/use-cases/fill-knowledge-gaps.use-case';
 import {
   INSIGHT_CONTEXT_REPOSITORY,
@@ -461,6 +462,23 @@ const graphRelationRules: RelationRulesPort = {
         edgeWriter: GraphEdgeWriter,
         llm: LlmPort,
       ) => new ExpandNodeUseCase(targets, names, nodeWriter, edgeWriter, llm),
+      inject: [
+        EXPAND_TARGET_REPOSITORY,
+        GRAPH_NAME_INDEX_REPOSITORY,
+        GRAPH_NODE_WRITER,
+        GRAPH_EDGE_WRITER,
+        LLM_PORT,
+      ],
+    },
+    {
+      provide: ClassifyFlashcardUseCase,
+      useFactory: (
+        targets: ExpandTargetRepository,
+        names: GraphNameIndexRepository,
+        nodeWriter: GraphNodeWriter,
+        edgeWriter: GraphEdgeWriter,
+        llm: LlmPort,
+      ) => new ClassifyFlashcardUseCase(targets, names, nodeWriter, edgeWriter, llm),
       inject: [
         EXPAND_TARGET_REPOSITORY,
         GRAPH_NAME_INDEX_REPOSITORY,

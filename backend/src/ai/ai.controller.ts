@@ -32,6 +32,7 @@ import { GenerateCommunitySummaryUseCase } from '../modules/ai/application/use-c
 import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
 import { ListBaralhosInGrafoUseCase } from '../modules/ai/application/use-cases/list-baralhos-in-grafo.use-case';
 import { ExpandNodeUseCase } from '../modules/ai/application/use-cases/expand-node.use-case';
+import { ClassifyFlashcardUseCase } from '../modules/ai/application/use-cases/classify-flashcard.use-case';
 import { FillKnowledgeGapsUseCase } from '../modules/ai/application/use-cases/fill-knowledge-gaps.use-case';
 import { MergeDuplicateNodesUseCase } from '../modules/ai/application/use-cases/merge-duplicate-nodes.use-case';
 import { SuggestGapFillUseCase } from '../modules/ai/application/use-cases/suggest-gap-fill.use-case';
@@ -77,6 +78,7 @@ export class AiController {
     private readonly chatWithGraphUseCase: ChatWithGraphUseCase,
     private readonly listBaralhosInGrafoUseCase: ListBaralhosInGrafoUseCase,
     private readonly expandNodeUseCase: ExpandNodeUseCase,
+    private readonly classifyFlashcardUseCase: ClassifyFlashcardUseCase,
     private readonly fillKnowledgeGapsUseCase: FillKnowledgeGapsUseCase,
     private readonly mergeDuplicateNodesUseCase: MergeDuplicateNodesUseCase,
     private readonly suggestGapFillUseCase: SuggestGapFillUseCase,
@@ -269,6 +271,15 @@ export class AiController {
     @Param('nodeId') nodeId: string,
   ) {
     return this.expandNodeUseCase.execute(userId, grafoId, nodeId);
+  }
+
+  @Post('graphs/:grafoId/nodes/:nodeId/classify-flashcard')
+  classifyFlashcard(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Param('nodeId') nodeId: string,
+  ) {
+    return this.classifyFlashcardUseCase.execute(userId, grafoId, nodeId);
   }
 
   @Post('graphs/:grafoId/community-summary')
