@@ -47,7 +47,7 @@ class FakeNodeEmbeddingRepository implements NodeEmbeddingRepository {
   async load(): Promise<StoredEmbedding[]> {
     return [...this.rows.values()];
   }
-  async upsertMany(_u: string, _g: string, rows: EmbeddingUpsert[]): Promise<void> {
+  async upsertMany(_u: string, rows: EmbeddingUpsert[]): Promise<void> {
     for (const r of rows) this.rows.set(r.referenciaId, r);
   }
 }

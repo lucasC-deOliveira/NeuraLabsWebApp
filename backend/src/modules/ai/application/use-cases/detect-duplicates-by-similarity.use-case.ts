@@ -28,7 +28,7 @@ export class DetectDuplicatesBySimilarityUseCase {
   ): Promise<{ groups: DuplicateGroup[] }> {
     const nodes = await this.nodes.loadGraphNodes(userId, grafoId);
     if (nodes.length < 2) return { groups: [] };
-    const vectors = await ensureNodeVectors(this.embeddings, this.store, userId, grafoId, nodes);
+    const vectors = await ensureNodeVectors(this.embeddings, this.store, userId, nodes);
     const items: SimilarityItem[] = nodes.map((n, i) => ({ tipo: n.tipo, vetor: vectors[i] }));
     return { groups: selectDuplicateGroups(similarityRawGroups(items, threshold), nodes) };
   }

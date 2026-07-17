@@ -11,9 +11,9 @@ import type {
 export class PrismaNodeEmbeddingRepository implements NodeEmbeddingRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async load(userId: string, grafoId: string): Promise<StoredEmbedding[]> {
+  async load(userId: string, referenciaIds: string[]): Promise<StoredEmbedding[]> {
     const rows = await this.prisma.nodeEmbedding.findMany({
-      where: { usuarioId: userId, grafoId },
+      where: { usuarioId: userId, referenciaId: { in: referenciaIds } },
       select: { referenciaId: true, assinatura: true, vetor: true },
     });
     return rows.map((r) => ({
@@ -23,12 +23,12 @@ export class PrismaNodeEmbeddingRepository implements NodeEmbeddingRepository {
     }));
   }
 
-  async upsertMany(userId: string, grafoId: string, rows: EmbeddingUpsert[]): Promise<void> {
+  async upsertMany(userId: string, rows: EmbeddingUpsert[]): Promise<void> {
     for (const r of rows) {
       const data = { assinatura: r.assinatura, vetor: r.vetor, tipoNode: r.tipoNode as TipoNode };
       await this.prisma.nodeEmbedding.upsert({
-        where: { _embedding_unique: { grafoId, referenciaId: r.referenciaId } },
-        create: { usuarioId: userId, grafoId, referenciaId: r.referenciaId, ...data },
+        where: { _embedding_unique: { usuarioId: userId, referenciaId: r.referenciaId } },
+        create: { usuarioId: userId, referenciaId: r.referenciaId, ...data },
         update: data,
       });
     }
