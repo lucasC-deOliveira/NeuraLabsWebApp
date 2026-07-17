@@ -38,6 +38,23 @@ export async function findOrCreateNode(
   return { nodeId, created: true };
 }
 
+/** findOrCreateNode, returning null instead of throwing when creation fails. */
+export async function findOrCreateNodeSafe(
+  writer: GraphNodeWriter,
+  nameIndex: Map<string, string>,
+  userId: string,
+  grafoId: string,
+  tipoNode: string,
+  nome: string,
+  descricao = '',
+): Promise<{ nodeId: string; created: boolean } | null> {
+  try {
+    return await findOrCreateNode(writer, nameIndex, userId, grafoId, tipoNode, nome, descricao);
+  } catch {
+    return null;
+  }
+}
+
 /** Creates an edge, silently skipping duplicates/invalid relations. */
 export async function tryCreateEdge(
   writer: GraphEdgeWriter,
