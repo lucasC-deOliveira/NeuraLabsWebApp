@@ -297,7 +297,6 @@ model GrafosConhecimento {
   // é do sistema e a aresta liga nós, não vistas.
   grafoNodes        GrafoNode[]
   roadmapTrilhas    RoadmapTrilha[]
-  nodeEmbeddings    NodeEmbedding[]
   duplicateVerdicts DuplicateVerdictCache?
   nodeInsights      NodeInsightsCache[]
   viewCache         GraphViewCache?
@@ -367,17 +366,17 @@ model NodeInsightsCache {
 model NodeEmbedding {
   id           String   @id @default(cuid())
   usuarioId    String   @map("id_usuario")
-  grafoId      String   @map("id_grafo")
   referenciaId String   @map("referencia_id")
   tipoNode     TipoNode @map("tipo_node")
   assinatura   String   @map("assinatura")
   vetor        Float[]
   atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em")
 
-  usuario Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  grafo   GrafosConhecimento @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
-  @@unique([grafoId, referenciaId], name: "_embedding_unique")
+  // Global por usuário (não por grafo): o nó é do sistema, então o mesmo conceito
+  // presente em N grafos tem UM vetor — sem re-embutir por vista (Fase 6, Etapa 0).
+  @@unique([usuarioId, referenciaId], name: "_embedding_unique")
   @@map("node_embeddings")
 }
 

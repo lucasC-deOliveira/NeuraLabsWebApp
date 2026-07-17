@@ -45,7 +45,7 @@ export class DetectDuplicatesHybridUseCase {
   async execute(userId: string, grafoId: string): Promise<{ groups: DuplicateGroup[] }> {
     const nodes = await this.nodes.loadGraphNodes(userId, grafoId);
     if (nodes.length < 2) return { groups: [] };
-    const vectors = await ensureNodeVectors(this.embeddings, this.store, userId, grafoId, nodes);
+    const vectors = await ensureNodeVectors(this.embeddings, this.store, userId, nodes);
     const items: SimilarityItem[] = nodes.map((n, i) => ({ tipo: n.tipo, vetor: vectors[i] }));
     const partition = partitionByConfidence(similarityClusters(items, RECALL_THRESHOLD));
     const verdicts = await this.resolveVerdicts(userId, grafoId, partition, nodes);

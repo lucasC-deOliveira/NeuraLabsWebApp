@@ -15,8 +15,9 @@ export interface EmbeddingUpsert {
 }
 
 export interface NodeEmbeddingRepository {
-  load(userId: string, grafoId: string): Promise<StoredEmbedding[]>;
-  upsertMany(userId: string, grafoId: string, rows: EmbeddingUpsert[]): Promise<void>;
+  // Vectors are global per user (node-as-system): load by the entity ids in view.
+  load(userId: string, referenciaIds: string[]): Promise<StoredEmbedding[]>;
+  upsertMany(userId: string, rows: EmbeddingUpsert[]): Promise<void>;
 }
 
 export const NODE_EMBEDDING_REPOSITORY = Symbol('NODE_EMBEDDING_REPOSITORY');

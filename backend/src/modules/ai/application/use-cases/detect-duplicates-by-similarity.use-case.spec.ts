@@ -45,7 +45,7 @@ class FakeNodeEmbeddingRepository implements NodeEmbeddingRepository {
       vetor,
     }));
   }
-  async upsertMany(_userId: string, _grafoId: string, rows: EmbeddingUpsert[]): Promise<void> {
+  async upsertMany(_userId: string, rows: EmbeddingUpsert[]): Promise<void> {
     for (const r of rows) this.rows.set(r.referenciaId, r);
   }
 }

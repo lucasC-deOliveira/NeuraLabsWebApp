@@ -1,6 +1,8 @@
 // Shared, incremental embedding step for duplicate detection: reuses cached
 // vectors and only (re)embeds nodes whose name changed. Returns vectors aligned
 // to `nodes`. Takes the ports as arguments so it needs no DI of its own.
+// Vectors are global per user (node-as-system), so the same entity shared by
+// several graphs is embedded once.
 import type { DuplicateGraphNode } from '../domain/ports/duplicate-nodes-repository';
 import type { EmbeddingPort } from '../domain/ports/embedding-port';
 import type {
@@ -13,12 +15,12 @@ export async function ensureNodeVectors(
   embeddings: EmbeddingPort,
   store: NodeEmbeddingRepository,
   userId: string,
-  grafoId: string,
   nodes: DuplicateGraphNode[],
 ): Promise<number[][]> {
-  const byRef = new Map((await store.load(userId, grafoId)).map((s) => [s.referenciaId, s]));
+  const ids = nodes.map((n) => n.id);
+  const byRef = new Map((await store.load(userId, ids)).map((s) => [s.referenciaId, s]));
   const missing = nodes.filter((n) => !isFresh(byRef.get(n.id), n));
-  if (missing.length) await embedMissing(embeddings, store, userId, grafoId, missing, byRef);
+  if (missing.length) await embedMissing(embeddings, store, userId, missing, byRef);
   return nodes.map((n) => byRef.get(n.id)?.vetor ?? []);
 }
 
@@ -26,7 +28,6 @@ async function embedMissing(
   embeddings: EmbeddingPort,
   store: NodeEmbeddingRepository,
   userId: string,
-  grafoId: string,
   missing: DuplicateGraphNode[],
   byRef: Map<string, StoredEmbedding>,
 ): Promise<void> {
@@ -35,7 +36,7 @@ async function embedMissing(
     missing.map((n) => n.nome),
   );
   const rows = toEmbeddingRows(missing, vectors);
-  await store.upsertMany(userId, grafoId, rows);
+  await store.upsertMany(userId, rows);
   for (const r of rows) byRef.set(r.referenciaId, r);
 }
 
