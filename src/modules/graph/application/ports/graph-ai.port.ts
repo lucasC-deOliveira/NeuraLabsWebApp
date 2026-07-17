@@ -139,6 +139,32 @@ export interface ClassifyFlashcardResult {
   conceitos: number;
   linked: number;
 }
+// Classificação do acervo em lotes (Fase 6): o plano de um lote é revisável
+// (opt-out por conceito) antes de ser persistido pelo apply.
+export interface ClassificationConcept {
+  nome: string;
+  topico: string;
+  descricao: string;
+  flashcardIds: string[];
+}
+export interface ClassificationPlan {
+  assuntos: Array<{ nome: string; descricao: string }>;
+  topicos: Array<{ nome: string; assunto: string; descricao: string }>;
+  conceitos: ClassificationConcept[];
+}
+export interface DeckClassificationChunk {
+  baralhoNome: string;
+  totalCards: number;
+  classifiedCards: number;
+  chunkCards: Array<{ id: string; pergunta: string; resposta: string }>;
+  plan: ClassificationPlan | null; // null = baralho todo classificado
+}
+export interface ApplyClassificationResult {
+  assuntos: number;
+  topicos: number;
+  conceitos: number;
+  linkedCards: number;
+}
 export interface EditalBuildResult {
   assuntos: number;
   topicos: number;
@@ -223,6 +249,8 @@ export interface GraphAiPort {
   populateGraphFromBaralho(grafoId: string, baralhoId: string): Promise<PopulateFromBaralhoResult>;
   expandNode(grafoId: string, nodeId: string): Promise<{ topicos: number; conceitos: number; notas: number; flashcards: number }>;
   classifyFlashcard(grafoId: string, nodeId: string): Promise<ClassifyFlashcardResult>;
+  planDeckClassificationChunk(grafoId: string, baralhoId: string, chunkSize?: number): Promise<DeckClassificationChunk>;
+  applyDeckClassificationChunk(grafoId: string, baralhoId: string, plan: ClassificationPlan): Promise<ApplyClassificationResult>;
   // Edital-driven completion: upload the notice PDF → plan (mirrors its hierarchy,
   // reuses existing nodes) → build persists the missing ones.
   planGraphFromEdital(grafoId: string, edital: File): Promise<{ plan: unknown; programa: string }>;

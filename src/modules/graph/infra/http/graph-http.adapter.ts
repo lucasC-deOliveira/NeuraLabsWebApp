@@ -58,6 +58,8 @@ import {
   populateGraphFromBaralho,
   expandNode,
   classifyFlashcard,
+  planDeckClassificationChunk,
+  applyDeckClassificationChunk,
   planGraphFromEdital,
   buildGraphFromEdital,
   rankGraphImportance,
@@ -108,6 +110,9 @@ import type {
   BaralhoItem,
   PopulateFromBaralhoResult,
   ClassifyFlashcardResult,
+  ClassificationPlan,
+  DeckClassificationChunk,
+  ApplyClassificationResult,
   EditalBuildResult,
   RankedConceitoView,
   TokenUsageView,
@@ -204,6 +209,14 @@ export class HttpGraphAdapter
 
   classifyFlashcard(grafoId: string, nodeId: string): Promise<ClassifyFlashcardResult> {
     return classifyFlashcard(grafoId, nodeId);
+  }
+
+  planDeckClassificationChunk(grafoId: string, baralhoId: string, chunkSize?: number): Promise<DeckClassificationChunk> {
+    return planDeckClassificationChunk(grafoId, baralhoId, chunkSize);
+  }
+
+  applyDeckClassificationChunk(grafoId: string, baralhoId: string, plan: ClassificationPlan): Promise<ApplyClassificationResult> {
+    return applyDeckClassificationChunk(grafoId, baralhoId, plan);
   }
 
   listUserGraphs(params?: GraphListParams): Promise<GraphListResult> {
