@@ -29,11 +29,13 @@ interface InteractionCore<T extends LayoutNode> {
   dragOffset: Pan;
   dragStart: { graph: Pan; positions: Map<string, Pan> };
   marquee: MarqueeRect | null;
+  // Shift no início do marquee: a seleção resultante SOMA à atual em vez de trocar.
+  marqueeAdditive: boolean;
   layout: T[];
   pan: Pan;
   zoom: number;
   selected?: Set<string>;
-  onMarqueeSelect?: (ids: string[]) => void;
+  onMarqueeSelect?: (ids: string[], additive?: boolean) => void;
 }
 
 type Props<T extends LayoutNode> = {
@@ -46,27 +48,30 @@ type Props<T extends LayoutNode> = {
   svgRef: RefObject<HTMLElement | null>;
   // seleção múltipla: nós que se movem juntos ao arrastar um deles
   selectedNodeIds?: Set<string>;
-  onMarqueeSelect?: (ids: string[]) => void;
+  onMarqueeSelect?: (ids: string[], additive?: boolean) => void;
 };
 
 export interface GraphInteractionApi<T extends LayoutNode> {
   handleWheel: (e: WheelEvent) => void;
   startDragNode: (nodeId: string, e: PointerEvent) => void;
   startPan: (clientX: number, clientY: number) => void;
-  startMarquee: (clientX: number, clientY: number) => void;
+  startMarquee: (clientX: number, clientY: number, additive?: boolean) => void;
   marquee: MarqueeRect | null;
   focusNode: (node: T) => void;
+  /** Enquadra o conjunto de nós na tela (zoom + pan para caber com margem). */
+  fitToNodes: (nodes: T[]) => void;
 }
 
 type CoreRef<T extends LayoutNode> = MutableRefObject<InteractionCore<T>>;
 type ScreenToGraph = (viewportX: number, viewportY: number) => Pan;
 
-function initCore<T extends LayoutNode>(layout: T[], pan: Pan, zoom: number, selected: Set<string> | undefined, onMarqueeSelect: ((ids: string[]) => void) | undefined): InteractionCore<T> {
+function initCore<T extends LayoutNode>(layout: T[], pan: Pan, zoom: number, selected: Set<string> | undefined, onMarqueeSelect: ((ids: string[], additive?: boolean) => void) | undefined): InteractionCore<T> {
   return {
     interaction: { type: "idle", nodeId: null },
     dragOffset: { x: 0, y: 0 },
     dragStart: { graph: { x: 0, y: 0 }, positions: new Map() },
     marquee: null,
+    marqueeAdditive: false,
     layout, pan, zoom, selected, onMarqueeSelect,
   };
 }
@@ -127,8 +132,9 @@ function beginDrag<T extends LayoutNode>(nodeId: string, e: PointerEvent, core: 
   core.current.dragStart = { graph: screenToGraph(e.clientX, e.clientY), positions };
 }
 
-function beginMarquee<T extends LayoutNode>(clientX: number, clientY: number, core: CoreRef<T>, screenToGraph: ScreenToGraph, setMarquee: (m: MarqueeRect | null) => void): void {
+function beginMarquee<T extends LayoutNode>(clientX: number, clientY: number, core: CoreRef<T>, screenToGraph: ScreenToGraph, setMarquee: (m: MarqueeRect | null) => void, additive = false): void {
   const g = screenToGraph(clientX, clientY);
+  core.current.marqueeAdditive = additive;
   core.current.interaction = { type: "marquee", nodeId: null };
   const rect = { x1: g.x, y1: g.y, x2: g.x, y2: g.y };
   core.current.marquee = rect;
@@ -142,6 +148,26 @@ function centerOn<T extends LayoutNode>(node: T, svgRef: RefObject<HTMLElement |
   setPan({ x: -node.x * core.current.zoom + cx, y: -node.y * core.current.zoom + cy });
   setZoom(Math.max(core.current.zoom, 0.8));
 }
+
+// Enquadra um conjunto de nós: zoom para caber a bounding box com margem, pan
+// para centrá-la. Um nó só delega ao centerOn (que preserva o zoom atual).
+function fitTo<T extends LayoutNode>(nodes: T[], svgRef: RefObject<HTMLElement | null>, core: CoreRef<T>, setPan: Dispatch<SetStateAction<Pan>>, setZoom: Dispatch<SetStateAction<number>>): void {
+  if (nodes.length === 0) return;
+  if (nodes.length === 1) return centerOn(nodes[0], svgRef, core, setPan, setZoom);
+  const rect = svgRef.current?.getBoundingClientRect();
+  const w = rect?.width ?? 1000;
+  const h = rect?.height ?? 600;
+  const xs = nodes.map((n) => n.x);
+  const ys = nodes.map((n) => n.y);
+  const minX = Math.min(...xs); const maxX = Math.max(...xs);
+  const minY = Math.min(...ys); const maxY = Math.max(...ys);
+  const margin = 80;
+  const zoom = clampZoom(Math.min(w / (maxX - minX + margin * 2), h / (maxY - minY + margin * 2)));
+  setZoom(zoom);
+  setPan({ x: -((minX + maxX) / 2) * zoom + w / 2, y: -((minY + maxY) / 2) * zoom + h / 2 });
+}
+
+const clampZoom = (z: number): number => Math.min(2, Math.max(0.05, z));
 
 // Só muta o pan no ref — o GraphRenderer lê panRef e agenda RAF direto; chamar
 // setPan aqui reconciliaria o React a cada pointermove (~60/s) sem necessidade.
@@ -185,7 +211,7 @@ function handleUp<T extends LayoutNode>(core: CoreRef<T>, setPan: Dispatch<SetSt
   if (t === "pan") setPan({ x: safe(core.current.pan.x), y: safe(core.current.pan.y) });
   else if (t === "marquee" && core.current.marquee) {
     const ids = getNodesInRect(core.current.layout, core.current.marquee);
-    core.current.onMarqueeSelect?.(ids);
+    core.current.onMarqueeSelect?.(ids, core.current.marqueeAdditive);
     core.current.marquee = null;
     setMarquee(null);
   }
@@ -216,9 +242,10 @@ export function useGraphInteractions<T extends LayoutNode>(
   const handleWheel = useCallback((e: WheelEvent) => applyWheel(e, core, svgRef, screenToGraph, setZoom, setPan), [svgRef, screenToGraph, setZoom, setPan]);
   const startPan = useCallback((cx: number, cy: number) => beginPan(cx, cy, core), []);
   const startDragNode = useCallback((id: string, e: PointerEvent) => beginDrag(id, e, core, screenToGraph), [screenToGraph]);
-  const startMarquee = useCallback((cx: number, cy: number) => beginMarquee(cx, cy, core, screenToGraph, setMarquee), [screenToGraph]);
+  const startMarquee = useCallback((cx: number, cy: number, additive?: boolean) => beginMarquee(cx, cy, core, screenToGraph, setMarquee, additive), [screenToGraph]);
   const focusNode = useCallback((node: T) => centerOn(node, svgRef, core, setPan, setZoom), [svgRef, setPan, setZoom]);
+  const fitToNodes = useCallback((nodes: T[]) => fitTo(nodes, svgRef, core, setPan, setZoom), [svgRef, setPan, setZoom]);
   usePointerListeners(core, screenToGraph, setLayout, setPan, setMarquee);
 
-  return { handleWheel, startDragNode, startPan, startMarquee, marquee, focusNode };
+  return { handleWheel, startDragNode, startPan, startMarquee, marquee, focusNode, fitToNodes };
 }
