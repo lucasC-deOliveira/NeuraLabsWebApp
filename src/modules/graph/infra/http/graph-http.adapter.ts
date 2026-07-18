@@ -36,13 +36,11 @@ import {
   suggestNotaRelations,
   autoLinkGraph,
   applyAutoLink,
-  detectDuplicates,
-  detectDuplicatesBySimilarity,
+  suggestBridges,
   improveFlashcard,
   improveQuestao,
   improveNota,
   improveProvaQuestoes,
-  mergeDuplicates,
   assessCompleteness,
   fillKnowledgeGaps,
   detectMissingPrerequisites,
@@ -95,8 +93,8 @@ import type {
   RoadmapBuildResult,
   NotaRelationSuggestion,
   AutoLinkSuggestion,
+  BridgeSuggestion,
   AppliedEdge,
-  DuplicateGroup,
   CompletenessAssessment,
   GapItem,
   GeneratedContentCount,
@@ -120,6 +118,7 @@ import type {
   ImproveQuestaoInput,
   ImprovedQuestao,
 } from "../../application/ports/graph-ai.port";
+import { HttpGraphDuplicatesAdapter } from "./graph-duplicates-http.adapter";
 import type { GraphNodesPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import { updateQuestao } from "@/lib/questions-api";
 import type { GraphDeckPort, DeckForStudy } from "../../application/ports/graph-deck.port";
@@ -190,7 +189,10 @@ function toStudyCard(api: ApiDeckCard): StudyCard {
   };
 }
 
+// Herda a fatia de duplicatas: aquela responsabilidade saiu daqui quando esta
+// classe — que implementa 10 ports — bateu no teto de 500 linhas do gate.
 export class HttpGraphAdapter
+  extends HttpGraphDuplicatesAdapter
   implements
     GraphDataPort,
     GraphAiPort,
@@ -381,12 +383,8 @@ export class HttpGraphAdapter
     return applyAutoLink(grafoId, edges);
   }
 
-  detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }> {
-    return detectDuplicates(grafoId);
-  }
-
-  detectDuplicatesBySimilarity(grafoId: string, threshold?: number): Promise<{ groups: DuplicateGroup[] }> {
-    return detectDuplicatesBySimilarity(grafoId, threshold);
+  suggestBridges(grafoId: string): Promise<{ suggestions: BridgeSuggestion[] }> {
+    return suggestBridges(grafoId);
   }
 
   improveFlashcard(input: {
@@ -407,10 +405,6 @@ export class HttpGraphAdapter
     operations: ImproveFlashcardOperation[];
   }): Promise<{ titulo: string; conteudo: string }> {
     return improveNota(input);
-  }
-
-  mergeDuplicates(grafoId: string, keepId: string, deleteIds: string[]): Promise<{ merged: number; edgesMoved: number }> {
-    return mergeDuplicates(grafoId, keepId, deleteIds);
   }
 
   assessCompleteness(grafoId: string): Promise<{ assessments: CompletenessAssessment[] }> {

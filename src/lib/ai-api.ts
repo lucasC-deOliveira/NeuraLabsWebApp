@@ -239,6 +239,18 @@ export function applyAutoLink(
   return apiFetch(`/ai/graph/graphs/${grafoId}/auto-link/apply`, { method: "POST", body: JSON.stringify({ edges }) });
 }
 
+// ── Pontes entre grafos ────────────────────────────────────────────────────
+// Conceitos próximos que vivem em grafos DIFERENTES e ainda não estão ligados.
+// Grava pelo /auto-link/apply: uma ponte é uma aresta como qualquer outra.
+export interface BridgeSuggestion extends AutoLinkSuggestion {
+  sourceGrafoNome: string;
+  targetGrafoNome: string;
+  similaridade: number;
+}
+export function suggestBridges(grafoId: string): Promise<{ suggestions: BridgeSuggestion[] }> {
+  return apiFetch(`/ai/graph/graphs/${grafoId}/bridges`, { method: "POST", body: JSON.stringify({}) });
+}
+
 // ── Duplicatas ─────────────────────────────────────────────────────────────
 export interface DuplicateNode { id: string; nome: string; tipo: string; }
 export interface DuplicateGroup { nodes: DuplicateNode[]; sugestao: string; }

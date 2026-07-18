@@ -10,7 +10,7 @@ import { GenerateDeckModal } from "@/modules/graph/presentation/components/deck/
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/modules/graph/presentation/components/PropertiesPanel";
 
-import { ArrowLeftIcon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon } from "lucide-react";
+import { ArrowLeftIcon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon, WaypointsIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -24,6 +24,7 @@ import { GapDetectionModal } from "@/modules/graph/presentation/components/ai/Ga
 import { GenerateGraphModal } from "@/modules/graph/presentation/components/ai/GenerateGraphModal";
 import { LinkEditalProvaModal } from "@/modules/graph/presentation/components/ai/LinkEditalProvaModal";
 import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLinkModal";
+import { BridgesModal } from "@/modules/graph/presentation/components/ai/BridgesModal";
 import { ClassifyDeckModal } from "@/modules/graph/presentation/components/ai/ClassifyDeckModal";
 import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/DuplicatesModal";
 import { CommunitySummaryModal } from "@/modules/graph/presentation/components/ai/CommunitySummaryModal";
@@ -133,6 +134,7 @@ export default function GraphPage() {
   const [generateGraphOpen, setGenerateGraphOpen] = useState(false);
   // IA automática
   const [autoLinkOpen, setAutoLinkOpen] = useState(false);
+  const [bridgesOpen, setBridgesOpen] = useState(false);
   // Classificação do acervo em lotes (Fase 6): id do baralho em classificação.
   const [classifyDeckId, setClassifyDeckId] = useState<string | null>(null);
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
@@ -899,6 +901,13 @@ export default function GraphPage() {
                 <div className="text-[11px] text-muted-foreground">Sugere arestas faltantes com IA</div>
               </div>
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openAiTool(() => setBridgesOpen(true))}>
+              <WaypointsIcon className="size-4 shrink-0 text-violet-500" />
+              <div>
+                <div className="font-medium">Pontes entre grafos</div>
+                <div className="text-[11px] text-muted-foreground">Liga conceitos deste grafo aos de outros</div>
+              </div>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openAiTool(() => setMissingPrereqsOpen(true))}>
               <GitBranchIcon className="size-4 shrink-0 text-violet-500" />
               <div>
@@ -1532,6 +1541,12 @@ export default function GraphPage() {
         onOpenChange={setAutoLinkOpen}
         grafoId={graphId}
         onApplied={finishAiWrite("Auto-conectar nós")}
+      />
+      <BridgesModal
+        open={bridgesOpen}
+        onOpenChange={setBridgesOpen}
+        grafoId={graphId}
+        onApplied={finishAiWrite("Pontes entre grafos")}
       />
       <ClassifyDeckModal
         open={!!classifyDeckId}

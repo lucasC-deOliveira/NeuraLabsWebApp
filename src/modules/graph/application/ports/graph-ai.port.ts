@@ -47,6 +47,14 @@ export interface AutoLinkSuggestion {
   motivo: string;
 }
 
+// Ponte: conceitos próximos em grafos DIFERENTES, ainda sem aresta entre eles.
+// É uma AutoLinkSuggestion com a origem de cada ponta e a força da aproximação.
+export interface BridgeSuggestion extends AutoLinkSuggestion {
+  sourceGrafoNome: string;
+  targetGrafoNome: string;
+  similaridade: number;
+}
+
 export interface AppliedEdge {
   sourceId: string;
   targetId: string;
@@ -206,6 +214,7 @@ export interface GraphAiPort {
   suggestNotaRelations(grafoId: string, titulo: string, conteudo: string): Promise<NotaRelationSuggestion[]>;
   autoLinkGraph(grafoId: string): Promise<{ suggestions: AutoLinkSuggestion[] }>;
   applyAutoLink(grafoId: string, edges: AppliedEdge[]): Promise<{ added: number }>;
+  suggestBridges(grafoId: string): Promise<{ suggestions: BridgeSuggestion[] }>;
   detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }>;
   detectDuplicatesBySimilarity(grafoId: string, threshold?: number): Promise<{ groups: DuplicateGroup[] }>;
   improveFlashcard(input: {
