@@ -262,9 +262,9 @@ export class AiController {
   suggestBridges(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { threshold?: number },
+    @Body() body: { percentile?: number },
   ) {
-    return this.suggestCrossGraphBridgesUseCase.execute(userId, grafoId, body?.threshold);
+    return this.suggestCrossGraphBridgesUseCase.execute(userId, grafoId, body?.percentile);
   }
 
   // "IA" mode = hybrid: embeddings shortlist the candidates, the LLM only confirms

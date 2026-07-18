@@ -25,6 +25,8 @@ import {
 import { PrismaDuplicateNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-duplicate-nodes.repository';
 import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
 import { EMBEDDING_PORT, type EmbeddingPort } from '../modules/ai/domain/ports/embedding-port';
+import { EMBEDDING_CONFIG } from '../modules/ai/domain/ports/embedding-config';
+import { embeddingConfigFromEnv } from '../modules/ai/infrastructure/llm/embedding-config.factory';
 import { OpenAiEmbeddingAdapter } from '../modules/ai/infrastructure/llm/openai-embedding.adapter';
 import {
   NODE_EMBEDDING_REPOSITORY,
@@ -295,6 +297,7 @@ const graphRelationRules: RelationRulesPort = {
     { provide: LLM_PORT, useClass: OpenAiLlmAdapter },
     { provide: AI_CONFIG_RESOLVER, useFactory: aiConfigResolver, inject: [ResolveAiConfigUseCase] },
     { provide: DUPLICATE_NODES_REPOSITORY, useClass: PrismaDuplicateNodesRepository },
+    { provide: EMBEDDING_CONFIG, useFactory: embeddingConfigFromEnv },
     { provide: EMBEDDING_PORT, useClass: OpenAiEmbeddingAdapter },
     { provide: NODE_EMBEDDING_REPOSITORY, useClass: PrismaNodeEmbeddingRepository },
     { provide: BRIDGE_CANDIDATES_REPOSITORY, useClass: PrismaBridgeCandidatesRepository },

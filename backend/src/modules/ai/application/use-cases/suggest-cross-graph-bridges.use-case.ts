@@ -31,10 +31,16 @@ interface RawBridgeRelation {
 const DEFAULT_BRIDGE_RELATION = 'REFORCA';
 
 const SYSTEM_PROMPT =
-  'Cada par abaixo são dois conceitos parecidos que vivem em GRAFOS DIFERENTES do mesmo usuário. ' +
-  'Para cada par, escolha a relação que melhor descreve a ponte entre eles. ' +
-  'Relações válidas: IS_A, PART_OF, PREREQUISITO, DERIVA_DE, EVOLUI_PARA, REFORCA, ALTERNATIVA_A, CONTRASTA_COM.\n' +
+  'Cada par abaixo são dois conceitos que o cosseno aproximou e que vivem em GRAFOS DIFERENTES ' +
+  'do mesmo usuário. O cosseno erra: pares podem ser parecidos só na escrita ("Unificação de ' +
+  'Termos" x "Testes Unitários") sem nenhuma relação real.\n' +
+  'Para cada par: se houver relação conceitual de verdade, escolha a melhor entre IS_A, PART_OF, ' +
+  'PREREQUISITO, DERIVA_DE, EVOLUI_PARA, REFORCA, ALTERNATIVA_A, CONTRASTA_COM. ' +
+  'Se NÃO houver relação real, responda "NENHUMA" — é esperado que boa parte dos pares seja NENHUMA.\n' +
   'JSON: {"relacoes":[{"indice":0,"relacao":"...","motivo":"frase curta"}]}';
+
+// The LLM's veto: the pair looked close by cosine but is not actually related.
+const REJECTED_RELATION = 'NENHUMA';
 
 /**
  * Suggests edges between semantically close concepts that live in DIFFERENT graphs
@@ -55,7 +61,7 @@ export class SuggestCrossGraphBridgesUseCase {
   async execute(
     userId: string,
     grafoId: string,
-    threshold?: number,
+    percentile?: number,
   ): Promise<{ suggestions: BridgeSuggestion[] }> {
     const inside = await this.repo.loadConceptsInGraph(userId, grafoId);
     const outside = await this.repo.loadConceptsOutsideGraph(userId, grafoId);
@@ -63,7 +69,9 @@ export class SuggestCrossGraphBridgesUseCase {
     const items = await this.toItems(userId, inside, outside);
     const ids = [...inside, ...outside].map((n) => n.id);
     const existing = await this.repo.loadExistingPairKeys(userId, ids);
-    const candidates = selectBridgeCandidates(items.inside, items.outside, existing, threshold);
+    const candidates = selectBridgeCandidates(items.inside, items.outside, existing, {
+      percentile,
+    });
     if (!candidates.length) return { suggestions: [] };
     return { suggestions: await this.nameRelations(userId, candidates) };
   }
@@ -81,16 +89,25 @@ export class SuggestCrossGraphBridgesUseCase {
     return { inside: items.slice(0, inside.length), outside: items.slice(inside.length) };
   }
 
+  // Candidates the LLM explicitly rejected are dropped: cosine proximity alone
+  // pairs "Encapsulamento" with "Ressentimento", and shipping that as a suggestion
+  // wastes the reviewer's attention, which is the scarce resource here.
   private async nameRelations(
     userId: string,
     candidates: BridgeCandidate[],
   ): Promise<BridgeSuggestion[]> {
     const named = await this.askForRelations(userId, candidates);
-    return candidates.map((candidate, i) => ({
-      ...candidate,
-      relacao: this.validRelation(named.get(i)?.relacao),
-      motivo: named.get(i)?.motivo ?? defaultMotivo(candidate),
-    }));
+    return candidates.flatMap((candidate, i) => {
+      const relacao = named.get(i)?.relacao;
+      if (relacao === REJECTED_RELATION) return [];
+      return [
+        {
+          ...candidate,
+          relacao: this.validRelation(relacao),
+          motivo: named.get(i)?.motivo ?? defaultMotivo(candidate),
+        },
+      ];
+    });
   }
 
   // A failed or unparseable LLM call must not lose the candidates: they are still

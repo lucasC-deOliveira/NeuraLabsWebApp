@@ -17,11 +17,30 @@ services:
       timeout: 5s
       retries: 10
 
+  # Vetores locais (HuggingFace TEI). Fala o protocolo OpenAI em /v1/embeddings,
+  # então o adapter de embeddings do backend não muda — só aponta para cá.
+  # Existe porque o provedor de texto (proxy do CLI claude) só faz chat completion.
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+    restart: unless-stopped
+    command: ["--model-id", "intfloat/multilingual-e5-small"]
+    volumes:
+      - embeddings-cache:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
   backend:
     build: ./backend
     restart: unless-stopped
     environment:
       DATABASE_URL: "postgresql://neuralabs:neuralabs@postgres:5432/neuralabs?schema=public"
+      # Trocar o modelo invalida os vetores já gravados (dimensão e espaço mudam).
+      EMBEDDINGS_BASE_URL: "${EMBEDDINGS_BASE_URL:-http://embeddings:80/v1}"
+      EMBEDDINGS_MODEL: "${EMBEDDINGS_MODEL:-intfloat/multilingual-e5-small}"
       JWT_SECRET: "${JWT_SECRET:-troque-este-segredo}"
       PORT: "3001"
       FRONTEND_ORIGIN: "${FRONTEND_ORIGIN:-http://localhost:3000}"
@@ -32,6 +51,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # started, não healthy: o TEI baixa o modelo no primeiro boot e a API não
+      # precisa dele para subir — só as features de vetor esperam.
+      embeddings:
+        condition: service_started
 
   frontend:
     build:
@@ -47,3 +70,4 @@ services:
 
 volumes:
   pgdata:
+  embeddings-cache:

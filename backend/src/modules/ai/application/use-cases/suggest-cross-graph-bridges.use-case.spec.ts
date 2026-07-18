@@ -137,6 +137,18 @@ describe('SuggestCrossGraphBridgesUseCase', () => {
     });
   });
 
+  it('drops the pairs the LLM rejects, since cosine alone pairs unrelated names', async () => {
+    const repo = new FakeBridgeCandidatesRepository([node('a', 'g1')], [node('b', 'g2')]);
+    const llm = new FakeLlm('{"relacoes":[{"indice":0,"relacao":"NENHUMA"}]}');
+
+    const { suggestions } = await buildUseCase(repo, new FakeEmbeddingPort(angles), llm).execute(
+      'u1',
+      'g1',
+    );
+
+    expect(suggestions).toEqual([]);
+  });
+
   it('falls back to a neutral relation when the LLM names an invalid one', async () => {
     const repo = new FakeBridgeCandidatesRepository([node('a', 'g1')], [node('b', 'g2')]);
     const llm = new FakeLlm('{"relacoes":[{"indice":0,"relacao":"INVENTADA"}]}');

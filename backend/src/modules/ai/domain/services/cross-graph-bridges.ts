@@ -28,15 +28,28 @@ export interface BridgeCandidate {
   similaridade: number;
 }
 
-// Lower than the dedup threshold (0.86) on purpose: a bridge is "related", not
-// "the same". Every candidate is reviewed by a human before it is written.
-export const DEFAULT_BRIDGE_THRESHOLD = 0.78;
+// The cut is RELATIVE, not absolute: only the top slice of the run's own
+// similarity distribution survives.
+//
+// Measured on 400 real concepts with multilingual-e5-small: min 0.73, median
+// 0.847, p99 0.905 — 98% of all pairs sat above the 0.78 absolute threshold this
+// used to have, which made it meaningless. The compression is a property of the
+// model, not of the data, so any fixed number is only ever calibrated for one
+// provider. A percentile transfers across providers untouched.
+export const DEFAULT_BRIDGE_PERCENTILE = 0.99;
 
-// At or above this the two concepts are the same idea duplicated across graphs;
-// suggesting an edge would cement the duplication instead of resolving it.
-export const NEAR_DUPLICATE_SIMILARITY = 0.95;
+// Only near-exact matches are the same concept duplicated. Deliberately NOT 0.95:
+// in the measured space "Criptografia simétrica" ↔ "assimétrica" scores 0.966 and
+// is one of the best bridges there is — a 0.95 ceiling threw away the good ones.
+export const NEAR_DUPLICATE_SIMILARITY = 0.999;
 
 export const MAX_BRIDGE_CANDIDATES = 20;
+
+export interface BridgeSelection {
+  // Fraction of the run's own pairs to keep, 0..1. Higher = stricter.
+  percentile?: number;
+  limit?: number;
+}
 
 /** Order-independent key for "these two nodes are already connected". */
 export function bridgePairKey(a: string, b: string): string {
@@ -45,29 +58,39 @@ export function bridgePairKey(a: string, b: string): string {
 
 /**
  * Best cross-graph pairs, strongest first, at most one per node on each side.
- * @example selectBridgeCandidates(inside, outside, existingPairs, 0.78, 20)
+ * @example selectBridgeCandidates(inside, outside, existingPairs, { percentile: 0.99 })
  */
 export function selectBridgeCandidates(
   inside: BridgeItem[],
   outside: BridgeItem[],
   existingPairs: Set<string>,
-  threshold: number = DEFAULT_BRIDGE_THRESHOLD,
-  limit: number = MAX_BRIDGE_CANDIDATES,
+  options: BridgeSelection = {},
 ): BridgeCandidate[] {
-  const scored = allEligiblePairs(inside, outside, existingPairs, threshold);
+  const scored = allEligiblePairs(inside, outside, existingPairs);
   scored.sort((a, b) => b.similaridade - a.similaridade);
-  return takeBestPerNode(scored, limit);
+  const floor = percentileFloor(scored, options.percentile ?? DEFAULT_BRIDGE_PERCENTILE);
+  const strong = scored.filter((c) => c.similaridade >= floor);
+  return takeBestPerNode(strong, options.limit ?? MAX_BRIDGE_CANDIDATES);
 }
+
+// Similarity of the pair at the given percentile of THIS run. With too few pairs
+// to have a distribution at all, every pair is kept and `limit` does the cutting.
+function percentileFloor(scored: BridgeCandidate[], percentile: number): number {
+  if (scored.length < MIN_PAIRS_FOR_PERCENTILE) return 0;
+  const index = Math.floor(scored.length * (1 - percentile));
+  return scored[Math.min(index, scored.length - 1)].similaridade;
+}
+
+const MIN_PAIRS_FOR_PERCENTILE = 20;
 
 function allEligiblePairs(
   inside: BridgeItem[],
   outside: BridgeItem[],
   existingPairs: Set<string>,
-  threshold: number,
 ): BridgeCandidate[] {
   const pairs: BridgeCandidate[] = [];
   for (const source of inside) {
-    pairs.push(...pairsForSource(source, outside, existingPairs, threshold));
+    pairs.push(...pairsForSource(source, outside, existingPairs));
   }
   return pairs;
 }
@@ -76,29 +99,28 @@ function pairsForSource(
   source: BridgeItem,
   outside: BridgeItem[],
   existingPairs: Set<string>,
-  threshold: number,
 ): BridgeCandidate[] {
   const pairs: BridgeCandidate[] = [];
   for (const target of outside) {
-    const sim = eligibleSimilarity(source, target, existingPairs, threshold);
+    const sim = eligibleSimilarity(source, target, existingPairs);
     if (sim !== null) pairs.push(toCandidate(source, target, sim));
   }
   return pairs;
 }
 
-// Returns the similarity when the pair is a legitimate bridge, or null when it is
-// same-graph, already linked, too weak, or a near-duplicate.
+// Returns the similarity when the pair could be a bridge, or null when it is
+// same-graph, already linked, or a near-exact duplicate. How STRONG a pair must
+// be is decided later, from the distribution of all pairs.
 function eligibleSimilarity(
   source: BridgeItem,
   target: BridgeItem,
   existingPairs: Set<string>,
-  threshold: number,
 ): number | null {
   if (source.grafoId === target.grafoId) return null;
   if (source.id === target.id) return null;
   if (existingPairs.has(bridgePairKey(source.id, target.id))) return null;
   const sim = cosineSimilarity(source.vetor, target.vetor);
-  if (sim < threshold || sim >= NEAR_DUPLICATE_SIMILARITY) return null;
+  if (sim >= NEAR_DUPLICATE_SIMILARITY) return null;
   return sim;
 }
 
