@@ -40,6 +40,12 @@ import { AnalyzeRawTextUseCase } from '../modules/ai/application/use-cases/analy
 import { GenerateFlashcardsViaIaUseCase } from '../modules/ai/application/use-cases/generate-flashcards-via-ia.use-case';
 import { SaveSelectedNotasUseCase } from '../modules/ai/application/use-cases/save-selected-notas.use-case';
 import { PopulateGraphFromBaralhoUseCase } from '../modules/ai/application/use-cases/populate-graph-from-baralho.use-case';
+import { PlanDeckClassificationChunkUseCase } from '../modules/ai/application/use-cases/plan-deck-classification-chunk.use-case';
+import { ApplyDeckClassificationChunkUseCase } from '../modules/ai/application/use-cases/apply-deck-classification-chunk.use-case';
+import {
+  normalizeClassificationPlan,
+  type RawClassificationPlan,
+} from '../modules/ai/domain/services/classification-plan';
 import { PlanGraphFromTextUseCase } from '../modules/ai/application/use-cases/plan-graph-from-text.use-case';
 import { BuildGraphFromPlanUseCase } from '../modules/ai/application/use-cases/build-graph-from-plan.use-case';
 import { GenerateGraphFromTextUseCase } from '../modules/ai/application/use-cases/generate-graph-from-text.use-case';
@@ -86,6 +92,8 @@ export class AiController {
     private readonly generateFlashcardsViaIaUseCase: GenerateFlashcardsViaIaUseCase,
     private readonly saveSelectedNotasUseCase: SaveSelectedNotasUseCase,
     private readonly populateGraphFromBaralhoUseCase: PopulateGraphFromBaralhoUseCase,
+    private readonly planDeckClassificationChunkUseCase: PlanDeckClassificationChunkUseCase,
+    private readonly applyDeckClassificationChunkUseCase: ApplyDeckClassificationChunkUseCase,
     private readonly planGraphFromTextUseCase: PlanGraphFromTextUseCase,
     private readonly buildGraphFromPlanUseCase: BuildGraphFromPlanUseCase,
     private readonly generateGraphFromTextUseCase: GenerateGraphFromTextUseCase,
@@ -428,6 +436,32 @@ export class AiController {
     @Param('baralhoId') baralhoId: string,
   ) {
     return this.populateGraphFromBaralhoUseCase.execute(userId, grafoId, baralhoId);
+  }
+
+  @Post('graphs/:grafoId/baralhos/:baralhoId/classification/plan')
+  planDeckClassificationChunk(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Param('baralhoId') baralhoId: string,
+    @Body() body: { chunkSize?: number },
+  ) {
+    return this.planDeckClassificationChunkUseCase.execute(
+      userId,
+      grafoId,
+      baralhoId,
+      body?.chunkSize,
+    );
+  }
+
+  @Post('graphs/:grafoId/baralhos/:baralhoId/classification/apply')
+  applyDeckClassificationChunk(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Param('baralhoId') baralhoId: string,
+    @Body() body: { plan?: RawClassificationPlan },
+  ) {
+    const plan = normalizeClassificationPlan(body?.plan ?? {});
+    return this.applyDeckClassificationChunkUseCase.execute(userId, grafoId, baralhoId, plan);
   }
 
   @Post('graphs/:grafoId/merge-duplicates')

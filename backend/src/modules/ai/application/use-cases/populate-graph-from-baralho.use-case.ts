@@ -8,6 +8,7 @@ import {
   type PlanTopico,
   type PopulationPlan,
 } from '../../domain/services/population-plan';
+import { buildPopulationMessages } from '../../domain/services/population-prompt';
 import type {
   BaralhoForPopulation,
   BaralhoPopulationRepository,
@@ -15,7 +16,7 @@ import type {
 import type { GraphNameIndexRepository } from '../../domain/ports/graph-name-index-repository';
 import type { GraphNodeInput, GraphNodeWriter } from '../../domain/ports/graph-node-writer';
 import type { GraphEdgeWriter } from '../../domain/ports/graph-edge-writer';
-import type { LlmMessage, LlmPort } from '../../domain/ports/llm-port';
+import type { LlmPort } from '../../domain/ports/llm-port';
 
 export interface PopulationResult {
   baralhoNome: string;
@@ -54,7 +55,7 @@ export class PopulateGraphFromBaralhoUseCase {
     const content = await this.llm.complete({
       userId,
       maxTokens: 8000,
-      messages: buildMessages(baralho, existingContext),
+      messages: buildPopulationMessages(baralho.titulo, baralho.flashcards, existingContext),
     });
     const plan = normalizePopulationPlan(
       parseAiJson(content) as { assuntos?: unknown; topicos?: unknown; conceitos?: unknown },
@@ -163,42 +164,4 @@ export class PopulateGraphFromBaralhoUseCase {
       tipoRelacao,
     });
   }
-}
-
-function buildMessages(baralho: BaralhoForPopulation, existingContext: string): LlmMessage[] {
-  const fcLines = baralho.flashcards
-    .map((fc, i) => `[${i}] P: ${fc.pergunta.trim()}\n    R: ${fc.resposta.trim()}`)
-    .join('\n\n');
-  const last = baralho.flashcards.length - 1;
-  return [
-    { role: 'system', content: systemPrompt(existingContext) },
-    { role: 'user', content: userPrompt(baralho.titulo, baralho.flashcards.length, fcLines, last) },
-  ];
-}
-
-function systemPrompt(existingContext: string): string {
-  return `Você é especialista em pedagogia e organização do conhecimento.
-Dado um conjunto de flashcards, mapeie cada um para a hierarquia: ASSUNTO → TÓPICO → CONCEITO.
-Responda APENAS com JSON válido, sem texto extra.${existingContext}`;
-}
-
-function userPrompt(titulo: string, total: number, fcLines: string, last: number): string {
-  return `Baralho: "${titulo}" (${total} flashcards)
-
-${fcLines}
-
-Regras:
-- Cada flashcard DEVE estar em "indices" de pelo menos um CONCEITO
-- Agrupe flashcards do mesmo conceito; não crie um conceito por flashcard se forem semelhantes
-- Reutilize os nomes dos nós já existentes no grafo quando fizer sentido (evite duplicar)
-- Nomes concisos em português
-
-Formato de resposta:
-{
-  "assuntos": [{ "nome": "string", "descricao": "string" }],
-  "topicos": [{ "nome": "string", "assunto": "nome exato do assunto", "descricao": "string" }],
-  "conceitos": [{ "nome": "string", "topico": "nome exato do tópico", "descricao": "string", "indices": [0, 1, 2] }]
-}
-
-"indices" são os índices [0..${last}] dos flashcards que esse conceito representa.`;
 }

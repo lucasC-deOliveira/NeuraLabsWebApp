@@ -187,6 +187,18 @@ import {
 } from '../modules/ai/domain/ports/baralho-population-repository';
 import { PrismaBaralhoPopulationRepository } from '../modules/ai/infrastructure/persistence/prisma-baralho-population.repository';
 import { PopulateGraphFromBaralhoUseCase } from '../modules/ai/application/use-cases/populate-graph-from-baralho.use-case';
+import {
+  DECK_CLASSIFICATION_REPOSITORY,
+  type DeckClassificationRepository,
+} from '../modules/ai/domain/ports/deck-classification-repository';
+import { PrismaDeckClassificationRepository } from '../modules/ai/infrastructure/persistence/prisma-deck-classification.repository';
+import {
+  GRAPH_NODE_ATTACHER,
+  type GraphNodeAttacher,
+} from '../modules/ai/domain/ports/graph-node-attacher';
+import { AddExistingNodeUseCase } from '../modules/graph/application/use-cases/add-existing-node.use-case';
+import { PlanDeckClassificationChunkUseCase } from '../modules/ai/application/use-cases/plan-deck-classification-chunk.use-case';
+import { ApplyDeckClassificationChunkUseCase } from '../modules/ai/application/use-cases/apply-deck-classification-chunk.use-case';
 import { PlanGraphFromEditalUseCase } from '../modules/ai/application/use-cases/plan-graph-from-edital.use-case';
 import { BuildGraphFromEditalUseCase } from '../modules/ai/application/use-cases/build-graph-from-edital.use-case';
 import {
@@ -245,6 +257,13 @@ const graphEdgeWriter = (createEdge: CreateEdgeUseCase): GraphEdgeWriter => ({
 // Binds the AI context's GraphNodeWriter to the graph context's CreateNode use-case.
 const graphNodeWriter = (createNode: CreateNodeUseCase): GraphNodeWriter => ({
   createNode: (userId, grafoId, input) => createNode.execute(userId, grafoId, input),
+});
+
+// Binds the AI context's GraphNodeAttacher to the graph context's AddExistingNode use-case.
+const graphNodeAttacher = (addExisting: AddExistingNodeUseCase): GraphNodeAttacher => ({
+  attachExisting: async (userId, grafoId, tipoNode, entityId) => {
+    await addExisting.execute(userId, grafoId, tipoNode, entityId);
+  },
 });
 
 // Binds the AI context's RelationRulesPort to the graph context's published rules.
@@ -547,6 +566,38 @@ const graphRelationRules: RelationRulesPort = {
         GRAPH_NODE_WRITER,
         GRAPH_EDGE_WRITER,
         LLM_PORT,
+      ],
+    },
+    { provide: DECK_CLASSIFICATION_REPOSITORY, useClass: PrismaDeckClassificationRepository },
+    {
+      provide: GRAPH_NODE_ATTACHER,
+      useFactory: graphNodeAttacher,
+      inject: [AddExistingNodeUseCase],
+    },
+    {
+      provide: PlanDeckClassificationChunkUseCase,
+      useFactory: (
+        repo: DeckClassificationRepository,
+        names: GraphNameIndexRepository,
+        llm: LlmPort,
+      ) => new PlanDeckClassificationChunkUseCase(repo, names, llm),
+      inject: [DECK_CLASSIFICATION_REPOSITORY, GRAPH_NAME_INDEX_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: ApplyDeckClassificationChunkUseCase,
+      useFactory: (
+        repo: DeckClassificationRepository,
+        names: GraphNameIndexRepository,
+        nodeWriter: GraphNodeWriter,
+        attacher: GraphNodeAttacher,
+        edgeWriter: GraphEdgeWriter,
+      ) => new ApplyDeckClassificationChunkUseCase(repo, names, nodeWriter, attacher, edgeWriter),
+      inject: [
+        DECK_CLASSIFICATION_REPOSITORY,
+        GRAPH_NAME_INDEX_REPOSITORY,
+        GRAPH_NODE_WRITER,
+        GRAPH_NODE_ATTACHER,
+        GRAPH_EDGE_WRITER,
       ],
     },
     {
