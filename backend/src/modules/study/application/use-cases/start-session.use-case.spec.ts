@@ -3,6 +3,8 @@ import { StartSessionUseCase } from './start-session.use-case';
 import { StudySession } from '../../domain/entities/study-session';
 import type { StudySessionRepository } from '../../domain/ports/study-session-repository';
 import type { StudyCardQuery, StudyCardView } from '../../domain/ports/study-card-query';
+import type { PrerequisiteMasteryQuery } from '../../domain/ports/prerequisite-mastery-query';
+import type { ConceptPrerequisites } from '../../domain/services/prerequisite-readiness';
 
 const card = (id: string, conceito: string | null = null): StudyCardView => ({
   id,
@@ -79,5 +81,40 @@ describe('StartSessionUseCase', () => {
     const res = await useCase.execute('u1');
 
     expect(res.cards).toHaveLength(30);
+  });
+});
+
+class FakePrerequisiteMasteryQuery implements PrerequisiteMasteryQuery {
+  public askedFor: string[] = [];
+  constructor(private readonly byConcept: ConceptPrerequisites = new Map()) {}
+  async forConcepts(_userId: string, conceptNames: string[]): Promise<ConceptPrerequisites> {
+    this.askedFor = conceptNames;
+    return this.byConcept;
+  }
+}
+
+describe('StartSessionUseCase prerequisite ordering', () => {
+  it('delays cards whose concept depends on a weak prerequisite', async () => {
+    const sessions = new FakeStudySessionRepository();
+    const cards = new FakeStudyCardQuery();
+    cards.due = [card('bloqueado', 'Dijkstra'), card('pronto', 'Grafos')];
+    const prereqs = new FakePrerequisiteMasteryQuery(
+      new Map([['Dijkstra', [{ nome: 'Grafos', dominio: 0.1 }]]]),
+    );
+
+    const res = await new StartSessionUseCase(sessions, cards, prereqs).execute('u1');
+
+    expect(res.cards.map((c) => c.id)).toEqual(['pronto', 'bloqueado']);
+    expect(prereqs.askedFor.sort()).toEqual(['Dijkstra', 'Grafos']);
+  });
+
+  it('keeps working when no prerequisite query is wired', async () => {
+    const sessions = new FakeStudySessionRepository();
+    const cards = new FakeStudyCardQuery();
+    cards.due = [card('d1', 'Dijkstra')];
+
+    const res = await new StartSessionUseCase(sessions, cards).execute('u1');
+
+    expect(res.cards.map((c) => c.id)).toEqual(['d1']);
   });
 });

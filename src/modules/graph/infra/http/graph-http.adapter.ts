@@ -72,14 +72,6 @@ import {
 } from "@/lib/provas-api";
 import { getQuestao } from "@/lib/questions-api";
 import { createEditalNode, linkEditalToProva, listEditais } from "@/lib/provas-api";
-import {
-  startSingleCardStudy,
-  startDeckStudy,
-  submitCardReview,
-  finalizeStudySession,
-  type ApiCardSchedule,
-  type ApiDeckCard,
-} from "@/lib/study-api";
 import type {
   GraphDataPort,
   NodePosition,
@@ -129,14 +121,7 @@ import type {
 } from "../../application/ports/graph-subgrafo.port";
 import type { GraphImportPort } from "../../application/ports/graph-import.port";
 import type { ImportGraphPayload } from "../../domain/types/graph-import.types";
-import type {
-  StudyPort,
-  SingleCardStudy,
-  DeckStudySession,
-  CardReviewInput,
-  CardSchedule,
-  StudyCard,
-} from "../../application/ports/study.port";
+import type { StudyPort } from "../../application/ports/study.port";
 import type { GraphEdgesPort, CreateEdgeData } from "../../application/ports/graph-edges.port";
 import type {
   GraphProvaPort,
@@ -163,31 +148,9 @@ import type {
   GraphAssunto,
 } from "../../domain/types/graph.types";
 
-// A API serializa o agendamento plano, junto com o card; o domínio o quer como um
-// objeto à parte (ou nulo, quando o card é novo). Traduzir é papel do adapter.
-function toCardSchedule(api: ApiCardSchedule | null): CardSchedule | null {
-  if (!api || !api.proximaRevisao) return null;
-  return {
-    fase: api.fase as CardSchedule["fase"],
-    learningStep: api.learningStep,
-    dificuldade: api.dificuldade,
-    intervalo: api.intervalo,
-    fatorEase: api.fatorEase,
-    proximaRevisao: api.proximaRevisao,
-    ultimaRevisao: api.ultimaRevisao ?? api.proximaRevisao,
-  };
-}
-
-function toStudyCard(api: ApiDeckCard): StudyCard {
-  return {
-    id: api.id,
-    pergunta: api.pergunta,
-    resposta: api.resposta,
-    conceito: api.conceito,
-    schedule: toCardSchedule(api),
-    importancia: api.importancia,
-  };
-}
+// Herda a fatia de estudo: aquela responsabilidade saiu daqui quando esta classe
+// — que implementa 10 ports — bateu no teto de 500 linhas do gate.
+import { HttpGraphStudyAdapter } from "./graph-study-http.adapter";
 
 // Herda a fatia de duplicatas: aquela responsabilidade saiu daqui quando esta
 // classe — que implementa 10 ports — bateu no teto de 500 linhas do gate.
@@ -316,32 +279,6 @@ export class HttpGraphAdapter
 
   getDeckForStudy(baralhoId: string): Promise<DeckForStudy | null> {
     return getDeckForStudy(baralhoId);
-  }
-
-  async startSingleCardStudy(flashcardId: string): Promise<SingleCardStudy | null> {
-    const res = await startSingleCardStudy(flashcardId);
-    if (!res) return null;
-    return {
-      sessionId: res.sessionId,
-      // O estudo de card único não ordena fila: não há peso a carregar.
-      card: { ...res.card, schedule: toCardSchedule(res), importancia: null },
-      due: res.due,
-      proximaRevisao: res.proximaRevisao,
-    };
-  }
-
-  async startDeckStudy(baralhoId: string): Promise<DeckStudySession | null> {
-    const deck = await startDeckStudy(baralhoId);
-    return deck && { ...deck, cards: deck.cards.map(toStudyCard) };
-  }
-
-  async submitCardReview(input: CardReviewInput): Promise<{ success: boolean; schedule: CardSchedule | null }> {
-    const res = await submitCardReview(input);
-    return { success: res.success, schedule: toCardSchedule(res.schedule) };
-  }
-
-  finalizeStudySession(sessionId: string): Promise<{ success: boolean }> {
-    return finalizeStudySession(sessionId);
   }
 
   createSubgrafo(parentGrafoId: string, input: CreateSubgrafoInput): Promise<{ grafoId: string; grafoRefNodeId: string }> {

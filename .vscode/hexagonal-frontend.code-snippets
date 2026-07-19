@@ -1,0 +1,260 @@
+{
+  "//": "Frontend Vite/React hexagonal (src/modules/**). Double quotes (no Prettier), use-cases as functions receiving ports, layers domain/application/infra/presentation, @/lib/*-api only via infra. Prefix: fe-*",
+
+  "fe: Port": {
+    "scope": "typescript",
+    "prefix": "fe-port",
+    "description": "Application port: interface the infra/ adapter implements over @/lib/*-api",
+    "body": [
+      "// Port for ${1:capability}. The infra/ adapter implements it over @/lib/${2:content}-api.",
+      "import type { ${3:SomeType} } from \"../../domain/${4:some}.types\";",
+      "",
+      "export interface ${5:Name}Port {",
+      "  ${6:load}(): Promise<${3:SomeType}[]>;$0",
+      "}",
+      ""
+    ]
+  },
+
+  "fe: Use Case (function)": {
+    "scope": "typescript",
+    "prefix": "fe-usecase",
+    "description": "Frontend use-case: pure function receiving ports by parameter",
+    "body": [
+      "import type { ${1:Name}Port } from \"../ports/${2:name}.port\";",
+      "",
+      "export interface ${3:Action}Ports {",
+      "  ${4:name}: ${1:Name}Port;",
+      "}",
+      "",
+      "/**",
+      " * ${5:What this use-case does — ports only, no @/lib/*-api directly.}",
+      " */",
+      "export async function ${6:action}(ports: ${3:Action}Ports, ${7:input}: ${8:Input}): Promise<${9:void}> {",
+      "  $0",
+      "}",
+      ""
+    ]
+  },
+
+  "fe: HTTP Adapter (ACL)": {
+    "scope": "typescript",
+    "prefix": "fe-adapter",
+    "description": "Infra adapter (ACL) implementing a port over @/lib/*-api",
+    "body": [
+      "// ACL over @/lib/${1:content}-api. Only this infra adapter knows the lib boundary.",
+      "import { ${2:apiFn} } from \"@/lib/${1:content}-api\";",
+      "import type { ${3:Name}Port } from \"../../application/ports/${4:name}.port\";",
+      "import type { ${5:SomeType} } from \"../../domain/${6:some}.types\";",
+      "",
+      "export class Http${3:Name}Adapter implements ${3:Name}Port {",
+      "  ${7:load}(): Promise<${5:SomeType}[]> {",
+      "    return ${2:apiFn}();",
+      "  }$0",
+      "}",
+      ""
+    ]
+  },
+
+  "fe: Domain (pure fns)": {
+    "scope": "typescript",
+    "prefix": "fe-domain",
+    "description": "Pure domain module: builders/validation, no React, no IO",
+    "body": [
+      "// ${1:Module} — pure builders/validation. No React, no IO.",
+      "import type { ${2:SomeType} } from \"./${3:some}.types\";",
+      "",
+      "/** ${4:What it computes.} */",
+      "export function ${5:fn}(${6:input}: ${2:SomeType}): ${7:Output} {",
+      "  $0",
+      "}",
+      ""
+    ]
+  },
+
+  "fe: Named Fake (testing)": {
+    "scope": "typescript",
+    "prefix": "fe-fake",
+    "description": "Reusable named fake of a port, recording calls for assertions",
+    "body": [
+      "// Reusable named fake of ${1:Name}Port for use-case specs.",
+      "import type { ${1:Name}Port } from \"../application/ports/${2:name}.port\";",
+      "",
+      "export class Fake${1:Name}Port implements ${1:Name}Port {",
+      "  public calls: string[] = [];",
+      "  private seq = 0;",
+      "",
+      "  $0",
+      "}",
+      ""
+    ]
+  },
+
+  "fe: Presentation Hook": {
+    "scope": "typescriptreact",
+    "prefix": "fe-hook",
+    "description": "React hook: calls use-cases/ports, pure helpers extracted above",
+    "body": [
+      "import { useEffect, useState } from \"react\";",
+      "",
+      "export function use${1:Name}(${2:arg}: ${3:string}): ${4:Result} {",
+      "  const [state, setState] = useState<${5:StateType}>(${6:null});",
+      "",
+      "  useEffect(() => {",
+      "    let active = true;",
+      "    void (async () => {",
+      "      const result = await ${7:load}(${2:arg});",
+      "      if (active) setState(result);",
+      "    })();",
+      "    return () => {",
+      "      active = false;",
+      "    };",
+      "  }, [${2:arg}]);",
+      "",
+      "  return ${8:state};$0",
+      "}",
+      ""
+    ]
+  },
+
+  "fe: React Component (presentation)": {
+    "scope": "typescriptreact",
+    "prefix": "fe-component",
+    "description": "Presentation component: props typed, calls hooks/use-cases (no @/lib/*-api)",
+    "body": [
+      "interface ${1:Name}Props {",
+      "  ${2:// props}",
+      "}",
+      "",
+      "export function ${1:Name}({ ${3:} }: ${1:Name}Props) {",
+      "  return (",
+      "    <div>",
+      "      $0",
+      "    </div>",
+      "  );",
+      "}",
+      ""
+    ]
+  },
+
+  "fe: Barrel index.ts": {
+    "scope": "typescript",
+    "prefix": "fe-barrel",
+    "description": "Module public surface — PURE (no React); components live in ./ui",
+    "body": [
+      "// Public surface of the `${1:module}` module. PURE entry — domain/application/infra",
+      "// only, no React. Consumers import from here instead of deep paths; internal",
+      "// files use relative imports (avoids cycles).",
+      "",
+      "// domain",
+      "export type { ${2:SomeType} } from \"./domain/${3:some}.types\";",
+      "",
+      "// application",
+      "export type { ${4:Name}Port } from \"./application/ports/${5:name}.port\";",
+      "",
+      "// infra — composed adapter singleton",
+      "export { ${6:name}Http, Http${4:Name}Adapter } from \"./infra/http\";",
+      "$0"
+    ]
+  },
+
+  "fe: Spec (pure logic)": {
+    "scope": "typescript",
+    "prefix": "fe-spec",
+    "description": "Vitest node spec for pure domain/application logic (*.spec.ts)",
+    "body": [
+      "import { describe, it, expect } from \"vitest\";",
+      "import { ${1:fn} } from \"./${2:module}\";",
+      "",
+      "describe(\"${1:fn}\", () => {",
+      "  it(\"${3:does the expected thing}\", () => {",
+      "    const result = ${1:fn}(${4:input});",
+      "    expect(result).toEqual(${5:expected});$0",
+      "  });",
+      "});",
+      ""
+    ]
+  },
+
+  "fe: Component Test (jsdom)": {
+    "scope": "typescriptreact",
+    "prefix": "fe-test",
+    "description": "Vitest jsdom test for a React component (*.test.tsx, testing-library)",
+    "body": [
+      "import { describe, it, expect } from \"vitest\";",
+      "import { render, screen } from \"@testing-library/react\";",
+      "import { ${1:Name} } from \"./${1:Name}\";",
+      "",
+      "describe(\"${1:Name}\", () => {",
+      "  it(\"${2:renders the expected content}\", () => {",
+      "    render(<${1:Name} $3 />);",
+      "    expect(screen.getByText(${4:/text/i})).toBeInTheDocument();$0",
+      "  });",
+      "});",
+      ""
+    ]
+  },
+
+  "fe: Domain types": {
+    "scope": "typescript",
+    "prefix": "fe-types",
+    "description": "Pure domain type declarations (*.types.ts), no logic",
+    "body": [
+      "// Domain types for ${1:module}. Pure declarations — no logic, no React.",
+      "export interface ${2:Name} {",
+      "  id: string;",
+      "  $0",
+      "}",
+      ""
+    ]
+  },
+
+  "fe: infra/http/index (singleton)": {
+    "scope": "typescript",
+    "prefix": "fe-infra",
+    "description": "Composed HTTP adapter singleton exported for injection",
+    "body": [
+      "// Default composition of the ${1:module} HTTP adapter.",
+      "// Presentation/use-cases inject this singleton (or a fake port in tests).",
+      "import { Http${2:Name}Adapter } from \"./${3:name}-http.adapter\";",
+      "import type { ${2:Name}Port } from \"../../application/ports/${3:name}.port\";",
+      "",
+      "export { Http${2:Name}Adapter } from \"./${3:name}-http.adapter\";",
+      "",
+      "export const ${4:name}Http: ${2:Name}Port = new Http${2:Name}Adapter();",
+      ""
+    ]
+  },
+
+  "fe: Route Page": {
+    "scope": "typescriptreact",
+    "prefix": "fe-page",
+    "description": "Presentation page (route entry): wires ports into hooks/use-cases",
+    "body": [
+      "// Route page for ${1:feature}. Composes the port singleton + hooks; no @/lib/*-api.",
+      "import { ${2:name}Http } from \"../infra/http\";",
+      "",
+      "export function ${3:Name}Page() {",
+      "  $0",
+      "  return (",
+      "    <div className=\"${4:}\">",
+      "      <h1>${5:Title}</h1>",
+      "    </div>",
+      "  );",
+      "}",
+      ""
+    ]
+  },
+
+  "fe: ui.ts (React barrel)": {
+    "scope": "typescript",
+    "prefix": "fe-ui",
+    "description": "React surface barrel — components/hooks (sibling to the pure index.ts)",
+    "body": [
+      "// React surface of the `${1:module}` module — components/hooks. Sibling to the",
+      "// PURE `./index` barrel; import from here when you need the presentation layer.",
+      "export { ${2:Name}Page } from \"./presentation/${2:Name}Page\";$0",
+      ""
+    ]
+  }
+}

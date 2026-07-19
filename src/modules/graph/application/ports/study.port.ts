@@ -50,7 +50,25 @@ export interface CardReviewInput {
   sessaoId?: string;
 }
 
+// Onde o usuário mais erra, por CONCEITO. `revisoesAnalisadas` acompanha a lista
+// para a interface distinguir "você acerta tudo" de "você ainda não estudou" —
+// sem isso as duas situações viram a mesma tela vazia.
+export interface ConceptErrorRank {
+  conceitoId: string;
+  nome: string;
+  revisoes: number;
+  erros: number;
+  taxaErro: number;
+  score: number;
+}
+
+export interface ConceptErrorDiagnosis {
+  conceitos: ConceptErrorRank[];
+  revisoesAnalisadas: number;
+}
+
 export interface StudyPort {
+  diagnoseConceptErrors(): Promise<ConceptErrorDiagnosis>;
   startSingleCardStudy(flashcardId: string): Promise<SingleCardStudy | null>;
   startDeckStudy(baralhoId: string): Promise<DeckStudySession | null>;
   // Devolve o agendamento resultante: quem revisou precisa saber quando o card volta.

@@ -1,11 +1,12 @@
 import { detectDuplicates, detectDuplicatesBySimilarity, mergeDuplicates } from "@/lib/ai-api";
 import type { DuplicateGroup } from "@/modules/graph/application/ports/graph-ai.port";
+import { HttpGraphStudyAdapter } from "./graph-study-http.adapter";
 
 // Fatia de duplicatas do adapter HTTP do grafo. Saiu do graph-http.adapter porque
 // aquela classe implementa 10 ports num arquivo só e bateu no teto de 500 linhas;
 // detectar e fundir duplicatas é uma responsabilidade fechada em si.
 // O HttpGraphAdapter herda daqui, então segue sendo o único ponto de entrada.
-export class HttpGraphDuplicatesAdapter {
+export class HttpGraphDuplicatesAdapter extends HttpGraphStudyAdapter {
   detectDuplicates(grafoId: string): Promise<{ groups: DuplicateGroup[] }> {
     return detectDuplicates(grafoId);
   }

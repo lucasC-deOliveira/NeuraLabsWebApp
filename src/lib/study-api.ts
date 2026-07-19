@@ -84,3 +84,21 @@ export function syncVaultSessions(
 ): Promise<{ synced: number }> {
   return apiFetch("/study/sync-vault-log", { method: "POST", body: JSON.stringify({ sessions }) });
 }
+
+// ── Diagnóstico por conceito ───────────────────────────────────────────────
+// Onde o usuário mais erra, olhando o conceito e não o card. 0 token.
+export interface ConceptErrorRank {
+  conceitoId: string;
+  nome: string;
+  revisoes: number;
+  erros: number;
+  taxaErro: number;
+  score: number;
+}
+export interface ConceptErrorDiagnosis {
+  conceitos: ConceptErrorRank[];
+  revisoesAnalisadas: number;
+}
+export function diagnoseConceptErrors(): Promise<ConceptErrorDiagnosis> {
+  return apiFetch("/study/diagnosis/concepts");
+}
