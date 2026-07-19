@@ -25,6 +25,7 @@ import { GenerateNodeInsightsUseCase } from '../modules/ai/application/use-cases
 import { AutoLinkGraphUseCase } from '../modules/ai/application/use-cases/auto-link-graph.use-case';
 import { AssessCompletenessUseCase } from '../modules/ai/application/use-cases/assess-completeness.use-case';
 import { ApplyAutoLinkUseCase } from '../modules/ai/application/use-cases/apply-auto-link.use-case';
+import { SuggestCrossGraphBridgesUseCase } from '../modules/ai/application/use-cases/suggest-cross-graph-bridges.use-case';
 import { AddMissingPrerequisiteUseCase } from '../modules/ai/application/use-cases/add-missing-prerequisite.use-case';
 import { AddInsightsToGraphUseCase } from '../modules/ai/application/use-cases/add-insights-to-graph.use-case';
 import { DetectMissingPrerequisitesUseCase } from '../modules/ai/application/use-cases/detect-missing-prerequisites.use-case';
@@ -77,6 +78,7 @@ export class AiController {
     private readonly autoLinkGraphUseCase: AutoLinkGraphUseCase,
     private readonly assessCompletenessUseCase: AssessCompletenessUseCase,
     private readonly applyAutoLinkUseCase: ApplyAutoLinkUseCase,
+    private readonly suggestCrossGraphBridgesUseCase: SuggestCrossGraphBridgesUseCase,
     private readonly addMissingPrerequisiteUseCase: AddMissingPrerequisiteUseCase,
     private readonly addInsightsToGraphUseCase: AddInsightsToGraphUseCase,
     private readonly detectMissingPrerequisitesUseCase: DetectMissingPrerequisitesUseCase,
@@ -252,6 +254,17 @@ export class AiController {
     @Body() body: { edges: Array<{ sourceId: string; targetId: string; relacao: string }> },
   ) {
     return this.applyAutoLinkUseCase.execute(userId, grafoId, body.edges ?? []);
+  }
+
+  // Bridges reuse the auto-link apply endpoint above to write: a bridge IS an edge,
+  // it just happens to join concepts the user keeps in two different graphs.
+  @Post('graphs/:grafoId/bridges')
+  suggestBridges(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { percentile?: number },
+  ) {
+    return this.suggestCrossGraphBridgesUseCase.execute(userId, grafoId, body?.percentile);
   }
 
   // "IA" mode = hybrid: embeddings shortlist the candidates, the LLM only confirms

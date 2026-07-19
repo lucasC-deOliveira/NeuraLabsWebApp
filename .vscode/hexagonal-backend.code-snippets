@@ -1,0 +1,401 @@
+{
+  "//": "Backend NestJS hexagonal (backend/src/modules/**). Single quotes (Prettier), functions 4-20 lines, explicit types, ports via Symbol token. Prefix: be-*",
+
+  "be: Use Case": {
+    "scope": "typescript",
+    "prefix": "be-usecase",
+    "description": "Application use-case: class with constructor-injected ports + execute()",
+    "body": [
+      "import type { ${2:SomePort} } from '../../domain/ports/${3:some-port}';",
+      "",
+      "export interface ${1:Name}Command {",
+      "  userId: string;",
+      "  ${4:// command fields}",
+      "}",
+      "",
+      "/**",
+      " * ${5:One-line intent: what this use-case does.}",
+      " * @example useCase.execute({ userId })",
+      " */",
+      "export class ${1:Name}UseCase {",
+      "  constructor(private readonly ${6:dep}: ${2:SomePort}) {}",
+      "",
+      "  async execute(cmd: ${1:Name}Command): Promise<${7:void}> {",
+      "    $0",
+      "  }",
+      "}",
+      ""
+    ]
+  },
+
+  "be: Domain Entity / Aggregate Root": {
+    "scope": "typescript",
+    "prefix": "be-entity",
+    "description": "Domain aggregate: private constructor + static create(), no framework/IO",
+    "body": [
+      "/**",
+      " * ${1:Name} aggregate root. ${2:Invariant / transactional boundary it guards.}",
+      " */",
+      "export class ${1:Name} {",
+      "  private constructor(",
+      "    readonly id: string,",
+      "    ${3:readonly ownerId: string,}",
+      "  ) {}",
+      "",
+      "  static create(props: { id: string; ${4:ownerId: string} }): ${1:Name} {",
+      "    return new ${1:Name}(props.id, props.${5:ownerId});",
+      "  }",
+      "$0",
+      "}",
+      ""
+    ]
+  },
+
+  "be: Value Object": {
+    "scope": "typescript",
+    "prefix": "be-vo",
+    "description": "Value object: private ctor + static create() validating the offending value",
+    "body": [
+      "// ${1:Name} — ${2:what it represents}. Value Object: immutable, validated on create.",
+      "export class ${1:Name} {",
+      "  private constructor(readonly value: ${3:number}) {}",
+      "",
+      "  static create(value: ${3:number}): ${1:Name} {",
+      "    if (${4:!Number.isFinite(value)}) {",
+      "      throw new Error(`invalid ${5:name}: \"\\${value}\". Expected: ${6:a finite number}`);",
+      "    }",
+      "    return new ${1:Name}(value);",
+      "  }",
+      "",
+      "  equals(other: ${1:Name}): boolean {",
+      "    return this.value === other.value;",
+      "  }",
+      "$0",
+      "}",
+      ""
+    ]
+  },
+
+  "be: Port + DI token": {
+    "scope": "typescript",
+    "prefix": "be-port",
+    "description": "Domain port interface + Symbol injection token",
+    "body": [
+      "${2:import type { ${3:Entity} } from '../entities/${4:entity}';}",
+      "",
+      "// ${5:Port intent — what capability the domain needs from infra.}",
+      "export interface ${1:Name} {",
+      "  $0",
+      "}",
+      "",
+      "export const ${6:TOKEN_NAME} = Symbol('${6:TOKEN_NAME}');",
+      ""
+    ]
+  },
+
+  "be: Domain Service (pure fns)": {
+    "scope": "typescript",
+    "prefix": "be-service",
+    "description": "Pure domain service: exported functions, no IO/framework, deterministic",
+    "body": [
+      "// ${1:Service name} — pure domain logic. No IO, no framework.",
+      "",
+      "/**",
+      " * ${2:What it computes.}",
+      " * @example ${3:fn(input)} // ${4:=> expected}",
+      " */",
+      "export function ${5:fn}(${6:input}: ${7:Input}): ${8:Output} {",
+      "  $0",
+      "}",
+      ""
+    ]
+  },
+
+  "be: Domain Error": {
+    "scope": "typescript",
+    "prefix": "be-error",
+    "description": "Domain error carrying the offending value (engineering rule)",
+    "body": [
+      "export class ${1:Name}Error extends Error {",
+      "  constructor(${2:id}: string) {",
+      "    super(`${3:Not found}: \"\\${${2:id}}\".`);",
+      "    this.name = '${1:Name}Error';",
+      "  }",
+      "}",
+      "$0"
+    ]
+  },
+
+  "be: Prisma Repository (adapter)": {
+    "scope": "typescript",
+    "prefix": "be-repo",
+    "description": "Transactional Prisma adapter implementing a domain repository port",
+    "body": [
+      "import type { Prisma } from '@prisma/client';",
+      "import type { ${1:Entity} } from '../../domain/entities/${2:entity}';",
+      "import type { ${3:${1:Entity}Repository} } from '../../domain/ports/${4:entity-repository}';",
+      "import { to${1:Entity} } from './mappers/${2:entity}.mapper';",
+      "",
+      "// Transactional adapter for the ${1:Entity} aggregate. Bound to one",
+      "// Prisma.TransactionClient so it shares the unit of work's transaction.",
+      "export class Prisma${3:${1:Entity}Repository} implements ${3:${1:Entity}Repository} {",
+      "  constructor(private readonly tx: Prisma.TransactionClient) {}",
+      "",
+      "  async findOwnedBy(id: string, userId: string): Promise<${1:Entity} | null> {",
+      "    const row = await this.tx.${5:model}.findFirst({ where: { id, usuarioId: userId } });",
+      "    return row ? to${1:Entity}(row) : null;",
+      "  }",
+      "",
+      "  async save(${6:entity}: ${1:Entity}): Promise<void> {",
+      "    $0",
+      "  }",
+      "}",
+      ""
+    ]
+  },
+
+  "be: Mapper (row -> domain)": {
+    "scope": "typescript",
+    "prefix": "be-mapper",
+    "description": "Persistence mapper: DB row to domain aggregate",
+    "body": [
+      "import { ${1:Entity} } from '../../../domain/entities/${2:entity}';",
+      "",
+      "export interface ${1:Entity}Row {",
+      "  id: string;",
+      "  usuarioId: string;",
+      "  ${3:// columns}",
+      "}",
+      "",
+      "// Maps a ${2:entity} row to the domain aggregate.",
+      "export function to${1:Entity}(row: ${1:Entity}Row): ${1:Entity} {",
+      "  return ${1:Entity}.create({",
+      "    id: row.id,",
+      "    ownerId: row.usuarioId,$0",
+      "  });",
+      "}",
+      ""
+    ]
+  },
+
+  "be: Exception Filter (interface)": {
+    "scope": "typescript",
+    "prefix": "be-filter",
+    "description": "NestJS filter translating domain errors to HTTP (PT-BR user message)",
+    "body": [
+      "import {",
+      "  ArgumentsHost,",
+      "  BadRequestException,",
+      "  Catch,",
+      "  ExceptionFilter,",
+      "  HttpException,",
+      "  NotFoundException,",
+      "} from '@nestjs/common';",
+      "import type { Response } from 'express';",
+      "import { ${1:SomeError} } from '../domain/errors';",
+      "",
+      "// Translates ${2:Module} domain errors into HTTP responses, keeping",
+      "// domain/application framework-free (hexagonal). Domain message stays internal",
+      "// (English); the user-facing message here is Portuguese.",
+      "@Catch(${1:SomeError})",
+      "export class ${2:Module}DomainExceptionFilter implements ExceptionFilter {",
+      "  catch(error: ${1:SomeError}, host: ArgumentsHost): void {",
+      "    const httpError = this.toHttpException(error);",
+      "    const response = host.switchToHttp().getResponse<Response>();",
+      "    response.status(httpError.getStatus()).json(httpError.getResponse());",
+      "  }",
+      "",
+      "  private toHttpException(error: ${1:SomeError}): HttpException {",
+      "    ${3:return new NotFoundException('$0');}",
+      "  }",
+      "}",
+      ""
+    ]
+  },
+
+  "be: NestJS Controller": {
+    "scope": "typescript",
+    "prefix": "be-controller",
+    "description": "NestJS controller delegating to use-cases (JWT guard + domain filter)",
+    "body": [
+      "import { Body, Controller, Get, Param, Post, UseFilters, UseGuards } from '@nestjs/common';",
+      "import { JwtAuthGuard } from '../auth/jwt-auth.guard';",
+      "import { CurrentUser } from '../auth/current-user.decorator';",
+      "import { ${1:Name}UseCase } from '../modules/${2:module}/application/use-cases/${3:name}.use-case';",
+      "import { ${4:Module}DomainExceptionFilter } from '../modules/${2:module}/interface/${5:module}-domain-exception.filter';",
+      "",
+      "@UseGuards(JwtAuthGuard)",
+      "@UseFilters(${4:Module}DomainExceptionFilter)",
+      "@Controller('${2:module}')",
+      "export class ${4:Module}Controller {",
+      "  constructor(private readonly ${6:name}: ${1:Name}UseCase) {}",
+      "",
+      "  @Post('${7:path}')",
+      "  ${8:action}(@CurrentUser() userId: string, @Body() body: ${9:unknown}) {",
+      "    return this.${6:name}.execute({ ...body, userId });$0",
+      "  }",
+      "}",
+      ""
+    ]
+  },
+
+  "be: NestJS Module (wiring)": {
+    "scope": "typescript",
+    "prefix": "be-module",
+    "description": "NestJS module wiring ports to adapters via useFactory + Symbol tokens",
+    "body": [
+      "import { Module } from '@nestjs/common';",
+      "import { AuthModule } from '../auth/auth.module';",
+      "import { PrismaService } from '../prisma/prisma.service';",
+      "import { ${1:Module}Controller } from './${2:module}.controller';",
+      "import { ${3:Name}UseCase } from '../modules/${2:module}/application/use-cases/${4:name}.use-case';",
+      "import { ${5:SOME_PORT}, type ${6:SomePort} } from '../modules/${2:module}/domain/ports/${7:some-port}';",
+      "import { Prisma${8:Adapter} } from '../modules/${2:module}/infrastructure/persistence/prisma-${9:adapter}';",
+      "",
+      "@Module({",
+      "  imports: [AuthModule],",
+      "  controllers: [${1:Module}Controller],",
+      "  providers: [",
+      "    { provide: ${5:SOME_PORT}, useClass: Prisma${8:Adapter} },",
+      "    {",
+      "      provide: ${3:Name}UseCase,",
+      "      useFactory: (dep: ${6:SomePort}) => new ${3:Name}UseCase(dep),",
+      "      inject: [${5:SOME_PORT}],",
+      "    },$0",
+      "  ],",
+      "})",
+      "export class ${1:Module}Module {}",
+      ""
+    ]
+  },
+
+  "be: Spec + named fake": {
+    "scope": "typescript",
+    "prefix": "be-spec",
+    "description": "Vitest spec with a named fake implementing the port (no inline stubs)",
+    "body": [
+      "import { describe, it, expect, beforeEach } from 'vitest';",
+      "import { ${1:Name}UseCase } from './${2:name}.use-case';",
+      "import type { ${3:SomePort} } from '../../domain/ports/${4:some-port}';",
+      "",
+      "// Named fake of ${3:SomePort} (no IO).",
+      "class Fake${3:SomePort} implements ${3:SomePort} {",
+      "  $0",
+      "}",
+      "",
+      "describe('${1:Name}UseCase', () => {",
+      "  let fake: Fake${3:SomePort};",
+      "  let useCase: ${1:Name}UseCase;",
+      "",
+      "  beforeEach(() => {",
+      "    fake = new Fake${3:SomePort}();",
+      "    useCase = new ${1:Name}UseCase(fake);",
+      "  });",
+      "",
+      "  it('${5:does the expected thing}', async () => {",
+      "    const result = await useCase.execute({ userId: 'u1' });",
+      "    expect(result).toBeDefined();",
+      "  });",
+      "});",
+      ""
+    ]
+  },
+
+  "be: Unit of Work (port)": {
+    "scope": "typescript",
+    "prefix": "be-uow",
+    "description": "Unit of Work: repositories bundle + execute<T> port + Symbol token",
+    "body": [
+      "import type { ${1:First}Repository } from './${2:first}-repository';",
+      "import type { ${3:Second}Repository } from './${4:second}-repository';",
+      "",
+      "// The aggregate repositories that participate in a single transaction.",
+      "export interface ${5:Module}Repositories {",
+      "  ${6:first}: ${1:First}Repository;",
+      "  ${7:second}: ${3:Second}Repository;",
+      "}",
+      "",
+      "/**",
+      " * Unit of Work for the ${5:Module} context. Runs the work atomically so the",
+      " * ${6:first} and ${7:second} aggregates commit together.",
+      " */",
+      "export interface ${5:Module}UnitOfWork {",
+      "  execute<T>(work: (repos: ${5:Module}Repositories) => Promise<T>): Promise<T>;",
+      "}",
+      "",
+      "export const ${8:MODULE_UNIT_OF_WORK} = Symbol('${8:MODULE_UNIT_OF_WORK}');",
+      ""
+    ]
+  },
+
+  "be: Query (read-model adapter)": {
+    "scope": "typescript",
+    "prefix": "be-query",
+    "description": "CQRS read side: @Injectable Prisma query mapping rows to view DTOs",
+    "body": [
+      "import { Injectable } from '@nestjs/common';",
+      "import { PrismaService } from '../../../../prisma/prisma.service';",
+      "import type { ${1:Name}Query, ${2:Name}View } from '../../domain/ports/${3:name}-query';",
+      "",
+      "// Read-model adapter: ${4:what it projects}. No aggregates, returns view DTOs.",
+      "@Injectable()",
+      "export class Prisma${1:Name}Query implements ${1:Name}Query {",
+      "  constructor(private readonly prisma: PrismaService) {}",
+      "",
+      "  async ${5:find}(userId: string): Promise<${2:Name}View[]> {",
+      "    const records = await this.prisma.${6:model}.findMany({ where: { usuarioId: userId } });",
+      "    return records.map(",
+      "      (r): ${2:Name}View => ({",
+      "        id: r.id,$0",
+      "      }),",
+      "    );",
+      "  }",
+      "}",
+      ""
+    ]
+  },
+
+  "be: View types (read DTOs)": {
+    "scope": "typescript",
+    "prefix": "be-views",
+    "description": "Read-model view types (DTOs returned by queries)",
+    "body": [
+      "// ${1:What this view is for} — read DTO shaped for the ${2:consumer}.",
+      "export interface ${3:Name}View {",
+      "  id: string;",
+      "  $0",
+      "}",
+      ""
+    ]
+  },
+
+  "be: Integration spec (real Prisma)": {
+    "scope": "typescript",
+    "prefix": "be-intspec",
+    "description": "Integration spec (*.int.spec.ts) against a real Prisma client",
+    "body": [
+      "import { describe, it, expect, beforeAll, afterAll } from 'vitest';",
+      "import { PrismaService } from '../../../../prisma/prisma.service';",
+      "import { Prisma${1:Name}${2:Query} } from './prisma-${3:name}.${4:query}';",
+      "",
+      "describe('Prisma${1:Name}${2:Query} (integration)', () => {",
+      "  const prisma = new PrismaService();",
+      "  const subject = new Prisma${1:Name}${2:Query}(prisma);",
+      "",
+      "  beforeAll(async () => {",
+      "    await prisma.\\$connect();$0",
+      "  });",
+      "",
+      "  afterAll(async () => {",
+      "    await prisma.\\$disconnect();",
+      "  });",
+      "",
+      "  it('${5:reads what was written}', async () => {",
+      "    const result = await subject.${6:find}('u1');",
+      "    expect(result).toBeInstanceOf(Array);",
+      "  });",
+      "});",
+      ""
+    ]
+  }
+}

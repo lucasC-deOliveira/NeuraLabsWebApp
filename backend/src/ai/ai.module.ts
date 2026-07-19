@@ -25,6 +25,8 @@ import {
 import { PrismaDuplicateNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-duplicate-nodes.repository';
 import { DetectDuplicatesUseCase } from '../modules/ai/application/use-cases/detect-duplicates.use-case';
 import { EMBEDDING_PORT, type EmbeddingPort } from '../modules/ai/domain/ports/embedding-port';
+import { EMBEDDING_CONFIG } from '../modules/ai/domain/ports/embedding-config';
+import { embeddingConfigFromEnv } from '../modules/ai/infrastructure/llm/embedding-config.factory';
 import { OpenAiEmbeddingAdapter } from '../modules/ai/infrastructure/llm/openai-embedding.adapter';
 import {
   NODE_EMBEDDING_REPOSITORY,
@@ -32,6 +34,12 @@ import {
 } from '../modules/ai/domain/ports/node-embedding-repository';
 import { PrismaNodeEmbeddingRepository } from '../modules/ai/infrastructure/persistence/prisma-node-embedding.repository';
 import { DetectDuplicatesBySimilarityUseCase } from '../modules/ai/application/use-cases/detect-duplicates-by-similarity.use-case';
+import {
+  BRIDGE_CANDIDATES_REPOSITORY,
+  type BridgeCandidatesRepository,
+} from '../modules/ai/domain/ports/bridge-candidates-repository';
+import { PrismaBridgeCandidatesRepository } from '../modules/ai/infrastructure/persistence/prisma-bridge-candidates.repository';
+import { SuggestCrossGraphBridgesUseCase } from '../modules/ai/application/use-cases/suggest-cross-graph-bridges.use-case';
 import { ImproveFlashcardUseCase } from '../modules/ai/application/use-cases/improve-flashcard.use-case';
 import { ImproveQuestaoUseCase } from '../modules/ai/application/use-cases/improve-questao.use-case';
 import { ImproveNotaUseCase } from '../modules/ai/application/use-cases/improve-nota.use-case';
@@ -289,8 +297,10 @@ const graphRelationRules: RelationRulesPort = {
     { provide: LLM_PORT, useClass: OpenAiLlmAdapter },
     { provide: AI_CONFIG_RESOLVER, useFactory: aiConfigResolver, inject: [ResolveAiConfigUseCase] },
     { provide: DUPLICATE_NODES_REPOSITORY, useClass: PrismaDuplicateNodesRepository },
+    { provide: EMBEDDING_CONFIG, useFactory: embeddingConfigFromEnv },
     { provide: EMBEDDING_PORT, useClass: OpenAiEmbeddingAdapter },
     { provide: NODE_EMBEDDING_REPOSITORY, useClass: PrismaNodeEmbeddingRepository },
+    { provide: BRIDGE_CANDIDATES_REPOSITORY, useClass: PrismaBridgeCandidatesRepository },
     { provide: DUPLICATE_VERDICT_REPOSITORY, useClass: PrismaDuplicateVerdictRepository },
     { provide: RELATION_CANDIDATES_REPOSITORY, useClass: PrismaRelationCandidatesRepository },
     { provide: RELATION_RULES_PORT, useValue: graphRelationRules },
@@ -374,6 +384,23 @@ const graphRelationRules: RelationRulesPort = {
         NODE_EMBEDDING_REPOSITORY,
         DUPLICATE_VERDICT_REPOSITORY,
         DetectDuplicatesUseCase,
+      ],
+    },
+    {
+      provide: SuggestCrossGraphBridgesUseCase,
+      useFactory: (
+        repo: BridgeCandidatesRepository,
+        embeddings: EmbeddingPort,
+        store: NodeEmbeddingRepository,
+        llm: LlmPort,
+        rules: RelationRulesPort,
+      ) => new SuggestCrossGraphBridgesUseCase(repo, embeddings, store, llm, rules),
+      inject: [
+        BRIDGE_CANDIDATES_REPOSITORY,
+        EMBEDDING_PORT,
+        NODE_EMBEDDING_REPOSITORY,
+        LLM_PORT,
+        RELATION_RULES_PORT,
       ],
     },
     {

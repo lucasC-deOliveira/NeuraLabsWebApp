@@ -4,6 +4,23 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StudyController } from './study.controller';
 import { SubmitReviewUseCase } from '../modules/study/application/use-cases/submit-review.use-case';
 import { StartSessionUseCase } from '../modules/study/application/use-cases/start-session.use-case';
+import {
+  PREREQUISITE_MASTERY_QUERY,
+  type PrerequisiteMasteryQuery,
+} from '../modules/study/domain/ports/prerequisite-mastery-query';
+import { PrismaPrerequisiteMasteryQuery } from '../modules/study/infrastructure/persistence/prisma-prerequisite-mastery.query';
+import {
+  CARD_MASTERY_CALCULATOR,
+  type CardMasteryCalculator,
+} from '../modules/study/domain/ports/card-mastery-calculator';
+import { computeMastery } from '../modules/graph/domain/services/domain-propagation';
+
+// Liga o cálculo de retenção do contexto do grafo ao port do estudo — o mesmo
+// padrão do RelationRulesPort no AiModule: quem consome declara a interface,
+// o módulo escolhe a implementação.
+const graphCardMastery: CardMasteryCalculator = {
+  mastery: (input, nowMs) => computeMastery(input, nowMs),
+};
 import { EndSessionUseCase } from '../modules/study/application/use-cases/end-session.use-case';
 import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/finalize-session.use-case';
 import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-cases/get-flashcard-for-study.use-case';
@@ -47,6 +64,12 @@ import { PrismaStudySessionLifecycle } from '../modules/study/infrastructure/per
 import { PrismaStudyFlashcardQuery } from '../modules/study/infrastructure/persistence/prisma-study-flashcard.query';
 import { PrismaStudyDeckQuery } from '../modules/study/infrastructure/persistence/prisma-study-deck.query';
 import { PrismaCardImportanceQuery } from '../modules/curriculum/infrastructure/persistence/prisma-card-importance.query';
+import { DiagnoseConceptErrorsUseCase } from '../modules/curriculum/application/use-cases/diagnose-concept-errors.use-case';
+import {
+  CONCEPT_REVIEW_TALLY_QUERY,
+  type ConceptReviewTallyQuery,
+} from '../modules/curriculum/domain/ports/concept-review-tally-query';
+import { PrismaConceptReviewTallyQuery } from '../modules/curriculum/infrastructure/persistence/prisma-concept-review-tally.query';
 import { PrismaConceitoImportanceRepository } from '../modules/curriculum/infrastructure/persistence/prisma-conceito-importance.repository';
 import { PrismaVaultImportSessionRepository } from '../modules/study/infrastructure/persistence/prisma-vault-import-session.repository';
 
@@ -57,6 +80,14 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
     { provide: STUDY_UNIT_OF_WORK, useClass: PrismaStudyUnitOfWork },
     { provide: VAULT_IMPORT_SESSION_REPOSITORY, useClass: PrismaVaultImportSessionRepository },
     { provide: STUDY_CARD_QUERY, useClass: PrismaStudyCardQuery },
+    { provide: CARD_MASTERY_CALCULATOR, useValue: graphCardMastery },
+    { provide: CONCEPT_REVIEW_TALLY_QUERY, useClass: PrismaConceptReviewTallyQuery },
+    {
+      provide: DiagnoseConceptErrorsUseCase,
+      useFactory: (tallies: ConceptReviewTallyQuery) => new DiagnoseConceptErrorsUseCase(tallies),
+      inject: [CONCEPT_REVIEW_TALLY_QUERY],
+    },
+    { provide: PREREQUISITE_MASTERY_QUERY, useClass: PrismaPrerequisiteMasteryQuery },
     { provide: STUDY_SESSION_LIFECYCLE, useClass: PrismaStudySessionLifecycle },
     { provide: STUDY_FLASHCARD_QUERY, useClass: PrismaStudyFlashcardQuery },
     PrismaConceitoImportanceRepository,
@@ -75,9 +106,12 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
     },
     {
       provide: StartSessionUseCase,
-      useFactory: (sessions: StudySessionRepository, cards: StudyCardQuery) =>
-        new StartSessionUseCase(sessions, cards),
-      inject: [STUDY_SESSION_REPOSITORY, STUDY_CARD_QUERY],
+      useFactory: (
+        sessions: StudySessionRepository,
+        cards: StudyCardQuery,
+        prerequisites: PrerequisiteMasteryQuery,
+      ) => new StartSessionUseCase(sessions, cards, prerequisites),
+      inject: [STUDY_SESSION_REPOSITORY, STUDY_CARD_QUERY, PREREQUISITE_MASTERY_QUERY],
     },
     {
       provide: EndSessionUseCase,
