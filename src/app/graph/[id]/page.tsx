@@ -26,6 +26,8 @@ import { LinkEditalProvaModal } from "@/modules/graph/presentation/components/ai
 import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLinkModal";
 import { BridgesModal } from "@/modules/graph/presentation/components/ai/BridgesModal";
 import { ClassifyDeckModal } from "@/modules/graph/presentation/components/ai/ClassifyDeckModal";
+import { ConnectToHubModal } from "@/modules/graph/presentation/components/ConnectToHubModal";
+import { connectSelectionToHub } from "@/modules/graph/application/use-cases/connect-selection-to-hub";
 import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/DuplicatesModal";
 import { CommunitySummaryModal } from "@/modules/graph/presentation/components/ai/CommunitySummaryModal";
 import { MissingPrereqsModal } from "@/modules/graph/presentation/components/ai/MissingPrereqsModal";
@@ -137,6 +139,7 @@ export default function GraphPage() {
   const [bridgesOpen, setBridgesOpen] = useState(false);
   // Classificação do acervo em lotes (Fase 6): id do baralho em classificação.
   const [classifyDeckId, setClassifyDeckId] = useState<string | null>(null);
+  const [connectHub, setConnectHub] = useState<{ id: string; type: string; nome: string } | null>(null);
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [missingPrereqsOpen, setMissingPrereqsOpen] = useState(false);
   const [communitySummary, setCommunitySummary] = useState<{ label: string; nodeIds: string[] } | null>(null);
@@ -449,6 +452,28 @@ export default function GraphPage() {
       toast.error("Não foi possível remover a seleção");
     }
   };
+
+  // "Conectar todos a X": o hub é o nó que recebeu o botão direito; os demais
+  // selecionados viram arestas até ele. A direção é do domínio, não do usuário.
+  const connectSelectionTo = async (edges: Array<{ sourceNodeId: string; targetNodeId: string; tipoRelacao: string }>) => {
+    if (!edges.length) return;
+    const { edgeIds, rejected } = await connectSelectionToHub(graphHttp, graphId, edges);
+    if (edgeIds.length) {
+      undo.push({
+        label: `Conectar ${edgeIds.length} nó(s)`,
+        invert: async () => { for (const id of edgeIds) await graphHttp.deleteEdge(id, graphId); await refreshGraph(); },
+        redo: async () => { await connectSelectionToHub(graphHttp, graphId, edges); await refreshGraph(); },
+      });
+    }
+    await refreshGraph();
+    if (rejected > 0) toast.warning(`${edgeIds.length} aresta(s) criada(s); ${rejected} já existia(m) ou foi(ram) recusada(s).`);
+    else toast.success(`${edgeIds.length} aresta(s) criada(s).`);
+  };
+
+  const selectedMembers = () =>
+    controller.state.filteredNodes
+      .filter((n: any) => controller.state.selectedNodeIds.has(n.id))
+      .map((n: any) => ({ id: n.id, type: n.group }));
 
   const selectedFlashcardIds = () =>
     controller.state.filteredNodes
@@ -1207,6 +1232,12 @@ export default function GraphPage() {
                 </button>
                 <button
                   className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => { setConnectHub({ id: nodeMenu.node.id, type: nodeMenu.node.group, nome: nodeMenu.node.name ?? nodeMenu.node.nome ?? "este nó" }); setNodeMenu(null); }}
+                >
+                  Conectar todos a este nó…
+                </button>
+                <button
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
                   onClick={() => { setNodeMenu(null); setGenerateDeckConfirm({ node: nodeMenu.node, flashcardIds: selectedFlashcardIds() }); }}
                 >
                   Criar baralho com os flashcards
@@ -1548,6 +1579,15 @@ export default function GraphPage() {
         grafoId={graphId}
         onApplied={finishAiWrite("Pontes entre grafos")}
       />
+      {connectHub && (
+        <ConnectToHubModal
+          open
+          onOpenChange={(o) => { if (!o) setConnectHub(null); }}
+          hub={connectHub}
+          members={selectedMembers()}
+          onConnect={connectSelectionTo}
+        />
+      )}
       <ClassifyDeckModal
         open={!!classifyDeckId}
         onOpenChange={(open) => { if (!open) setClassifyDeckId(null); }}
