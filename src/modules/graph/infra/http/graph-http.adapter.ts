@@ -150,7 +150,6 @@ import type {
 
 // Herda a fatia de estudo: aquela responsabilidade saiu daqui quando esta classe
 // — que implementa 10 ports — bateu no teto de 500 linhas do gate.
-import { HttpGraphStudyAdapter } from "./graph-study-http.adapter";
 
 // Herda a fatia de duplicatas: aquela responsabilidade saiu daqui quando esta
 // classe — que implementa 10 ports — bateu no teto de 500 linhas do gate.
