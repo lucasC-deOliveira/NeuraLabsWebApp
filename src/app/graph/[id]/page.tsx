@@ -10,7 +10,7 @@ import { GenerateDeckModal } from "@/modules/graph/presentation/components/deck/
 import { Button } from "@/components/ui/button";
 import { PropertiesPanel } from "@/modules/graph/presentation/components/PropertiesPanel";
 
-import { ArrowLeftIcon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon } from "lucide-react";
+import { ArrowLeftIcon, FolderTreeIcon, BarChart2Icon, GlobeIcon, NetworkIcon, ZapIcon, WandSparklesIcon, Link2Icon, CopyIcon, GitBranchIcon, MessageCircleIcon, SparklesIcon, ChevronDownIcon, GaugeIcon, ScissorsIcon, ChevronRightIcon, TargetIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -25,6 +25,7 @@ import { GenerateGraphModal } from "@/modules/graph/presentation/components/ai/G
 import { LinkEditalProvaModal } from "@/modules/graph/presentation/components/ai/LinkEditalProvaModal";
 import { AutoLinkModal } from "@/modules/graph/presentation/components/ai/AutoLinkModal";
 import { ClassifyDeckModal } from "@/modules/graph/presentation/components/ai/ClassifyDeckModal";
+import { ConceptErrorsModal } from "@/modules/graph/presentation/components/ConceptErrorsModal";
 import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/DuplicatesModal";
 import { CommunitySummaryModal } from "@/modules/graph/presentation/components/ai/CommunitySummaryModal";
 import { MissingPrereqsModal } from "@/modules/graph/presentation/components/ai/MissingPrereqsModal";
@@ -135,6 +136,7 @@ export default function GraphPage() {
   const [autoLinkOpen, setAutoLinkOpen] = useState(false);
   // Classificação do acervo em lotes (Fase 6): id do baralho em classificação.
   const [classifyDeckId, setClassifyDeckId] = useState<string | null>(null);
+  const [conceptErrorsOpen, setConceptErrorsOpen] = useState(false);
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [missingPrereqsOpen, setMissingPrereqsOpen] = useState(false);
   const [communitySummary, setCommunitySummary] = useState<{ label: string; nodeIds: string[] } | null>(null);
@@ -213,6 +215,7 @@ export default function GraphPage() {
     setRoadmapOpen(false);
     setGenerateGraphOpen(false);
     setAutoLinkOpen(false);
+    setConceptErrorsOpen(false);
     setDuplicatesOpen(false);
     setMissingPrereqsOpen(false);
     setLearningPathOpen(false);
@@ -892,6 +895,13 @@ export default function GraphPage() {
                 <div className="text-[11px] text-muted-foreground">Cria nós a partir de qualquer material</div>
               </div>
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { closeToolbarModals(); setConceptErrorsOpen(true); }}>
+              <TargetIcon className="size-4 shrink-0 text-rose-500" />
+              <div>
+                <div className="font-medium">Onde você mais erra</div>
+                <div className="text-[11px] text-muted-foreground">Diagnóstico por conceito (sem IA)</div>
+              </div>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openAiTool(() => setAutoLinkOpen(true))}>
               <Link2Icon className="size-4 shrink-0 text-violet-500" />
               <div>
@@ -1532,6 +1542,16 @@ export default function GraphPage() {
         onOpenChange={setAutoLinkOpen}
         grafoId={graphId}
         onApplied={finishAiWrite("Auto-conectar nós")}
+      />
+      <ConceptErrorsModal
+        open={conceptErrorsOpen}
+        onOpenChange={setConceptErrorsOpen}
+        onFocusConcept={(conceitoId) => {
+          const node = controller.state.filteredNodes.find((n: any) => n.id === conceitoId);
+          if (!node) { toast.info("Este conceito não está neste grafo."); return; }
+          controller.actions.setSelectedNodeIds(new Set([conceitoId]));
+          setConceptErrorsOpen(false);
+        }}
       />
       <ClassifyDeckModal
         open={!!classifyDeckId}
