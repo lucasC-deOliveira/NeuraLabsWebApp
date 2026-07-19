@@ -109,8 +109,8 @@ function pairsForSource(
 }
 
 // Returns the similarity when the pair could be a bridge, or null when it is
-// same-graph, already linked, or a near-exact duplicate. How STRONG a pair must
-// be is decided later, from the distribution of all pairs.
+// same-graph, already linked, or a duplicate. How STRONG a pair must be is
+// decided later, from the distribution of all pairs.
 function eligibleSimilarity(
   source: BridgeItem,
   target: BridgeItem,
@@ -118,10 +118,31 @@ function eligibleSimilarity(
 ): number | null {
   if (source.grafoId === target.grafoId) return null;
   if (source.id === target.id) return null;
+  if (sameNameIgnoringPunctuation(source.nome, target.nome)) return null;
   if (existingPairs.has(bridgePairKey(source.id, target.id))) return null;
   const sim = cosineSimilarity(source.vetor, target.vetor);
   if (sim >= NEAR_DUPLICATE_SIMILARITY) return null;
   return sim;
+}
+
+// "Composição vs Herança" x "Composição vs. Herança" — mesmo conceito escrito duas
+// vezes, que o cosseno pontua alto mas abaixo do teto de near-duplicate. Ligar os
+// dois cimentaria a duplicação em vez de resolvê-la (é caso do fluxo de merge).
+//
+// Mais agressivo que o `nodeNameKey` do import, que preserva pontuação para não
+// fundir "C++" com "C#": lá o merge é irreversível, aqui só se deixa de SUGERIR
+// uma aresta — e um falso negativo custa menos que ruído garantido na revisão.
+function sameNameIgnoringPunctuation(a: string, b: string): boolean {
+  return stripForComparison(a) === stripForComparison(b);
+}
+
+function stripForComparison(nome: string): string {
+  return nome
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 function toCandidate(
