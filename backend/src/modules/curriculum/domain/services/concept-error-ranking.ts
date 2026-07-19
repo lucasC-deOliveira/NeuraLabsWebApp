@@ -7,6 +7,9 @@ export interface ConceptReviewTally {
   nome: string;
   revisoes: number;
   erros: number;
+  // Os cards errados NESTE conceito. É o que a tela usa para abrir uma sessão
+  // focada — diagnosticar sem oferecer a ação deixa o trabalho pela metade.
+  cardsComErro: string[];
 }
 
 export interface ConceptErrorRank extends ConceptReviewTally {

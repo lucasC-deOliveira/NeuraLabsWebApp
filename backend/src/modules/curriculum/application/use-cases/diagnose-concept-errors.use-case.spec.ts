@@ -15,6 +15,7 @@ const tally = (conceitoId: string, revisoes: number, erros: number): ConceptRevi
   nome: `nome-${conceitoId}`,
   revisoes,
   erros,
+  cardsComErro: Array.from({ length: erros }, (_, i) => `${conceitoId}-card${i}`),
 });
 
 describe('DiagnoseConceptErrorsUseCase', () => {

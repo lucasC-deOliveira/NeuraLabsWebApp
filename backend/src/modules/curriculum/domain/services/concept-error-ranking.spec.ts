@@ -6,6 +6,7 @@ const tally = (conceitoId: string, revisoes: number, erros: number): ConceptRevi
   nome: `nome-${conceitoId}`,
   revisoes,
   erros,
+  cardsComErro: Array.from({ length: erros }, (_, i) => `${conceitoId}-card${i}`),
 });
 
 describe('rankConceptErrors', () => {
@@ -43,5 +44,13 @@ describe('rankConceptErrors', () => {
 
   it('returns nothing for an empty history instead of failing', () => {
     expect(rankConceptErrors([])).toEqual([]);
+  });
+
+  // O diagnóstico existe para levar a uma sessão focada; sem os ids o botão
+  // "estudar os que errei" não tem o que abrir.
+  it('carries the errored card ids through to the ranking', () => {
+    const [top] = rankConceptErrors([tally('c1', 8, 2)]);
+
+    expect(top.cardsComErro).toEqual(['c1-card0', 'c1-card1']);
   });
 });

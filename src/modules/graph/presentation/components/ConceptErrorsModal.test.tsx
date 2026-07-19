@@ -13,6 +13,7 @@ const rank = {
   erros: 6,
   taxaErro: 0.75,
   score: 0.4,
+  cardsComErro: ["fc1", "fc2"],
 };
 
 beforeEach(() => {
@@ -36,7 +37,7 @@ describe("ConceptErrorsModal", () => {
     const onFocusConcept = vi.fn();
     render(<ConceptErrorsModal open onOpenChange={vi.fn()} onFocusConcept={onFocusConcept} />);
 
-    await userEvent.click(await screen.findByText("Binary Search"));
+    await userEvent.click(await screen.findByRole("button", { name: "Ver no grafo" }));
 
     expect(onFocusConcept).toHaveBeenCalledWith("c1", "Binary Search");
   });
@@ -61,5 +62,26 @@ describe("ConceptErrorsModal", () => {
     render(<ConceptErrorsModal open onOpenChange={vi.fn()} />);
 
     expect(await screen.findByText("falhou")).toBeInTheDocument();
+  });
+
+  // Diagnosticar sem oferecer a ação deixa o trabalho pela metade.
+  it('opens a session with exactly the cards missed in that concept', async () => {
+    const onStudyCards = vi.fn();
+    render(<ConceptErrorsModal open onOpenChange={vi.fn()} onStudyCards={onStudyCards} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /Estudar 2 card/ }));
+
+    expect(onStudyCards).toHaveBeenCalledWith(["fc1", "fc2"], "Binary Search");
+  });
+
+  it('hides the study action when there is no card left to study', async () => {
+    vi.mocked(diagnoseConceptErrors).mockResolvedValue({
+      conceitos: [{ ...rank, cardsComErro: [] }],
+      revisoesAnalisadas: 40,
+    });
+    render(<ConceptErrorsModal open onOpenChange={vi.fn()} onStudyCards={vi.fn()} />);
+
+    expect(await screen.findByText("Binary Search")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Estudar/ })).not.toBeInTheDocument();
   });
 });
