@@ -103,4 +103,46 @@ describe('selectBridgeCandidates', () => {
 
     expect(selectBridgeCandidates(inside, outside, new Set())).toHaveLength(1);
   });
+
+  // Visto ao rodar no acervo real: o cosseno deu ~1.00 mas abaixo do teto de
+  // near-duplicate, e a ponte sugerida era entre um conceito e ele mesmo.
+  it('rejects the same name written twice, differing only in punctuation', () => {
+    const inside = [
+      { id: 'a', nome: 'Composição vs Herança', grafoId: 'g1', grafoNome: 'A', vetor: onCircle(0) },
+    ];
+    const outside = [
+      {
+        id: 'b',
+        nome: 'Composição vs. Herança',
+        grafoId: 'g2',
+        grafoNome: 'B',
+        vetor: onCircle(20),
+      },
+    ];
+
+    expect(selectBridgeCandidates(inside, outside, new Set())).toEqual([]);
+  });
+
+  it('still bridges genuinely different names', () => {
+    const inside = [
+      {
+        id: 'a',
+        nome: 'Criptografia simétrica',
+        grafoId: 'g1',
+        grafoNome: 'A',
+        vetor: onCircle(0),
+      },
+    ];
+    const outside = [
+      {
+        id: 'b',
+        nome: 'Criptografia assimétrica',
+        grafoId: 'g2',
+        grafoNome: 'B',
+        vetor: onCircle(15),
+      },
+    ];
+
+    expect(selectBridgeCandidates(inside, outside, new Set())).toHaveLength(1);
+  });
 });
