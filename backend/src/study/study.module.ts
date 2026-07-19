@@ -64,6 +64,12 @@ import { PrismaStudySessionLifecycle } from '../modules/study/infrastructure/per
 import { PrismaStudyFlashcardQuery } from '../modules/study/infrastructure/persistence/prisma-study-flashcard.query';
 import { PrismaStudyDeckQuery } from '../modules/study/infrastructure/persistence/prisma-study-deck.query';
 import { PrismaCardImportanceQuery } from '../modules/curriculum/infrastructure/persistence/prisma-card-importance.query';
+import { DiagnoseConceptErrorsUseCase } from '../modules/curriculum/application/use-cases/diagnose-concept-errors.use-case';
+import {
+  CONCEPT_REVIEW_TALLY_QUERY,
+  type ConceptReviewTallyQuery,
+} from '../modules/curriculum/domain/ports/concept-review-tally-query';
+import { PrismaConceptReviewTallyQuery } from '../modules/curriculum/infrastructure/persistence/prisma-concept-review-tally.query';
 import { PrismaConceitoImportanceRepository } from '../modules/curriculum/infrastructure/persistence/prisma-conceito-importance.repository';
 import { PrismaVaultImportSessionRepository } from '../modules/study/infrastructure/persistence/prisma-vault-import-session.repository';
 
@@ -75,6 +81,12 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
     { provide: VAULT_IMPORT_SESSION_REPOSITORY, useClass: PrismaVaultImportSessionRepository },
     { provide: STUDY_CARD_QUERY, useClass: PrismaStudyCardQuery },
     { provide: CARD_MASTERY_CALCULATOR, useValue: graphCardMastery },
+    { provide: CONCEPT_REVIEW_TALLY_QUERY, useClass: PrismaConceptReviewTallyQuery },
+    {
+      provide: DiagnoseConceptErrorsUseCase,
+      useFactory: (tallies: ConceptReviewTallyQuery) => new DiagnoseConceptErrorsUseCase(tallies),
+      inject: [CONCEPT_REVIEW_TALLY_QUERY],
+    },
     { provide: PREREQUISITE_MASTERY_QUERY, useClass: PrismaPrerequisiteMasteryQuery },
     { provide: STUDY_SESSION_LIFECYCLE, useClass: PrismaStudySessionLifecycle },
     { provide: STUDY_FLASHCARD_QUERY, useClass: PrismaStudyFlashcardQuery },

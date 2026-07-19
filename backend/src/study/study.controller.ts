@@ -6,6 +6,7 @@ import {
   type SubmitReviewCommand,
 } from '../modules/study/application/use-cases/submit-review.use-case';
 import { StartSessionUseCase } from '../modules/study/application/use-cases/start-session.use-case';
+import { DiagnoseConceptErrorsUseCase } from '../modules/curriculum/application/use-cases/diagnose-concept-errors.use-case';
 import { EndSessionUseCase } from '../modules/study/application/use-cases/end-session.use-case';
 import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/finalize-session.use-case';
 import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-cases/get-flashcard-for-study.use-case';
@@ -30,7 +31,15 @@ export class StudyController {
     private readonly startSingleCardStudy: StartSingleCardStudyUseCase,
     private readonly startDeckStudy: StartDeckStudyUseCase,
     private readonly syncVaultLog: SyncVaultLogUseCase,
+    private readonly diagnoseConceptErrors: DiagnoseConceptErrorsUseCase,
   ) {}
+
+  // Onde o usuário mais erra, por conceito. 0 token: sai do histórico de revisões
+  // cruzado com as arestas DEFINE do grafo.
+  @Get('diagnosis/concepts')
+  conceptErrors(@CurrentUser() userId: string) {
+    return this.diagnoseConceptErrors.execute(userId);
+  }
 
   @Post('session')
   start(@CurrentUser() userId: string) {
