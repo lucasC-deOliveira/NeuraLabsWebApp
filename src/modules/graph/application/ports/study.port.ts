@@ -60,6 +60,8 @@ export interface ConceptErrorRank {
   erros: number;
   taxaErro: number;
   score: number;
+  // Os cards errados neste conceito — o que a sessão focada estuda.
+  cardsComErro: string[];
 }
 
 export interface ConceptErrorDiagnosis {

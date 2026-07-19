@@ -16,11 +16,13 @@ interface ConceptErrorsModalProps {
   onOpenChange: (open: boolean) => void;
   /** Foca o conceito no grafo — o diagnóstico só vale se leva à ação. */
   onFocusConcept?: (conceitoId: string, nome: string) => void;
+  /** Abre uma sessão só com os cards errados no conceito. */
+  onStudyCards?: (flashcardIds: string[], conceitoNome: string) => void;
 }
 
 type Step = "loading" | "ready" | "error";
 
-export function ConceptErrorsModal({ open, onOpenChange, onFocusConcept }: ConceptErrorsModalProps) {
+export function ConceptErrorsModal({ open, onOpenChange, onFocusConcept, onStudyCards }: ConceptErrorsModalProps) {
   const [step, setStep] = useState<Step>("loading");
   const [conceitos, setConceitos] = useState<ConceptErrorRank[]>([]);
   const [analisadas, setAnalisadas] = useState(0);
@@ -76,6 +78,7 @@ export function ConceptErrorsModal({ open, onOpenChange, onFocusConcept }: Conce
             analisadas={analisadas}
             errorMsg={errorMsg}
             onFocusConcept={onFocusConcept}
+            onStudyCards={onStudyCards}
           />
         </div>
       </DialogContent>
@@ -89,9 +92,10 @@ interface DiagnosisBodyProps {
   analisadas: number;
   errorMsg: string;
   onFocusConcept?: (conceitoId: string, nome: string) => void;
+  onStudyCards?: (flashcardIds: string[], conceitoNome: string) => void;
 }
 
-function DiagnosisBody({ step, conceitos, analisadas, errorMsg, onFocusConcept }: DiagnosisBodyProps) {
+function DiagnosisBody({ step, conceitos, analisadas, errorMsg, onFocusConcept, onStudyCards }: DiagnosisBodyProps) {
   if (step === "loading") {
     return (
       <div className="flex flex-col items-center gap-3 py-10 text-center">
@@ -116,7 +120,7 @@ function DiagnosisBody({ step, conceitos, analisadas, errorMsg, onFocusConcept }
       </p>
       <Separator className="mb-2" />
       {conceitos.map((c) => (
-        <ConceptRow key={c.conceitoId} concept={c} onFocus={onFocusConcept} />
+        <ConceptRow key={c.conceitoId} concept={c} onFocus={onFocusConcept} onStudy={onStudyCards} />
       ))}
     </div>
   );
@@ -141,14 +145,18 @@ function EmptyView({ analisadas }: { analisadas: number }) {
   );
 }
 
-function ConceptRow({ concept, onFocus }: { concept: ConceptErrorRank; onFocus?: (id: string, nome: string) => void }) {
+interface ConceptRowProps {
+  concept: ConceptErrorRank;
+  onFocus?: (id: string, nome: string) => void;
+  onStudy?: (flashcardIds: string[], conceitoNome: string) => void;
+}
+
+function ConceptRow({ concept, onFocus, onStudy }: ConceptRowProps) {
   const pct = Math.round(concept.taxaErro * 100);
+  // Um conceito pode ter erros sem card estudável (o card foi apagado depois).
+  const podeEstudar = Boolean(onStudy) && concept.cardsComErro.length > 0;
   return (
-    <button
-      onClick={() => onFocus?.(concept.conceitoId, concept.nome)}
-      disabled={!onFocus}
-      className="w-full text-left rounded-md border border-border p-2.5 text-xs transition-all hover:bg-accent disabled:hover:bg-transparent disabled:cursor-default"
-    >
+    <div className="w-full rounded-md border border-border p-2.5 text-xs">
       <div className="flex items-center gap-2 mb-1.5">
         <span className="font-medium flex-1">{concept.nome}</span>
         <span className="tabular-nums text-muted-foreground shrink-0">
@@ -164,6 +172,24 @@ function ConceptRow({ concept, onFocus }: { concept: ConceptErrorRank; onFocus?:
           style={{ width: `${pct}%` }}
         />
       </div>
-    </button>
+      <div className="flex gap-1.5 mt-2">
+        {podeEstudar && (
+          <button
+            onClick={() => onStudy?.(concept.cardsComErro, concept.nome)}
+            className="rounded border border-primary/60 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/10"
+          >
+            Estudar {concept.cardsComErro.length} card(s) que errei
+          </button>
+        )}
+        {onFocus && (
+          <button
+            onClick={() => onFocus(concept.conceitoId, concept.nome)}
+            className="rounded border border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent"
+          >
+            Ver no grafo
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

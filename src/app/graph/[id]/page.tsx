@@ -1607,6 +1607,12 @@ export default function GraphPage() {
           controller.actions.setSelectedNodeIds(new Set([conceitoId]));
           setConceptErrorsOpen(false);
         }}
+        onStudyCards={(flashcardIds) => {
+          // Reusa a sessão por ids customizados: estuda só o que se errou, sem
+          // depender do card estar neste grafo (o histórico é global).
+          setConceptErrorsOpen(false);
+          setNeighborhoodStudyIds(flashcardIds);
+        }}
       />
       <ClassifyDeckModal
         open={!!classifyDeckId}

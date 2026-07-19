@@ -8,6 +8,7 @@ interface TallyRow {
   nome: string;
   revisoes: bigint;
   erros: bigint;
+  cards_com_erro: string[];
 }
 
 /**
@@ -33,7 +34,11 @@ export class PrismaConceptReviewTallyQuery implements ConceptReviewTallyQuery {
   private queryTallies(userId: string): Promise<TallyRow[]> {
     return this.prisma.$queryRaw<TallyRow[]>`
       SELECT c.id AS conceito_id, c.nome AS nome, COUNT(*) AS revisoes,
-             SUM(CASE WHEN r.acertou THEN 0 ELSE 1 END) AS erros
+             SUM(CASE WHEN r.acertou THEN 0 ELSE 1 END) AS erros,
+             COALESCE(
+               ARRAY_AGG(DISTINCT r.id_flashcard) FILTER (WHERE NOT r.acertou),
+               '{}'
+             ) AS cards_com_erro
       FROM revisoes_flashcard r
       JOIN sessoes_estudo s ON s.id = r.id_sessao AND s.id_usuario = ${userId}
       JOIN "NodeConhecimento" fn ON fn."referencia_id" = r.id_flashcard
@@ -53,5 +58,6 @@ function toTally(row: TallyRow): ConceptReviewTally {
     nome: row.nome,
     revisoes: Number(row.revisoes),
     erros: Number(row.erros),
+    cardsComErro: row.cards_com_erro ?? [],
   };
 }
