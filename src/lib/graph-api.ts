@@ -244,3 +244,12 @@ export function getDeckForStudy(baralhoId: string): Promise<{
 } | null> {
   return apiFetch(`/graph/baralho/${baralhoId}/study`);
 }
+
+// ---- Grafos que contêm uma entidade (para "Ver no grafo") ----
+export interface EntityGraphRef {
+  grafoId: string;
+  nome: string;
+}
+export function graphsContaining(tipo: string, refId: string): Promise<EntityGraphRef[]> {
+  return apiFetch(`/graph/containing/${tipo}/${encodeURIComponent(refId)}`);
+}
