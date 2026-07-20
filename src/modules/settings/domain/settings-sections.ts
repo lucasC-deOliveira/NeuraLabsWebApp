@@ -34,7 +34,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     id: "estudo",
     titulo: "Estudo",
-    resumo: "Ordem da sessão de repetição espaçada",
+    resumo: "Ordem da sessão e leitura em voz alta",
     icon: "estudo",
     desktopOnly: false,
   },

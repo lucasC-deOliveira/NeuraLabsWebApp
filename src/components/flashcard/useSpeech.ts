@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { guessSpeechLang, stripMarkdown } from "./speech-text";
+import { loadSpeechSettings } from "./speech-settings";
 
 // Fala texto do flashcard via Web Speech API (Chromium/Electron). Um id por trecho
 // (pergunta/resposta) para a UI saber o que está falando e alternar: clicar de
@@ -26,8 +27,12 @@ export function useSpeech() {
     synth.cancel();
     const clean = stripMarkdown(text);
     if (!clean) return;
+    // Lida na hora do clique: mudar a preferência vale já na próxima fala, sem
+    // recriar o hook nem sincronizar estado.
+    const prefs = loadSpeechSettings();
     const utter = new SpeechSynthesisUtterance(clean);
-    utter.lang = guessSpeechLang(clean);
+    utter.lang = prefs.lang === "auto" ? guessSpeechLang(clean) : prefs.lang;
+    utter.rate = prefs.rate;
     utter.onend = () => setSpeakingId((cur) => (cur === id ? null : cur));
     utter.onerror = () => setSpeakingId((cur) => (cur === id ? null : cur));
     setSpeakingId(id);
