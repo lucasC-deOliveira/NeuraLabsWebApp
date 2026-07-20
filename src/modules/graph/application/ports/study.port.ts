@@ -2,6 +2,7 @@
 // Only infra/ implements it (ACL over @/lib/study-api). No React, no @/lib here.
 
 export type StudyGrade = "again" | "hard" | "good" | "easy";
+export type StudyAidMode = "hint" | "mnemonic";
 
 // Agendamento SRS de um card. Mesma forma do LocalSchedule (@/lib/srs-local) —
 // declarada aqui porque o port não importa @/lib. Vem do servidor para a sessão
@@ -71,6 +72,11 @@ export interface ConceptErrorDiagnosis {
 
 export interface StudyPort {
   diagnoseConceptErrors(): Promise<ConceptErrorDiagnosis>;
+  // "hint" não recebe a resposta no backend, então não pode revelá-la.
+  generateStudyAid(
+    mode: StudyAidMode,
+    card: { pergunta: string; resposta: string; conceito: string | null },
+  ): Promise<{ texto: string }>;
   startSingleCardStudy(flashcardId: string): Promise<SingleCardStudy | null>;
   startDeckStudy(baralhoId: string): Promise<DeckStudySession | null>;
   // Devolve o agendamento resultante: quem revisou precisa saber quando o card volta.

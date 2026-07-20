@@ -4,6 +4,7 @@ import {
   submitCardReview,
   finalizeStudySession,
   diagnoseConceptErrors,
+  generateStudyAid,
   type ApiCardSchedule,
   type ApiDeckCard,
 } from "@/lib/study-api";
@@ -13,6 +14,7 @@ import type {
   ConceptErrorDiagnosis,
   DeckStudySession,
   SingleCardStudy,
+  StudyAidMode,
   StudyCard,
   StudyPort,
 } from "../../application/ports/study.port";
@@ -52,6 +54,13 @@ export class HttpGraphStudyAdapter implements StudyPort {
 
   diagnoseConceptErrors(): Promise<ConceptErrorDiagnosis> {
     return diagnoseConceptErrors();
+  }
+
+  generateStudyAid(
+    mode: StudyAidMode,
+    card: { pergunta: string; resposta: string; conceito: string | null },
+  ): Promise<{ texto: string }> {
+    return generateStudyAid(mode, card);
   }
 }
 

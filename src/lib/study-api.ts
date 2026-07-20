@@ -104,3 +104,16 @@ export interface ConceptErrorDiagnosis {
 export function diagnoseConceptErrors(): Promise<ConceptErrorDiagnosis> {
   return apiFetch("/study/diagnosis/concepts");
 }
+
+// ── Auxílio de estudo por IA ───────────────────────────────────────────────
+// "hint" = dica socrática (não revela a resposta); "mnemonic" = truque de memória.
+export type StudyAidMode = "hint" | "mnemonic";
+export function generateStudyAid(
+  mode: StudyAidMode,
+  card: { pergunta: string; resposta: string; conceito: string | null },
+): Promise<{ texto: string }> {
+  return apiFetch("/ai/graph/flashcards/study-aid", {
+    method: "POST",
+    body: JSON.stringify({ mode, ...card }),
+  });
+}
