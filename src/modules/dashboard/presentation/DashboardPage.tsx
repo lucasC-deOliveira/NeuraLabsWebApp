@@ -1,6 +1,7 @@
 "use client";
 
 import { PageContainer } from "@/components/page-container";
+import { ConceptWeakSpots } from "@/components/graph/ConceptWeakSpots";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@/components/link";
@@ -61,6 +62,7 @@ export function DashboardPage() {
           <Separator className="my-4 sm:my-6" />
           <SubjectsGrid loading={loading} subjects={subjects} />
           <Separator className="my-4 sm:my-6" />
+          <ConceptWeakSpots />
           <RecentActivity loading={loading} sessions={sessions} />
         </PageContainer>
       </div>

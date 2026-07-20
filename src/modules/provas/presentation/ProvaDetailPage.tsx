@@ -2,6 +2,7 @@
 
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
+import { VerNoGrafo } from "@/components/graph/VerNoGrafo";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useRouter } from "@/lib/navigation";
@@ -103,6 +104,7 @@ export function ProvaDetailPage() {
             </span>
           </span>
         }
+        actions={<VerNoGrafo tipo="PROVA" refId={id} />}
       />
 
       {/* Tabs */}

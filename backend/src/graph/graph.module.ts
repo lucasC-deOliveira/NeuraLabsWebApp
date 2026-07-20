@@ -17,6 +17,12 @@ import { SaveVisualStateUseCase } from '../modules/graph/application/use-cases/s
 import { LoadVisualStateUseCase } from '../modules/graph/application/use-cases/load-visual-state.use-case';
 import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
 import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
+import { ListEntityGraphsUseCase } from '../modules/graph/application/use-cases/list-entity-graphs.use-case';
+import {
+  ENTITY_GRAPHS_QUERY,
+  type EntityGraphsQuery,
+} from '../modules/graph/domain/ports/entity-graphs-query';
+import { PrismaEntityGraphsQuery } from '../modules/graph/infrastructure/persistence/prisma-entity-graphs.query';
 import { SearchNodeContentUseCase } from '../modules/graph/application/use-cases/search-node-content.use-case';
 import { ListUserFlashcardsUseCase } from '../modules/graph/application/use-cases/list-user-flashcards.use-case';
 import { GetDeckForStudyUseCase } from '../modules/graph/application/use-cases/get-deck-for-study.use-case';
@@ -256,6 +262,12 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
       provide: GetEdgesUseCase,
       useFactory: (edges: GraphEdgesQuery) => new GetEdgesUseCase(edges),
       inject: [GRAPH_EDGES_QUERY],
+    },
+    { provide: ENTITY_GRAPHS_QUERY, useClass: PrismaEntityGraphsQuery },
+    {
+      provide: ListEntityGraphsUseCase,
+      useFactory: (query: EntityGraphsQuery) => new ListEntityGraphsUseCase(query),
+      inject: [ENTITY_GRAPHS_QUERY],
     },
     {
       provide: SearchNodeContentUseCase,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "@/lib/navigation";
+import { useParams, useRouter, useSearchParams } from "@/lib/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -94,6 +94,7 @@ import { getRelationStats } from "@/modules/graph/domain/selectors/graph.selecto
 export default function GraphPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const graphId = params.id as string;
 
   const { theme, resolvedTheme } = useTheme();
@@ -176,6 +177,7 @@ export default function GraphPage() {
   const [is3D, setIs3D] = useState(false);
   const [has3DBeenOpened, setHas3DBeenOpened] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
+  const [heatmap, setHeatmap] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const { focusDepth, setFocusDepth } = useGraphSettings(
     controller.state.physicsOptions,
@@ -209,6 +211,19 @@ export default function GraphPage() {
   useEffect(() => {
     graphHttp.getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
   }, [graphId]);
+
+  // Chegou de "Ver no grafo" com ?focus=<referenciaId>: seleciona e centraliza o
+  // nó assim que a view carregar. Só uma vez — depois o usuário navega livre.
+  const focusId = searchParams.get("focus");
+  const focusedRef = useRef(false);
+  useEffect(() => {
+    if (!focusId || focusedRef.current) return;
+    const node = controller.state.filteredNodes.find((n: any) => n.id === focusId);
+    if (!node) return;
+    focusedRef.current = true;
+    controller.actions.setSelectedNodeIds(new Set([focusId]));
+    controller.interactions.focusNode(node);
+  }, [focusId, controller.state.filteredNodes, controller.actions, controller.interactions]);
 
   const closeToolbarModals = () => {
     setIsCreateModalOpen(false);
@@ -1072,6 +1087,8 @@ export default function GraphPage() {
             onTogglePhysics={() => controller.actions.setPhysicsEnabled((v: boolean) => !v)}
             highContrast={highContrast}
             onToggleHighContrast={() => setHighContrast((v) => !v)}
+            heatmap={heatmap}
+            onToggleHeatmap={() => setHeatmap((v) => !v)}
             focusMode={focusMode}
             onToggleFocus={() => setFocusMode((v) => !v)}
             showClusters={showClusters}
@@ -1113,6 +1130,7 @@ export default function GraphPage() {
               selectedNodeIds={controller.state.selectedNodeIds}
               marquee={controller.interactions.marquee}
               highContrast={highContrast}
+              heatmap={heatmap}
               focusMode={focusMode}
               focusDepth={focusDepth}
               matchedIds={combinedMatchedIds}

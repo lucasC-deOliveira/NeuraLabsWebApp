@@ -30,6 +30,7 @@ import { DeleteNodeUseCase } from '../modules/graph/application/use-cases/delete
 import { SaveVisualStateUseCase } from '../modules/graph/application/use-cases/save-visual-state.use-case';
 import { LoadVisualStateUseCase } from '../modules/graph/application/use-cases/load-visual-state.use-case';
 import { GetNodeDetailsUseCase } from '../modules/graph/application/use-cases/get-node-details.use-case';
+import { ListEntityGraphsUseCase } from '../modules/graph/application/use-cases/list-entity-graphs.use-case';
 import { GetEdgesUseCase } from '../modules/graph/application/use-cases/get-edges.use-case';
 import { SearchNodeContentUseCase } from '../modules/graph/application/use-cases/search-node-content.use-case';
 import { ListUserFlashcardsUseCase } from '../modules/graph/application/use-cases/list-user-flashcards.use-case';
@@ -73,6 +74,7 @@ export class GraphController {
     private readonly loadVisualStateUseCase: LoadVisualStateUseCase,
     private readonly getNodeDetailsUseCase: GetNodeDetailsUseCase,
     private readonly getEdgesUseCase: GetEdgesUseCase,
+    private readonly listEntityGraphsUseCase: ListEntityGraphsUseCase,
     private readonly searchNodeContentUseCase: SearchNodeContentUseCase,
     private readonly listUserFlashcardsUseCase: ListUserFlashcardsUseCase,
     private readonly getDeckForStudyUseCase: GetDeckForStudyUseCase,
@@ -152,6 +154,16 @@ export class GraphController {
   @Get('edges')
   edges(@CurrentUser() userId: string, @Query('grafoId') grafoId: string) {
     return this.getEdgesUseCase.execute(userId, grafoId);
+  }
+
+  // Grafos que mostram uma entidade, para o "Ver no grafo" saber aonde ir.
+  @Get('containing/:tipo/:refId')
+  containing(
+    @CurrentUser() userId: string,
+    @Param('tipo') tipo: string,
+    @Param('refId') refId: string,
+  ) {
+    return this.listEntityGraphsUseCase.execute(userId, tipo, refId);
   }
 
   @Get('search')

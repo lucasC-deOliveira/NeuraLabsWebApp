@@ -2,6 +2,7 @@
 
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
+import { VerNoGrafo } from "@/components/graph/VerNoGrafo";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "@/lib/navigation";
 import { Link } from "@/components/link";
@@ -88,10 +89,13 @@ export function NotaDetailPage() {
           </span>
         }
         actions={
-          <Button onClick={handleGenerateFlashcards} disabled={generating} className="flex-shrink-0">
-            {generating ? <Loader2Icon className="size-4 mr-1 animate-spin" /> : <BrainIcon className="size-4 mr-1" />}
-            {generating ? "Gerando..." : "Gerar flashcards"}
-          </Button>
+          <span className="flex flex-wrap items-center gap-2">
+            <VerNoGrafo tipo="NOTA" refId={nota.id} />
+            <Button onClick={handleGenerateFlashcards} disabled={generating} className="flex-shrink-0">
+              {generating ? <Loader2Icon className="size-4 mr-1 animate-spin" /> : <BrainIcon className="size-4 mr-1" />}
+              {generating ? "Gerando..." : "Gerar flashcards"}
+            </Button>
+          </span>
         }
       />
 

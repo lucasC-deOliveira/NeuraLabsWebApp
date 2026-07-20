@@ -6,6 +6,7 @@ import {
 } from "@/modules/graph/presentation/services/graph-style.service";
 import { computeEdgeCurve } from "@/modules/graph/presentation/services/edge-geometry.service";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
+import { heatmapColor } from "@/modules/graph/domain/services/heatmap-color";
 import { useColorTheme } from "@/components/color-theme-provider";
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -23,6 +24,8 @@ type Props = {
   selectedNodeIds: Set<string>;
   marquee: MarqueeRect | null;
   highContrast?: boolean;
+  // Colore cada nó pelo domínio (nivelDominio) em vez do tipo: o mapa de calor.
+  heatmap?: boolean;
   focusMode?: boolean;
   focusDepth?: number;
   matchedIds?: Set<string> | null;
@@ -237,7 +240,7 @@ function drawEdgeBezier(ctx: CanvasRenderingContext2D, edge: any, nodeById: Map<
 // ─── Component ────────────────────────────────────────────────────────────────
 export function GraphRenderer({
   nodes, edges, zoom, pan, isDark, svgRef, tool,
-  selectedNodeIds, marquee, highContrast = false,
+  selectedNodeIds, marquee, highContrast = false, heatmap = false,
   focusMode = false, focusDepth = 1, matchedIds = null,
   showClusters = false,
   onNodeClick, onNodeDoubleClick, onNodeContextMenu, onNodeDragStart,
@@ -302,7 +305,7 @@ export function GraphRenderer({
   }, [matchedIds, focusBfsIds]);
 
   const S = useRef({
-    nodes, edges, zoom, pan, isDark, tool, highContrast, primaryHex,
+    nodes, edges, zoom, pan, isDark, tool, highContrast, heatmap, primaryHex,
     showClusters,
     selectedNodeIds, marquee,
     effectiveMatchedIds: effectiveMatchedIds as Set<string> | null,
@@ -334,7 +337,7 @@ export function GraphRenderer({
   // Don't overwrite pan during active bypass — hover re-renders would reset
   // S.current.pan to the stale React prop, making the graph jump mid-pan.
   if (!s.panActive) s.pan = pan;
-  s.isDark = isDark; s.tool = tool; s.highContrast = highContrast; s.primaryHex = primaryHex;
+  s.isDark = isDark; s.tool = tool; s.highContrast = highContrast; s.heatmap = heatmap; s.primaryHex = primaryHex;
   s.showClusters = showClusters;
   s.selectedNodeIds = selectedNodeIds; s.marquee = marquee;
   s.effectiveMatchedIds = effectiveMatchedIds;
@@ -349,12 +352,16 @@ export function GraphRenderer({
     if (!ctx) return;
 
     const {
-      nodes, edges, nodeById, zoom, pan, isDark, highContrast, primaryHex,
+      nodes, edges, nodeById, zoom, pan, isDark, highContrast, heatmap, primaryHex,
       showClusters,
       selectedNodeIds, hoveredId, marquee, hideEdges, effectiveMatchedIds,
       canvasW, canvasH,
     } = S.current;
     const hcColor = highContrast ? primaryHex : null;
+    // Override de cor por nó: no mapa de calor cada nó vem do seu domínio; senão,
+    // segue o alto-contraste (um tom só) ou a cor por tipo (null).
+    const nodeOverride = (n: any): string | null =>
+      heatmap ? heatmapColor(typeof n.nivelDominio === "number" ? n.nivelDominio : 0) : hcColor;
 
     const dpr = window.devicePixelRatio || 1;
     const w   = canvasW  || canvas.clientWidth  || 1;
@@ -473,12 +480,13 @@ export function GraphRenderer({
       const hov = n.id === hoveredId;
       const dimNode = effectiveMatchedIds && !effectiveMatchedIds.has(n.id);
       if (dimNode) ctx.globalAlpha = 0.1;
+      const nc = nodeOverride(n);
       if (zoom < ZOOM_DOT) {
-        drawDot(ctx, n, sel, isDark, zoom, hcColor);
+        drawDot(ctx, n, sel, isDark, zoom, nc);
       } else if (zoom < ZOOM_SIMPLE) {
-        drawSimple(ctx, n, sel, hov, isDark, zoom, hcColor);
+        drawSimple(ctx, n, sel, hov, isDark, zoom, nc);
       } else {
-        drawFull(ctx, n, sel, hov, isDark, hcColor);
+        drawFull(ctx, n, sel, hov, isDark, nc);
       }
       if (dimNode) ctx.globalAlpha = 1;
     }
