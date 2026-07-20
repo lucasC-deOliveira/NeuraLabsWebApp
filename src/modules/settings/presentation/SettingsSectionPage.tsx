@@ -11,14 +11,26 @@ import { findSection, type SettingsSectionId } from "../domain/settings-sections
 import { ThemeSection } from "./components/ThemeSection";
 import { CardStyleSection } from "./components/CardStyleSection";
 import { StudyOrderSection } from "./components/StudyOrderSection";
+import { SpeechSection } from "./components/SpeechSection";
 import { IaSectionBody } from "./components/IaSectionBody";
 import { DesktopSectionBody } from "./components/DesktopSectionBody";
+
+// A seção "Estudo" reúne o que rege a sessão: a ordem dos cards e a leitura em
+// voz alta. Duas preferências independentes, uma tela.
+function EstudoSection() {
+  return (
+    <>
+      <StudyOrderSection />
+      <SpeechSection />
+    </>
+  );
+}
 
 // Cada seção monta o SEU estado: abrir "Aparência" não vai buscar config de IA.
 const SECTION_BODIES: Record<SettingsSectionId, () => React.ReactElement> = {
   aparencia: ThemeSection,
   flashcards: CardStyleSection,
-  estudo: StudyOrderSection,
+  estudo: EstudoSection,
   ia: IaSectionBody,
   desktop: DesktopSectionBody,
 };
