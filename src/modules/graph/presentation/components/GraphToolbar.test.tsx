@@ -11,6 +11,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     onZoomOut: vi.fn(),
     onTogglePhysics: vi.fn(),
     onToggleHighContrast: vi.fn(),
+    onToggleHeatmap: vi.fn(),
     onToggleFocus: vi.fn(),
     onToggleShowClusters: vi.fn(),
     onOpenSettings: vi.fn(),
@@ -22,6 +23,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     legendVisible: true,
     physicsEnabled: false,
     highContrast: false,
+    heatmap: false,
     focusMode: false,
     showClusters: false,
     is3D: false,
@@ -38,9 +40,9 @@ describe("GraphToolbar", () => {
   it("wires each icon button (in JSX order) to its handler", async () => {
     const h = setup({ canUndo: true, canRedo: true });
     const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(11);
+    expect(buttons).toHaveLength(12);
 
-    // ordem: undo, redo, zoomIn, zoomOut, physics, contrast, focus, clusters, legend, 3D, settings
+    // ordem: undo, redo, zoomIn, zoomOut, physics, contrast, heatmap, focus, clusters, legend, 3D, settings
     const expected = [
       h.onUndo,
       h.onRedo,
@@ -48,6 +50,7 @@ describe("GraphToolbar", () => {
       h.onZoomOut,
       h.onTogglePhysics,
       h.onToggleHighContrast,
+      h.onToggleHeatmap,
       h.onToggleFocus,
       h.onToggleShowClusters,
       h.onToggleLegend,

@@ -177,6 +177,7 @@ export default function GraphPage() {
   const [is3D, setIs3D] = useState(false);
   const [has3DBeenOpened, setHas3DBeenOpened] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
+  const [heatmap, setHeatmap] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const { focusDepth, setFocusDepth } = useGraphSettings(
     controller.state.physicsOptions,
@@ -1086,6 +1087,8 @@ export default function GraphPage() {
             onTogglePhysics={() => controller.actions.setPhysicsEnabled((v: boolean) => !v)}
             highContrast={highContrast}
             onToggleHighContrast={() => setHighContrast((v) => !v)}
+            heatmap={heatmap}
+            onToggleHeatmap={() => setHeatmap((v) => !v)}
             focusMode={focusMode}
             onToggleFocus={() => setFocusMode((v) => !v)}
             showClusters={showClusters}
@@ -1127,6 +1130,7 @@ export default function GraphPage() {
               selectedNodeIds={controller.state.selectedNodeIds}
               marquee={controller.interactions.marquee}
               highContrast={highContrast}
+              heatmap={heatmap}
               focusMode={focusMode}
               focusDepth={focusDepth}
               matchedIds={combinedMatchedIds}

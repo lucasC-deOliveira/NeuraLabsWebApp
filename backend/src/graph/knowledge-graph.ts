@@ -65,6 +65,28 @@ function resolveLabel(
 
 // Derives PROVA→QUESTION (CONTEM) edges from the ProvaQuestao join for the provas and
 // questions present in the graph — the relationship is implicit in the data, not stored.
+// Domínio SM-2 por flashcard, para os ids de FLASHCARD deste grafo. Card sem
+// registro de aprendizado = 0 (nunca revisado). É a entrada real da propagação
+// de domínio, que antes recebia sempre vazio.
+async function loadFlashcardMastery(
+  prisma: PrismaClient,
+  userId: string,
+  flashcardIds: string[] | undefined,
+): Promise<Map<string, number>> {
+  const mastery = new Map<string, number>();
+  if (!flashcardIds || flashcardIds.length === 0) return mastery;
+  const rows = await prisma.aprendizadoFlashcard.findMany({
+    where: { usuarioId: userId, flashcardId: { in: flashcardIds } },
+    select: { flashcardId: true, dificuldade: true, intervalo: true, proximaRevisao: true },
+  });
+  const nowMs = Date.now();
+  for (const id of flashcardIds) mastery.set(id, 0);
+  for (const r of rows) {
+    mastery.set(r.flashcardId, computeMastery({ ...r, proximaRevisao: r.proximaRevisao }, nowMs));
+  }
+  return mastery;
+}
+
 async function addDerivedProvaQuestaoEdges(
   prisma: PrismaClient,
   byType: Record<string, Set<string>>,
@@ -257,13 +279,11 @@ export async function buildKnowledgeGraph(
   // are in the graph.
   await addDerivedProvaQuestaoEdges(prisma, byType, seen, edges);
 
-  const mastery = new Map<string, number>();
-  const nowMs = Date.now();
-  for (const fc of flashcards) {
-    const apList: any[] = (fc as any).aprendizado;
-    const ap = apList?.find((a: any) => a.usuarioId === userId);
-    mastery.set(fc.id, ap ? computeMastery(ap, nowMs) : 0);
-  }
+  // O SRS não vem na query de flashcards (raw, só id+pergunta) — carregá-lo aqui é
+  // o que torna o domínio REAL. Sem isto o mapa de calor era sempre 0: o cálculo
+  // rodava, mas alimentado por um `fc.aprendizado` que nunca existiu.
+  const flashcardIds = byType['FLASHCARD'] ? [...byType['FLASHCARD']] : [];
+  const mastery = await loadFlashcardMastery(prisma, userId, flashcardIds);
   applyDomainFromFlashcards(nodes, edges, mastery);
 
   return { nodes, edges };

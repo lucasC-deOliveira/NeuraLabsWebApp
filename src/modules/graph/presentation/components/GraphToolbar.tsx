@@ -4,6 +4,7 @@ import {
   BoxIcon,
   CircleDashedIcon,
   ContrastIcon,
+  FlameIcon,
   EyeIcon,
   EyeOffIcon,
   FocusIcon,
@@ -32,6 +33,8 @@ type Props = {
   onTogglePhysics: () => void;
   highContrast: boolean;
   onToggleHighContrast: () => void;
+  heatmap: boolean;
+  onToggleHeatmap: () => void;
   focusMode: boolean;
   onToggleFocus: () => void;
   showClusters: boolean;
@@ -88,6 +91,8 @@ export function GraphToolbar({
   onTogglePhysics,
   highContrast,
   onToggleHighContrast,
+  heatmap,
+  onToggleHeatmap,
   focusMode,
   onToggleFocus,
   showClusters,
@@ -131,6 +136,14 @@ export function GraphToolbar({
           onClick={onToggleHighContrast}
         >
           <ContrastIcon className="size-4" />
+        </ToolbarButton>
+
+        <ToolbarButton
+          label={heatmap ? "Desligar mapa de calor" : "Mapa de calor: domínio por estudo (vermelho→verde)"}
+          active={heatmap}
+          onClick={onToggleHeatmap}
+        >
+          <FlameIcon className="size-4" />
         </ToolbarButton>
 
         <ToolbarButton

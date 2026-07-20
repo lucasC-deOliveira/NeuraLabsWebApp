@@ -14,24 +14,42 @@ export class PrismaGraphViewCacheRepository implements GraphViewCacheRepository 
   constructor(private readonly prisma: PrismaService) {}
 
   // Signature from cheap aggregates: node/edge counts + their max timestamps +
-  // the graph's own updatedAt. Any structural change, position/domain update,
-  // edge edit or rename changes it — invalidating the cache without a rebuild.
+  // the graph's own updatedAt + the study state of its flashcards. Any structural
+  // change, position update, edge edit, rename OR review changes it — invalidando
+  // o cache sem rebuild.
   //
   // O escopo segue a VISTA (grafo_nodes), igual ao buildKnowledgeGraph: os nós que
   // o grafo contém e as arestas cujas duas pontas ele contém. Se a assinatura
   // olhasse o modelo antigo (id_grafo), conter/soltar um nó não invalidaria nada e
   // a tela ficaria velha.
   async currentSignature(userId: string, grafoId: string): Promise<string> {
-    const [vista, conteudo, arestas, grafo] = await Promise.all([
+    const [vista, conteudo, arestas, estudo, grafo] = await Promise.all([
       this.assinaturaDaVista(grafoId),
       this.assinaturaDoConteudo(userId, grafoId),
       this.assinaturaDasArestas(grafoId),
+      this.assinaturaDoEstudo(userId, grafoId),
       this.prisma.grafosConhecimento.findFirst({
         where: { id: grafoId, usuarioId: userId },
         select: { dataAtualizacao: true },
       }),
     ]);
-    return `${vista}:${conteudo}:${arestas}:${ms(grafo?.dataAtualizacao)}`;
+    return `${vista}:${conteudo}:${arestas}:${estudo}:${ms(grafo?.dataAtualizacao)}`;
+  }
+
+  // O domínio do grafo sai do SRS dos flashcards (mapa de calor), que vive em
+  // AprendizadoFlashcard — fora de NodeConhecimento. Revisar um card não bumpa o
+  // nó, então sem esta parte o mapa de calor congelaria após a primeira montagem.
+  private async assinaturaDoEstudo(userId: string, grafoId: string): Promise<string> {
+    const rows = await this.prisma.$queryRaw<{ max: Date | null }[]>`
+      SELECT MAX(a.ultima_revisao) AS max
+      FROM "AprendizadoFlashcard" a
+      WHERE a.id_usuario = ${userId}
+        AND a.id_flashcard IN (
+          SELECT n.referencia_id FROM "NodeConhecimento" n
+          JOIN grafo_nodes gn ON gn.id_node = n.id
+          WHERE gn.id_grafo = ${grafoId} AND n."tipoNode" = 'FLASHCARD'
+        )`;
+    return `${ms(rows[0]?.max)}`;
   }
 
   // Quem está na vista. Conter/soltar não toca no nó, então sem esta parte trocar
