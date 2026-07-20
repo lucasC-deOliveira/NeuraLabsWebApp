@@ -8,6 +8,7 @@ vi.mock("@/lib/study-api", () => ({
   startDeckStudy: vi.fn(),
   submitCardReview: vi.fn(),
   finalizeStudySession: vi.fn(),
+  generateStudyAid: vi.fn(),
 }));
 vi.mock("@/lib/vault-bridge", () => ({ isDesktop: () => false, desktop: {} }));
 vi.mock("@/components/flashcard/FlashcardFace", () => ({

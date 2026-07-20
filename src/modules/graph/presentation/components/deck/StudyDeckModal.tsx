@@ -30,6 +30,7 @@ import { formatDelay } from "@/lib/srs-preview";
 import { orderStudyQueue, hasGraphWeights } from "@/lib/study-order";
 import { loadStudyOrder } from "@/lib/study-order-preference";
 import { GradeGrid } from "./GradeGrid";
+import { StudyAid } from "./StudyAid";
 
 interface StudyDeckModalProps {
   open: boolean;
@@ -218,18 +219,29 @@ function DeckCardView({
   onReveal: () => void;
   onGrade: (grade: ReviewGrade) => void;
 }) {
+  const aidCard = { pergunta: card.pergunta, resposta: card.resposta, conceito: card.conceito };
   return (
     <div className="space-y-4">
       {semPesos && <SemPesosHint />}
       {card.schedule && <ScheduleBadge schedule={card.schedule} />}
       <FlashcardFace pergunta={card.pergunta} resposta={card.resposta} conceito={card.conceito} showAnswer={phase === "answer"} />
       {phase === "question" && (
-        <Button size="lg" className="w-full gap-2" onClick={onReveal}>
-          <EyeIcon className="size-4" />
-          Ver resposta
-        </Button>
+        <>
+          {/* Dica antes de revelar: uma pergunta que aproxima sem entregar a resposta. */}
+          <StudyAid key={`hint-${card.id}`} mode="hint" card={aidCard} />
+          <Button size="lg" className="w-full gap-2" onClick={onReveal}>
+            <EyeIcon className="size-4" />
+            Ver resposta
+          </Button>
+        </>
       )}
-      {phase === "answer" && <GradeGrid onGrade={onGrade} schedule={card.schedule} />}
+      {phase === "answer" && (
+        <>
+          {/* Mnemônico depois de revelar: ajuda a FIXAR o que acabou de ver. */}
+          <StudyAid key={`mnemonic-${card.id}`} mode="mnemonic" card={aidCard} />
+          <GradeGrid onGrade={onGrade} schedule={card.schedule} />
+        </>
+      )}
     </div>
   );
 }

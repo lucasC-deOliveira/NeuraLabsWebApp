@@ -41,6 +41,7 @@ import {
 import { PrismaBridgeCandidatesRepository } from '../modules/ai/infrastructure/persistence/prisma-bridge-candidates.repository';
 import { SuggestCrossGraphBridgesUseCase } from '../modules/ai/application/use-cases/suggest-cross-graph-bridges.use-case';
 import { ImproveFlashcardUseCase } from '../modules/ai/application/use-cases/improve-flashcard.use-case';
+import { GenerateStudyAidUseCase } from '../modules/ai/application/use-cases/generate-study-aid.use-case';
 import { ImproveQuestaoUseCase } from '../modules/ai/application/use-cases/improve-questao.use-case';
 import { ImproveNotaUseCase } from '../modules/ai/application/use-cases/improve-nota.use-case';
 import { ImproveProvaQuestoesUseCase } from '../modules/ai/application/use-cases/improve-questoes-batch.use-case';
@@ -343,6 +344,11 @@ const graphRelationRules: RelationRulesPort = {
     {
       provide: ImproveFlashcardUseCase,
       useFactory: (llm: LlmPort) => new ImproveFlashcardUseCase(llm),
+      inject: [LLM_PORT],
+    },
+    {
+      provide: GenerateStudyAidUseCase,
+      useFactory: (llm: LlmPort) => new GenerateStudyAidUseCase(llm),
       inject: [LLM_PORT],
     },
     {

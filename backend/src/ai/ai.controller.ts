@@ -16,6 +16,8 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { DetectDuplicatesHybridUseCase } from '../modules/ai/application/use-cases/detect-duplicates-hybrid.use-case';
 import { DetectDuplicatesBySimilarityUseCase } from '../modules/ai/application/use-cases/detect-duplicates-by-similarity.use-case';
 import { ImproveFlashcardUseCase } from '../modules/ai/application/use-cases/improve-flashcard.use-case';
+import { GenerateStudyAidUseCase } from '../modules/ai/application/use-cases/generate-study-aid.use-case';
+import type { StudyAidMode } from '../modules/ai/domain/services/study-aid-prompt';
 import { ImproveQuestaoUseCase } from '../modules/ai/application/use-cases/improve-questao.use-case';
 import { ImproveNotaUseCase } from '../modules/ai/application/use-cases/improve-nota.use-case';
 import { ImproveProvaQuestoesUseCase } from '../modules/ai/application/use-cases/improve-questoes-batch.use-case';
@@ -69,6 +71,7 @@ export class AiController {
     private readonly detectDuplicatesHybridUseCase: DetectDuplicatesHybridUseCase,
     private readonly detectDuplicatesBySimilarityUseCase: DetectDuplicatesBySimilarityUseCase,
     private readonly improveFlashcardUseCase: ImproveFlashcardUseCase,
+    private readonly generateStudyAidUseCase: GenerateStudyAidUseCase,
     private readonly improveQuestaoUseCase: ImproveQuestaoUseCase,
     private readonly improveNotaUseCase: ImproveNotaUseCase,
     private readonly improveProvaQuestoesUseCase: ImproveProvaQuestoesUseCase,
@@ -364,6 +367,21 @@ export class AiController {
     @Body() body: { pergunta: string; resposta: string; operations: unknown },
   ) {
     return this.improveFlashcardUseCase.execute(userId, body);
+  }
+
+  // Dica socrática (não revela a resposta) ou mnemônico para um card em que o
+  // aluno tropeça. Conteúdo no corpo — sem contexto do grafo, barato.
+  @Post('flashcards/study-aid')
+  studyAid(
+    @CurrentUser() userId: string,
+    @Body()
+    body: { mode: StudyAidMode; pergunta: string; resposta: string; conceito?: string | null },
+  ) {
+    return this.generateStudyAidUseCase.execute(userId, body.mode, {
+      pergunta: body.pergunta,
+      resposta: body.resposta,
+      conceito: body.conceito ?? null,
+    });
   }
 
   // Melhora uma questão preservando gabarito/letras; recebe a questão no corpo.
