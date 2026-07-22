@@ -1,6 +1,7 @@
 import { MarkdownContent } from "@/components/markdown-content";
 import { useSpeech } from "@/components/speech/useSpeech";
 import { SpeakButton } from "@/components/speech/SpeakButton";
+import { SpokenText } from "@/components/speech/SpokenText";
 import { questionSpeechText, type QuestaoAlternativa } from "./questao-speech";
 import { CheckCircle2Icon, CircleIcon } from "lucide-react";
 
@@ -52,9 +53,7 @@ export function QuestaoFace({
             <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Explicação</span>
             <SpeakButton speech={speech} id="explicacao" text={explicacao} label="a explicação" />
           </div>
-          <div className="mt-1 text-sm">
-            <MarkdownContent>{explicacao}</MarkdownContent>
-          </div>
+          <SpokenText speech={speech} id="explicacao" text={explicacao} className="mt-1 text-sm" />
         </div>
       )}
     </div>

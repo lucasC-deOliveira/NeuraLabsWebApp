@@ -105,6 +105,8 @@ Dois motores, escolhidos nos ajustes:
 
 Onde: botão de som (🔊) em flashcards, notas, questões (enunciado + explicação) e nos modais de IA do grafo (insights, resumo de comunidade, chat). Na sessão de estudo há **leitura automática** opcional (ajustes): lê a pergunta ao abrir o card e a resposta ao revelar — sem auto-avançar, respeitando a fase de elaboração.
 
+A leitura é **frase a frase, destacando a frase atual** (estilo leitor de livro) nos blocos de texto único — flashcards, notas, explicação da questão, resumo de comunidade e respostas do chat. O mesmo divisor de frases roda no motor e na tela, então o destaque acompanha exatamente o que está sendo falado, nos dois motores.
+
 Robustez: se o Piper estiver indisponível, a leitura cai para a voz do sistema; texto em japonês sempre usa a voz do sistema (o Piper não tem voz japonesa).
 
 ### Geração de flashcards

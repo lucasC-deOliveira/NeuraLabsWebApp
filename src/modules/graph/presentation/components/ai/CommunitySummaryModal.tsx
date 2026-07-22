@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Loader2Icon, FileTextIcon, CopyIcon, AlertCircleIcon } from "lucide-react";
 import { toast } from "sonner";
-import { MarkdownContent } from "@/components/markdown-content";
 import { useSpeech, type SpeechControls } from "@/components/speech/useSpeech";
 import { SpeakButton } from "@/components/speech/SpeakButton";
+import { SpokenText } from "@/components/speech/SpokenText";
 import { graphHttp } from "@/modules/graph/infra/http";
 
 interface CommunitySummaryModalProps {
@@ -115,11 +115,14 @@ function SummaryView({ titulo, resumo, speech }: { titulo: string; resumo: strin
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         {titulo ? <h3 className="text-base font-semibold text-foreground">{titulo}</h3> : <span />}
-        <SpeakButton speech={speech} id="resumo" text={[titulo, resumo].filter(Boolean).join(". ")} label="o resumo" />
+        <SpeakButton speech={speech} id="resumo" text={resumo} label="o resumo" />
       </div>
-      <div className="text-sm text-foreground leading-relaxed bg-muted/30 rounded-lg p-3">
-        <MarkdownContent>{resumo}</MarkdownContent>
-      </div>
+      <SpokenText
+        speech={speech}
+        id="resumo"
+        text={resumo}
+        className="text-sm text-foreground leading-relaxed bg-muted/30 rounded-lg p-3"
+      />
     </div>
   );
 }
