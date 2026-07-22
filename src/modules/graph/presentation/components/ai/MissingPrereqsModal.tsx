@@ -334,7 +334,7 @@ function PrereqFooter({ step, hasPrereqs, selectedCount, onRetry, onAddSelected,
       {(step === "loading" || step === "adding") && (
         <Button className="flex-1" variant="secondary" disabled>
           <Loader2Icon className="size-4 mr-2 animate-spin" />
-          Processando...
+          Analisando pré-requisitos…
         </Button>
       )}
       {step === "results" && hasPrereqs && (

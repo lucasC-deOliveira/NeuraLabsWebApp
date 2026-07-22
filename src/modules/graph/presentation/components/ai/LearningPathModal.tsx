@@ -114,7 +114,7 @@ function PathFooter({ uiStep, onRegenerate, onClose }: { uiStep: UIStep; onRegen
       {uiStep === "loading" && (
         <Button className="flex-1" variant="secondary" disabled>
           <Loader2Icon className="size-4 mr-2 animate-spin" />
-          Processando...
+          Montando a trilha…
         </Button>
       )}
       {uiStep !== "loading" && (

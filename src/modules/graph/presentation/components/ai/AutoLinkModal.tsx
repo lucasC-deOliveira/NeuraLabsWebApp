@@ -194,7 +194,7 @@ function AutoLinkFooter({ step, suggestionCount, selectedCount, onApply }: { ste
         <div className="shrink-0">
           <Button className="w-full" variant="secondary" disabled>
             <Loader2Icon className="size-4 mr-2 animate-spin" />
-            Processando...
+            Sugerindo conexões…
           </Button>
         </div>
       </>

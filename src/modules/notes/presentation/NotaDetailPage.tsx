@@ -96,7 +96,7 @@ export function NotaDetailPage() {
             <VerNoGrafo tipo="NOTA" refId={nota.id} />
             <Button onClick={handleGenerateFlashcards} disabled={generating} className="flex-shrink-0">
               {generating ? <Loader2Icon className="size-4 mr-1 animate-spin" /> : <BrainIcon className="size-4 mr-1" />}
-              {generating ? "Gerando..." : "Gerar flashcards"}
+              {generating ? "Gerando flashcards…" : "Gerar flashcards"}
             </Button>
           </span>
         }
