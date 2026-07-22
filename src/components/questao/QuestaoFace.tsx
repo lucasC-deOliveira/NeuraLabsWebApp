@@ -1,17 +1,15 @@
 import { MarkdownContent } from "@/components/markdown-content";
 import { useSpeech } from "@/components/speech/useSpeech";
 import { SpeakButton } from "@/components/speech/SpeakButton";
-import { questionSpeechText } from "./questao-speech";
+import { questionSpeechText, type QuestaoAlternativa } from "./questao-speech";
 import { CheckCircle2Icon, CircleIcon } from "lucide-react";
 
 // Exibição (não interativa) de uma questão com markdown no enunciado, nas
 // alternativas e na explicação. Usada na prévia do "Melhorar com IA" e ao ver
 // uma questão. A alternativa do gabarito é destacada.
 
-export interface QuestaoAlternativa {
-  letra: string;
-  texto: string;
-}
+// Re-export para os consumidores que já importavam o tipo daqui.
+export type { QuestaoAlternativa };
 
 export function QuestaoFace({
   tipo,
