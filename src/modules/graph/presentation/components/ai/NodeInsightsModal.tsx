@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, SparklesIcon, RefreshCwIcon, CheckIcon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { MarkdownContent } from "@/components/markdown-content";
+import { useSpeech, type SpeechControls } from "@/components/speech/useSpeech";
+import { SpeakButton } from "@/components/speech/SpeakButton";
 import { NODE_TYPE_DISPLAY, RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { NodeInsight } from "@/modules/graph/application/ports/graph-ai.port";
@@ -41,6 +43,8 @@ export function NodeInsightsModal({ open, onOpenChange, grafoId, nodeId, nodeLab
   const [adding, setAdding] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [prevKey, setPrevKey] = useState("");
+  const speech = useSpeech();
+  const insightsText = insights.map((ins) => [ins.titulo, ins.descricao].filter(Boolean).join(". ")).join(". ");
 
   const loadKey = `${open}-${nodeId ?? ""}-${reloadKey}`;
   if (loadKey !== prevKey) {
@@ -88,10 +92,7 @@ export function NodeInsightsModal({ open, onOpenChange, grafoId, nodeId, nodeLab
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl flex max-h-[85dvh] flex-col overflow-hidden gap-0">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <SparklesIcon className="size-4 text-primary" />
-            Insights da IA
-          </DialogTitle>
+          <InsightsTitle speech={speech} hasInsights={insights.length > 0} text={insightsText} />
           <DialogDescription>
             Selecione os que você gostou para adicionar ao grafo, ligados a{" "}
             <span className="font-medium text-foreground">{nodeLabel || "este nó"}</span>.
@@ -123,6 +124,18 @@ export function NodeInsightsModal({ open, onOpenChange, grafoId, nodeId, nodeLab
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function InsightsTitle({ speech, hasInsights, text }: { speech: SpeechControls; hasInsights: boolean; text: string }) {
+  return (
+    <DialogTitle className="flex items-center gap-2">
+      <SparklesIcon className="size-4 text-primary" />
+      Insights da IA
+      {hasInsights && (
+        <SpeakButton speech={speech} id="insights" text={text} label="os insights" className="ml-auto mr-6" />
+      )}
+    </DialogTitle>
   );
 }
 
