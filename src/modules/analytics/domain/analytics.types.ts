@@ -22,10 +22,37 @@ export interface ProfileAxis {
   value: number; // 0-100
 }
 
+export interface ErrorTypeCount {
+  tipo: string;
+  count: number;
+}
+
+export interface SpeedBucket {
+  bucket: string;
+  accuracy: number;
+  reviews: number;
+}
+
+export interface StudyStreak {
+  current: number;
+  calendar: { date: string; count: number }[];
+}
+
+export interface ProblemCard {
+  pergunta: string;
+  total: number;
+  wrong: number;
+  accuracy: number;
+}
+
 export interface FlashcardAnalytics {
   totals: { cards: number; reviews: number };
   retentionForecast: RetentionDay[];
   maturity: MaturityMix;
   accuracyTrend: AccuracyDay[];
   profile: ProfileAxis[];
+  errorTaxonomy: ErrorTypeCount[];
+  speedBuckets: SpeedBucket[];
+  streak: StudyStreak;
+  problemCards: ProblemCard[];
 }

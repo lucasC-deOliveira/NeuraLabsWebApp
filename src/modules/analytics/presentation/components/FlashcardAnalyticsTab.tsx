@@ -7,6 +7,10 @@ import { RetentionForecastChart } from "./RetentionForecastChart";
 import { MaturityDonut } from "./MaturityDonut";
 import { AccuracyTrendChart } from "./AccuracyTrendChart";
 import { PerformanceRadar } from "./PerformanceRadar";
+import { ErrorTaxonomyChart } from "./ErrorTaxonomyChart";
+import { SpeedAccuracyChart } from "./SpeedAccuracyChart";
+import { StreakCard } from "./StreakCard";
+import { ProblemCardsList } from "./ProblemCardsList";
 import type { FlashcardAnalytics } from "../../domain/analytics.types";
 
 export function FlashcardAnalyticsTab() {
@@ -24,12 +28,16 @@ export function FlashcardAnalyticsTab() {
   return (
     <div className="space-y-4">
       <KpiRow data={data} />
+      <StreakCard streak={data.streak} />
       <div className="grid gap-4 lg:grid-cols-2">
         <PerformanceRadar profile={data.profile} />
         <AccuracyTrendChart data={data.accuracyTrend} />
         <RetentionForecastChart data={data.retentionForecast} />
         <MaturityDonut mix={data.maturity} />
+        <SpeedAccuracyChart data={data.speedBuckets} />
+        <ErrorTaxonomyChart data={data.errorTaxonomy} />
       </div>
+      <ProblemCardsList cards={data.problemCards} />
     </div>
   );
 }

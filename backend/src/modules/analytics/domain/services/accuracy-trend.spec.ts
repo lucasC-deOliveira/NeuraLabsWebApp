@@ -7,6 +7,7 @@ const review = (data: string, acertou: boolean): ReviewRow => ({
   acertou,
   nivelConfianca: 3,
   tempoResposta: 5000,
+  tipoErro: null,
 });
 
 describe('accuracyTrend', () => {

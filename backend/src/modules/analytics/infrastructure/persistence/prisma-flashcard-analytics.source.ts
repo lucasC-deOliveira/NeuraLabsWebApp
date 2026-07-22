@@ -3,8 +3,26 @@ import { PrismaService } from '../../../../prisma/prisma.service';
 import type {
   FlashcardAnalyticsSource,
   LearningStateRow,
+  ProblemCardRow,
   ReviewRow,
 } from '../../domain/ports/flashcard-analytics-source';
+
+// Linha do groupBy de revisões por carta.
+interface CardCount {
+  flashcardId: string;
+  _count: { _all: number };
+}
+
+// Cruza total x erros por carta e mantém só as que erraram ao menos uma vez.
+function mergeCardStats(
+  totals: CardCount[],
+  wrongs: CardCount[],
+): { id: string; total: number; wrong: number }[] {
+  const wrong = new Map(wrongs.map((w) => [w.flashcardId, w._count._all]));
+  return totals
+    .map((t) => ({ id: t.flashcardId, total: t._count._all, wrong: wrong.get(t.flashcardId) ?? 0 }))
+    .filter((c) => c.wrong > 0);
+}
 
 // Read-model adapter: lê o estado SM-2 e as revisões do usuário para os analytics.
 @Injectable()
@@ -25,6 +43,7 @@ export class PrismaFlashcardAnalyticsSource implements FlashcardAnalyticsSource 
         acertou: true,
         nivelConfianca: true,
         tempoResposta: true,
+        tipoErro: true,
         sessao: { select: { dataInicio: true } },
       },
     });
@@ -33,6 +52,35 @@ export class PrismaFlashcardAnalyticsSource implements FlashcardAnalyticsSource 
       acertou: row.acertou,
       nivelConfianca: row.nivelConfianca,
       tempoResposta: row.tempoResposta,
+      tipoErro: row.tipoErro,
+    }));
+  }
+
+  async problemCardStats(userId: string): Promise<ProblemCardRow[]> {
+    const where = { sessao: { usuarioId: userId } };
+    const [totals, wrongs] = await Promise.all([
+      this.prisma.revisaoFlashcard.groupBy({ by: ['flashcardId'], where, _count: { _all: true } }),
+      this.prisma.revisaoFlashcard.groupBy({
+        by: ['flashcardId'],
+        where: { ...where, acertou: false },
+        _count: { _all: true },
+      }),
+    ]);
+    return this.withPerguntas(mergeCardStats(totals, wrongs));
+  }
+
+  private async withPerguntas(
+    cards: { id: string; total: number; wrong: number }[],
+  ): Promise<ProblemCardRow[]> {
+    const rows = await this.prisma.flashcard.findMany({
+      where: { id: { in: cards.map((c) => c.id) } },
+      select: { id: true, pergunta: true },
+    });
+    const perguntas = new Map(rows.map((r) => [r.id, r.pergunta]));
+    return cards.map((c) => ({
+      pergunta: perguntas.get(c.id) ?? '',
+      total: c.total,
+      wrong: c.wrong,
     }));
   }
 }

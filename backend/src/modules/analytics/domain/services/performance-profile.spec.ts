@@ -8,6 +8,7 @@ const review = (over: Partial<ReviewRow>): ReviewRow => ({
   acertou: true,
   nivelConfianca: 5,
   tempoResposta: 3000,
+  tipoErro: null,
   ...over,
 });
 const axis = (profile: ReturnType<typeof performanceProfile>, name: string): number =>
