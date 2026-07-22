@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { guessSpeechLang, stripMarkdown } from "./speech-text";
+import { splitSentences } from "./sentence-split";
 import { loadSpeechSettings, type SpeechSettings } from "./speech-settings";
 import { synthesizeSpeech } from "@/lib/tts-api";
 
-// Fala texto do flashcard. Dois motores (ver speech-settings):
+// Fala texto do flashcard/nota/questão FRASE A FRASE, expondo qual frase está
+// tocando (sentenceIndex) para a UI destacar como num leitor de livro. Dois motores:
 //  - "system": Web Speech API (Chromium/Electron), o padrão histórico.
-//  - "piper": voz neural natural via backend; toca o WAV retornado. Se o Piper
-//    estiver indisponível, cai para a voz do sistema — um clique sempre fala.
-// Um id por trecho (pergunta/resposta) para a UI saber o que está falando e
-// alternar: clicar de novo no mesmo trecho para; clicar em outro troca.
+//  - "piper": voz neural natural via backend; sintetiza e toca cada frase.
+//    Se o Piper falhar numa frase, ela cai para a voz do sistema.
+// Um id por trecho (pergunta/resposta/nota/…) para a UI saber o que fala e alternar.
 export function useSpeech() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
-  const activeIdRef = useRef<string | null>(null);
+  const [sentenceIndex, setSentenceIndex] = useState(0);
+  const genRef = useRef(0); // token de geração: invalida a fila anterior ao parar/trocar
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
   const synth = typeof window !== "undefined" ? window.speechSynthesis : undefined;
@@ -28,56 +30,82 @@ export function useSpeech() {
   // Cancela a fala ao desmontar: sair da tela não deixa voz solta.
   useEffect(() => teardown, [teardown]);
 
-  const clearIfCurrent = (id: string): void =>
-    setSpeakingId((cur) => (cur === id ? null : cur));
-
   const stop = (): void => {
-    activeIdRef.current = null;
+    genRef.current++;
     teardown();
     setSpeakingId(null);
+    setSentenceIndex(0);
   };
 
-  const speakSystem = (id: string, clean: string, prefs: SpeechSettings): void => {
-    if (!synth) return clearIfCurrent(id);
-    const utter = new SpeechSynthesisUtterance(clean);
-    utter.lang = prefs.lang === "auto" ? guessSpeechLang(clean) : prefs.lang;
-    utter.rate = prefs.rate;
-    utter.onend = () => clearIfCurrent(id);
-    utter.onerror = () => clearIfCurrent(id);
-    synth.speak(utter);
+  // Fala UMA frase, resolvendo quando ela termina (ou em erro). Japonês sempre usa
+  // a voz do sistema (o Piper não tem voz JP — ver piper/Dockerfile).
+  const playSentence = (sentence: string, prefs: SpeechSettings, gen: number): Promise<void> => {
+    const usePiper = prefs.engine === "piper" && guessSpeechLang(sentence) !== "ja-JP";
+    return usePiper ? playPiper(sentence, prefs, gen) : playSystem(sentence, prefs);
   };
 
-  const speakPiper = async (id: string, clean: string, prefs: SpeechSettings): Promise<void> => {
+  const playSystem = (sentence: string, prefs: SpeechSettings): Promise<void> =>
+    new Promise((resolve) => {
+      if (!synth) return resolve();
+      const utter = new SpeechSynthesisUtterance(sentence);
+      utter.lang = prefs.lang === "auto" ? guessSpeechLang(sentence) : prefs.lang;
+      utter.rate = prefs.rate;
+      utter.onend = () => resolve();
+      utter.onerror = () => resolve();
+      synth.speak(utter);
+    });
+
+  const playPiper = async (sentence: string, prefs: SpeechSettings, gen: number): Promise<void> => {
+    let blob: Blob;
     try {
-      const blob = await synthesizeSpeech({ text: clean, voice: prefs.voice, rate: prefs.rate });
-      if (activeIdRef.current !== id) return; // usuário trocou/parou durante a rede
+      blob = await synthesizeSpeech({ text: sentence, voice: prefs.voice, rate: prefs.rate });
+    } catch {
+      return playSystem(sentence, prefs); // Piper fora do ar: cai para o sistema
+    }
+    if (genRef.current !== gen) return;
+    return new Promise((resolve) => {
       const url = URL.createObjectURL(blob);
       urlRef.current = url;
       const audio = new Audio(url);
       audioRef.current = audio;
-      audio.onended = () => clearIfCurrent(id);
-      audio.onerror = () => clearIfCurrent(id);
-      await audio.play();
-    } catch {
-      // Piper fora do ar: cai para a voz do sistema para o clique ainda falar.
-      if (activeIdRef.current === id) speakSystem(id, clean, prefs);
-    }
+      const done = (): void => {
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      audio.onended = done;
+      audio.onerror = done;
+      void audio.play().catch(done);
+    });
   };
 
-  // Sempre inicia a leitura do trecho (não alterna). Usado pelo auto-read, que
-  // precisa começar mesmo se outro trecho estava tocando.
+  // Sempre inicia a leitura do trecho (não alterna). Divide em frases e as toca em
+  // sequência, atualizando sentenceIndex. Usado pelo clique e pelo auto-read.
   const speak = (id: string, text: string): void => {
     teardown();
-    const clean = stripMarkdown(text);
-    if (!clean) return;
+    const sentences = splitSentences(stripMarkdown(text));
+    if (!sentences.length) return;
+    const gen = ++genRef.current;
     const prefs = loadSpeechSettings();
-    activeIdRef.current = id;
     setSpeakingId(id);
-    // O Piper não tem voz japonesa (ver piper/Dockerfile) — texto em japonês fica
-    // com a voz do sistema mesmo no modo Piper.
-    const usePiper = prefs.engine === "piper" && guessSpeechLang(clean) !== "ja-JP";
-    if (usePiper) void speakPiper(id, clean, prefs);
-    else speakSystem(id, clean, prefs);
+    setSentenceIndex(0);
+    void playQueue(id, sentences, prefs, gen);
+  };
+
+  const playQueue = async (
+    id: string,
+    sentences: string[],
+    prefs: SpeechSettings,
+    gen: number,
+  ): Promise<void> => {
+    for (let i = 0; i < sentences.length; i++) {
+      if (genRef.current !== gen) return; // parou ou trocou de trecho
+      setSentenceIndex(i);
+      await playSentence(sentences[i], prefs, gen);
+    }
+    if (genRef.current === gen) {
+      setSpeakingId(null);
+      setSentenceIndex(0);
+    }
   };
 
   const toggle = (id: string, text: string): void => {
@@ -85,9 +113,9 @@ export function useSpeech() {
     speak(id, text);
   };
 
-  return { supported: Boolean(synth) || canPlayAudio, speakingId, toggle, stop, speak };
+  return { supported: Boolean(synth) || canPlayAudio, speakingId, sentenceIndex, toggle, stop, speak };
 }
 
 // Controle de fala compartilhado por uma tela: instancie useSpeech() uma vez e
-// passe isto aos SpeakButton/SpeakableMarkdown (um único speakingId coordena todos).
+// passe isto aos SpeakButton/SpokenText (um único speakingId + sentenceIndex coordena todos).
 export type SpeechControls = ReturnType<typeof useSpeech>;

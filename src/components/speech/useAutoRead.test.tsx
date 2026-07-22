@@ -4,7 +4,7 @@ import { useAutoRead } from "./useAutoRead";
 import type { SpeechControls } from "./useSpeech";
 
 function fakeSpeech(): SpeechControls {
-  return { supported: true, speakingId: null, toggle: vi.fn(), stop: vi.fn(), speak: vi.fn() };
+  return { supported: true, speakingId: null, sentenceIndex: 0, toggle: vi.fn(), stop: vi.fn(), speak: vi.fn() };
 }
 
 const card = { id: "c1", pergunta: "P1", resposta: "R1" };

@@ -2,7 +2,7 @@
 
 import { useSpeech, type SpeechControls } from "@/components/speech/useSpeech";
 import { SpeakButton } from "@/components/speech/SpeakButton";
-import { SpeakableMarkdown } from "@/components/speech/SpeakableMarkdown";
+import { SpokenText } from "@/components/speech/SpokenText";
 
 // Face do flashcard compartilhada entre estudar/ver. As classes .fc-* são os
 // pontos de customização (presets ou CSS personalizado em CardStyleProvider);
@@ -33,13 +33,13 @@ export function FlashcardFace({
       <div className="fc-card flex flex-col gap-4">
         <div className="fc-pergunta rounded-xl border bg-card p-4">
           <FaceLabel label="Pergunta" id="pergunta" text={pergunta} speech={speech} tone="text-muted-foreground" />
-          <SpeakableMarkdown id="pergunta" text={pergunta} speech={speech} className="fc-pergunta-body mt-1 text-base font-medium" />
+          <SpokenText id="pergunta" text={pergunta} speech={speech} className="fc-pergunta-body mt-1 text-base font-medium" />
         </div>
 
         {showAnswer && (
           <div className="fc-resposta rounded-xl border border-primary/30 bg-muted/40 p-4">
             <FaceLabel label="Resposta" id="resposta" text={resposta} speech={speech} tone="text-primary" />
-            <SpeakableMarkdown id="resposta" text={resposta} speech={speech} className="fc-resposta-body mt-1 text-sm" />
+            <SpokenText id="resposta" text={resposta} speech={speech} className="fc-resposta-body mt-1 text-sm" />
             {conceito && (
               <p className="fc-conceito mt-2 text-xs font-medium text-muted-foreground">
                 Conceito: {conceito}
