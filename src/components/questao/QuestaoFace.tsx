@@ -1,4 +1,7 @@
 import { MarkdownContent } from "@/components/markdown-content";
+import { useSpeech } from "@/components/speech/useSpeech";
+import { SpeakButton } from "@/components/speech/SpeakButton";
+import { questionSpeechText } from "./questao-speech";
 import { CheckCircle2Icon, CircleIcon } from "lucide-react";
 
 // Exibição (não interativa) de uma questão com markdown no enunciado, nas
@@ -23,10 +26,14 @@ export function QuestaoFace({
   gabarito: string;
   explicacao?: string | null;
 }) {
+  const speech = useSpeech();
   return (
     <div className="space-y-3">
       <div className="rounded-xl border bg-card p-4">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Enunciado</span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Enunciado</span>
+          <SpeakButton speech={speech} id="enunciado" text={questionSpeechText(enunciado, tipo, alternativas)} label="a questão" />
+        </div>
         <div className="mt-1 text-sm font-medium">
           <MarkdownContent>{enunciado}</MarkdownContent>
         </div>
@@ -43,7 +50,10 @@ export function QuestaoFace({
 
       {explicacao && (
         <div className="rounded-xl border border-primary/30 bg-muted/40 p-4">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Explicação</span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Explicação</span>
+            <SpeakButton speech={speech} id="explicacao" text={explicacao} label="a explicação" />
+          </div>
           <div className="mt-1 text-sm">
             <MarkdownContent>{explicacao}</MarkdownContent>
           </div>
