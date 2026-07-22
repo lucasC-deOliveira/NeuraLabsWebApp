@@ -13,6 +13,9 @@ import { nowMs } from "@/lib/clock";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { StudyCard, CardReviewInput } from "@/modules/graph/application/ports/study.port";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
+import { useSpeech } from "@/components/speech/useSpeech";
+import { useAutoRead } from "@/components/speech/useAutoRead";
+import { loadSpeechSettings } from "@/components/speech/speech-settings";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { readAllVaultNodes, graphVaultDir } from "@/lib/vault-sync";
 import type { VaultNode } from "@/lib/vault-format";
@@ -220,15 +223,21 @@ function DeckCardView({
   onGrade: (grade: ReviewGrade) => void;
 }) {
   const aidCard = { pergunta: card.pergunta, resposta: card.resposta, conceito: card.conceito };
+  // Uma instância de fala para a sessão: card e auxílio (dica/mnemônico) se
+  // coordenam — clicar num para o outro.
+  const speech = useSpeech();
+  // Leitura automática (ajustes → autoRead), lida uma vez ao abrir a sessão.
+  const [autoRead] = useState(() => loadSpeechSettings().autoRead);
+  useAutoRead(speech, card, phase, autoRead);
   return (
     <div className="space-y-4">
       {semPesos && <SemPesosHint />}
       {card.schedule && <ScheduleBadge schedule={card.schedule} />}
-      <FlashcardFace pergunta={card.pergunta} resposta={card.resposta} conceito={card.conceito} showAnswer={phase === "answer"} />
+      <FlashcardFace pergunta={card.pergunta} resposta={card.resposta} conceito={card.conceito} showAnswer={phase === "answer"} speech={speech} />
       {phase === "question" && (
         <>
           {/* Dica antes de revelar: uma pergunta que aproxima sem entregar a resposta. */}
-          <StudyAid key={`hint-${card.id}`} mode="hint" card={aidCard} />
+          <StudyAid key={`hint-${card.id}`} mode="hint" card={aidCard} speech={speech} />
           <Button size="lg" className="w-full gap-2" onClick={onReveal}>
             <EyeIcon className="size-4" />
             Ver resposta
@@ -238,7 +247,7 @@ function DeckCardView({
       {phase === "answer" && (
         <>
           {/* Mnemônico depois de revelar: ajuda a FIXAR o que acabou de ver. */}
-          <StudyAid key={`mnemonic-${card.id}`} mode="mnemonic" card={aidCard} />
+          <StudyAid key={`mnemonic-${card.id}`} mode="mnemonic" card={aidCard} speech={speech} />
           <GradeGrid onGrade={onGrade} schedule={card.schedule} />
         </>
       )}

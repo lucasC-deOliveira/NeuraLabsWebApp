@@ -33,6 +33,25 @@ services:
       retries: 30
       start_period: 120s
 
+  # TTS neural local (Piper). Sintetiza a leitura dos flashcards em voz natural,
+  # grátis e offline — mesmo espírito do container de embeddings. Vozes pt-BR e
+  # en-US embutidas no build (ver piper/Dockerfile). O backend faz o proxy
+  # (/api/tts/synthesize) — o browser NÃO fala com o Piper direto. A porta é
+  # publicada só em localhost (não exposta na rede) para o dev-loop na máquina:
+  # backend via npm aponta PIPER_BASE_URL=http://localhost:5001. Em compose, o
+  # backend usa o DNS interno http://piper:5000. Healthcheck bate no /health.
+  piper:
+    build: ./piper
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PIPER_PORT:-5001}:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
   backend:
     build: ./backend
     restart: unless-stopped
@@ -46,6 +65,8 @@ services:
       FRONTEND_ORIGIN: "${FRONTEND_ORIGIN:-http://localhost:3000}"
       # Limita quantas páginas de PDF a prova lê (0 = todas). Ex.: 2 para testar barato.
       PROVA_MAX_PAGES: "${PROVA_MAX_PAGES:-0}"
+      # TTS: o backend faz proxy para o container Piper (rede interna do compose).
+      PIPER_BASE_URL: "${PIPER_BASE_URL:-http://piper:5000}"
     ports:
       - "3001:3001"
     depends_on:
@@ -54,6 +75,10 @@ services:
       # started, não healthy: o TEI baixa o modelo no primeiro boot e a API não
       # precisa dele para subir — só as features de vetor esperam.
       embeddings:
+        condition: service_started
+      # started: o Piper baixa nada em runtime (vozes vêm no build); a API não
+      # depende dele para subir — só a leitura em voz alta espera.
+      piper:
         condition: service_started
 
   frontend:

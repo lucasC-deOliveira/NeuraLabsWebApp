@@ -13,7 +13,9 @@ import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { NodeDetails } from "@/modules/graph/application/ports/graph-nodes.port";
-import { MarkdownContent } from "@/components/markdown-content";
+import { useSpeech, type SpeechControls } from "@/components/speech/useSpeech";
+import { SpeakButton } from "@/components/speech/SpeakButton";
+import { SpokenText } from "@/components/speech/SpokenText";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { graphVaultDir } from "@/lib/vault-sync";
 import { parseNode } from "@/lib/vault-format";
@@ -85,6 +87,14 @@ async function loadNota(notaId: string, grafoId?: string, grafoNome?: string): P
   return null;
 }
 
+function NotaBody({ nota, speech }: { nota: NodeDetails; speech: SpeechControls }) {
+  return (
+    <div className="max-h-[60vh] overflow-y-auto pr-1">
+      <SpokenText speech={speech} id="nota" text={nota.conteudo ?? ""} />
+    </div>
+  );
+}
+
 function NotaMeta({ nota }: { nota: NodeDetails }) {
   return (
     <DialogDescription className="space-y-1">
@@ -107,6 +117,7 @@ export function ViewNotaModal({ open, onOpenChange, notaId, grafoId, grafoNome }
   const [loading, setLoading] = useState(false);
   const [nota, setNota] = useState<NodeDetails | null>(null);
   const [prevKey, setPrevKey] = useState("");
+  const speech = useSpeech();
 
   // Reset during render (react-hooks v7 forbids synchronous setState in the effect body).
   const loadKey = open && notaId ? notaId : "";
@@ -135,9 +146,14 @@ export function ViewNotaModal({ open, onOpenChange, notaId, grafoId, grafoNome }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-primary">
-            {nota?.titulo ?? "Carregando..."}
-          </DialogTitle>
+          <div className="flex items-start justify-between gap-2">
+            <DialogTitle className="text-primary">
+              {nota?.titulo ?? "Carregando..."}
+            </DialogTitle>
+            {nota && (
+              <SpeakButton speech={speech} id="nota" text={nota.conteudo ?? ""} label="a nota" className="mr-6" />
+            )}
+          </div>
           {nota && <NotaMeta nota={nota} />}
         </DialogHeader>
 
@@ -146,11 +162,7 @@ export function ViewNotaModal({ open, onOpenChange, notaId, grafoId, grafoNome }
             <Loader2Icon className="size-5 animate-spin" />
           </div>
         ) : (
-          nota && (
-            <div className="max-h-[60vh] overflow-y-auto pr-1">
-              <MarkdownContent>{nota.conteudo ?? ""}</MarkdownContent>
-            </div>
-          )
+          nota && <NotaBody nota={nota} speech={speech} />
         )}
 
         <DialogFooter>

@@ -8,6 +8,7 @@ Flashcards inteligentes com grafo de conhecimento e notas Zettelkasten. Crie car
 - **Repetição espaçada SM-2** — agenda a próxima revisão de cada cartão com base em acerto e nível de confiança (1–5)
 - **Geração de flashcards por IA** a partir de notas — detecta definições automaticamente e usa LLM para tipos mais elaborados
 - **Fase de elaboração** durante o estudo — o usuário escreve a resposta com as próprias palavras antes de ver o gabarito
+- **Leitura em voz alta (TTS)** — ouça flashcards, notas, questões e textos gerados por IA (insights, resumos, chat do grafo); escolha entre a voz do sistema (Web Speech) ou voz neural natural via container Piper local (pt-BR e en-US), com velocidade e voz configuráveis e opção de leitura automática ao estudar
 - **Grafo de conhecimento interativo** — visualiza assuntos, tópicos, conceitos, notas e flashcards como nós conectados por relações tipadas
 - **Insights de nó por IA** — analisa o nó selecionado junto com seus vizinhos diretos e sugere 4–8 novos nós/conexões organizados por categoria
 - **Expansão de nó por IA** — gera sub-nós automaticamente a partir de qualquer nó (ASSUNTO → tópicos+conceitos, CONCEITO → nota+flashcards, etc.)
@@ -94,6 +95,21 @@ As chamadas de IA são feitas pelo backend — a chave nunca chega ao frontend.
 ### Repetição espaçada (SM-2)
 
 Após cada cartão, o usuário informa se acertou e seu nível de confiança (1 a 5). Esses valores são mapeados para a qualidade SM-2 e o algoritmo recalcula o intervalo e o fator de facilidade. Cartões errados voltam para o dia seguinte; cartões corretos com alta confiança avançam progressivamente (1 → 6 → N × ease dias).
+
+### Leitura em voz alta (TTS)
+
+Dois motores, escolhidos nos ajustes:
+
+- **Voz do sistema** (Web Speech API) — instantânea e offline no navegador/Electron; idioma chutado por trecho (pt/en/ja).
+- **Voz natural (Piper)** — TTS neural local em container (`piper/`), no mesmo espírito do container de embeddings: grátis, offline, sem chave. Vozes pt-BR (faber, cadu, jeff, edresson) e en-US (amy, ryan) embutidas na imagem. O **backend faz o proxy** (`POST /api/tts/synthesize`, protegido por JWT) — o browser nunca fala com o Piper direto (container acessível só na rede interna do compose / localhost em dev).
+
+Onde: botão de som (🔊) em flashcards, notas, questões (enunciado + explicação) e nos modais de IA do grafo (insights, resumo de comunidade, chat). Na sessão de estudo há **leitura automática** opcional (ajustes): lê a pergunta ao abrir o card e a resposta ao revelar — sem auto-avançar, respeitando a fase de elaboração.
+
+A leitura é **frase a frase, destacando a frase atual** (estilo leitor de livro) nos blocos de texto único — flashcards, notas, explicação da questão, resumo de comunidade e respostas do chat. O mesmo divisor de frases roda no motor e na tela, então o destaque acompanha exatamente o que está sendo falado, nos dois motores.
+
+**Idioma dentro da frase:** no modo automático com a voz do sistema, termos técnicos conhecidos (heap, cache, stack, backend…) são falados em **inglês** e o resto em **português**, na mesma frase — ex.: "heap como funciona" soa `heap` (inglês) + `como funciona` (português). A lista de termos vive em `src/components/speech/lang-segments.ts` (extensível). O Piper usa uma voz por idioma, então não troca no meio da frase (fala tudo na voz escolhida).
+
+Robustez: se o Piper estiver indisponível, a leitura cai para a voz do sistema; texto em japonês sempre usa a voz do sistema (o Piper não tem voz japonesa).
 
 ### Geração de flashcards
 

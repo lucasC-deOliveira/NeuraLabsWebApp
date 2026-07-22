@@ -12,6 +12,7 @@ import { QuestionsModule } from './questions/questions.module';
 import { ProvasModule } from './provas/provas.module';
 import { BaralhosModule } from './baralhos/baralhos.module';
 import { TokenUsageModule } from './token-usage/token-usage.module';
+import { TtsModule } from './tts/tts.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -29,6 +30,7 @@ import { HealthController } from './health.controller';
     ProvasModule,
     BaralhosModule,
     TokenUsageModule,
+    TtsModule,
   ],
   controllers: [HealthController],
 })

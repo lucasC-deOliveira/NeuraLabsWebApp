@@ -9,7 +9,9 @@ import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MarkdownContent } from "@/components/markdown-content";
+import { useSpeech } from "@/components/speech/useSpeech";
+import { SpeakButton } from "@/components/speech/SpeakButton";
+import { SpokenText } from "@/components/speech/SpokenText";
 import { Loader2Icon, BrainIcon, ArrowRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import { notesHttp } from "../infra/http";
@@ -43,6 +45,7 @@ export function NotaDetailPage() {
   const [nota, setNota] = useState<NotaDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const speech = useSpeech();
 
   useEffect(() => {
     if (!params.id) return;
@@ -122,10 +125,13 @@ export function NotaDetailPage() {
 
       <Card className="border-zinc-200 dark:border-zinc-800">
         <CardHeader className="pb-2 px-3 sm:px-6">
-          <CardTitle className="text-sm sm:text-base">Conteúdo</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-sm sm:text-base">Conteúdo</CardTitle>
+            <SpeakButton speech={speech} id="nota" text={nota.conteudo} label="a nota" />
+          </div>
         </CardHeader>
         <CardContent className="space-y-1 pt-1 px-3 sm:px-6">
-          <MarkdownContent>{nota.conteudo}</MarkdownContent>
+          <SpokenText speech={speech} id="nota" text={nota.conteudo} />
         </CardContent>
       </Card>
 

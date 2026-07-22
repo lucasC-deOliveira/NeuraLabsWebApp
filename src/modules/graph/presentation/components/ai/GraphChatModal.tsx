@@ -10,7 +10,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Loader2Icon, MessageCircleIcon, SendIcon } from "lucide-react";
-import { MarkdownContent } from "@/components/markdown-content";
+import { useSpeech, type SpeechControls } from "@/components/speech/useSpeech";
+import { SpeakButton } from "@/components/speech/SpeakButton";
+import { SpokenText } from "@/components/speech/SpokenText";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { ChatReferencedNode } from "@/modules/graph/application/ports/graph-ai.port";
 
@@ -34,6 +36,7 @@ export function GraphChatModal({ open, onOpenChange, grafoId }: GraphChatModalPr
   const [loading, setLoading] = useState(false);
   const [prevOpen, setPrevOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const speech = useSpeech();
 
   // Limpa a conversa ao fechar (durante render, não em effect).
   if (open !== prevOpen) {
@@ -81,7 +84,7 @@ export function GraphChatModal({ open, onOpenChange, grafoId }: GraphChatModalPr
             </div>
           )}
           {messages.map((msg, i) => (
-            <ChatBubble key={i} message={msg} />
+            <ChatBubble key={i} message={msg} index={i} speech={speech} />
           ))}
           {loading && (
             <div className="flex justify-start">
@@ -112,13 +115,22 @@ export function GraphChatModal({ open, onOpenChange, grafoId }: GraphChatModalPr
   );
 }
 
-function ChatBubble({ message: msg }: { message: ChatMessage }) {
+function ChatBubble({ message: msg, index, speech }: { message: ChatMessage; index: number; speech: SpeechControls }) {
   return (
     <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] ${msg.role === "user" ? "max-w-[80%]" : ""}`}>
         <div className={`rounded-lg px-3 py-2 text-sm ${msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
-          {msg.role === "user" ? <p className="whitespace-pre-wrap">{msg.content}</p> : <MarkdownContent>{msg.content}</MarkdownContent>}
+          {msg.role === "user" ? (
+            <p className="whitespace-pre-wrap">{msg.content}</p>
+          ) : (
+            <SpokenText speech={speech} id={`chat-${index}`} text={msg.content} />
+          )}
         </div>
+        {msg.role === "assistant" && (
+          <div className="mt-0.5 px-1">
+            <SpeakButton speech={speech} id={`chat-${index}`} text={msg.content} label="a resposta" />
+          </div>
+        )}
         {msg.role === "assistant" && msg.referencedNodes && msg.referencedNodes.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1 px-1">
             {msg.referencedNodes.map((n) => (

@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Loader2Icon, FileTextIcon, CopyIcon, AlertCircleIcon } from "lucide-react";
 import { toast } from "sonner";
-import { MarkdownContent } from "@/components/markdown-content";
+import { useSpeech, type SpeechControls } from "@/components/speech/useSpeech";
+import { SpeakButton } from "@/components/speech/SpeakButton";
+import { SpokenText } from "@/components/speech/SpokenText";
 import { graphHttp } from "@/modules/graph/infra/http";
 
 interface CommunitySummaryModalProps {
@@ -30,6 +32,7 @@ export function CommunitySummaryModal({ open, onOpenChange, grafoId, communityLa
   const [errorMsg, setErrorMsg] = useState("");
   const [prevKey, setPrevKey] = useState("");
   const [nonce, setNonce] = useState(0);
+  const speech = useSpeech();
 
   const loadKey = `${open}-${nodeIds.join(",")}-${nonce}`;
   if (loadKey !== prevKey) {
@@ -65,7 +68,7 @@ export function CommunitySummaryModal({ open, onOpenChange, grafoId, communityLa
         <div className="flex-1 min-h-0 overflow-y-auto py-2">
           {step === "loading" && <LoadingView />}
           {step === "error" && <ErrorView message={errorMsg} onRetry={() => setNonce((n) => n + 1)} />}
-          {step === "done" && <SummaryView titulo={titulo} resumo={resumo} />}
+          {step === "done" && <SummaryView titulo={titulo} resumo={resumo} speech={speech} />}
         </div>
 
         <Separator className="my-3 shrink-0" />
@@ -107,13 +110,19 @@ function ErrorView({ message, onRetry }: { message: string; onRetry: () => void 
   );
 }
 
-function SummaryView({ titulo, resumo }: { titulo: string; resumo: string }) {
+function SummaryView({ titulo, resumo, speech }: { titulo: string; resumo: string; speech: SpeechControls }) {
   return (
     <div className="space-y-3">
-      {titulo && <h3 className="text-base font-semibold text-foreground">{titulo}</h3>}
-      <div className="text-sm text-foreground leading-relaxed bg-muted/30 rounded-lg p-3">
-        <MarkdownContent>{resumo}</MarkdownContent>
+      <div className="flex items-center justify-between gap-2">
+        {titulo ? <h3 className="text-base font-semibold text-foreground">{titulo}</h3> : <span />}
+        <SpeakButton speech={speech} id="resumo" text={resumo} label="o resumo" />
       </div>
+      <SpokenText
+        speech={speech}
+        id="resumo"
+        text={resumo}
+        className="text-sm text-foreground leading-relaxed bg-muted/30 rounded-lg p-3"
+      />
     </div>
   );
 }

@@ -38,6 +38,8 @@ export function guessSpeechLang(text: string): string {
 // ("Quick Sort", "LRU Cache"). Português sem acento existe, mas costuma trazer
 // "de/que/uma/não" — a ausência delas inclina para o inglês.
 function isLikelyEnglishTerm(text: string): boolean {
+  // Range ASCII completo (0x00–0x7f) de propósito — detecta termo sem acento.
+  // eslint-disable-next-line no-control-regex
   const ascii = /^[\x00-\x7f]+$/.test(text);
   const hasLetters = /[a-z]/i.test(text);
   const hasPtFunctionWord = /\b(de|que|uma|um|não|com|para|dos|das|é|se)\b/i.test(text);
