@@ -13,6 +13,7 @@ import { useSpeech } from "@/components/speech/useSpeech";
 import { SpeakButton } from "@/components/speech/SpeakButton";
 import { SpokenText } from "@/components/speech/SpokenText";
 import { Loader2Icon, BrainIcon, ArrowRightIcon } from "lucide-react";
+import { LoadingState } from "@/components/loading-state";
 import { toast } from "sonner";
 import { notesHttp } from "../infra/http";
 import type { NotaDetail } from "../domain/nota.types";
@@ -21,9 +22,7 @@ import { formatSubtipoLabel } from "../domain/services/nota-format";
 function NotaLoading() {
   return (
     <PageContainer>
-      <div className="flex items-center justify-center py-20">
-        <Loader2Icon className="size-8 animate-spin text-zinc-400" />
-      </div>
+      <LoadingState message="Carregando a nota…" />
     </PageContainer>
   );
 }

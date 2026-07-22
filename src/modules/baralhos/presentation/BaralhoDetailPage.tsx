@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import {
-  PlusIcon, PlayIcon, Loader2Icon, LayersIcon, NetworkIcon, CheckIcon, PencilIcon,
+  PlusIcon, PlayIcon, LayersIcon, NetworkIcon, CheckIcon, PencilIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { LoadingState } from "@/components/loading-state";
 import { baralhosHttp } from "../infra/http";
 import { excludeCardsInDeck } from "../domain/services/filter-card-options";
 import {
@@ -125,11 +126,7 @@ export function BaralhoDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2Icon className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState message="Carregando o baralho…" />;
   }
 
   if (!baralho) {
