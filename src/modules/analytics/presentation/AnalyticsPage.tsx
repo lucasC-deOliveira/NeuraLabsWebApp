@@ -4,12 +4,13 @@ import { useState } from "react";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { FlashcardAnalyticsTab } from "./components/FlashcardAnalyticsTab";
+import { ProvaAnalyticsTab } from "./components/ProvaAnalyticsTab";
 
 type Tab = "flashcards" | "questoes" | "baralhos";
 
 const TABS: { id: Tab; label: string; ready: boolean }[] = [
   { id: "flashcards", label: "Flashcards", ready: true },
-  { id: "questoes", label: "Questões/Provas", ready: false },
+  { id: "questoes", label: "Questões/Provas", ready: true },
   { id: "baralhos", label: "Baralhos", ready: false },
 ];
 
@@ -39,6 +40,7 @@ export function AnalyticsPage() {
       </div>
 
       {tab === "flashcards" && <FlashcardAnalyticsTab />}
+      {tab === "questoes" && <ProvaAnalyticsTab />}
     </PageContainer>
   );
 }
