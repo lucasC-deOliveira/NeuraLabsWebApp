@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SynthesizeSpeechUseCase } from './synthesize-speech.use-case';
 import { EmptySpeechTextError } from '../../domain/errors';
-import type {
-  SpeechSynthesizer,
-  SynthesisRequest,
-} from '../../domain/ports/speech-synthesizer';
+import type { SpeechSynthesizer, SynthesisRequest } from '../../domain/ports/speech-synthesizer';
 
 // Named fake of the speech engine (no HTTP). Records the last request and returns
 // deterministic bytes so the use-case can be asserted without a real Piper.

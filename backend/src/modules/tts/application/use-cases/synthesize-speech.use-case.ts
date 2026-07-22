@@ -1,8 +1,5 @@
 import { EmptySpeechTextError } from '../../domain/errors';
-import type {
-  SpeechSynthesizer,
-  SynthesisRequest,
-} from '../../domain/ports/speech-synthesizer';
+import type { SpeechSynthesizer, SynthesisRequest } from '../../domain/ports/speech-synthesizer';
 
 /**
  * Validates the request and delegates to the speech engine, returning WAV bytes.

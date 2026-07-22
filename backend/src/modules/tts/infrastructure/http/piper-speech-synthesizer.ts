@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  SpeechSynthesizer,
-  SynthesisRequest,
-} from '../../domain/ports/speech-synthesizer';
+import type { SpeechSynthesizer, SynthesisRequest } from '../../domain/ports/speech-synthesizer';
 import type { PiperConfig } from './piper-config';
 
 // ACL over the local Piper HTTP server (see piper/server.py). Only this adapter

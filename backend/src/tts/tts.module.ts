@@ -13,7 +13,10 @@ import { piperConfigFromEnv } from '../modules/tts/infrastructure/http/piper-con
   imports: [AuthModule],
   controllers: [TtsController],
   providers: [
-    { provide: SPEECH_SYNTHESIZER, useFactory: () => new PiperSpeechSynthesizer(piperConfigFromEnv()) },
+    {
+      provide: SPEECH_SYNTHESIZER,
+      useFactory: () => new PiperSpeechSynthesizer(piperConfigFromEnv()),
+    },
     {
       provide: SynthesizeSpeechUseCase,
       useFactory: (synth: SpeechSynthesizer) => new SynthesizeSpeechUseCase(synth),
