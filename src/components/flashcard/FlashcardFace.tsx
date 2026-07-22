@@ -15,13 +15,18 @@ export function FlashcardFace({
   resposta,
   conceito,
   showAnswer,
+  speech: sharedSpeech,
 }: {
   pergunta: string;
   resposta: string;
   conceito?: string | null;
   showAnswer: boolean;
+  // Controle de fala compartilhado pela tela (ex.: sessão de estudo, para coordenar
+  // com o auxílio de IA). Sem prop, o card usa a própria instância.
+  speech?: SpeechControls;
 }) {
-  const speech = useSpeech();
+  const ownSpeech = useSpeech();
+  const speech = sharedSpeech ?? ownSpeech;
 
   return (
     <div className="fc-scope">

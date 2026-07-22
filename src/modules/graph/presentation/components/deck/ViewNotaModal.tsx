@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { NodeDetails } from "@/modules/graph/application/ports/graph-nodes.port";
 import { MarkdownContent } from "@/components/markdown-content";
+import { useSpeech } from "@/components/speech/useSpeech";
+import { SpeakButton } from "@/components/speech/SpeakButton";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { graphVaultDir } from "@/lib/vault-sync";
 import { parseNode } from "@/lib/vault-format";
@@ -107,6 +109,7 @@ export function ViewNotaModal({ open, onOpenChange, notaId, grafoId, grafoNome }
   const [loading, setLoading] = useState(false);
   const [nota, setNota] = useState<NodeDetails | null>(null);
   const [prevKey, setPrevKey] = useState("");
+  const speech = useSpeech();
 
   // Reset during render (react-hooks v7 forbids synchronous setState in the effect body).
   const loadKey = open && notaId ? notaId : "";
@@ -135,9 +138,20 @@ export function ViewNotaModal({ open, onOpenChange, notaId, grafoId, grafoNome }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-primary">
-            {nota?.titulo ?? "Carregando..."}
-          </DialogTitle>
+          <div className="flex items-start justify-between gap-2">
+            <DialogTitle className="text-primary">
+              {nota?.titulo ?? "Carregando..."}
+            </DialogTitle>
+            {nota && (
+              <SpeakButton
+                speech={speech}
+                id="nota"
+                text={[nota.titulo, nota.conteudo].filter(Boolean).join(". ")}
+                label="a nota"
+                className="mr-6"
+              />
+            )}
+          </div>
           {nota && <NotaMeta nota={nota} />}
         </DialogHeader>
 

@@ -3,19 +3,25 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, LightbulbIcon, BrainIcon } from "lucide-react";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { StudyAidMode } from "@/modules/graph/application/ports/study.port";
+import { useSpeech, type SpeechControls } from "@/components/speech/useSpeech";
+import { SpeakButton } from "@/components/speech/SpeakButton";
 
 interface StudyAidProps {
   mode: StudyAidMode;
   card: { pergunta: string; resposta: string; conceito: string | null };
+  // Controle de fala compartilhado pela sessão (coordena com a leitura do card).
+  speech?: SpeechControls;
 }
 
 // Dica socrática (na pergunta) ou mnemônico (na resposta), sob demanda. Custa
 // tokens, então nunca dispara sozinho — só quando o aluno pede. O texto vive no
 // próprio componente: é ajuda efêmera, não faz parte do card.
-export function StudyAid({ mode, card }: StudyAidProps) {
+export function StudyAid({ mode, card, speech: sharedSpeech }: StudyAidProps) {
   const [texto, setTexto] = useState("");
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState(false);
+  const ownSpeech = useSpeech();
+  const speech = sharedSpeech ?? ownSpeech;
 
   const pedir = async (): Promise<void> => {
     setLoading(true);
@@ -32,7 +38,7 @@ export function StudyAid({ mode, card }: StudyAidProps) {
     }
   };
 
-  if (texto) return <AidText mode={mode} texto={texto} />;
+  if (texto) return <AidText mode={mode} texto={texto} speech={speech} />;
 
   return (
     <Button
@@ -48,12 +54,14 @@ export function StudyAid({ mode, card }: StudyAidProps) {
   );
 }
 
-function AidText({ mode, texto }: { mode: StudyAidMode; texto: string }) {
+function AidText({ mode, texto, speech }: { mode: StudyAidMode; texto: string; speech: SpeechControls }) {
   const tint = mode === "hint" ? "border-amber-500/40 bg-amber-500/5" : "border-violet-500/40 bg-violet-500/5";
+  const label = mode === "hint" ? "a dica" : "o mnemônico";
   return (
     <div className={`flex items-start gap-2 rounded-md border px-3 py-2 text-xs ${tint}`}>
       <AidIcon mode={mode} />
-      <span className="leading-relaxed">{texto}</span>
+      <span className="flex-1 leading-relaxed">{texto}</span>
+      <SpeakButton speech={speech} id={`aid-${mode}`} text={texto} label={label} className="-my-1" />
     </div>
   );
 }
