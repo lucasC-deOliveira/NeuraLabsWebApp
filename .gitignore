@@ -52,3 +52,6 @@ next-env.d.ts
 
 # vitest browser mode (transient screenshot attachments on failure)
 .vitest-attachments/
+
+# Amostras de audição das vozes do Piper (regeneráveis; vozes reais vêm no build da imagem)
+piper/samples/
