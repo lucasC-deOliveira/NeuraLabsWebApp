@@ -81,3 +81,7 @@ export function useSpeech() {
 
   return { supported: Boolean(synth) || canPlayAudio, speakingId, toggle, stop };
 }
+
+// Controle de fala compartilhado por uma tela: instancie useSpeech() uma vez e
+// passe isto aos SpeakButton/SpeakableMarkdown (um único speakingId coordena todos).
+export type SpeechControls = ReturnType<typeof useSpeech>;

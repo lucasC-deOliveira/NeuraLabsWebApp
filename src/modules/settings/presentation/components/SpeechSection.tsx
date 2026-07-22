@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Volume2Icon, CheckCircle2Icon, SparklesIcon } from "lucide-react";
-import { useSpeech } from "@/components/flashcard/useSpeech";
+import { useSpeech } from "@/components/speech/useSpeech";
 import {
   loadSpeechSettings,
   saveSpeechSettings,
@@ -14,8 +14,8 @@ import {
   type SpeechEngine,
   type SpeechLang,
   type SpeechSettings,
-} from "@/components/flashcard/speech-settings";
-import { PIPER_VOICES, piperVoiceLang } from "@/components/flashcard/piper-voices";
+} from "@/components/speech/speech-settings";
+import { PIPER_VOICES, piperVoiceLang } from "@/components/speech/piper-voices";
 
 // Amostra por idioma, para o "testar" soar no idioma escolhido (com "auto" o
 // palpite do speech-text acerta o português).
