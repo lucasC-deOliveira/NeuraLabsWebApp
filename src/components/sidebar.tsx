@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "@/components/link";
 import { usePathname, useRouter } from "@/lib/navigation";
-import { BrainIcon, LayersIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon, LogOutIcon, UserIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, HelpCircleIcon, ClipboardListIcon, LibraryIcon } from "lucide-react";
+import { BrainIcon, LayersIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon, LogOutIcon, UserIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, HelpCircleIcon, ClipboardListIcon, LibraryIcon, BarChart3Icon } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { authApi } from "@/lib/api";
 import {
@@ -37,6 +37,7 @@ const NAV_ITEMS = [
   { href: "/provas", label: "Provas", icon: ClipboardListIcon },
   { href: "/notes", label: "Notas", icon: FileTextIcon },
   { href: "/graph", label: "Grafo", icon: NetworkIcon },
+  { href: "/analytics", label: "Analytics", icon: BarChart3Icon },
   { href: "/settings", label: "Configuracoes", icon: SettingsIcon },
 ];
 
