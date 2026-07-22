@@ -4,7 +4,7 @@ import { DEFAULT_PIPER_VOICE } from "./piper-voices";
 
 describe("normalizeSpeechSettings", () => {
   it("keeps valid settings as-is", () => {
-    const valid = { rate: 1.5, lang: "en-US", engine: "piper", voice: "en_US-amy-medium" } as const;
+    const valid = { rate: 1.5, lang: "en-US", engine: "piper", voice: "en_US-amy-medium", autoRead: true } as const;
     expect(normalizeSpeechSettings(valid)).toEqual(valid);
   });
 
@@ -20,6 +20,7 @@ describe("normalizeSpeechSettings", () => {
       lang: "pt-BR",
       engine: "system",
       voice: DEFAULT_PIPER_VOICE,
+      autoRead: false,
     });
   });
 

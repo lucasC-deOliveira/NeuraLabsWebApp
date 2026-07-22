@@ -14,6 +14,8 @@ import { graphHttp } from "@/modules/graph/infra/http";
 import type { StudyCard, CardReviewInput } from "@/modules/graph/application/ports/study.port";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
 import { useSpeech } from "@/components/speech/useSpeech";
+import { useAutoRead } from "@/components/speech/useAutoRead";
+import { loadSpeechSettings } from "@/components/speech/speech-settings";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { readAllVaultNodes, graphVaultDir } from "@/lib/vault-sync";
 import type { VaultNode } from "@/lib/vault-format";
@@ -224,6 +226,9 @@ function DeckCardView({
   // Uma instância de fala para a sessão: card e auxílio (dica/mnemônico) se
   // coordenam — clicar num para o outro.
   const speech = useSpeech();
+  // Leitura automática (ajustes → autoRead), lida uma vez ao abrir a sessão.
+  const [autoRead] = useState(() => loadSpeechSettings().autoRead);
+  useAutoRead(speech, card, phase, autoRead);
   return (
     <div className="space-y-4">
       {semPesos && <SemPesosHint />}

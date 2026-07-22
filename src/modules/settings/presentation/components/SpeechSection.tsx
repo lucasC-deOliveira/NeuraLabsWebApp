@@ -78,6 +78,8 @@ export function SpeechSection() {
         ) : (
           <LangPicker lang={settings.lang} onPick={(lang) => patch({ lang })} />
         )}
+
+        <AutoReadToggle value={settings.autoRead} onChange={(autoRead) => patch({ autoRead })} />
       </CardContent>
     </Card>
   );
@@ -173,6 +175,30 @@ function LangPicker({ lang, onPick }: { lang: SpeechLang; onPick: (id: SpeechLan
         <PickRow key={opt.id} label={opt.label} active={lang === opt.id} onClick={() => onPick(opt.id)} />
       ))}
     </div>
+  );
+}
+
+function AutoReadToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      aria-pressed={value}
+      className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors ${
+        value ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+      }`}
+    >
+      <span className="flex items-center gap-2">
+        <Volume2Icon className={`size-4 shrink-0 ${value ? "text-primary" : "text-muted-foreground"}`} />
+        <span>
+          <span className="block text-sm font-medium">Ler automaticamente ao estudar</span>
+          <span className="block text-[11px] text-muted-foreground">
+            Lê a pergunta ao abrir o card e a resposta ao revelar.
+          </span>
+        </span>
+      </span>
+      <CheckCircle2Icon className={`size-5 shrink-0 ${value ? "text-primary" : "text-muted-foreground/30"}`} />
+    </button>
   );
 }
 

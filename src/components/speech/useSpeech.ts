@@ -64,8 +64,9 @@ export function useSpeech() {
     }
   };
 
-  const toggle = (id: string, text: string): void => {
-    if (speakingId === id) return stop();
+  // Sempre inicia a leitura do trecho (não alterna). Usado pelo auto-read, que
+  // precisa começar mesmo se outro trecho estava tocando.
+  const speak = (id: string, text: string): void => {
     teardown();
     const clean = stripMarkdown(text);
     if (!clean) return;
@@ -79,7 +80,12 @@ export function useSpeech() {
     else speakSystem(id, clean, prefs);
   };
 
-  return { supported: Boolean(synth) || canPlayAudio, speakingId, toggle, stop };
+  const toggle = (id: string, text: string): void => {
+    if (speakingId === id) return stop();
+    speak(id, text);
+  };
+
+  return { supported: Boolean(synth) || canPlayAudio, speakingId, toggle, stop, speak };
 }
 
 // Controle de fala compartilhado por uma tela: instancie useSpeech() uma vez e

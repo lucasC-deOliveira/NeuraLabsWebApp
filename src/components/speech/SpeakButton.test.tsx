@@ -5,7 +5,7 @@ import { SpeakButton } from "./SpeakButton";
 import type { SpeechControls } from "./useSpeech";
 
 function fakeSpeech(overrides: Partial<SpeechControls> = {}): SpeechControls {
-  return { supported: true, speakingId: null, toggle: vi.fn(), stop: vi.fn(), ...overrides };
+  return { supported: true, speakingId: null, toggle: vi.fn(), stop: vi.fn(), speak: vi.fn(), ...overrides };
 }
 
 describe("SpeakButton", () => {

@@ -18,6 +18,8 @@ export interface SpeechSettings {
   engine: SpeechEngine;
   // Voz do Piper (ex.: "pt_BR-faber-medium"). Só usada quando engine === "piper".
   voice: string;
+  // Lê pergunta e resposta automaticamente durante a sessão de estudo.
+  autoRead: boolean;
 }
 
 export const SPEECH_LANGS: { id: SpeechLang; label: string }[] = [
@@ -35,6 +37,7 @@ export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = {
   lang: "auto",
   engine: "system",
   voice: DEFAULT_PIPER_VOICE,
+  autoRead: false,
 };
 
 const KEY = "neuralabs.speech";
@@ -52,6 +55,7 @@ export function normalizeSpeechSettings(raw: unknown): SpeechSettings {
     lang: isLang(obj.lang) ? obj.lang : "auto",
     engine: isEngine(obj.engine) ? obj.engine : "system",
     voice: isPiperVoice(obj.voice) ? obj.voice : DEFAULT_PIPER_VOICE,
+    autoRead: obj.autoRead === true,
   };
 }
 

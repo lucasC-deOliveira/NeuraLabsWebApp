@@ -8,7 +8,7 @@ Flashcards inteligentes com grafo de conhecimento e notas Zettelkasten. Crie car
 - **Repetição espaçada SM-2** — agenda a próxima revisão de cada cartão com base em acerto e nível de confiança (1–5)
 - **Geração de flashcards por IA** a partir de notas — detecta definições automaticamente e usa LLM para tipos mais elaborados
 - **Fase de elaboração** durante o estudo — o usuário escreve a resposta com as próprias palavras antes de ver o gabarito
-- **Leitura em voz alta (TTS)** — clique na pergunta ou na resposta do flashcard para ouvir; escolha entre a voz do sistema (Web Speech) ou voz neural natural via container Piper local (pt-BR e en-US), com velocidade e voz configuráveis nos ajustes
+- **Leitura em voz alta (TTS)** — ouça flashcards, notas, questões e textos gerados por IA (insights, resumos, chat do grafo); escolha entre a voz do sistema (Web Speech) ou voz neural natural via container Piper local (pt-BR e en-US), com velocidade e voz configuráveis e opção de leitura automática ao estudar
 - **Grafo de conhecimento interativo** — visualiza assuntos, tópicos, conceitos, notas e flashcards como nós conectados por relações tipadas
 - **Insights de nó por IA** — analisa o nó selecionado junto com seus vizinhos diretos e sugere 4–8 novos nós/conexões organizados por categoria
 - **Expansão de nó por IA** — gera sub-nós automaticamente a partir de qualquer nó (ASSUNTO → tópicos+conceitos, CONCEITO → nota+flashcards, etc.)
@@ -102,6 +102,8 @@ Dois motores, escolhidos nos ajustes:
 
 - **Voz do sistema** (Web Speech API) — instantânea e offline no navegador/Electron; idioma chutado por trecho (pt/en/ja).
 - **Voz natural (Piper)** — TTS neural local em container (`piper/`), no mesmo espírito do container de embeddings: grátis, offline, sem chave. Vozes pt-BR (faber, cadu, jeff, edresson) e en-US (amy, ryan) embutidas na imagem. O **backend faz o proxy** (`POST /api/tts/synthesize`, protegido por JWT) — o browser nunca fala com o Piper direto (container acessível só na rede interna do compose / localhost em dev).
+
+Onde: botão de som (🔊) em flashcards, notas, questões (enunciado + explicação) e nos modais de IA do grafo (insights, resumo de comunidade, chat). Na sessão de estudo há **leitura automática** opcional (ajustes): lê a pergunta ao abrir o card e a resposta ao revelar — sem auto-avançar, respeitando a fase de elaboração.
 
 Robustez: se o Piper estiver indisponível, a leitura cai para a voz do sistema; texto em japonês sempre usa a voz do sistema (o Piper não tem voz japonesa).
 
