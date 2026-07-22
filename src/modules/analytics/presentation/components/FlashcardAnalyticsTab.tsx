@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2Icon, AlertCircleIcon, InboxIcon } from "lucide-react";
+import { InboxIcon } from "lucide-react";
+import { LoadingState, ErrorState } from "@/components/loading-state";
 import { useFlashcardAnalytics } from "../useFlashcardAnalytics";
 import { RetentionForecastChart } from "./RetentionForecastChart";
 import { MaturityDonut } from "./MaturityDonut";
@@ -9,10 +10,16 @@ import { PerformanceRadar } from "./PerformanceRadar";
 import type { FlashcardAnalytics } from "../../domain/analytics.types";
 
 export function FlashcardAnalyticsTab() {
-  const { data, loading, error } = useFlashcardAnalytics();
-  if (loading) return <StateBox icon={<Loader2Icon className="size-6 animate-spin" />} text="Carregando analytics..." />;
-  if (error || !data) return <StateBox icon={<AlertCircleIcon className="size-6 text-destructive" />} text="Não foi possível carregar os analytics." />;
-  if (data.totals.cards === 0) return <StateBox icon={<InboxIcon className="size-6" />} text="Estude alguns flashcards para ver seus analytics aqui." />;
+  const { data, loading, error, reload } = useFlashcardAnalytics();
+  if (loading) {
+    return <LoadingState message="Carregando seus analytics de estudo…" hint="Reunindo revisões e estado das cartas." />;
+  }
+  if (error || !data) {
+    return <ErrorState message={error ?? "Não foi possível carregar os analytics."} onRetry={reload} />;
+  }
+  if (data.totals.cards === 0) {
+    return <StateBox icon={<InboxIcon className="size-6" />} text="Estude alguns flashcards para ver seus analytics aqui." />;
+  }
 
   return (
     <div className="space-y-4">
