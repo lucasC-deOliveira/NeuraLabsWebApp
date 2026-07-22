@@ -201,3 +201,25 @@ export function linkEditalToProva(
 export function listEditais(): Promise<EditalItem[]> {
   return apiFetch("/provas/editais");
 }
+
+export interface ProvaAttemptPayload {
+  acertos: number;
+  total: number;
+  tempoTotalMs: number;
+  respostas: {
+    questaoId: string;
+    respostaEscolhida: string;
+    acertou: boolean;
+    tempoRespostaMs: number | null;
+  }[];
+}
+
+export function recordProvaAttempt(
+  provaId: string,
+  attempt: ProvaAttemptPayload,
+): Promise<{ id: string }> {
+  return apiFetch(`/provas/${provaId}/tentativas`, {
+    method: "POST",
+    body: JSON.stringify(attempt),
+  });
+}

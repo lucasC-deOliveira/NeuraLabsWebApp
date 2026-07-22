@@ -68,6 +68,7 @@ import {
   createProvaFromParsed,
   suggestProvaConceitos,
   getProva,
+  recordProvaAttempt,
   fetchProvaImagem,
 } from "@/lib/provas-api";
 import { getQuestao } from "@/lib/questions-api";
@@ -135,6 +136,7 @@ import type {
   CreateEditalInputView,
   EditalItemView,
   ProvaDetailView,
+  ProvaAttemptDraft,
 } from "../../application/ports/graph-prova.port";
 import type { GraphListPort } from "../../application/ports/graph-list.port";
 import type {
@@ -429,6 +431,10 @@ export class HttpGraphAdapter
 
   getProva(provaId: string): Promise<ProvaDetailView | null> {
     return getProva(provaId);
+  }
+
+  recordProvaAttempt(provaId: string, attempt: ProvaAttemptDraft): Promise<{ id: string }> {
+    return recordProvaAttempt(provaId, attempt);
   }
 
   async getQuestao(questaoId: string): Promise<QuestaoView | null> {

@@ -39,6 +39,7 @@ model Usuario {
   duplicateVerdicts DuplicateVerdictCache[]
   nodeInsights      NodeInsightsCache[]
   graphViewCache    GraphViewCache[]
+  tentativasProva   TentativaProva[]
 
   @@map("usuarios")
 }
@@ -102,6 +103,7 @@ model Questao {
   conceito      Conceito?       @relation(fields: [conceitoId], references: [id], onDelete: SetNull)
   provasQuestao ProvaQuestao[]
   imagens       QuestaoImagem[]
+  respostas     RespostaQuestao[]
 
   @@map("questoes")
 }
@@ -129,11 +131,47 @@ model Prova {
   descricao   String?
   dataCriacao DateTime @default(now()) @map("data_criacao")
 
-  usuario  Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  questoes ProvaQuestao[]
-  edital   Edital?
+  usuario    Usuario          @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  questoes   ProvaQuestao[]
+  edital     Edital?
+  tentativas TentativaProva[]
 
   @@map("provas")
+}
+
+// Uma tentativa de resolver uma prova (quiz). N por prova → histórico/progresso.
+model TentativaProva {
+  id           String   @id @default(cuid())
+  usuarioId    String   @map("id_usuario")
+  provaId      String   @map("id_prova")
+  dataInicio   DateTime @default(now()) @map("data_inicio")
+  dataFim      DateTime @default(now()) @map("data_fim")
+  acertos      Int
+  total        Int
+  tempoTotalMs Int      @map("tempo_total_ms")
+
+  usuario   Usuario           @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  prova     Prova             @relation(fields: [provaId], references: [id], onDelete: Cascade)
+  respostas RespostaQuestao[]
+
+  @@index([usuarioId, provaId])
+  @@map("tentativas_prova")
+}
+
+// Resposta a uma questão dentro de uma tentativa.
+model RespostaQuestao {
+  id                String  @id @default(cuid())
+  tentativaId       String  @map("id_tentativa")
+  questaoId         String  @map("id_questao")
+  respostaEscolhida String  @map("resposta_escolhida")
+  acertou           Boolean
+  tempoRespostaMs   Int?    @map("tempo_resposta_ms")
+
+  tentativa TentativaProva @relation(fields: [tentativaId], references: [id], onDelete: Cascade)
+  questao   Questao        @relation(fields: [questaoId], references: [id], onDelete: Cascade)
+
+  @@index([tentativaId])
+  @@map("respostas_questao")
 }
 
 // O edital (objetos de avaliação) de uma prova. Relação 1:1 com Prova — cada prova
