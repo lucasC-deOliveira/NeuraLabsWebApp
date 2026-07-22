@@ -107,6 +107,8 @@ Onde: botão de som (🔊) em flashcards, notas, questões (enunciado + explica�
 
 A leitura é **frase a frase, destacando a frase atual** (estilo leitor de livro) nos blocos de texto único — flashcards, notas, explicação da questão, resumo de comunidade e respostas do chat. O mesmo divisor de frases roda no motor e na tela, então o destaque acompanha exatamente o que está sendo falado, nos dois motores.
 
+**Idioma dentro da frase:** no modo automático com a voz do sistema, termos técnicos conhecidos (heap, cache, stack, backend…) são falados em **inglês** e o resto em **português**, na mesma frase — ex.: "heap como funciona" soa `heap` (inglês) + `como funciona` (português). A lista de termos vive em `src/components/speech/lang-segments.ts` (extensível). O Piper usa uma voz por idioma, então não troca no meio da frase (fala tudo na voz escolhida).
+
 Robustez: se o Piper estiver indisponível, a leitura cai para a voz do sistema; texto em japonês sempre usa a voz do sistema (o Piper não tem voz japonesa).
 
 ### Geração de flashcards

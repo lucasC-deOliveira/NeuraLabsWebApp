@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { guessSpeechLang, stripMarkdown } from "./speech-text";
 import { splitSentences } from "./sentence-split";
+import { segmentByLang } from "./lang-segments";
 import { loadSpeechSettings, type SpeechSettings } from "./speech-settings";
 import { synthesizeSpeech } from "@/lib/tts-api";
 
@@ -41,15 +42,28 @@ export function useSpeech() {
   // a voz do sistema (o Piper não tem voz JP — ver piper/Dockerfile).
   const playSentence = (sentence: string, prefs: SpeechSettings, gen: number): Promise<void> => {
     const usePiper = prefs.engine === "piper" && guessSpeechLang(sentence) !== "ja-JP";
-    return usePiper ? playPiper(sentence, prefs, gen) : playSystem(sentence, prefs);
+    return usePiper ? playPiper(sentence, prefs, gen) : playSystem(sentence, prefs, gen);
   };
 
-  const playSystem = (sentence: string, prefs: SpeechSettings): Promise<void> =>
+  // Voz do sistema. No modo "auto", quebra a frase em trechos por idioma (termo
+  // técnico em inglês, resto em português) e fala cada um com sua voz — assim
+  // "heap como funciona" soa "heap" (inglês) + "como funciona" (português).
+  const playSystem = async (sentence: string, prefs: SpeechSettings, gen: number): Promise<void> => {
+    if (!synth) return;
+    const segments =
+      prefs.lang === "auto" ? segmentByLang(sentence) : [{ text: sentence, lang: prefs.lang }];
+    for (const segment of segments) {
+      if (genRef.current !== gen) return;
+      await speakUtterance(segment.text, segment.lang, prefs.rate);
+    }
+  };
+
+  const speakUtterance = (text: string, lang: string, rate: number): Promise<void> =>
     new Promise((resolve) => {
       if (!synth) return resolve();
-      const utter = new SpeechSynthesisUtterance(sentence);
-      utter.lang = prefs.lang === "auto" ? guessSpeechLang(sentence) : prefs.lang;
-      utter.rate = prefs.rate;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = lang;
+      utter.rate = rate;
       utter.onend = () => resolve();
       utter.onerror = () => resolve();
       synth.speak(utter);
@@ -60,7 +74,7 @@ export function useSpeech() {
     try {
       blob = await synthesizeSpeech({ text: sentence, voice: prefs.voice, rate: prefs.rate });
     } catch {
-      return playSystem(sentence, prefs); // Piper fora do ar: cai para o sistema
+      return playSystem(sentence, prefs, gen); // Piper fora do ar: cai para o sistema
     }
     if (genRef.current !== gen) return;
     return new Promise((resolve) => {
