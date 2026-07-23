@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -41,6 +43,9 @@ import { CreateNodeUseCase } from '../modules/graph/application/use-cases/create
 import { UpdateNodeUseCase } from '../modules/graph/application/use-cases/update-node.use-case';
 import { CreateDeckUseCase } from '../modules/graph/application/use-cases/create-deck.use-case';
 import { AddProvaToGraphUseCase } from '../modules/graph/application/use-cases/add-prova-to-graph.use-case';
+import { GetItemCompositionUseCase } from '../modules/graph/application/use-cases/get-item-composition.use-case';
+import type { CompositionRootType } from '../modules/graph/domain/ports/composition-source';
+import type { CompositionGraph } from '../modules/graph/domain/composition-views';
 import { CreateSubgraphUseCase } from '../modules/graph/application/use-cases/create-subgraph.use-case';
 import { ExtractSubgraphUseCase } from '../modules/graph/application/use-cases/extract-subgraph.use-case';
 import { LoadGraphUseCase } from '../modules/graph/application/use-cases/load-graph.use-case';
@@ -52,6 +57,14 @@ import type { VaultPayload } from '../modules/graph/domain/ports/vault-sync-repo
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
+
+// tipo da URL (amigável) → tipo raiz da composição (vocabulário do grafo).
+const COMPOSITION_TIPO: Record<string, CompositionRootType> = {
+  flashcard: 'FLASHCARD',
+  questao: 'QUESTION',
+  baralho: 'BARALHO',
+  prova: 'PROVA',
+};
 
 @UseGuards(JwtAuthGuard)
 @UseFilters(GraphDomainExceptionFilter)
@@ -84,6 +97,7 @@ export class GraphController {
     private readonly updateNodeUseCase: UpdateNodeUseCase,
     private readonly createDeckUseCase: CreateDeckUseCase,
     private readonly addProvaToGraphUseCase: AddProvaToGraphUseCase,
+    private readonly getItemCompositionUseCase: GetItemCompositionUseCase,
     private readonly createSubgraphUseCase: CreateSubgraphUseCase,
     private readonly extractSubgraphUseCase: ExtractSubgraphUseCase,
     private readonly loadGraphUseCase: LoadGraphUseCase,
@@ -92,6 +106,24 @@ export class GraphController {
     private readonly importGraphUseCase: ImportGraphUseCase,
     private readonly syncVaultUseCase: SyncVaultUseCase,
   ) {}
+
+  // Subgrafo composto de um item (mini-grafo + base do import). tipo: flashcard|questao|baralho|prova.
+  @Get('composition/:tipo/:id')
+  async composition(
+    @CurrentUser() userId: string,
+    @Param('tipo') tipo: string,
+    @Param('id') id: string,
+  ): Promise<CompositionGraph> {
+    const root = COMPOSITION_TIPO[tipo.toLowerCase()];
+    if (!root) {
+      throw new BadRequestException(
+        `invalid tipo: "${tipo}". Expected: flashcard|questao|baralho|prova`,
+      );
+    }
+    const graph = await this.getItemCompositionUseCase.execute(userId, root, id);
+    if (!graph) throw new NotFoundException(`item not found: "${tipo}/${id}"`);
+    return graph;
+  }
 
   // ---- Grafos ----
   @Get('graphs')

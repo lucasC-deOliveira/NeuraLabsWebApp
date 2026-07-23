@@ -60,6 +60,23 @@ export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }
     ],
   },
   { a: 'BARALHO', b: 'FLASHCARD', relations: ['CONTEM'] },
+  // Espelham baralho/flashcard para questões/provas — a mesma composição estrutural
+  // (prova CONTEM questão; questão HERDA do conceito que ela testa).
+  { a: 'PROVA', b: 'QUESTION', relations: ['CONTEM'] },
+  {
+    a: 'QUESTION',
+    b: 'CONCEITO',
+    relations: [
+      'HERDA',
+      'DEFINE',
+      'EXPLICA',
+      'APROFUNDA',
+      'EXEMPLIFICA',
+      'CONTRASTA',
+      'SINTETIZA',
+      'ALERTA_ERRO',
+    ],
+  },
 ];
 
 const RELATION_RULES: Record<string, string[]> = Object.fromEntries(
