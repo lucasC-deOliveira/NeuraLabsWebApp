@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { LoadingState, ErrorState } from "@/components/loading-state";
 import { MiniGraph } from "./MiniGraph";
+import { AddToGraphControl } from "./AddToGraphControl";
 import { useComposition } from "./useComposition";
 import type { CompositionGraph, CompositionTipo } from "./composition.types";
 
@@ -35,6 +36,11 @@ export function MiniGraphModal({ open, onOpenChange, title, tipo, id }: MiniGrap
         <div className="min-h-0 flex-1 overflow-auto py-4">
           <MiniGraphBody loading={loading} error={error} graph={graph} />
         </div>
+        {id && graph && graph.nodes.length > 1 && (
+          <div className="flex shrink-0 justify-end border-t pt-3">
+            <AddToGraphControl tipo={tipo} id={id} />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

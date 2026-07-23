@@ -261,3 +261,15 @@ export function getItemComposition(tipo: CompositionTipo, id: string): Promise<C
     timeoutMs: 20_000,
   });
 }
+
+// Importa um item num grafo COMPONDO tudo (item + hierarquia), mesclado.
+export function composeItemIntoGraph(
+  grafoId: string,
+  tipo: CompositionTipo,
+  id: string,
+): Promise<{ nodes: number; edges: number }> {
+  return apiFetch(`/graph/graphs/${encodeURIComponent(grafoId)}/compose`, {
+    method: "POST",
+    body: JSON.stringify({ tipo, id }),
+  });
+}
