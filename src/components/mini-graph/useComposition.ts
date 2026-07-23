@@ -6,6 +6,7 @@ interface CompositionState {
   graph: CompositionGraph | null;
   loading: boolean;
   error: string | null;
+  reload: () => void;
 }
 
 function message(e: unknown): string {
@@ -35,6 +36,7 @@ export function useComposition(tipo: CompositionTipo, id: string | null): Compos
   const [error, setError] = useState<string | null>(null);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [prevKey, setPrevKey] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
   const key = id ? `${tipo}:${id}` : null;
   if (key !== prevKey) {
     setPrevKey(key);
@@ -45,6 +47,8 @@ export function useComposition(tipo: CompositionTipo, id: string | null): Compos
   useEffect(() => {
     if (!id) return;
     return run(tipo, id, (g) => { setGraph(g); setError(null); }, setError, () => setLoadingKey(null));
-  }, [tipo, id]);
-  return { graph, loading: key !== null && loadingKey === key, error };
+  }, [tipo, id, nonce]);
+  // Re-busca o mesmo item (após completar com IA). Chamado fora de render/efeito.
+  const reload = (): void => { setGraph(null); setError(null); setLoadingKey(key); setNonce((n) => n + 1); };
+  return { graph, loading: key !== null && loadingKey === key, error, reload };
 }
