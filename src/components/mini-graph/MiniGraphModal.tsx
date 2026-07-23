@@ -12,7 +12,6 @@ import {
 import { LoadingState, ErrorState } from "@/components/loading-state";
 import { VerNoGrafo } from "@/components/graph/VerNoGrafo";
 import { MiniGraph } from "./MiniGraph";
-import { AddToGraphControl } from "./AddToGraphControl";
 import { useComposition } from "./useComposition";
 import {
   TIPO_TO_TYPE,
@@ -69,9 +68,8 @@ export function MiniGraphModal({ open, onOpenChange, title, tipo, id }: MiniGrap
           <MiniGraphBody loading={loading} error={error} graph={graph} onNodeClick={recenter} />
         </div>
         {active && graph && graph.nodes.length > 1 && (
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t pt-3">
+          <div className="flex shrink-0 items-center justify-end border-t pt-3">
             <VerNoGrafo tipo={active.type} refId={active.id} />
-            <AddToGraphControl tipo={active.tipo} id={active.id} />
           </div>
         )}
       </DialogContent>
