@@ -166,8 +166,8 @@ export function QuestoesListPage() {
         open={!!graphQuestao}
         onOpenChange={(open) => !open && setGraphQuestao(null)}
         title={graphQuestao?.enunciado ?? "Mini-grafo"}
-        rootLabel={graphQuestao?.enunciado ?? ""}
-        connections={graphQuestao?.conceitosConectados ?? null}
+        tipo="questao"
+        id={graphQuestao?.id ?? null}
       />
     </PageContainer>
   );

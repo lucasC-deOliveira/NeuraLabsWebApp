@@ -20,12 +20,6 @@ import {
 import { useProvasList } from "./hooks/useProvasList";
 import { ProvasFilters } from "./components/ProvasFilters";
 import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
-import { useConceptConnections } from "@/components/mini-graph/useConceptConnections";
-import type { ConceptConnection } from "@/components/mini-graph/mini-graph.types";
-
-// Conexões de conceito da prova = as das suas questões (agregadas do detalhe).
-const loadProvaConnections = (id: string): Promise<ConceptConnection[]> =>
-  provasHttp.getProva(id).then((d) => d.questoes.flatMap((q) => q.conceitosConectados));
 
 // 11 por página: as linhas são baixas, cabem mais que os cartões de questão.
 const PAGE_SIZE = 11;
@@ -122,7 +116,6 @@ export function ProvasListPage({ onOpenAnalytics, onOpenStudy }: {
   const { provas, loading, remove } = useProvasList();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [graphProva, setGraphProva] = useState<ProvaListItem | null>(null);
-  const graphConn = useConceptConnections(graphProva?.id ?? null, loadProvaConnections);
   const [criteria, setCriteria] = useState<ProvaCriteria>(DEFAULT_PROVA_CRITERIA);
   const [page, setPage] = useState(1);
 
@@ -207,10 +200,8 @@ export function ProvasListPage({ onOpenAnalytics, onOpenStudy }: {
         open={!!graphProva}
         onOpenChange={(open) => !open && setGraphProva(null)}
         title={graphProva?.titulo ?? "Mini-grafo"}
-        rootLabel={graphProva?.titulo ?? ""}
-        connections={graphConn.connections}
-        loading={graphConn.loading}
-        error={graphConn.error}
+        tipo="prova"
+        id={graphProva?.id ?? null}
       />
     </PageContainer>
   );

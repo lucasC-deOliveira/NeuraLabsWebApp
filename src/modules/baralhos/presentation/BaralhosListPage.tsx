@@ -28,26 +28,17 @@ import { ConfirmDeleteBaralhoDialog } from "./components/ConfirmDeleteBaralhoDia
 import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
 import { DeckAnalyticsModal } from "@/modules/analytics/presentation/components/modals/DeckAnalyticsModal";
 import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
-import { useConceptConnections } from "@/components/mini-graph/useConceptConnections";
-import type { ConceptConnection } from "@/components/mini-graph/mini-graph.types";
 import type { BaralhoItem } from "../domain/baralho.types";
 
-// Conexões de conceito do baralho = as dos seus cartões (agregadas do detalhe).
-const loadBaralhoConnections = (id: string): Promise<ConceptConnection[]> =>
-  baralhosHttp.getBaralho(id).then((d) => d.cards.flatMap((c) => c.conceitosConectados));
-
-// Mini-grafo do baralho; extraído para não inflar a complexidade da lista.
+// Mini-grafo do baralho (compõe conceitos/tópicos/assuntos dos seus cartões).
 function BaralhoMiniGraph({ baralho, onClose }: { baralho: BaralhoItem | null; onClose: () => void }) {
-  const { connections, loading, error } = useConceptConnections(baralho?.id ?? null, loadBaralhoConnections);
   return (
     <MiniGraphModal
       open={!!baralho}
       onOpenChange={(open) => !open && onClose()}
       title={baralho?.titulo ?? "Mini-grafo"}
-      rootLabel={baralho?.titulo ?? ""}
-      connections={connections}
-      loading={loading}
-      error={error}
+      tipo="baralho"
+      id={baralho?.id ?? null}
     />
   );
 }

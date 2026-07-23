@@ -43,8 +43,8 @@ function FlashcardMiniGraph({ card, onClose }: { card: FlashcardItem | null; onC
       open={!!card}
       onOpenChange={(open) => !open && onClose()}
       title={card?.pergunta ?? "Mini-grafo"}
-      rootLabel={card?.pergunta ?? ""}
-      connections={card?.conceitosConectados ?? null}
+      tipo="flashcard"
+      id={card?.id ?? null}
     />
   );
 }
