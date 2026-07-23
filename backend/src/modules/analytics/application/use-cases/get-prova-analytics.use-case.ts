@@ -5,6 +5,8 @@ import { hardestQuestions, accuracyByType } from '../../domain/services/question
 import type { ProvaAnalytics } from '../../domain/prova-analytics-views';
 
 const DEFAULT_WINDOW_DAYS = 90;
+// Teto de questões mais erradas devolvidas; a UI pagina sobre esta lista.
+const HARDEST_QUESTIONS_LIMIT = 50;
 
 /**
  * Reúne o analytics de questões/provas do usuário a partir das tentativas
@@ -28,7 +30,7 @@ export class GetProvaAnalyticsUseCase {
     return {
       totals: computeTotals(attempts),
       progress: scoreProgression(attempts),
-      hardestQuestions: hardestQuestions(stats),
+      hardestQuestions: hardestQuestions(stats, HARDEST_QUESTIONS_LIMIT),
       accuracyByType: accuracyByType(stats),
     };
   }

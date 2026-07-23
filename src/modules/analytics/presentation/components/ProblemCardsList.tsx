@@ -1,10 +1,15 @@
 "use client";
 
 import { ChartCard } from "./chart-shell";
+import { Pagination } from "./Pagination";
+import { usePagination } from "../usePagination";
 import type { ProblemCard } from "../../domain/analytics.types";
+
+const PAGE_SIZE = 8;
 
 // Cartões-problema (leeches): os que você mais erra. Ataque estes primeiro.
 export function ProblemCardsList({ cards }: { cards: ProblemCard[] }) {
+  const { page, pageIndex, pageCount, next, prev } = usePagination(cards, PAGE_SIZE);
   if (cards.length === 0) {
     return (
       <ChartCard title="Cartões-problema" hint="Os que você mais erra">
@@ -17,7 +22,7 @@ export function ProblemCardsList({ cards }: { cards: ProblemCard[] }) {
   return (
     <ChartCard title="Cartões-problema" hint="Os que você mais erra — ataque estes primeiro">
       <ul className="space-y-1.5">
-        {cards.map((card, i) => (
+        {page.map((card, i) => (
           <li key={i} className="flex items-center gap-3 rounded-md border px-3 py-2">
             <span className="min-w-0 flex-1 truncate text-sm">{card.pergunta}</span>
             <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
@@ -29,6 +34,7 @@ export function ProblemCardsList({ cards }: { cards: ProblemCard[] }) {
           </li>
         ))}
       </ul>
+      <Pagination pageIndex={pageIndex} pageCount={pageCount} onPrev={prev} onNext={next} />
     </ChartCard>
   );
 }

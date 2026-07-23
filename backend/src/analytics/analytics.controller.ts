@@ -5,6 +5,7 @@ import { clampDays } from '../modules/analytics/domain/services/period';
 import { GetFlashcardAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-analytics.use-case';
 import { GetProvaAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-prova-analytics.use-case';
 import { GetDeckAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-deck-analytics.use-case';
+import { TtlCache } from '../modules/analytics/infrastructure/cache/ttl-cache';
 import type { FlashcardAnalytics } from '../modules/analytics/domain/analytics-views';
 import type { ProvaAnalytics } from '../modules/analytics/domain/prova-analytics-views';
 import type { DeckAnalytics } from '../modules/analytics/domain/deck-analytics-views';
@@ -16,6 +17,7 @@ export class AnalyticsController {
     private readonly getFlashcardAnalytics: GetFlashcardAnalyticsUseCase,
     private readonly getProvaAnalytics: GetProvaAnalyticsUseCase,
     private readonly getDeckAnalytics: GetDeckAnalyticsUseCase,
+    private readonly cache: TtlCache,
   ) {}
 
   @Get('flashcards')
@@ -25,11 +27,12 @@ export class AnalyticsController {
     @Query('baralhoId') baralhoId?: string,
     @Query('assuntoId') assuntoId?: string,
   ): Promise<FlashcardAnalytics> {
-    return this.getFlashcardAnalytics.execute(
-      userId,
-      clampDays(days),
-      baralhoId || undefined,
-      assuntoId || undefined,
+    const window = clampDays(days);
+    const deck = baralhoId || undefined;
+    const subject = assuntoId || undefined;
+    const key = `fc:${userId}:${window}:${deck ?? ''}:${subject ?? ''}`;
+    return this.cache.getOrCompute(key, () =>
+      this.getFlashcardAnalytics.execute(userId, window, deck, subject),
     );
   }
 
@@ -39,11 +42,18 @@ export class AnalyticsController {
     @Query('days') days?: string,
     @Query('provaId') provaId?: string,
   ): Promise<ProvaAnalytics> {
-    return this.getProvaAnalytics.execute(userId, clampDays(days), provaId || undefined);
+    const window = clampDays(days);
+    const prova = provaId || undefined;
+    const key = `prova:${userId}:${window}:${prova ?? ''}`;
+    return this.cache.getOrCompute(key, () =>
+      this.getProvaAnalytics.execute(userId, window, prova),
+    );
   }
 
   @Get('decks')
   decks(@CurrentUser() userId: string, @Query('days') days?: string): Promise<DeckAnalytics> {
-    return this.getDeckAnalytics.execute(userId, clampDays(days));
+    const window = clampDays(days);
+    const key = `deck:${userId}:${window}`;
+    return this.cache.getOrCompute(key, () => this.getDeckAnalytics.execute(userId, window));
   }
 }

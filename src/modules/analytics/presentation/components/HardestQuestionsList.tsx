@@ -1,10 +1,15 @@
 "use client";
 
 import { ChartCard } from "./chart-shell";
+import { Pagination } from "./Pagination";
+import { usePagination } from "../usePagination";
 import type { HardQuestion } from "../../domain/prova-analytics.types";
+
+const PAGE_SIZE = 8;
 
 // Questões que você mais erra nas provas — ataque estas primeiro.
 export function HardestQuestionsList({ questions }: { questions: HardQuestion[] }) {
+  const { page, pageIndex, pageCount, next, prev } = usePagination(questions, PAGE_SIZE);
   if (questions.length === 0) {
     return (
       <ChartCard title="Questões mais erradas" hint="As que você mais erra">
@@ -17,7 +22,7 @@ export function HardestQuestionsList({ questions }: { questions: HardQuestion[] 
   return (
     <ChartCard title="Questões mais erradas" hint="As que você mais erra — revise estas">
       <ul className="space-y-1.5">
-        {questions.map((q, i) => (
+        {page.map((q, i) => (
           <li key={i} className="flex items-center gap-3 rounded-md border px-3 py-2">
             <span className="min-w-0 flex-1 truncate text-sm">{q.enunciado}</span>
             <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
@@ -29,6 +34,7 @@ export function HardestQuestionsList({ questions }: { questions: HardQuestion[] 
           </li>
         ))}
       </ul>
+      <Pagination pageIndex={pageIndex} pageCount={pageCount} onPrev={prev} onNext={next} />
     </ChartCard>
   );
 }

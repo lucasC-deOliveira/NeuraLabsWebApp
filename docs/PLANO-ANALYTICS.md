@@ -139,6 +139,23 @@ Aba **Baralhos** e enriquecimento da **Visão geral**:
 
 ---
 
+## Filtros avançados (pós-D)
+Barra de filtros no topo de cada aba: **período** (7d/30d/90d/1ano/tudo) + por
+**baralho**/**assunto** (flashcards) e por **prova** (questões). Os dropdowns
+reusam dados existentes (`getSubjects`, analytics de baralhos/provas) — sem
+endpoint novo. O `baralhoId`/`assuntoId`/`provaId` atravessa controller → use-case
+→ port → source Prisma (assunto via `conceito → tópico → assunto`).
+
+## Cache e paginação
+- **Cache backend:** agregações são caras; `TtlCache` em memória (60s) na frente
+  das use-cases, com chave por `userId` + parâmetros de filtro
+  (`infrastructure/cache/ttl-cache.ts`). Absorve recargas e toggles de filtro sem
+  staleness perceptível. Escopo de processo único (não compartilha entre réplicas).
+- **Paginação frontend:** listas longas (cartões-problema, questões mais erradas,
+  tabela por baralho) paginam client-side via `usePagination` + `<Pagination>`
+  (8/página). O backend passou a devolver o top-50 (antes top-8) dessas listas
+  para a paginação ter conteúdo.
+
 ## Ordem de execução
 A → B → C → D. Cada fase é um (ou poucos) commit(s) independente(s), com gate verde
 (lint:strict + arch:check + test; backend + frontend). Fase A já entrega valor

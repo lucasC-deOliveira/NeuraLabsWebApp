@@ -17,6 +17,8 @@ import type { FlashcardAnalytics } from '../../domain/analytics-views';
 
 // Janela padrão das métricas temporais (tendência, velocidade, perfil).
 const DEFAULT_WINDOW_DAYS = 90;
+// Teto de cartões-problema devolvidos; a UI pagina sobre esta lista.
+const PROBLEM_CARDS_LIMIT = 50;
 
 /**
  * Reúne os analytics de flashcards do usuário: forecast de revisões, mix de
@@ -59,6 +61,6 @@ function assemble(
     errorTaxonomy: errorTaxonomy(reviews),
     speedBuckets: speedBuckets(reviews),
     streak: studyStreak(reviews, now),
-    problemCards: rankProblemCards(problems),
+    problemCards: rankProblemCards(problems, PROBLEM_CARDS_LIMIT),
   };
 }
