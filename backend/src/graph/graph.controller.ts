@@ -44,8 +44,10 @@ import { UpdateNodeUseCase } from '../modules/graph/application/use-cases/update
 import { CreateDeckUseCase } from '../modules/graph/application/use-cases/create-deck.use-case';
 import { AddProvaToGraphUseCase } from '../modules/graph/application/use-cases/add-prova-to-graph.use-case';
 import { GetItemCompositionUseCase } from '../modules/graph/application/use-cases/get-item-composition.use-case';
+import { ComposeItemIntoGraphUseCase } from '../modules/graph/application/use-cases/compose-item-into-graph.use-case';
 import type { CompositionRootType } from '../modules/graph/domain/ports/composition-source';
 import type { CompositionGraph } from '../modules/graph/domain/composition-views';
+import type { ComposeResult } from '../modules/graph/domain/ports/compose-into-graph-repository';
 import { CreateSubgraphUseCase } from '../modules/graph/application/use-cases/create-subgraph.use-case';
 import { ExtractSubgraphUseCase } from '../modules/graph/application/use-cases/extract-subgraph.use-case';
 import { LoadGraphUseCase } from '../modules/graph/application/use-cases/load-graph.use-case';
@@ -98,6 +100,7 @@ export class GraphController {
     private readonly createDeckUseCase: CreateDeckUseCase,
     private readonly addProvaToGraphUseCase: AddProvaToGraphUseCase,
     private readonly getItemCompositionUseCase: GetItemCompositionUseCase,
+    private readonly composeItemIntoGraphUseCase: ComposeItemIntoGraphUseCase,
     private readonly createSubgraphUseCase: CreateSubgraphUseCase,
     private readonly extractSubgraphUseCase: ExtractSubgraphUseCase,
     private readonly loadGraphUseCase: LoadGraphUseCase,
@@ -123,6 +126,25 @@ export class GraphController {
     const graph = await this.getItemCompositionUseCase.execute(userId, root, id);
     if (!graph) throw new NotFoundException(`item not found: "${tipo}/${id}"`);
     return graph;
+  }
+
+  // Importa um item num grafo COMPONDO tudo (item + hierarquia), mesclado.
+  @Post('graphs/:grafoId/compose')
+  async composeIntoGraph(
+    @CurrentUser() userId: string,
+    @Param('grafoId') grafoId: string,
+    @Body() body: { tipo?: string; id?: string },
+  ): Promise<ComposeResult> {
+    const root = COMPOSITION_TIPO[(body.tipo ?? '').toLowerCase()];
+    if (!root || !body.id) {
+      throw new BadRequestException(
+        `invalid body: expected { tipo: flashcard|questao|baralho|prova, id }`,
+      );
+    }
+    const result = await this.composeItemIntoGraphUseCase.execute(userId, grafoId, root, body.id);
+    if (!result)
+      throw new NotFoundException(`graph or item not found: "${grafoId}" / "${body.id}"`);
+    return result;
   }
 
   // ---- Grafos ----
