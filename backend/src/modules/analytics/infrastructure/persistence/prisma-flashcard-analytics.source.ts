@@ -56,8 +56,8 @@ export class PrismaFlashcardAnalyticsSource implements FlashcardAnalyticsSource 
     }));
   }
 
-  async problemCardStats(userId: string): Promise<ProblemCardRow[]> {
-    const where = { sessao: { usuarioId: userId } };
+  async problemCardStats(userId: string, since: Date): Promise<ProblemCardRow[]> {
+    const where = { sessao: { usuarioId: userId, dataInicio: { gte: since } } };
     const [totals, wrongs] = await Promise.all([
       this.prisma.revisaoFlashcard.groupBy({ by: ['flashcardId'], where, _count: { _all: true } }),
       this.prisma.revisaoFlashcard.groupBy({

@@ -1,20 +1,25 @@
+import { addDays } from '../../domain/services/date-key';
 import type { AttemptRow, ProvaAnalyticsSource } from '../../domain/ports/prova-analytics-source';
 import { scoreProgression } from '../../domain/services/score-progression';
 import { hardestQuestions, accuracyByType } from '../../domain/services/question-difficulty';
 import type { ProvaAnalytics } from '../../domain/prova-analytics-views';
 
+const DEFAULT_WINDOW_DAYS = 90;
+
 /**
  * Reúne o analytics de questões/provas do usuário a partir das tentativas
  * capturadas: progresso de score por prova, questões mais erradas e acurácia por tipo.
- * @example useCase.execute(userId)
+ * `days` filtra o período (padrão 90).
+ * @example useCase.execute(userId, 30)
  */
 export class GetProvaAnalyticsUseCase {
   constructor(private readonly source: ProvaAnalyticsSource) {}
 
-  async execute(userId: string): Promise<ProvaAnalytics> {
+  async execute(userId: string, days = DEFAULT_WINDOW_DAYS): Promise<ProvaAnalytics> {
+    const since = addDays(new Date(), -days);
     const [attempts, stats] = await Promise.all([
-      this.source.attempts(userId),
-      this.source.questionStats(userId),
+      this.source.attempts(userId, since),
+      this.source.questionStats(userId, since),
     ]);
     return {
       totals: computeTotals(attempts),

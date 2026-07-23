@@ -9,8 +9,8 @@ interface ProvaAnalyticsState {
   reload: () => void;
 }
 
-// Carrega o analytics de questões/provas. Mesmo padrão do de flashcards.
-export function useProvaAnalytics(): ProvaAnalyticsState {
+// Carrega o analytics de questões/provas (janela `days`). Refaz ao mudar days.
+export function useProvaAnalytics(days: number): ProvaAnalyticsState {
   const [data, setData] = useState<ProvaAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,12 +19,12 @@ export function useProvaAnalytics(): ProvaAnalyticsState {
   useEffect(() => {
     let active = true;
     analyticsHttp
-      .getProvaAnalytics()
+      .getProvaAnalytics(days)
       .then((d) => { if (active) { setData(d); setError(null); } })
       .catch((e) => { if (active) setError(e instanceof Error ? e.message : "Erro ao carregar os analytics."); })
       .finally(() => { if (active) setLoading(false); });
     return (): void => { active = false; };
-  }, [nonce]);
+  }, [days, nonce]);
 
   const reload = (): void => { setLoading(true); setError(null); setData(null); setNonce((n) => n + 1); };
   return { data, loading, error, reload };

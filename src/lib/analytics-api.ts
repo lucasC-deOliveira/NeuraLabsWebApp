@@ -4,15 +4,16 @@ import type { FlashcardAnalytics } from "@/modules/analytics/domain/analytics.ty
 import type { ProvaAnalytics } from "@/modules/analytics/domain/prova-analytics.types";
 import type { DeckAnalytics } from "@/modules/analytics/domain/deck-analytics.types";
 
-export function getFlashcardAnalytics(): Promise<FlashcardAnalytics> {
+// `days` filtra a janela das métricas temporais (padrão 90 no backend).
+export function getFlashcardAnalytics(days: number): Promise<FlashcardAnalytics> {
   // Leitura rápida: 20s é folga de sobra e falha logo se algo estiver errado.
-  return apiFetch<FlashcardAnalytics>("/analytics/flashcards", { timeoutMs: 20_000 });
+  return apiFetch<FlashcardAnalytics>(`/analytics/flashcards?days=${days}`, { timeoutMs: 20_000 });
 }
 
-export function getProvaAnalytics(): Promise<ProvaAnalytics> {
-  return apiFetch<ProvaAnalytics>("/analytics/provas", { timeoutMs: 20_000 });
+export function getProvaAnalytics(days: number): Promise<ProvaAnalytics> {
+  return apiFetch<ProvaAnalytics>(`/analytics/provas?days=${days}`, { timeoutMs: 20_000 });
 }
 
-export function getDeckAnalytics(): Promise<DeckAnalytics> {
-  return apiFetch<DeckAnalytics>("/analytics/decks", { timeoutMs: 20_000 });
+export function getDeckAnalytics(days: number): Promise<DeckAnalytics> {
+  return apiFetch<DeckAnalytics>(`/analytics/decks?days=${days}`, { timeoutMs: 20_000 });
 }

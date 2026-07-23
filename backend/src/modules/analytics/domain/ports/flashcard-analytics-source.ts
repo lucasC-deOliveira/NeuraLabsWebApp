@@ -27,8 +27,8 @@ export interface FlashcardAnalyticsSource {
   learningStates(userId: string): Promise<LearningStateRow[]>;
   // Revisões do usuário a partir de `since` (tendências, velocidade, perfil, erros).
   reviewsSince(userId: string, since: Date): Promise<ReviewRow[]>;
-  // Cartas com pelo menos um erro (vida toda), para ranquear os problemáticos.
-  problemCardStats(userId: string): Promise<ProblemCardRow[]>;
+  // Cartas com pelo menos um erro no período (>= since), para ranquear os problemáticos.
+  problemCardStats(userId: string, since: Date): Promise<ProblemCardRow[]>;
 }
 
 export const FLASHCARD_ANALYTICS_SOURCE = Symbol('FLASHCARD_ANALYTICS_SOURCE');

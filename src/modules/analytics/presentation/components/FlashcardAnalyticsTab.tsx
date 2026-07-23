@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { InboxIcon } from "lucide-react";
 import { LoadingState, ErrorState } from "@/components/loading-state";
+import { FilterBar } from "../filters/FilterBar";
+import { DEFAULT_PERIOD, periodDays, type PeriodValue } from "../filters/period";
 import { useFlashcardAnalytics } from "../useFlashcardAnalytics";
 import { RetentionForecastChart } from "./RetentionForecastChart";
 import { MaturityDonut } from "./MaturityDonut";
@@ -14,7 +17,17 @@ import { ProblemCardsList } from "./ProblemCardsList";
 import type { FlashcardAnalytics } from "../../domain/analytics.types";
 
 export function FlashcardAnalyticsTab() {
-  const { data, loading, error, reload } = useFlashcardAnalytics();
+  const [period, setPeriod] = useState<PeriodValue>(DEFAULT_PERIOD);
+  return (
+    <div className="space-y-4">
+      <FilterBar period={period} onPeriod={setPeriod} />
+      <FlashcardContent days={periodDays(period)} />
+    </div>
+  );
+}
+
+function FlashcardContent({ days }: { days: number }) {
+  const { data, loading, error, reload } = useFlashcardAnalytics(days);
   if (loading) {
     return <LoadingState message="Carregando seus analytics de estudo…" hint="Reunindo revisões e estado das cartas." />;
   }
@@ -49,7 +62,7 @@ function KpiRow({ data }: { data: FlashcardAnalytics }) {
   return (
     <div className="grid grid-cols-3 gap-3">
       <Kpi label="Cartas" value={data.totals.cards} />
-      <Kpi label="Revisões (90d)" value={data.totals.reviews} />
+      <Kpi label="Revisões (período)" value={data.totals.reviews} />
       <Kpi label="Maduras" value={`${maturePct}%`} />
     </div>
   );

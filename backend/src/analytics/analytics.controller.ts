@@ -1,6 +1,7 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { clampDays } from '../modules/analytics/domain/services/period';
 import { GetFlashcardAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-analytics.use-case';
 import { GetProvaAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-prova-analytics.use-case';
 import { GetDeckAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-deck-analytics.use-case';
@@ -18,17 +19,20 @@ export class AnalyticsController {
   ) {}
 
   @Get('flashcards')
-  flashcards(@CurrentUser() userId: string): Promise<FlashcardAnalytics> {
-    return this.getFlashcardAnalytics.execute(userId);
+  flashcards(
+    @CurrentUser() userId: string,
+    @Query('days') days?: string,
+  ): Promise<FlashcardAnalytics> {
+    return this.getFlashcardAnalytics.execute(userId, clampDays(days));
   }
 
   @Get('provas')
-  provas(@CurrentUser() userId: string): Promise<ProvaAnalytics> {
-    return this.getProvaAnalytics.execute(userId);
+  provas(@CurrentUser() userId: string, @Query('days') days?: string): Promise<ProvaAnalytics> {
+    return this.getProvaAnalytics.execute(userId, clampDays(days));
   }
 
   @Get('decks')
-  decks(@CurrentUser() userId: string): Promise<DeckAnalytics> {
-    return this.getDeckAnalytics.execute(userId);
+  decks(@CurrentUser() userId: string, @Query('days') days?: string): Promise<DeckAnalytics> {
+    return this.getDeckAnalytics.execute(userId, clampDays(days));
   }
 }

@@ -57,8 +57,8 @@ export class PrismaDeckAnalyticsSource implements DeckAnalyticsSource {
     return flatten(baralhos);
   }
 
-  async cardReviewStats(userId: string): Promise<CardReviewStat[]> {
-    const where = { sessao: { usuarioId: userId } };
+  async cardReviewStats(userId: string, since: Date): Promise<CardReviewStat[]> {
+    const where = { sessao: { usuarioId: userId, dataInicio: { gte: since } } };
     const [totals, corrects] = await Promise.all([
       this.prisma.revisaoFlashcard.groupBy({ by: ['flashcardId'], where, _count: { _all: true } }),
       this.prisma.revisaoFlashcard.groupBy({

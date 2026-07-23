@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { InboxIcon } from "lucide-react";
 import { LoadingState, ErrorState } from "@/components/loading-state";
+import { FilterBar } from "../filters/FilterBar";
+import { DEFAULT_PERIOD, periodDays, type PeriodValue } from "../filters/period";
 import { useProvaAnalytics } from "../useProvaAnalytics";
 import { ProvaProgressChart } from "./ProvaProgressChart";
 import { TypeAccuracyChart } from "./TypeAccuracyChart";
@@ -9,7 +12,17 @@ import { HardestQuestionsList } from "./HardestQuestionsList";
 import type { ProvaAnalytics } from "../../domain/prova-analytics.types";
 
 export function ProvaAnalyticsTab() {
-  const { data, loading, error, reload } = useProvaAnalytics();
+  const [period, setPeriod] = useState<PeriodValue>(DEFAULT_PERIOD);
+  return (
+    <div className="space-y-4">
+      <FilterBar period={period} onPeriod={setPeriod} />
+      <ProvaContent days={periodDays(period)} />
+    </div>
+  );
+}
+
+function ProvaContent({ days }: { days: number }) {
+  const { data, loading, error, reload } = useProvaAnalytics(days);
   if (loading) {
     return <LoadingState message="Carregando seus analytics de provas…" hint="Reunindo tentativas e respostas." />;
   }

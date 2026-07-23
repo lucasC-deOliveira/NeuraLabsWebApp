@@ -18,8 +18,8 @@ export interface CardReviewStat {
 export interface DeckAnalyticsSource {
   // Uma linha por (baralho, carta), com o estado SM-2 da carta.
   deckCards(userId: string): Promise<DeckCardRow[]>;
-  // Total x acertos por carta (para a acurácia de cada baralho).
-  cardReviewStats(userId: string): Promise<CardReviewStat[]>;
+  // Total x acertos por carta no período (>= since), para a acurácia de cada baralho.
+  cardReviewStats(userId: string, since: Date): Promise<CardReviewStat[]>;
 }
 
 export const DECK_ANALYTICS_SOURCE = Symbol('DECK_ANALYTICS_SOURCE');

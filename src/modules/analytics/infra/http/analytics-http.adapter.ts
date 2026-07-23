@@ -6,15 +6,15 @@ import type { ProvaAnalytics } from "../../domain/prova-analytics.types";
 import type { DeckAnalytics } from "../../domain/deck-analytics.types";
 
 export class HttpAnalyticsAdapter implements AnalyticsPort {
-  getFlashcardAnalytics(): Promise<FlashcardAnalytics> {
-    return getFlashcardAnalytics();
+  getFlashcardAnalytics(days: number): Promise<FlashcardAnalytics> {
+    return getFlashcardAnalytics(days);
   }
 
-  getProvaAnalytics(): Promise<ProvaAnalytics> {
-    return getProvaAnalytics();
+  getProvaAnalytics(days: number): Promise<ProvaAnalytics> {
+    return getProvaAnalytics(days);
   }
 
-  getDeckAnalytics(): Promise<DeckAnalytics> {
-    return getDeckAnalytics();
+  getDeckAnalytics(days: number): Promise<DeckAnalytics> {
+    return getDeckAnalytics(days);
   }
 }

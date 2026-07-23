@@ -8,7 +8,8 @@ import { useFlashcardAnalytics } from "../useFlashcardAnalytics";
 // Resumo compacto do estudo na home, com link para a /analytics detalhada.
 // Some enquanto carrega e quando não há cartas (sem ruído na home).
 export function AnalyticsSummaryCard() {
-  const { data, loading } = useFlashcardAnalytics();
+  // Resumo da home usa uma janela fixa de 90 dias.
+  const { data, loading } = useFlashcardAnalytics(90);
   if (loading || !data || data.totals.cards === 0) return null;
 
   const due7 = data.retentionForecast.slice(0, 7).reduce((sum, d) => sum + d.count, 0);

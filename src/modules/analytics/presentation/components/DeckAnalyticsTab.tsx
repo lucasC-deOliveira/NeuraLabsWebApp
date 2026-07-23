@@ -1,14 +1,27 @@
 "use client";
 
+import { useState } from "react";
 import { InboxIcon } from "lucide-react";
 import { LoadingState, ErrorState } from "@/components/loading-state";
+import { FilterBar } from "../filters/FilterBar";
+import { DEFAULT_PERIOD, periodDays, type PeriodValue } from "../filters/period";
 import { useDeckAnalytics } from "../useDeckAnalytics";
 import { DeckComparisonRadar } from "./DeckComparisonRadar";
 import { DeckList } from "./DeckList";
 import type { DeckAnalytics } from "../../domain/deck-analytics.types";
 
 export function DeckAnalyticsTab() {
-  const { data, loading, error, reload } = useDeckAnalytics();
+  const [period, setPeriod] = useState<PeriodValue>(DEFAULT_PERIOD);
+  return (
+    <div className="space-y-4">
+      <FilterBar period={period} onPeriod={setPeriod} />
+      <DeckContent days={periodDays(period)} />
+    </div>
+  );
+}
+
+function DeckContent({ days }: { days: number }) {
+  const { data, loading, error, reload } = useDeckAnalytics(days);
   if (loading) {
     return <LoadingState message="Carregando seus analytics de baralhos…" hint="Reunindo cartas e desempenho." />;
   }

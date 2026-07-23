@@ -15,23 +15,25 @@ import { rankProblemCards } from '../../domain/services/problem-cards';
 import { addDays } from '../../domain/services/date-key';
 import type { FlashcardAnalytics } from '../../domain/analytics-views';
 
-// Janela das métricas temporais (tendência, velocidade, perfil).
-const WINDOW_DAYS = 90;
+// Janela padrão das métricas temporais (tendência, velocidade, perfil).
+const DEFAULT_WINDOW_DAYS = 90;
 
 /**
  * Reúne os analytics de flashcards do usuário: forecast de revisões, mix de
- * maturidade, tendência de acurácia e o radar de perfil.
- * @example useCase.execute(userId)
+ * maturidade, tendência de acurácia e o radar de perfil. `days` filtra as métricas
+ * temporais (padrão 90).
+ * @example useCase.execute(userId, 30)
  */
 export class GetFlashcardAnalyticsUseCase {
   constructor(private readonly source: FlashcardAnalyticsSource) {}
 
-  async execute(userId: string): Promise<FlashcardAnalytics> {
+  async execute(userId: string, days = DEFAULT_WINDOW_DAYS): Promise<FlashcardAnalytics> {
     const now = new Date();
+    const since = addDays(now, -days);
     const [states, reviews, problems] = await Promise.all([
       this.source.learningStates(userId),
-      this.source.reviewsSince(userId, addDays(now, -WINDOW_DAYS)),
-      this.source.problemCardStats(userId),
+      this.source.reviewsSince(userId, since),
+      this.source.problemCardStats(userId, since),
     ]);
     return assemble(states, reviews, problems, now);
   }

@@ -18,10 +18,10 @@ export interface QuestionStatRow {
 }
 
 export interface ProvaAnalyticsSource {
-  // Tentativas de prova do usuário (com o título da prova).
-  attempts(userId: string): Promise<AttemptRow[]>;
-  // Total x erros por questão respondida (hardest + acurácia por tipo).
-  questionStats(userId: string): Promise<QuestionStatRow[]>;
+  // Tentativas de prova do usuário no período (>= since), com o título da prova.
+  attempts(userId: string, since: Date): Promise<AttemptRow[]>;
+  // Total x erros por questão respondida no período (hardest + acurácia por tipo).
+  questionStats(userId: string, since: Date): Promise<QuestionStatRow[]>;
 }
 
 export const PROVA_ANALYTICS_SOURCE = Symbol('PROVA_ANALYTICS_SOURCE');
