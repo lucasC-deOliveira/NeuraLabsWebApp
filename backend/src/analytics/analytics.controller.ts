@@ -22,13 +22,24 @@ export class AnalyticsController {
   flashcards(
     @CurrentUser() userId: string,
     @Query('days') days?: string,
+    @Query('baralhoId') baralhoId?: string,
+    @Query('assuntoId') assuntoId?: string,
   ): Promise<FlashcardAnalytics> {
-    return this.getFlashcardAnalytics.execute(userId, clampDays(days));
+    return this.getFlashcardAnalytics.execute(
+      userId,
+      clampDays(days),
+      baralhoId || undefined,
+      assuntoId || undefined,
+    );
   }
 
   @Get('provas')
-  provas(@CurrentUser() userId: string, @Query('days') days?: string): Promise<ProvaAnalytics> {
-    return this.getProvaAnalytics.execute(userId, clampDays(days));
+  provas(
+    @CurrentUser() userId: string,
+    @Query('days') days?: string,
+    @Query('provaId') provaId?: string,
+  ): Promise<ProvaAnalytics> {
+    return this.getProvaAnalytics.execute(userId, clampDays(days), provaId || undefined);
   }
 
   @Get('decks')

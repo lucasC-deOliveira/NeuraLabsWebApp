@@ -13,6 +13,44 @@ interface CardCount {
   _count: { _all: number };
 }
 
+// Cláusula opcional que restringe as cartas: por baralho (relação BaralhoFlashcards)
+// e/ou por assunto (conceito -> tópico -> assunto). Ambos combinam no mesmo filtro.
+interface FlashcardWhere {
+  baralhos?: { some: { id: string } };
+  conceito?: { topico: { assuntoId: string } };
+}
+function cardFilter(baralhoId?: string, assuntoId?: string): { flashcard?: FlashcardWhere } {
+  const flashcard: FlashcardWhere = {};
+  if (baralhoId) flashcard.baralhos = { some: { id: baralhoId } };
+  if (assuntoId) flashcard.conceito = { topico: { assuntoId } };
+  return Object.keys(flashcard).length > 0 ? { flashcard } : {};
+}
+
+const REVIEW_SELECT = {
+  acertou: true,
+  nivelConfianca: true,
+  tempoResposta: true,
+  tipoErro: true,
+  sessao: { select: { dataInicio: true } },
+} as const;
+
+interface RawReview {
+  acertou: boolean;
+  nivelConfianca: number;
+  tempoResposta: number | null;
+  tipoErro: string | null;
+  sessao: { dataInicio: Date };
+}
+function toReviewRow(row: RawReview): ReviewRow {
+  return {
+    data: row.sessao.dataInicio,
+    acertou: row.acertou,
+    nivelConfianca: row.nivelConfianca,
+    tempoResposta: row.tempoResposta,
+    tipoErro: row.tipoErro,
+  };
+}
+
 // Cruza total x erros por carta e mantém só as que erraram ao menos uma vez.
 function mergeCardStats(
   totals: CardCount[],
@@ -29,35 +67,43 @@ function mergeCardStats(
 export class PrismaFlashcardAnalyticsSource implements FlashcardAnalyticsSource {
   constructor(private readonly prisma: PrismaService) {}
 
-  learningStates(userId: string): Promise<LearningStateRow[]> {
+  learningStates(
+    userId: string,
+    baralhoId?: string,
+    assuntoId?: string,
+  ): Promise<LearningStateRow[]> {
     return this.prisma.aprendizadoFlashcard.findMany({
-      where: { usuarioId: userId },
+      where: { usuarioId: userId, ...cardFilter(baralhoId, assuntoId) },
       select: { fase: true, intervalo: true, proximaRevisao: true },
     });
   }
 
-  async reviewsSince(userId: string, since: Date): Promise<ReviewRow[]> {
+  async reviewsSince(
+    userId: string,
+    since: Date,
+    baralhoId?: string,
+    assuntoId?: string,
+  ): Promise<ReviewRow[]> {
     const rows = await this.prisma.revisaoFlashcard.findMany({
-      where: { sessao: { usuarioId: userId, dataInicio: { gte: since } } },
-      select: {
-        acertou: true,
-        nivelConfianca: true,
-        tempoResposta: true,
-        tipoErro: true,
-        sessao: { select: { dataInicio: true } },
+      where: {
+        sessao: { usuarioId: userId, dataInicio: { gte: since } },
+        ...cardFilter(baralhoId, assuntoId),
       },
+      select: REVIEW_SELECT,
     });
-    return rows.map((row) => ({
-      data: row.sessao.dataInicio,
-      acertou: row.acertou,
-      nivelConfianca: row.nivelConfianca,
-      tempoResposta: row.tempoResposta,
-      tipoErro: row.tipoErro,
-    }));
+    return rows.map(toReviewRow);
   }
 
-  async problemCardStats(userId: string, since: Date): Promise<ProblemCardRow[]> {
-    const where = { sessao: { usuarioId: userId, dataInicio: { gte: since } } };
+  async problemCardStats(
+    userId: string,
+    since: Date,
+    baralhoId?: string,
+    assuntoId?: string,
+  ): Promise<ProblemCardRow[]> {
+    const where = {
+      sessao: { usuarioId: userId, dataInicio: { gte: since } },
+      ...cardFilter(baralhoId, assuntoId),
+    };
     const [totals, wrongs] = await Promise.all([
       this.prisma.revisaoFlashcard.groupBy({ by: ['flashcardId'], where, _count: { _all: true } }),
       this.prisma.revisaoFlashcard.groupBy({

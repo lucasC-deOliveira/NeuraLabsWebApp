@@ -27,13 +27,18 @@ const DEFAULT_WINDOW_DAYS = 90;
 export class GetFlashcardAnalyticsUseCase {
   constructor(private readonly source: FlashcardAnalyticsSource) {}
 
-  async execute(userId: string, days = DEFAULT_WINDOW_DAYS): Promise<FlashcardAnalytics> {
+  async execute(
+    userId: string,
+    days = DEFAULT_WINDOW_DAYS,
+    baralhoId?: string,
+    assuntoId?: string,
+  ): Promise<FlashcardAnalytics> {
     const now = new Date();
     const since = addDays(now, -days);
     const [states, reviews, problems] = await Promise.all([
-      this.source.learningStates(userId),
-      this.source.reviewsSince(userId, since),
-      this.source.problemCardStats(userId, since),
+      this.source.learningStates(userId, baralhoId, assuntoId),
+      this.source.reviewsSince(userId, since, baralhoId, assuntoId),
+      this.source.problemCardStats(userId, since, baralhoId, assuntoId),
     ]);
     return assemble(states, reviews, problems, now);
   }

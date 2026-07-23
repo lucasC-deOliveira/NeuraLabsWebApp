@@ -17,11 +17,12 @@ export interface QuestionStatRow {
   wrong: number;
 }
 
+// provaId opcional restringe a uma prova específica.
 export interface ProvaAnalyticsSource {
   // Tentativas de prova do usuário no período (>= since), com o título da prova.
-  attempts(userId: string, since: Date): Promise<AttemptRow[]>;
+  attempts(userId: string, since: Date, provaId?: string): Promise<AttemptRow[]>;
   // Total x erros por questão respondida no período (hardest + acurácia por tipo).
-  questionStats(userId: string, since: Date): Promise<QuestionStatRow[]>;
+  questionStats(userId: string, since: Date, provaId?: string): Promise<QuestionStatRow[]>;
 }
 
 export const PROVA_ANALYTICS_SOURCE = Symbol('PROVA_ANALYTICS_SOURCE');

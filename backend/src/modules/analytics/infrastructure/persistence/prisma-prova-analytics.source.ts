@@ -16,9 +16,9 @@ interface QuestaoCount {
 export class PrismaProvaAnalyticsSource implements ProvaAnalyticsSource {
   constructor(private readonly prisma: PrismaService) {}
 
-  async attempts(userId: string, since: Date): Promise<AttemptRow[]> {
+  async attempts(userId: string, since: Date, provaId?: string): Promise<AttemptRow[]> {
     const rows = await this.prisma.tentativaProva.findMany({
-      where: { usuarioId: userId, dataFim: { gte: since } },
+      where: { usuarioId: userId, dataFim: { gte: since }, ...(provaId ? { provaId } : {}) },
       select: {
         provaId: true,
         dataFim: true,
@@ -37,8 +37,10 @@ export class PrismaProvaAnalyticsSource implements ProvaAnalyticsSource {
     }));
   }
 
-  async questionStats(userId: string, since: Date): Promise<QuestionStatRow[]> {
-    const where = { tentativa: { usuarioId: userId, dataFim: { gte: since } } };
+  async questionStats(userId: string, since: Date, provaId?: string): Promise<QuestionStatRow[]> {
+    const where = {
+      tentativa: { usuarioId: userId, dataFim: { gte: since }, ...(provaId ? { provaId } : {}) },
+    };
     const [totals, wrongs] = await Promise.all([
       this.prisma.respostaQuestao.groupBy({ by: ['questaoId'], where, _count: { _all: true } }),
       this.prisma.respostaQuestao.groupBy({

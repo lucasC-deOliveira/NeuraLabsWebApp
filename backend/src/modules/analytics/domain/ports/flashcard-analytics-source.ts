@@ -22,13 +22,28 @@ export interface ProblemCardRow {
   wrong: number;
 }
 
+// baralhoId/assuntoId opcionais restringem as métricas (baralho e/ou assunto).
 export interface FlashcardAnalyticsSource {
   // Estado SM-2 de cada carta do usuário (forecast + maturidade).
-  learningStates(userId: string): Promise<LearningStateRow[]>;
+  learningStates(
+    userId: string,
+    baralhoId?: string,
+    assuntoId?: string,
+  ): Promise<LearningStateRow[]>;
   // Revisões do usuário a partir de `since` (tendências, velocidade, perfil, erros).
-  reviewsSince(userId: string, since: Date): Promise<ReviewRow[]>;
+  reviewsSince(
+    userId: string,
+    since: Date,
+    baralhoId?: string,
+    assuntoId?: string,
+  ): Promise<ReviewRow[]>;
   // Cartas com pelo menos um erro no período (>= since), para ranquear os problemáticos.
-  problemCardStats(userId: string, since: Date): Promise<ProblemCardRow[]>;
+  problemCardStats(
+    userId: string,
+    since: Date,
+    baralhoId?: string,
+    assuntoId?: string,
+  ): Promise<ProblemCardRow[]>;
 }
 
 export const FLASHCARD_ANALYTICS_SOURCE = Symbol('FLASHCARD_ANALYTICS_SOURCE');

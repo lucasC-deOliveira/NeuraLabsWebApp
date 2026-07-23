@@ -15,11 +15,15 @@ const DEFAULT_WINDOW_DAYS = 90;
 export class GetProvaAnalyticsUseCase {
   constructor(private readonly source: ProvaAnalyticsSource) {}
 
-  async execute(userId: string, days = DEFAULT_WINDOW_DAYS): Promise<ProvaAnalytics> {
+  async execute(
+    userId: string,
+    days = DEFAULT_WINDOW_DAYS,
+    provaId?: string,
+  ): Promise<ProvaAnalytics> {
     const since = addDays(new Date(), -days);
     const [attempts, stats] = await Promise.all([
-      this.source.attempts(userId, since),
-      this.source.questionStats(userId, since),
+      this.source.attempts(userId, since, provaId),
+      this.source.questionStats(userId, since, provaId),
     ]);
     return {
       totals: computeTotals(attempts),
