@@ -146,6 +146,21 @@ reusam dados existentes (`getSubjects`, analytics de baralhos/provas) — sem
 endpoint novo. O `baralhoId`/`assuntoId`/`provaId` atravessa controller → use-case
 → port → source Prisma (assunto via `conceito → tópico → assunto`).
 
+## Analytics por nó no grafo (modais)
+Cada nó de **baralho/prova/flashcard/questão** ganha a ação **"Ver analytics"** no
+painel de propriedades, abrindo um modal (padrão dos outros modais do grafo):
+- **Baralho** → analytics completo de flashcards filtrado ao baralho (reusa
+  `FlashcardAnalyticsView` via `useFlashcardAnalytics(_, baralhoId)`).
+- **Prova** → analytics completo filtrado à prova (reusa `ProvaAnalyticsView`).
+- **Flashcard** (item) → endpoint `GET /analytics/flashcards/:id`: revisões,
+  acurácia, confiança média, estado SM-2 (fase/intervalo/próxima), tendência e
+  taxonomia de erros daquela carta.
+- **Questão** (item) → endpoint `GET /analytics/questoes/:id`: respostas,
+  acurácia, histórico cronológico e distribuição de alternativas (marca o gabarito).
+
+Os endpoints por item passam pela mesma stack hexagonal (use-case → port → source
+Prisma) e pelo mesmo `TtlCache`; escopo por usuário (404 quando o item não é dele).
+
 ## Cache e paginação
 - **Cache backend:** agregações são caras; `TtlCache` em memória (60s) na frente
   das use-cases, com chave por `userId` + parâmetros de filtro

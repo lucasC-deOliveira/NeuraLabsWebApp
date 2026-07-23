@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { SparklesIcon, WandSparklesIcon, BookOpenIcon, EyeIcon, GraduationCapIcon } from "lucide-react";
+import { SparklesIcon, WandSparklesIcon, BookOpenIcon, EyeIcon, GraduationCapIcon, BarChart3Icon } from "lucide-react";
 import type { PropertiesNode, DeckStats } from "./properties-panel.types";
 import type { NotaMeta } from "../../hooks/useNotaMeta";
 import { SUBTIPO_LABELS, TIPO_NOTA_LABELS, formatPanelDate, domainColor } from "./properties-panel.labels";
@@ -131,6 +131,27 @@ interface StudyProps {
   onViewDeck?: () => void;
   onStudyProva?: () => void;
   onStudyQuestao?: () => void;
+}
+
+// Tipos de nó que têm analytics próprio (abre em modal, similar às outras ações).
+const ANALYTICS_TYPES = ["BARALHO", "PROVA", "FLASHCARD", "QUESTION"];
+
+export function NodeAnalyticsAction({ node, onViewAnalytics }: { node: PropertiesNode; onViewAnalytics?: () => void }) {
+  if (!onViewAnalytics || !ANALYTICS_TYPES.includes(node.tipoReal)) return null;
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/10"
+        onClick={onViewAnalytics}
+      >
+        <BarChart3Icon className="size-4" />
+        Ver analytics
+      </Button>
+      <Separator />
+    </>
+  );
 }
 
 export function NodeStudySection(props: StudyProps) {

@@ -4,7 +4,7 @@ import { ChevronLeftIcon, SparklesIcon } from "lucide-react";
 import { useNotaMeta, type NotaMeta } from "../hooks/useNotaMeta";
 import { useDeckStats } from "../hooks/useDeckStats";
 import type { PropertiesNode, PropertiesEdge, DeckStats } from "./properties/properties-panel.types";
-import { NodeSummary, NodeAiSection, NodeStudySection, DeckStatsView, NotaMetaView } from "./properties/PropertiesSections";
+import { NodeSummary, NodeAiSection, NodeStudySection, NodeAnalyticsAction, DeckStatsView, NotaMetaView } from "./properties/PropertiesSections";
 import { NodeRelations } from "./properties/NodeRelations";
 import { NodeActions, GenerateDeckAction, NodePosition } from "./properties/NodeActions";
 
@@ -31,6 +31,7 @@ export interface PropertiesPanelProps {
   onViewDeck?: () => void;
   onStudyProva?: () => void;
   onStudyQuestao?: () => void;
+  onViewAnalytics?: () => void;
   onStudyNeighborhood?: () => void;
   onGenerateInsights?: () => void;
   onExpandNode?: () => void;
@@ -117,6 +118,7 @@ function NodeContent({ props, node, notaMeta, deckStats }: NodeContentProps) {
         onStudyProva={props.onStudyProva}
         onStudyQuestao={props.onStudyQuestao}
       />
+      <NodeAnalyticsAction node={node} onViewAnalytics={props.onViewAnalytics} />
       <DeckStatsView node={node} stats={deckStats} />
       <NotaMetaView node={node} meta={notaMeta} />
       <NodeRelations
