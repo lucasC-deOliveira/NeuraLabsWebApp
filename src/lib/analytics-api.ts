@@ -2,6 +2,7 @@
 import { apiFetch } from "./api";
 import type { FlashcardAnalytics } from "@/modules/analytics/domain/analytics.types";
 import type { ProvaAnalytics } from "@/modules/analytics/domain/prova-analytics.types";
+import type { DeckAnalytics } from "@/modules/analytics/domain/deck-analytics.types";
 
 export function getFlashcardAnalytics(): Promise<FlashcardAnalytics> {
   // Leitura rápida: 20s é folga de sobra e falha logo se algo estiver errado.
@@ -10,4 +11,8 @@ export function getFlashcardAnalytics(): Promise<FlashcardAnalytics> {
 
 export function getProvaAnalytics(): Promise<ProvaAnalytics> {
   return apiFetch<ProvaAnalytics>("/analytics/provas", { timeoutMs: 20_000 });
+}
+
+export function getDeckAnalytics(): Promise<DeckAnalytics> {
+  return apiFetch<DeckAnalytics>("/analytics/decks", { timeoutMs: 20_000 });
 }
