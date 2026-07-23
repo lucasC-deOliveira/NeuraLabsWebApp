@@ -6,7 +6,7 @@ import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header/PageHeader";
-import { PlusIcon, Trash2Icon, ClipboardListIcon, ChevronRightIcon, BarChart3Icon, GraduationCapIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, ClipboardListIcon, ChevronRightIcon, BarChart3Icon, GraduationCapIcon, NetworkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { paginate } from "@/lib/paginate";
 import { Pagination } from "@/components/pagination";
@@ -19,6 +19,13 @@ import {
 } from "../domain/services/prova-filters";
 import { useProvasList } from "./hooks/useProvasList";
 import { ProvasFilters } from "./components/ProvasFilters";
+import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
+import { useConceptConnections } from "@/components/mini-graph/useConceptConnections";
+import type { ConceptConnection } from "@/components/mini-graph/mini-graph.types";
+
+// Conexões de conceito da prova = as das suas questões (agregadas do detalhe).
+const loadProvaConnections = (id: string): Promise<ConceptConnection[]> =>
+  provasHttp.getProva(id).then((d) => d.questoes.flatMap((q) => q.conceitosConectados));
 
 // 11 por página: as linhas são baixas, cabem mais que os cartões de questão.
 const PAGE_SIZE = 11;
@@ -40,12 +47,13 @@ function EmptyState() {
   );
 }
 
-function ProvaRow({ prova, deleting, onDelete, onAnalytics, onStudy }: {
+function ProvaRow({ prova, deleting, onDelete, onAnalytics, onStudy, onGraph }: {
   prova: ProvaListItem;
   deleting: boolean;
   onDelete: (e: React.MouseEvent) => void;
   onAnalytics: (e: React.MouseEvent) => void;
   onStudy: (e: React.MouseEvent) => void;
+  onGraph: (e: React.MouseEvent) => void;
 }) {
   return (
     <Link
@@ -67,6 +75,13 @@ function ProvaRow({ prova, deleting, onDelete, onAnalytics, onStudy }: {
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        <button
+          className="text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+          onClick={onGraph}
+          title="Ver mini-grafo"
+        >
+          <NetworkIcon className="size-4" />
+        </button>
         <button
           className="text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
           onClick={onStudy}
@@ -106,6 +121,8 @@ export function ProvasListPage({ onOpenAnalytics, onOpenStudy }: {
 }) {
   const { provas, loading, remove } = useProvasList();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [graphProva, setGraphProva] = useState<ProvaListItem | null>(null);
+  const graphConn = useConceptConnections(graphProva?.id ?? null, loadProvaConnections);
   const [criteria, setCriteria] = useState<ProvaCriteria>(DEFAULT_PROVA_CRITERIA);
   const [page, setPage] = useState(1);
 
@@ -178,6 +195,7 @@ export function ProvasListPage({ onOpenAnalytics, onOpenStudy }: {
                   onDelete={(e) => handleDelete(e, p.id)}
                   onAnalytics={(e) => { e.preventDefault(); e.stopPropagation(); onOpenAnalytics?.(p.id); }}
                   onStudy={(e) => { e.preventDefault(); e.stopPropagation(); onOpenStudy?.(p.id); }}
+                  onGraph={(e) => { e.preventDefault(); e.stopPropagation(); setGraphProva(p); }}
                 />
               ))}
             </div>
@@ -185,6 +203,15 @@ export function ProvasListPage({ onOpenAnalytics, onOpenStudy }: {
           <Pagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
         </>
       )}
+      <MiniGraphModal
+        open={!!graphProva}
+        onOpenChange={(open) => !open && setGraphProva(null)}
+        title={graphProva?.titulo ?? "Mini-grafo"}
+        rootLabel={graphProva?.titulo ?? ""}
+        connections={graphConn.connections}
+        loading={graphConn.loading}
+        error={graphConn.error}
+      />
     </PageContainer>
   );
 }

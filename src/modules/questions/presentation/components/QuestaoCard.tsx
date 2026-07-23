@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Trash2Icon, CheckCircle2Icon, CircleIcon, BarChart3Icon, GraduationCapIcon } from "lucide-react";
+import { Trash2Icon, CheckCircle2Icon, CircleIcon, BarChart3Icon, GraduationCapIcon, NetworkIcon } from "lucide-react";
 import { ConceptTags, type ConceptTagSelection } from "@/components/concept-tags";
 import type { AlternativaMultipla, QuestaoListItem } from "../../domain/questao.types";
 
@@ -53,6 +53,7 @@ export function QuestaoCard({
   onDelete,
   onAnalytics,
   onStudy,
+  onGraph,
   onSelectTag,
 }: {
   questao: QuestaoListItem;
@@ -62,6 +63,7 @@ export function QuestaoCard({
   onDelete: () => void;
   onAnalytics?: () => void;
   onStudy?: () => void;
+  onGraph?: () => void;
   onSelectTag: (selection: ConceptTagSelection) => void;
 }) {
   return (
@@ -86,6 +88,15 @@ export function QuestaoCard({
               title="Estudar esta questão"
             >
               <GraduationCapIcon className="size-4" />
+            </button>
+          )}
+          {onGraph && (
+            <button
+              className="text-zinc-400 hover:text-primary transition-colors"
+              onClick={(e) => { e.stopPropagation(); onGraph(); }}
+              title="Ver mini-grafo"
+            >
+              <NetworkIcon className="size-4" />
             </button>
           )}
           {onAnalytics && (

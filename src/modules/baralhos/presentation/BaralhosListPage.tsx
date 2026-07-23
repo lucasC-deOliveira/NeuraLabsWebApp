@@ -27,7 +27,30 @@ import { CreateBaralhoDialog } from "./components/CreateBaralhoDialog";
 import { ConfirmDeleteBaralhoDialog } from "./components/ConfirmDeleteBaralhoDialog";
 import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
 import { DeckAnalyticsModal } from "@/modules/analytics/presentation/components/modals/DeckAnalyticsModal";
+import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
+import { useConceptConnections } from "@/components/mini-graph/useConceptConnections";
+import type { ConceptConnection } from "@/components/mini-graph/mini-graph.types";
 import type { BaralhoItem } from "../domain/baralho.types";
+
+// Conexões de conceito do baralho = as dos seus cartões (agregadas do detalhe).
+const loadBaralhoConnections = (id: string): Promise<ConceptConnection[]> =>
+  baralhosHttp.getBaralho(id).then((d) => d.cards.flatMap((c) => c.conceitosConectados));
+
+// Mini-grafo do baralho; extraído para não inflar a complexidade da lista.
+function BaralhoMiniGraph({ baralho, onClose }: { baralho: BaralhoItem | null; onClose: () => void }) {
+  const { connections, loading, error } = useConceptConnections(baralho?.id ?? null, loadBaralhoConnections);
+  return (
+    <MiniGraphModal
+      open={!!baralho}
+      onOpenChange={(open) => !open && onClose()}
+      title={baralho?.titulo ?? "Mini-grafo"}
+      rootLabel={baralho?.titulo ?? ""}
+      connections={connections}
+      loading={loading}
+      error={error}
+    />
+  );
+}
 
 // 11 cartões por página: com o cartão "Novo baralho" ocupando a primeira vaga, a
 // grade de 3 colunas fecha em 12 sem deixar buraco na última linha.
@@ -40,6 +63,7 @@ export function BaralhosListPage() {
   const [deleteTarget, setDeleteTarget] = useState<BaralhoItem | null>(null);
   const [studyId, setStudyId] = useState<string | null>(null);
   const [analyticsId, setAnalyticsId] = useState<string | null>(null);
+  const [graphBaralho, setGraphBaralho] = useState<BaralhoItem | null>(null);
   const [criteria, setCriteria] = useState<BaralhoCriteria>(DEFAULT_BARALHO_CRITERIA);
   const [page, setPage] = useState(1);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -174,6 +198,7 @@ export function BaralhosListPage() {
                 onStudy={() => setStudyId(baralho.id)}
                 onDelete={() => setDeleteTarget(baralho)}
                 onAnalytics={() => setAnalyticsId(baralho.id)}
+                onGraph={() => setGraphBaralho(baralho)}
               />
             ))}
           </div>
@@ -202,6 +227,7 @@ export function BaralhosListPage() {
         onOpenChange={(open) => !open && setAnalyticsId(null)}
         baralhoId={analyticsId}
       />
+      <BaralhoMiniGraph baralho={graphBaralho} onClose={() => setGraphBaralho(null)} />
     </PageContainer>
   );
 }

@@ -2,7 +2,7 @@
 
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
-import { BarChart3Icon, LayersIcon, NetworkIcon, PlayIcon, Trash2Icon } from "lucide-react";
+import { BarChart3Icon, LayersIcon, NetworkIcon, PlayIcon, Trash2Icon, Share2Icon } from "lucide-react";
 import type { BaralhoItem } from "../../domain/baralho.types";
 
 interface BaralhoCardProps {
@@ -10,6 +10,7 @@ interface BaralhoCardProps {
   onStudy: () => void;
   onDelete: () => void;
   onAnalytics?: () => void;
+  onGraph?: () => void;
 }
 
 // As três molduras aninhadas com deslocamento imitam um baralho empilhado — é o
@@ -33,7 +34,7 @@ function DeckStat({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function BaralhoCard({ baralho, onStudy, onDelete, onAnalytics }: BaralhoCardProps) {
+export function BaralhoCard({ baralho, onStudy, onDelete, onAnalytics, onGraph }: BaralhoCardProps) {
   const empty = baralho.totalCards === 0;
   // preventDefault: os botões vivem dentro do link do cartão.
   const stop = (e: React.MouseEvent, fn: () => void): void => {
@@ -88,6 +89,17 @@ export function BaralhoCard({ baralho, onStudy, onDelete, onAnalytics }: Baralho
                 Estudar
               </Button>
               <div className="flex items-center gap-1">
+                {onGraph && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-zinc-400 opacity-40 transition-opacity hover:text-primary group-hover:opacity-100"
+                    title="Ver mini-grafo"
+                    onClick={(e) => stop(e, onGraph)}
+                  >
+                    <Share2Icon className="size-3.5" />
+                  </Button>
+                )}
                 {onAnalytics && (
                   <Button
                     variant="ghost"

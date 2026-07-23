@@ -28,12 +28,26 @@ import { FlashcardEditDialog, type FlashcardForm } from "./components/FlashcardE
 import { FlashcardDeleteDialogs } from "./components/FlashcardDeleteDialogs";
 import { FlashcardItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/FlashcardItemAnalyticsModal";
 import { StudyFlashcardModal } from "@/modules/graph/presentation/components/deck/StudyFlashcardModal";
+import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
 
 const DEFAULT_CRITERIA: FlashcardCriteria = {
   search: "", assuntoFilter: "", topicoFilter: "", tipoFilter: "", statusFilter: "all", sortBy: "date",
 };
 const EMPTY_FORM: FlashcardForm = { pergunta: "", resposta: "", conceitoId: "" };
 const PAGE_SIZE = 12;
+
+// Mini-grafo de conceitos da carta; extraído para não inflar a complexidade da lista.
+function FlashcardMiniGraph({ card, onClose }: { card: FlashcardItem | null; onClose: () => void }) {
+  return (
+    <MiniGraphModal
+      open={!!card}
+      onOpenChange={(open) => !open && onClose()}
+      title={card?.pergunta ?? "Mini-grafo"}
+      rootLabel={card?.pergunta ?? ""}
+      connections={card?.conceitosConectados ?? null}
+    />
+  );
+}
 
 export function FlashcardsListPage() {
   const { snapshot, loading, reload } = useFlashcardsData();
@@ -53,6 +67,7 @@ export function FlashcardsListPage() {
   const [detailCard, setDetailCard] = useState<FlashcardItem | null>(null);
   const [analyticsCardId, setAnalyticsCardId] = useState<string | null>(null);
   const [studyCardId, setStudyCardId] = useState<string | null>(null);
+  const [graphCard, setGraphCard] = useState<FlashcardItem | null>(null);
 
   // Toda mudança de filtro/busca/ordenação volta para a página 1.
   const patch = (p: Partial<FlashcardCriteria>): void => {
@@ -220,6 +235,7 @@ export function FlashcardsListPage() {
                 onDelete={() => setDeleteTarget(fc)}
                 onAnalytics={() => setAnalyticsCardId(fc.id)}
                 onStudy={() => setStudyCardId(fc.id)}
+                onGraph={() => setGraphCard(fc)}
                 onFilter={patch}
               />
             ))}
@@ -243,6 +259,7 @@ export function FlashcardsListPage() {
         onOpenChange={(open) => { if (!open) { setStudyCardId(null); void reload(); } }}
         flashcardId={studyCardId}
       />
+      <FlashcardMiniGraph card={graphCard} onClose={() => setGraphCard(null)} />
       <FlashcardEditDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
