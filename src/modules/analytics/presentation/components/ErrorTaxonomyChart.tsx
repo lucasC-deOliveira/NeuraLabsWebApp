@@ -19,11 +19,11 @@ export function ErrorTaxonomyChart({ data }: { data: ErrorTypeCount[] }) {
     <ChartCard title="Tipos de erro" hint="Onde seus erros se concentram">
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
           <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
           <YAxis type="category" dataKey="tipo" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={96} />
-          <Tooltip content={<ChartTip />} cursor={{ fill: "hsl(var(--accent))" }} />
-          <Bar dataKey="count" name="Erros" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+          <Tooltip content={<ChartTip />} cursor={{ fill: "var(--accent)" }} />
+          <Bar dataKey="count" name="Erros" fill="var(--primary)" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>

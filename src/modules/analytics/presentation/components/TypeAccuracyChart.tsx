@@ -18,11 +18,11 @@ export function TypeAccuracyChart({ data }: { data: TypeAccuracy[] }) {
     <ChartCard title="Acurácia por tipo" hint="Múltipla escolha × Verdadeiro/Falso">
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={rows} margin={{ left: -20, right: 8, top: 4, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
           <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
           <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={32} unit="%" />
-          <Tooltip content={<ChartTip unit="%" />} cursor={{ fill: "hsl(var(--accent))" }} />
-          <Bar dataKey="accuracy" name="Acurácia" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+          <Tooltip content={<ChartTip unit="%" />} cursor={{ fill: "var(--accent)" }} />
+          <Bar dataKey="accuracy" name="Acurácia" fill="var(--primary)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>

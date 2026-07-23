@@ -12,10 +12,10 @@ export function PerformanceRadar({ profile }: { profile: ProfileAxis[] }) {
     <ChartCard title="Perfil de desempenho" hint="Seis dimensões do seu estudo (0-100)">
       <ResponsiveContainer width="100%" height={260}>
         <RadarChart data={profile} outerRadius="72%">
-          <PolarGrid gridType="polygon" stroke="hsl(var(--border))" strokeOpacity={0.7} />
-          <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <PolarGrid gridType="polygon" stroke="var(--border)" strokeOpacity={0.7} />
+          <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
           <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-          <Radar name="Perfil" dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.25} />
+          <Radar name="Perfil" dataKey="value" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.25} />
           <Tooltip content={<ChartTip />} />
         </RadarChart>
       </ResponsiveContainer>

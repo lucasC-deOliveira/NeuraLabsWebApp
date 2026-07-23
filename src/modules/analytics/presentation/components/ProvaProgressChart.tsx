@@ -17,10 +17,10 @@ export function ProvaProgressChart({ progress }: { progress: ProvaProgress[] }) 
     <ChartCard title="Progresso nas provas" hint="Melhor pontuação × última, por prova (%)">
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
           <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} unit="%" />
           <YAxis type="category" dataKey="titulo" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={110} />
-          <Tooltip content={<ChartTip unit="%" />} cursor={{ fill: "hsl(var(--accent))" }} />
+          <Tooltip content={<ChartTip unit="%" />} cursor={{ fill: "var(--accent)" }} />
           <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-[11px] text-muted-foreground">{v}</span>} />
           <Bar dataKey="melhor" name="Melhor" fill="#10b981" radius={[0, 4, 4, 0]} />
           <Bar dataKey="ultima" name="Última" fill="#6366f1" radius={[0, 4, 4, 0]} />

@@ -21,7 +21,7 @@ export function MaturityDonut({ mix }: { mix: MaturityMix }) {
         <PieChart>
           <Pie data={data} dataKey="value" nameKey="name" cx="40%" cy="50%" innerRadius={52} outerRadius={82} paddingAngle={2}>
             {data.map((_, i) => (
-              <Cell key={i} fill={RAMP[i]} stroke="hsl(var(--card))" strokeWidth={2} />
+              <Cell key={i} fill={RAMP[i]} stroke="var(--card)" strokeWidth={2} />
             ))}
           </Pie>
           <Tooltip content={<ChartTip />} />

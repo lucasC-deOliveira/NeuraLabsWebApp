@@ -17,8 +17,8 @@ export function DeckComparisonRadar({ decks }: { decks: DeckStat[] }) {
     <ChartCard title="Comparar baralhos" hint="Acurácia · maturidade · atividade (0-100)">
       <ResponsiveContainer width="100%" height={260}>
         <RadarChart data={rows} outerRadius="70%">
-          <PolarGrid gridType="polygon" stroke="hsl(var(--border))" strokeOpacity={0.7} />
-          <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <PolarGrid gridType="polygon" stroke="var(--border)" strokeOpacity={0.7} />
+          <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
           <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
           {labels.map((label, i) => (
             <Radar key={label} name={label} dataKey={label} stroke={COLORS[i]} fill={COLORS[i]} fillOpacity={0.15} />
