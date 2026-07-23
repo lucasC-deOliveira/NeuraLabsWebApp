@@ -28,7 +28,9 @@ describe('GetItemCompositionUseCase', () => {
           id: 'f1',
           type: 'FLASHCARD',
           label: 'heap',
-          conceito: { id: 'c1', nome: 'Heap', topico: null },
+          chains: [
+            { conceitoId: 'c1', conceito: 'Heap', topicoId: null, topico: null, assuntoId: null, assunto: null },
+          ],
         },
       ],
     };

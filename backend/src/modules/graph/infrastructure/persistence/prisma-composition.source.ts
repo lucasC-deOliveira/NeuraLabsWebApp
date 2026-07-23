@@ -1,55 +1,43 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
+import { PrismaConnectedConceptsQuery } from '../../../curriculum/infrastructure/persistence/prisma-connected-concepts.query';
+import type { ConceptTag } from '../../../curriculum/domain/curriculum-views';
 import type {
   CompositionInput,
   CompositionRootType,
+  ConceptChainItem,
   CompositionSource,
-  ConceptChain,
   LeafInput,
 } from '../../domain/ports/composition-source';
 
-// Include da cadeia conceito → tópico → assunto, reusado em todas as consultas.
-const CHAIN_INCLUDE = {
-  conceito: { include: { topico: { include: { assunto: true } } } },
-} as const;
-
-interface RawConceito {
-  id: string;
-  nome: string;
-  topico: { id: string; nome: string; assunto: { id: string; nome: string } | null } | null;
-}
-
-function toChain(conceito: RawConceito | null): ConceptChain {
-  if (!conceito) return { conceito: null };
-  const t = conceito.topico;
+// ConceptTag (nome + tópico/assunto pais, do grafo) → cadeia com ids. O conceito
+// não tem id relacional exposto aqui; usamos um id sintético estável por nome
+// (só para a VISTA — deduplica conceitos iguais). Tópico/assunto têm id real.
+function toChain(tag: ConceptTag): ConceptChainItem {
   return {
-    conceito: {
-      id: conceito.id,
-      nome: conceito.nome,
-      topico: t
-        ? {
-            id: t.id,
-            nome: t.nome,
-            assunto: t.assunto ? { id: t.assunto.id, nome: t.assunto.nome } : null,
-          }
-        : null,
-    },
+    conceitoId: `conceito:${tag.conceito}`,
+    conceito: tag.conceito,
+    topicoId: tag.topicoId || null,
+    topico: tag.topico || null,
+    assuntoId: tag.assuntoId || null,
+    assunto: tag.assunto || null,
   };
 }
 
-function toLeaf(
-  id: string,
-  type: 'FLASHCARD' | 'QUESTION',
-  label: string,
-  conceito: RawConceito | null,
-): LeafInput {
-  return { id, type, label, ...toChain(conceito) };
+function toLeaf(id: string, type: 'FLASHCARD' | 'QUESTION', label: string, tags: ConceptTag[]): LeafInput {
+  return { id, type, label, chains: tags.map(toChain) };
 }
 
-// Deriva a composição a partir do modelo relacional (mesmo espírito de knowledge-graph).
+// Deriva a composição do GRAFO: baralho/prova via composição relacional (m2m /
+// ProvaQuestao) e os conceitos de cada folha via arestas do grafo (mesma fonte
+// que a listagem usa em conceitosConectados). O conceitoId relacional é ignorado
+// de propósito — na prática fica nulo e a hierarquia real é a do grafo.
 @Injectable()
 export class PrismaCompositionSource implements CompositionSource {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly connected: PrismaConnectedConceptsQuery,
+  ) {}
 
   load(userId: string, tipo: CompositionRootType, id: string): Promise<CompositionInput | null> {
     if (tipo === 'FLASHCARD') return this.flashcard(userId, id);
@@ -62,40 +50,43 @@ export class PrismaCompositionSource implements CompositionSource {
   private async flashcard(userId: string, id: string): Promise<CompositionInput | null> {
     const fc = await this.prisma.flashcard.findFirst({
       where: { id, usuarioId: userId },
-      include: CHAIN_INCLUDE,
+      select: { id: true, pergunta: true },
     });
     if (!fc) return null;
-    return leafRoot('FLASHCARD', fc.id, fc.pergunta, fc.conceito);
+    const tags = await this.connected.forFlashcards(userId, [id]);
+    return leafRoot('FLASHCARD', fc.id, fc.pergunta, tags.get(id) ?? []);
   }
 
   private async questao(userId: string, id: string): Promise<CompositionInput | null> {
     const q = await this.prisma.questao.findFirst({
       where: { id, usuarioId: userId },
-      include: CHAIN_INCLUDE,
+      select: { id: true, enunciado: true },
     });
     if (!q) return null;
-    return leafRoot('QUESTION', q.id, q.enunciado, q.conceito);
+    const tags = await this.connected.forQuestions(userId, [id]);
+    return leafRoot('QUESTION', q.id, q.enunciado, tags.get(id) ?? []);
   }
 
   private async baralho(userId: string, id: string): Promise<CompositionInput | null> {
     const b = await this.prisma.baralho.findFirst({
       where: { id, usuarioId: userId },
-      include: { flashcards: { include: CHAIN_INCLUDE } },
+      select: { id: true, titulo: true, flashcards: { select: { id: true, pergunta: true } } },
     });
     if (!b) return null;
-    const leaves = b.flashcards.map((f) => toLeaf(f.id, 'FLASHCARD', f.pergunta, f.conceito));
+    const tags = await this.connected.forFlashcards(userId, b.flashcards.map((f) => f.id));
+    const leaves = b.flashcards.map((f) => toLeaf(f.id, 'FLASHCARD', f.pergunta, tags.get(f.id) ?? []));
     return { root: { id: b.id, type: 'BARALHO', label: b.titulo }, rootIsLeaf: false, leaves };
   }
 
   private async prova(userId: string, id: string): Promise<CompositionInput | null> {
     const p = await this.prisma.prova.findFirst({
       where: { id, usuarioId: userId },
-      include: { questoes: { include: { questao: { include: CHAIN_INCLUDE } } } },
+      select: { id: true, titulo: true, questoes: { select: { questao: { select: { id: true, enunciado: true } } } } },
     });
     if (!p) return null;
-    const leaves = p.questoes.map((pq) =>
-      toLeaf(pq.questao.id, 'QUESTION', pq.questao.enunciado, pq.questao.conceito),
-    );
+    const questoes = p.questoes.map((pq) => pq.questao);
+    const tags = await this.connected.forQuestions(userId, questoes.map((q) => q.id));
+    const leaves = questoes.map((q) => toLeaf(q.id, 'QUESTION', q.enunciado, tags.get(q.id) ?? []));
     return { root: { id: p.id, type: 'PROVA', label: p.titulo }, rootIsLeaf: false, leaves };
   }
 }
@@ -105,11 +96,7 @@ function leafRoot(
   type: 'FLASHCARD' | 'QUESTION',
   id: string,
   label: string,
-  conceito: RawConceito | null,
+  tags: ConceptTag[],
 ): CompositionInput {
-  return {
-    root: { id, type, label },
-    rootIsLeaf: true,
-    leaves: [toLeaf(id, type, label, conceito)],
-  };
+  return { root: { id, type, label }, rootIsLeaf: true, leaves: [toLeaf(id, type, label, tags)] };
 }

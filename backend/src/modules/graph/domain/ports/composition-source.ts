@@ -1,20 +1,24 @@
 // Tipos de item que têm composição (viram raiz de um subgrafo).
 export type CompositionRootType = 'FLASHCARD' | 'QUESTION' | 'BARALHO' | 'PROVA';
 
-// Cadeia de conteúdo de uma folha: conceito → tópico → assunto (cada um opcional).
-export interface ConceptChain {
-  conceito: {
-    id: string;
-    nome: string;
-    topico: { id: string; nome: string; assunto: { id: string; nome: string } | null } | null;
-  } | null;
+// Uma cadeia de conteúdo de uma folha: conceito → tópico → assunto. Os pais são
+// opcionais (nem todo conceito tem tópico/assunto ligados no grafo). Uma folha
+// pode ter VÁRIAS (um flashcard ligado a mais de um conceito no grafo).
+export interface ConceptChainItem {
+  conceitoId: string;
+  conceito: string;
+  topicoId: string | null;
+  topico: string | null;
+  assuntoId: string | null;
+  assunto: string | null;
 }
 
-// Folha (flashcard/questão) que carrega sua cadeia de conceito.
-export interface LeafInput extends ConceptChain {
+// Folha (flashcard/questão) com suas cadeias de conceito (do grafo).
+export interface LeafInput {
   id: string;
   type: 'FLASHCARD' | 'QUESTION';
   label: string;
+  chains: ConceptChainItem[];
 }
 
 // Entrada normalizada para o builder puro. Para flashcard/questão, `rootIsLeaf` é

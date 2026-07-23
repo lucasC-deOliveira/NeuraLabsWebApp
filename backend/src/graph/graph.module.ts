@@ -13,6 +13,7 @@ import {
 } from '../modules/graph/domain/ports/compose-into-graph-repository';
 import { PrismaCompositionSource } from '../modules/graph/infrastructure/persistence/prisma-composition.source';
 import { PrismaComposeIntoGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-compose-into-graph.repository';
+import { PrismaConnectedConceptsQuery } from '../modules/curriculum/infrastructure/persistence/prisma-connected-concepts.query';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
 import { UpdateEdgeUseCase } from '../modules/graph/application/use-cases/update-edge.use-case';
 import { DeleteEdgeUseCase } from '../modules/graph/application/use-cases/delete-edge.use-case';
@@ -184,6 +185,7 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
     { provide: DECK_QUERY, useClass: PrismaDeckQuery },
     { provide: GRAPH_POSITION_REPOSITORY, useClass: PrismaGraphPositionRepository },
     { provide: AVAILABLE_ITEMS_QUERY, useClass: PrismaAvailableItemsQuery },
+    PrismaConnectedConceptsQuery,
     { provide: COMPOSITION_SOURCE, useClass: PrismaCompositionSource },
     { provide: COMPOSE_INTO_GRAPH_REPOSITORY, useClass: PrismaComposeIntoGraphRepository },
     {

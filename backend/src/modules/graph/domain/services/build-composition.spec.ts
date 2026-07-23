@@ -2,16 +2,21 @@ import { describe, it, expect } from 'vitest';
 import { buildComposition } from './build-composition';
 import type { CompositionInput, LeafInput } from '../ports/composition-source';
 
-function leaf(id: string, label: string, conceitoId: string): LeafInput {
+function leaf(id: string, label: string, conceito: string): LeafInput {
   return {
     id,
     type: 'FLASHCARD',
     label,
-    conceito: {
-      id: conceitoId,
-      nome: `Conceito ${conceitoId}`,
-      topico: { id: 't1', nome: 'Árvores', assunto: { id: 'a1', nome: 'Estruturas' } },
-    },
+    chains: [
+      {
+        conceitoId: `conceito:${conceito}`,
+        conceito,
+        topicoId: 't1',
+        topico: 'Árvores',
+        assuntoId: 'a1',
+        assunto: 'Estruturas',
+      },
+    ],
   };
 }
 
@@ -25,13 +30,13 @@ describe('buildComposition', () => {
     const g = buildComposition(input);
     expect(g.nodes.map((n) => `${n.type}:${n.id}`)).toEqual([
       'FLASHCARD:f1',
-      'CONCEITO:c1',
+      'CONCEITO:conceito:c1',
       'TOPICO:t1',
       'ASSUNTO:a1',
     ]);
     expect(g.edges).toEqual([
-      { source: 'f1', target: 'c1', rel: 'HERDA' },
-      { source: 'c1', target: 't1', rel: 'PERTENCE_A' },
+      { source: 'f1', target: 'conceito:c1', rel: 'HERDA' },
+      { source: 'conceito:c1', target: 't1', rel: 'PERTENCE_A' },
       { source: 't1', target: 'a1', rel: 'PERTENCE_A' },
     ]);
   });
@@ -57,7 +62,7 @@ describe('buildComposition', () => {
     const input: CompositionInput = {
       root: { id: 'q1', type: 'QUESTION', label: 'Sem conceito' },
       rootIsLeaf: true,
-      leaves: [{ id: 'q1', type: 'QUESTION', label: 'Sem conceito', conceito: null }],
+      leaves: [{ id: 'q1', type: 'QUESTION', label: 'Sem conceito', chains: [] }],
     };
     const g = buildComposition(input);
     expect(g.nodes).toEqual([{ id: 'q1', type: 'QUESTION', label: 'Sem conceito' }]);
