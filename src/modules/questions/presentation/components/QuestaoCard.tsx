@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Trash2Icon, CheckCircle2Icon, CircleIcon, BarChart3Icon } from "lucide-react";
+import { Trash2Icon, CheckCircle2Icon, CircleIcon, BarChart3Icon, GraduationCapIcon } from "lucide-react";
 import { ConceptTags, type ConceptTagSelection } from "@/components/concept-tags";
 import type { AlternativaMultipla, QuestaoListItem } from "../../domain/questao.types";
 
@@ -52,6 +52,7 @@ export function QuestaoCard({
   onToggle,
   onDelete,
   onAnalytics,
+  onStudy,
   onSelectTag,
 }: {
   questao: QuestaoListItem;
@@ -60,6 +61,7 @@ export function QuestaoCard({
   onToggle: () => void;
   onDelete: () => void;
   onAnalytics?: () => void;
+  onStudy?: () => void;
   onSelectTag: (selection: ConceptTagSelection) => void;
 }) {
   return (
@@ -77,6 +79,15 @@ export function QuestaoCard({
           <p className="text-sm font-medium leading-snug">{questao.enunciado}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2 mt-0.5">
+          {onStudy && (
+            <button
+              className="text-zinc-400 hover:text-primary transition-colors"
+              onClick={(e) => { e.stopPropagation(); onStudy(); }}
+              title="Estudar esta questão"
+            >
+              <GraduationCapIcon className="size-4" />
+            </button>
+          )}
           {onAnalytics && (
             <button
               className="text-zinc-400 hover:text-primary transition-colors"

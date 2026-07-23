@@ -6,7 +6,7 @@ import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header/PageHeader";
-import { PlusIcon, Trash2Icon, ClipboardListIcon, ChevronRightIcon, BarChart3Icon } from "lucide-react";
+import { PlusIcon, Trash2Icon, ClipboardListIcon, ChevronRightIcon, BarChart3Icon, GraduationCapIcon } from "lucide-react";
 import { toast } from "sonner";
 import { paginate } from "@/lib/paginate";
 import { Pagination } from "@/components/pagination";
@@ -40,11 +40,12 @@ function EmptyState() {
   );
 }
 
-function ProvaRow({ prova, deleting, onDelete, onAnalytics }: {
+function ProvaRow({ prova, deleting, onDelete, onAnalytics, onStudy }: {
   prova: ProvaListItem;
   deleting: boolean;
   onDelete: (e: React.MouseEvent) => void;
   onAnalytics: (e: React.MouseEvent) => void;
+  onStudy: (e: React.MouseEvent) => void;
 }) {
   return (
     <Link
@@ -68,6 +69,13 @@ function ProvaRow({ prova, deleting, onDelete, onAnalytics }: {
       <div className="flex items-center gap-2 shrink-0">
         <button
           className="text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+          onClick={onStudy}
+          title="Estudar esta prova"
+        >
+          <GraduationCapIcon className="size-4" />
+        </button>
+        <button
+          className="text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
           onClick={onAnalytics}
           title="Ver analytics"
         >
@@ -89,9 +97,13 @@ function ProvaRow({ prova, deleting, onDelete, onAnalytics }: {
 
 const contarProvas = (n: number): string => `${n} prova${n !== 1 ? "s" : ""}`;
 
-// `onOpenAnalytics` é injetado pela camada de app (src/app/provas/page.tsx): o
-// modal de analytics vive fora deste módulo, que só consome `questions` (arch).
-export function ProvasListPage({ onOpenAnalytics }: { onOpenAnalytics?: (provaId: string) => void }) {
+// `onOpenAnalytics`/`onOpenStudy` são injetados pela camada de app
+// (src/app/provas/page.tsx): esses modais vivem fora deste módulo, que só pode
+// cruzar contexto para `questions` (regra arch `provas-so-consome-questions`).
+export function ProvasListPage({ onOpenAnalytics, onOpenStudy }: {
+  onOpenAnalytics?: (provaId: string) => void;
+  onOpenStudy?: (provaId: string) => void;
+}) {
   const { provas, loading, remove } = useProvasList();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [criteria, setCriteria] = useState<ProvaCriteria>(DEFAULT_PROVA_CRITERIA);
@@ -165,6 +177,7 @@ export function ProvasListPage({ onOpenAnalytics }: { onOpenAnalytics?: (provaId
                   deleting={deletingId === p.id}
                   onDelete={(e) => handleDelete(e, p.id)}
                   onAnalytics={(e) => { e.preventDefault(); e.stopPropagation(); onOpenAnalytics?.(p.id); }}
+                  onStudy={(e) => { e.preventDefault(); e.stopPropagation(); onOpenStudy?.(p.id); }}
                 />
               ))}
             </div>
