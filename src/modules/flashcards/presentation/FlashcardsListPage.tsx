@@ -26,6 +26,7 @@ import { FlashcardCard } from "./components/FlashcardCard";
 import { FlashcardDetailDialog } from "./components/FlashcardDetailDialog";
 import { FlashcardEditDialog, type FlashcardForm } from "./components/FlashcardEditDialog";
 import { FlashcardDeleteDialogs } from "./components/FlashcardDeleteDialogs";
+import { FlashcardItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/FlashcardItemAnalyticsModal";
 
 const DEFAULT_CRITERIA: FlashcardCriteria = {
   search: "", assuntoFilter: "", topicoFilter: "", tipoFilter: "", statusFilter: "all", sortBy: "date",
@@ -49,6 +50,7 @@ export function FlashcardsListPage() {
   const [deleteTarget, setDeleteTarget] = useState<FlashcardItem | null>(null);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [detailCard, setDetailCard] = useState<FlashcardItem | null>(null);
+  const [analyticsCardId, setAnalyticsCardId] = useState<string | null>(null);
 
   // Toda mudança de filtro/busca/ordenação volta para a página 1.
   const patch = (p: Partial<FlashcardCriteria>): void => {
@@ -214,6 +216,7 @@ export function FlashcardsListPage() {
                 onDetail={() => setDetailCard(fc)}
                 onEdit={() => openEdit(fc)}
                 onDelete={() => setDeleteTarget(fc)}
+                onAnalytics={() => setAnalyticsCardId(fc.id)}
                 onFilter={patch}
               />
             ))}
@@ -226,6 +229,11 @@ export function FlashcardsListPage() {
         card={detailCard}
         onClose={() => setDetailCard(null)}
         onEdit={() => { const c = detailCard; setDetailCard(null); if (c) openEdit(c); }}
+      />
+      <FlashcardItemAnalyticsModal
+        open={!!analyticsCardId}
+        onOpenChange={(open) => !open && setAnalyticsCardId(null)}
+        flashcardId={analyticsCardId}
       />
       <FlashcardEditDialog
         open={dialogOpen}

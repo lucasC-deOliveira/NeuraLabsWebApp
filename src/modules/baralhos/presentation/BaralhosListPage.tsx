@@ -26,6 +26,7 @@ import { BaralhosFilters } from "./components/BaralhosFilters";
 import { CreateBaralhoDialog } from "./components/CreateBaralhoDialog";
 import { ConfirmDeleteBaralhoDialog } from "./components/ConfirmDeleteBaralhoDialog";
 import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
+import { DeckAnalyticsModal } from "@/modules/analytics/presentation/components/modals/DeckAnalyticsModal";
 import type { BaralhoItem } from "../domain/baralho.types";
 
 // 11 cartões por página: com o cartão "Novo baralho" ocupando a primeira vaga, a
@@ -38,6 +39,7 @@ export function BaralhosListPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<BaralhoItem | null>(null);
   const [studyId, setStudyId] = useState<string | null>(null);
+  const [analyticsId, setAnalyticsId] = useState<string | null>(null);
   const [criteria, setCriteria] = useState<BaralhoCriteria>(DEFAULT_BARALHO_CRITERIA);
   const [page, setPage] = useState(1);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -171,6 +173,7 @@ export function BaralhosListPage() {
                 baralho={baralho}
                 onStudy={() => setStudyId(baralho.id)}
                 onDelete={() => setDeleteTarget(baralho)}
+                onAnalytics={() => setAnalyticsId(baralho.id)}
               />
             ))}
           </div>
@@ -193,6 +196,11 @@ export function BaralhosListPage() {
         open={studyId !== null}
         onOpenChange={(open) => { if (!open) { setStudyId(null); void reload(); } }}
         baralhoId={studyId}
+      />
+      <DeckAnalyticsModal
+        open={analyticsId !== null}
+        onOpenChange={(open) => !open && setAnalyticsId(null)}
+        baralhoId={analyticsId}
       />
     </PageContainer>
   );

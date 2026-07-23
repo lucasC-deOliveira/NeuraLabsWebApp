@@ -22,7 +22,7 @@ interface AnalyticsModalShellProps {
 export function AnalyticsModalShell({ open, onOpenChange, title, description, children }: AnalyticsModalShellProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85dvh] max-w-3xl flex-col gap-0 overflow-hidden">
+      <DialogContent className="flex h-[85dvh] max-h-[85dvh] w-[92vw] max-w-5xl sm:max-w-5xl flex-col gap-0 overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className="truncate">{title}</DialogTitle>
           {description && <DialogDescription className="truncate">{description}</DialogDescription>}

@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Trash2Icon, CheckCircle2Icon, CircleIcon } from "lucide-react";
+import { Trash2Icon, CheckCircle2Icon, CircleIcon, BarChart3Icon } from "lucide-react";
 import { ConceptTags, type ConceptTagSelection } from "@/components/concept-tags";
 import type { AlternativaMultipla, QuestaoListItem } from "../../domain/questao.types";
 
@@ -51,6 +51,7 @@ export function QuestaoCard({
   deleting,
   onToggle,
   onDelete,
+  onAnalytics,
   onSelectTag,
 }: {
   questao: QuestaoListItem;
@@ -58,6 +59,7 @@ export function QuestaoCard({
   deleting: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onAnalytics?: () => void;
   onSelectTag: (selection: ConceptTagSelection) => void;
 }) {
   return (
@@ -74,14 +76,25 @@ export function QuestaoCard({
           </div>
           <p className="text-sm font-medium leading-snug">{questao.enunciado}</p>
         </div>
-        <button
-          className="text-zinc-400 hover:text-red-500 transition-colors flex-shrink-0 mt-0.5"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          disabled={deleting}
-          title="Excluir questão"
-        >
-          <Trash2Icon className="size-4" />
-        </button>
+        <div className="flex shrink-0 items-center gap-2 mt-0.5">
+          {onAnalytics && (
+            <button
+              className="text-zinc-400 hover:text-primary transition-colors"
+              onClick={(e) => { e.stopPropagation(); onAnalytics(); }}
+              title="Ver analytics"
+            >
+              <BarChart3Icon className="size-4" />
+            </button>
+          )}
+          <button
+            className="text-zinc-400 hover:text-red-500 transition-colors"
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            disabled={deleting}
+            title="Excluir questão"
+          >
+            <Trash2Icon className="size-4" />
+          </button>
+        </div>
       </div>
       {expanded && <QuestaoDetails questao={questao} />}
     </div>

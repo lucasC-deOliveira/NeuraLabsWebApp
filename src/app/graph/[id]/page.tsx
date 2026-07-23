@@ -84,10 +84,10 @@ import { ImproveNotaModal } from "@/modules/graph/presentation/components/ai/Imp
 import { NodeInsightsModal } from "@/modules/graph/presentation/components/ai/NodeInsightsModal";
 import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
 import { ViewDeckModal } from "@/modules/graph/presentation/components/deck/ViewDeckModal";
-import { DeckAnalyticsModal } from "@/modules/graph/presentation/components/analytics/DeckAnalyticsModal";
-import { ProvaAnalyticsModal } from "@/modules/graph/presentation/components/analytics/ProvaAnalyticsModal";
-import { FlashcardItemAnalyticsModal } from "@/modules/graph/presentation/components/analytics/FlashcardItemAnalyticsModal";
-import { QuestaoItemAnalyticsModal } from "@/modules/graph/presentation/components/analytics/QuestaoItemAnalyticsModal";
+import { DeckAnalyticsModal } from "@/modules/analytics/presentation/components/modals/DeckAnalyticsModal";
+import { ProvaAnalyticsModal } from "@/modules/analytics/presentation/components/modals/ProvaAnalyticsModal";
+import { FlashcardItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/FlashcardItemAnalyticsModal";
+import { QuestaoItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/QuestaoItemAnalyticsModal";
 import { VaultSyncModal } from "@/modules/graph/presentation/components/vault/VaultSyncModal";
 import { GraphDashboard } from "@/modules/graph/presentation/components/dashboard/GraphDashboard";
 import { isDesktop } from "@/lib/vault-bridge";

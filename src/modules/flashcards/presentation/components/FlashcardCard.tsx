@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { PencilIcon, Trash2Icon, CalendarDaysIcon } from "lucide-react";
+import { PencilIcon, Trash2Icon, CalendarDaysIcon, BarChart3Icon } from "lucide-react";
 import type { FlashcardItem, SpacedRepetition } from "../../domain/flashcard.types";
 import type { FlashcardCriteria } from "../../domain/services/flashcard-filters";
 import { formatDistanceToNow, isOverdue, isDue, getEaseBar } from "../../domain/services/srs-status";
@@ -46,10 +46,11 @@ interface FlashcardCardProps {
   onDetail: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onAnalytics: () => void;
   onFilter: (patch: Partial<FlashcardCriteria>) => void;
 }
 
-export function FlashcardCard({ fc, onDetail, onEdit, onDelete, onFilter }: FlashcardCardProps) {
+export function FlashcardCard({ fc, onDetail, onEdit, onDelete, onAnalytics, onFilter }: FlashcardCardProps) {
   const sr = fc.spacedRepetition;
   const stage = sr?.estagioAprendizado;
   const stageStyle = stage && stage > 0 ? ESTAGIO_STYLES[stage] : null;
@@ -98,6 +99,9 @@ export function FlashcardCard({ fc, onDetail, onEdit, onDelete, onFilter }: Flas
         )}
       </CardContent>
       <CardFooter className="px-4 pb-3 pt-0 justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-zinc-400 hover:text-primary" onClick={(e) => stop(e, onAnalytics)} title="Ver analytics">
+          <BarChart3Icon className="size-3.5" />
+        </Button>
         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e) => stop(e, onEdit)} title="Editar">
           <PencilIcon className="size-3.5" />
         </Button>
