@@ -87,15 +87,16 @@ grafo normal. Não é "mini-grafo com um import de brinde" — as duas contam ig
    Convive com o `FLASHCARD_NODE_DISPLAY_LIMIT` (recolhido por padrão quando muitos).
 
 ## Fases
-- **F1 — Núcleo:** roll-up builder no backend (reusando knowledge-graph +
-  hierarquia), com testes por tipo e teto de tamanho. Extrair `NODE_TYPE_COLORS`
-  para ponto compartilhado.
-- **F2 — Mini-grafo Obsidian:** `react-force-graph-2d` + cores/vocabulário +
-  física + labels; ligar os 4 modais ao núcleo.
-- **F3 — Interações + ponte:** hover-destaca, clique re-centra, "Abrir no grafo"
-  (`?focus=`), tamanho por grau, tema claro/escuro.
-- **F4 — Composição no grafo (co-primária com F2):** ao adicionar item no grafo,
-  injetar o subgrafo do núcleo via `runImportGraph` (merge/dedup), respeitando o
-  limite de flashcards. Pode ir logo após F1, em paralelo à F2/F3.
+- ✅ **F1 — Núcleo:** roll-up builder (`buildComposition` + `CompositionSource` +
+  `GET /graph/composition/:tipo/:id`); completou QUESTION/PROVA no `relation-rules`.
+- ✅ **F2 — Mini-grafo Obsidian:** `react-force-graph-2d` + `NODE_TYPE_COLORS` +
+  física/labels/hover; os 4 modais consomem o núcleo por (tipo, id).
+- ✅ **F3 — Interações + ponte:** hover-destaca, arrastar, zoom/pan, **clique
+  re-centra** a teia no nó componível, e **"Ver no grafo"** (`?focus=`, reusando
+  `VerNoGrafo`).
+- ✅ **F4 — Composição no grafo:** `POST /graph/graphs/:id/compose` mescla o
+  subgrafo do núcleo via `createContainedNode` (nó único por referência) + arestas
+  deduplicadas; UI: seletor "Adicionar a um grafo" no rodapé do mini-grafo.
+  Idempotente; flashcards seguem o limite/expand-retrair do grafo.
 
 Fonte da verdade das regras de engenharia: `AGENTS.md`.

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { NetworkIcon } from "lucide-react";
 import {
   Dialog,
@@ -9,10 +10,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { LoadingState, ErrorState } from "@/components/loading-state";
+import { VerNoGrafo } from "@/components/graph/VerNoGrafo";
 import { MiniGraph } from "./MiniGraph";
 import { AddToGraphControl } from "./AddToGraphControl";
 import { useComposition } from "./useComposition";
-import type { CompositionGraph, CompositionTipo } from "./composition.types";
+import {
+  TIPO_TO_TYPE,
+  TYPE_TO_TIPO,
+  type CompositionGraph,
+  type CompositionNode,
+  type CompositionNodeType,
+  type CompositionTipo,
+} from "./composition.types";
 
 interface MiniGraphModalProps {
   open: boolean;
@@ -22,23 +31,47 @@ interface MiniGraphModalProps {
   id: string | null;
 }
 
-// Modal com o mini-grafo composto do item (força-dirigido, estilo Obsidian), usando
-// o mesmo vocabulário/cores do grafo. Auto-carrega via GET /graph/composition.
+interface Target {
+  tipo: CompositionTipo;
+  type: CompositionNodeType;
+  id: string;
+  label: string;
+}
+
+// Modal com o mini-grafo composto do item (força-dirigido, estilo Obsidian), no
+// mesmo vocabulário/cores do grafo. Clicar num nó componível re-centra a teia nele;
+// "Ver no grafo" abre o grafo grande focado no item (?focus).
 export function MiniGraphModal({ open, onOpenChange, title, tipo, id }: MiniGraphModalProps) {
-  const { graph, loading, error } = useComposition(tipo, open ? id : null);
+  const [target, setTarget] = useState<Target | null>(null);
+  const [prevKey, setPrevKey] = useState<string | null>(null);
+  const propKey = id ? `${tipo}:${id}` : null;
+  if (propKey !== prevKey) {
+    setPrevKey(propKey);
+    setTarget(id ? { tipo, type: TIPO_TO_TYPE[tipo], id, label: title } : null);
+  }
+
+  const active = open ? target : null;
+  const { graph, loading, error } = useComposition(active?.tipo ?? tipo, active?.id ?? null);
+
+  const recenter = (node: CompositionNode): void => {
+    const nextTipo = TYPE_TO_TIPO[node.type];
+    if (nextTipo) setTarget({ tipo: nextTipo, type: node.type, id: node.id, label: node.label });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85dvh] w-[92vw] max-w-4xl flex-col gap-0 overflow-hidden sm:max-w-4xl">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="truncate">{title}</DialogTitle>
-          <DialogDescription>Conexões com conceitos, tópicos e assuntos</DialogDescription>
+          <DialogTitle className="truncate">{target?.label ?? title}</DialogTitle>
+          <DialogDescription>Conexões com conceitos, tópicos e assuntos · clique num nó para focar</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-auto py-4">
-          <MiniGraphBody loading={loading} error={error} graph={graph} />
+          <MiniGraphBody loading={loading} error={error} graph={graph} onNodeClick={recenter} />
         </div>
-        {id && graph && graph.nodes.length > 1 && (
-          <div className="flex shrink-0 justify-end border-t pt-3">
-            <AddToGraphControl tipo={tipo} id={id} />
+        {active && graph && graph.nodes.length > 1 && (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t pt-3">
+            <VerNoGrafo tipo={active.type} refId={active.id} />
+            <AddToGraphControl tipo={active.tipo} id={active.id} />
           </div>
         )}
       </DialogContent>
@@ -46,15 +79,16 @@ export function MiniGraphModal({ open, onOpenChange, title, tipo, id }: MiniGrap
   );
 }
 
-function MiniGraphBody({ loading, error, graph }: {
+function MiniGraphBody({ loading, error, graph, onNodeClick }: {
   loading: boolean;
   error: string | null;
   graph: CompositionGraph | null;
+  onNodeClick: (node: CompositionNode) => void;
 }) {
   if (loading) return <LoadingState message="Montando o mini-grafo…" hint="Reunindo a composição do item." />;
   if (error) return <ErrorState message={error} />;
   if (!graph || graph.nodes.length <= 1) return <EmptyHint />;
-  return <MiniGraph graph={graph} />;
+  return <MiniGraph graph={graph} onNodeClick={onNodeClick} />;
 }
 
 function EmptyHint() {

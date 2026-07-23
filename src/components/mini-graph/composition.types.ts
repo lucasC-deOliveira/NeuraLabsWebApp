@@ -27,3 +27,18 @@ export interface CompositionGraph {
   nodes: CompositionNode[];
   edges: CompositionEdge[];
 }
+
+// tipo (rota/composição) ↔ type (vocabulário do grafo). Só os 4 tipos que compõem.
+export const TIPO_TO_TYPE: Record<CompositionTipo, CompositionNodeType> = {
+  flashcard: "FLASHCARD",
+  questao: "QUESTION",
+  baralho: "BARALHO",
+  prova: "PROVA",
+};
+
+export const TYPE_TO_TIPO: Partial<Record<CompositionNodeType, CompositionTipo>> = {
+  FLASHCARD: "flashcard",
+  QUESTION: "questao",
+  BARALHO: "baralho",
+  PROVA: "prova",
+};

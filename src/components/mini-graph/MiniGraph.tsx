@@ -83,7 +83,10 @@ function drawNode(node: FNode, canvas: CanvasRenderingContext2D, scale: number, 
   canvas.globalAlpha = 1;
 }
 
-export function MiniGraph({ graph }: { graph: CompositionGraph }) {
+export function MiniGraph({ graph, onNodeClick }: {
+  graph: CompositionGraph;
+  onNodeClick?: (node: CompositionNode) => void;
+}) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const containerRef = useRef<HTMLDivElement>(null);
@@ -133,6 +136,7 @@ export function MiniGraph({ graph }: { graph: CompositionGraph }) {
           }
           linkWidth={(l) => (hover && (endId(l.source) === hover || endId(l.target) === hover) ? 2 : 1)}
           onNodeHover={(n) => setHover(n ? n.id : null)}
+          onNodeClick={(n) => onNodeClick?.({ id: n.id, type: n.type, label: n.label })}
           onNodeDragEnd={(n) => {
             n.fx = n.x;
             n.fy = n.y;
