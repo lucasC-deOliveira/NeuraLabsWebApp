@@ -25,6 +25,8 @@ import { UpdateProvaUseCase } from '../modules/provas/application/use-cases/upda
 import { RemoveProvaUseCase } from '../modules/provas/application/use-cases/remove-prova.use-case';
 import { ParseExamUploadUseCase } from '../modules/provas/application/use-cases/parse-exam-upload.use-case';
 import { SuggestQuestaoConceitosUseCase } from '../modules/provas/application/use-cases/suggest-questao-conceitos.use-case';
+import { RecordProvaAttemptUseCase } from '../modules/provas/application/use-cases/record-prova-attempt.use-case';
+import type { ProvaAttemptInput } from '../modules/provas/domain/ports/prova-attempt-repository';
 import {
   CreateEditalUseCase,
   LinkEditalToProvaUseCase,
@@ -53,6 +55,7 @@ export class ProvasController {
     private readonly removeProva: RemoveProvaUseCase,
     private readonly parseExamUpload: ParseExamUploadUseCase,
     private readonly suggestConceitos: SuggestQuestaoConceitosUseCase,
+    private readonly recordProvaAttempt: RecordProvaAttemptUseCase,
     private readonly createEdital: CreateEditalUseCase,
     private readonly linkEdital: LinkEditalToProvaUseCase,
     private readonly listEditais: ListEditaisUseCase,
@@ -104,6 +107,16 @@ export class ProvasController {
   @Post('from-parsed')
   createFromParsed(@CurrentUser() userId: string, @Body() dto: CreateProvaFromParsedInput) {
     return this.createProvaFromParsed.execute(userId, dto);
+  }
+
+  // Registra uma tentativa de quiz (score + respostas por questão). N por prova.
+  @Post(':id/tentativas')
+  recordAttempt(
+    @CurrentUser() userId: string,
+    @Param('id') provaId: string,
+    @Body() dto: Omit<ProvaAttemptInput, 'provaId'>,
+  ): Promise<{ id: string }> {
+    return this.recordProvaAttempt.execute(userId, { ...dto, provaId });
   }
 
   // Cria o nó EDITAL (título + programa); com provaId, vincula 1:1 à prova.

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/page-header/PageHeader";
-import { PlusIcon, Trash2Icon, SearchIcon, XIcon, Loader2Icon, LayersIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, SearchIcon, XIcon, LayersIcon } from "lucide-react";
+import { LoadingState } from "@/components/loading-state";
 import { toast } from "sonner";
 import { flashcardsHttp } from "../infra/http";
 import type { FlashcardItem } from "../domain/flashcard.types";
@@ -192,9 +193,7 @@ export function FlashcardsListPage() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2Icon className="size-8 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState message="Carregando seus flashcards…" />
       ) : filtered.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">
           <LayersIcon className="size-12 mx-auto text-zinc-300 dark:text-zinc-600 mb-4" />

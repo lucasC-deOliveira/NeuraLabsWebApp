@@ -113,11 +113,11 @@ function HubsChart({ m }: { m: GraphMetrics }) {
       <p className="text-[11px] text-muted-foreground mb-2">Nós com mais conexões determinam o fluxo de conhecimento.</p>
       <ResponsiveContainer width="100%" height={Math.max(m.topHubs.length * 28, 80)}>
         <BarChart data={m.topHubs} layout="vertical" margin={{ left: 8, right: 24, top: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
           <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
           <YAxis type="category" dataKey="label" width={110} tick={{ fontSize: 10 }} tickLine={false} axisLine={false}
             tickFormatter={(v) => (v.length > 16 ? v.slice(0, 16) + "…" : v)} />
-          <Tooltip content={<CustomTooltipBar />} cursor={{ fill: "hsl(var(--accent))" }} />
+          <Tooltip content={<CustomTooltipBar />} cursor={{ fill: "var(--accent)" }} />
           <Bar dataKey="degree" radius={[0, 4, 4, 0]} name="count">
             {m.topHubs.map((h, i) => <Cell key={i} fill={TYPE_COLORS[h.group] ?? "#888"} />)}
           </Bar>
@@ -134,11 +134,11 @@ function DegreeHistogram({ m }: { m: GraphMetrics }) {
       <p className="text-[11px] text-muted-foreground mb-2">Redes de conhecimento saudáveis seguem lei de potência: poucos hubs, muitos nós folha.</p>
       <ResponsiveContainer width="100%" height={120}>
         <BarChart data={m.degreeHistogram} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-          <XAxis dataKey="bucket" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} label={{ value: "conexões", position: "insideBottomRight", offset: -4, fontSize: 9, fill: "hsl(var(--muted-foreground))" }} />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+          <XAxis dataKey="bucket" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} label={{ value: "conexões", position: "insideBottomRight", offset: -4, fontSize: 9, fill: "var(--muted-foreground)" }} />
           <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-          <Tooltip content={<CustomTooltipBar />} cursor={{ fill: "hsl(var(--accent))" }} />
-          <Bar dataKey="count" name="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+          <Tooltip content={<CustomTooltipBar />} cursor={{ fill: "var(--accent)" }} />
+          <Bar dataKey="count" name="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -152,10 +152,10 @@ function EdgeTypesChart({ m }: { m: GraphMetrics }) {
       <p className={SECTION_TITLE}>Tipos de relação (top 10)</p>
       <ResponsiveContainer width="100%" height={Math.max(m.edgesByType.length * 24, 60)}>
         <BarChart data={m.edgesByType} layout="vertical" margin={{ left: 8, right: 24, top: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
           <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
           <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-          <Tooltip content={<CustomTooltipBar />} cursor={{ fill: "hsl(var(--accent))" }} />
+          <Tooltip content={<CustomTooltipBar />} cursor={{ fill: "var(--accent)" }} />
           <Bar dataKey="count" name="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
@@ -214,12 +214,12 @@ function KnowledgeGapMatrix({ m }: { m: GraphMetrics }) {
       <div className="relative">
         <ResponsiveContainer width="100%" height={220}>
           <ScatterChart margin={{ top: 8, right: 16, bottom: 20, left: 16 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis type="number" dataKey="dominio" domain={[0, 100]} name="Domínio"
-              label={{ value: "Domínio (%)", position: "insideBottom", offset: -12, fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+              label={{ value: "Domínio (%)", position: "insideBottom", offset: -12, fontSize: 9, fill: "var(--muted-foreground)" }}
               tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
             <YAxis type="number" dataKey="prioridade" domain={[0, 10]} name="Prioridade"
-              label={{ value: "Prioridade", angle: -90, position: "insideLeft", offset: 8, fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+              label={{ value: "Prioridade", angle: -90, position: "insideLeft", offset: 8, fontSize: 9, fill: "var(--muted-foreground)" }}
               tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
             <ZAxis range={[28, 28]} />
             <Tooltip content={<CustomTooltipScatter />} cursor={{ strokeDasharray: "3 3" }} />

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SearchIcon, Loader2Icon, CheckIcon } from "lucide-react";
+import { LoadingState } from "@/components/loading-state";
 import type { BaralhoCardOption } from "../../domain/baralho.types";
 import { filterCardOptions } from "../../domain/services/filter-card-options";
 
@@ -58,9 +59,7 @@ export function AddCardsDialog({
 
         <div className="max-h-72 overflow-y-auto space-y-1 -mx-1 px-1">
           {loading ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
-            </div>
+            <LoadingState message="Carregando flashcards…" />
           ) : visible.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">
               Nenhum flashcard disponivel para adicionar.

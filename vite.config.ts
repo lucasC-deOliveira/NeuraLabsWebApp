@@ -15,7 +15,9 @@ export default defineConfig({
     strictPort: true,
     host: true,
     proxy: {
-      "/api": { target: "http://localhost:3001", changeOrigin: true },
+      // 127.0.0.1 (não "localhost"): no Windows, "localhost" pode resolver para
+      // IPv6 (::1) e o proxy pendura ao alcançar o backend do Docker. Forçar IPv4.
+      "/api": { target: "http://127.0.0.1:3001", changeOrigin: true },
     },
   },
   build: { outDir: "dist" },

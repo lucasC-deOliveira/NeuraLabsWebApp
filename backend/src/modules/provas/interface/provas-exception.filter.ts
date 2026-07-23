@@ -11,6 +11,7 @@ import {
 import type { Response } from 'express';
 import {
   EditalAlreadyLinkedError,
+  EmptyAttemptError,
   InvalidExamJsonError,
   ProvaAlreadyHasEditalError,
   ProvaForbiddenError,
@@ -24,7 +25,8 @@ type ProvaError =
   | UnsupportedDocumentFormatError
   | InvalidExamJsonError
   | ProvaAlreadyHasEditalError
-  | EditalAlreadyLinkedError;
+  | EditalAlreadyLinkedError
+  | EmptyAttemptError;
 
 // Maps provas domain errors to HTTP responses (Portuguese, user-facing).
 @Catch(
@@ -34,6 +36,7 @@ type ProvaError =
   InvalidExamJsonError,
   ProvaAlreadyHasEditalError,
   EditalAlreadyLinkedError,
+  EmptyAttemptError,
 )
 export class ProvasExceptionFilter implements ExceptionFilter {
   catch(error: ProvaError, host: ArgumentsHost): void {
@@ -52,5 +55,7 @@ function toHttpError(error: ProvaError): HttpException {
     return new ConflictException('Esta prova já tem um edital vinculado.');
   if (error instanceof EditalAlreadyLinkedError)
     return new ConflictException('Este edital já está vinculado a uma prova.');
+  if (error instanceof EmptyAttemptError)
+    return new BadRequestException('Tentativa sem respostas.');
   return new BadRequestException('IA retornou formato inválido.');
 }

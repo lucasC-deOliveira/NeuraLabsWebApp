@@ -55,6 +55,12 @@ import { UpdateProvaUseCase } from '../modules/provas/application/use-cases/upda
 import { RemoveProvaUseCase } from '../modules/provas/application/use-cases/remove-prova.use-case';
 import { ParseExamUploadUseCase } from '../modules/provas/application/use-cases/parse-exam-upload.use-case';
 import { SuggestQuestaoConceitosUseCase } from '../modules/provas/application/use-cases/suggest-questao-conceitos.use-case';
+import { RecordProvaAttemptUseCase } from '../modules/provas/application/use-cases/record-prova-attempt.use-case';
+import {
+  PROVA_ATTEMPT_REPOSITORY,
+  type ProvaAttemptRepository,
+} from '../modules/provas/domain/ports/prova-attempt-repository';
+import { PrismaProvaAttemptRepository } from '../modules/provas/infrastructure/persistence/prisma-prova-attempt.repository';
 
 @Module({
   imports: [
@@ -68,6 +74,12 @@ import { SuggestQuestaoConceitosUseCase } from '../modules/provas/application/us
   providers: [
     PrismaConnectedConceptsQuery,
     { provide: PROVA_REPOSITORY, useClass: PrismaProvaRepository },
+    { provide: PROVA_ATTEMPT_REPOSITORY, useClass: PrismaProvaAttemptRepository },
+    {
+      provide: RecordProvaAttemptUseCase,
+      useFactory: (repo: ProvaAttemptRepository) => new RecordProvaAttemptUseCase(repo),
+      inject: [PROVA_ATTEMPT_REPOSITORY],
+    },
     { provide: CONCEITO_CATALOG_SOURCE, useClass: PrismaConceitoCatalog },
     { provide: QUESTAO_GRAPH_WRITER, useClass: PrismaQuestaoGraphWriter },
     { provide: EDITAL_REPOSITORY, useClass: PrismaEditalRepository },

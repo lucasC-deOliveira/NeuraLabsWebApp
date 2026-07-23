@@ -47,7 +47,7 @@ function TypeChips({
             className="px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all"
             style={shown
               ? { backgroundColor: TYPE_COLORS[type] ?? "#888", borderColor: "transparent", color: "#fff", opacity: 1 }
-              : { backgroundColor: "transparent", borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))", opacity: 0.6 }}
+              : { backgroundColor: "transparent", borderColor: "var(--border)", color: "var(--muted-foreground)", opacity: 0.6 }}
           >
             {TYPE_LABELS[type] ?? type}
           </button>

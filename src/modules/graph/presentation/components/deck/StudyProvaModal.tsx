@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, CheckCircle2Icon, XCircleIcon, GraduationCapIcon, ClockIcon } from "lucide-react";
 import { graphHttp } from "@/modules/graph/infra/http";
 import { MarkdownContent } from "@/components/markdown-content";
-import type { QuestaoAlternativa } from "@/modules/graph/application/ports/graph-prova.port";
+import type { QuestaoAlternativa, AnswerDraft } from "@/modules/graph/application/ports/graph-prova.port";
 
 // Quiz/simulado: shows each answerable question without the answer, the user
 // picks, gets immediate feedback (right/wrong + explanation) and a final score.
@@ -63,6 +63,7 @@ export function StudyProvaModal({ open, onOpenChange, provaId, questaoId }: Stud
   const [finished, setFinished] = useState(false);
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [questaoSeconds, setQuestaoSeconds] = useState(0);
+  const [answers, setAnswers] = useState<AnswerDraft[]>([]);
   const [loadKey, setLoadKey] = useState("");
 
   // Reset during render when the source changes (react-hooks forbids setState in effect body).
@@ -70,7 +71,7 @@ export function StudyProvaModal({ open, onOpenChange, provaId, questaoId }: Stud
   if (key !== loadKey) {
     setLoadKey(key);
     setIdx(0); setSelected(null); setRevealed(false); setAcertos(0); setFinished(false);
-    setTotalSeconds(0); setQuestaoSeconds(0);
+    setTotalSeconds(0); setQuestaoSeconds(0); setAnswers([]);
     if (key) { setLoading(true); setQuestoes([]); }
   }
 
@@ -102,9 +103,30 @@ export function StudyProvaModal({ open, onOpenChange, provaId, questaoId }: Stud
 
   const reveal = (): void => {
     if (selected === null || revealed) return;
-    if (selected === questao.gabarito) setAcertos((a) => a + 1);
+    const acertou = selected === questao.gabarito;
+    if (acertou) setAcertos((a) => a + 1);
+    setAnswers((prev) => [
+      ...prev,
+      { questaoId: questao.id, respostaEscolhida: selected, acertou, tempoRespostaMs: questaoSeconds * 1000 },
+    ]);
     setRevealed(true);
   };
+
+  // Ao terminar um quiz de PROVA, persiste a tentativa (histórico/progresso).
+  // Questão isolada não gera tentativa (sem provaId). Falha é silenciosa: não
+  // atrapalha o resultado que o usuário está vendo.
+  useEffect(() => {
+    if (!finished || single || !provaId || answers.length === 0) return;
+    void graphHttp
+      .recordProvaAttempt(provaId, {
+        acertos,
+        total: questoes.length,
+        tempoTotalMs: totalSeconds * 1000,
+        respostas: answers,
+      })
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished]);
 
   const next = (): void => {
     if (isLast) { setFinished(true); return; }

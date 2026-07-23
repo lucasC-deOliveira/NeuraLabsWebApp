@@ -4,7 +4,8 @@ import { PageContainer } from "@/components/page-container";
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header/PageHeader";
-import { PlusIcon, Loader2Icon, DownloadIcon, UploadIcon } from "lucide-react";
+import { PlusIcon, DownloadIcon, UploadIcon } from "lucide-react";
+import { LoadingState } from "@/components/loading-state";
 import { toast } from "sonner";
 import { paginate } from "@/lib/paginate";
 import { Pagination } from "@/components/pagination";
@@ -149,9 +150,7 @@ export function BaralhosListPage() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2Icon className="size-8 animate-spin text-muted-foreground" />
-        </div>
+        <LoadingState message="Carregando seus baralhos…" />
       ) : (
         <>
           {baralhos.length === 0 && (

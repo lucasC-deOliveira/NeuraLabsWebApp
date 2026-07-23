@@ -15,6 +15,7 @@ import { computeAccuracy, countDueCards, toSubjectSummaries } from "../domain/se
 import { DashboardStatCards } from "./components/DashboardStatCards";
 import { SubjectsGrid } from "./components/SubjectsGrid";
 import { RecentActivity } from "./components/RecentActivity";
+import { AnalyticsSummaryCard } from "@/modules/analytics/presentation/components/AnalyticsSummaryCard";
 
 function QuickActions() {
   return (
@@ -58,6 +59,9 @@ export function DashboardPage() {
           <PageHeader title="NeuraLabs" subtitle="Flashcards Inteligentes com IA" />
 
           <DashboardStatCards loading={loading} dueCardCount={dueCardCount} accuracy={accuracy} />
+          <div className="mb-6 sm:mb-8">
+            <AnalyticsSummaryCard />
+          </div>
           <QuickActions />
           <Separator className="my-4 sm:my-6" />
           <SubjectsGrid loading={loading} subjects={subjects} />

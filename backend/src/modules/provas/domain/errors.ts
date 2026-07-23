@@ -47,6 +47,14 @@ export class EditalAlreadyLinkedError extends Error {
   }
 }
 
+// Raised when a quiz attempt is submitted with no answers.
+export class EmptyAttemptError extends Error {
+  constructor(offending: number) {
+    super(`A quiz attempt needs at least one answer, got ${offending}.`);
+    this.name = 'EmptyAttemptError';
+  }
+}
+
 // Asserts the loaded prova exists and belongs to the user, else throws.
 export function assertOwner<T extends { usuarioId: string }>(
   prova: T | null,

@@ -240,7 +240,7 @@ function ModalFooter({
     return (
       <Button className="flex-1" variant="secondary" disabled>
         <Loader2Icon className="size-4 mr-2 animate-spin" />
-        Processando...
+        Gerando o grafo…
       </Button>
     );
   }

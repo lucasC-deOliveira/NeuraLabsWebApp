@@ -40,6 +40,7 @@ import NewQuestaoPage from "@/app/questions/new/page";
 import ProvasPage from "@/app/provas/page";
 import NewProvaPage from "@/app/provas/new/page";
 import ProvaDetailPage from "@/app/provas/[id]/page";
+import AnalyticsPage from "@/app/analytics/page";
 
 const AUTH_PATHS = ["/login", "/register"];
 
@@ -82,6 +83,7 @@ function App() {
           <Route path="/provas" element={<RequireAuth><ProvasPage /></RequireAuth>} />
           <Route path="/provas/new" element={<RequireAuth><NewProvaPage /></RequireAuth>} />
           <Route path="/provas/:id" element={<RequireAuth><ProvaDetailPage /></RequireAuth>} />
+          <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
           <Route path="/settings/:secao" element={<RequireAuth><SettingsSectionPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />

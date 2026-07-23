@@ -346,7 +346,7 @@ function CompletenessFooter({ uiStep, selectedCount, onRetry, onGenerate, onClos
       {(uiStep === "loading" || uiStep === "generating") && (
         <Button className="flex-1" variant="secondary" disabled>
           <Loader2Icon className="size-4 mr-2 animate-spin" />
-          Processando...
+          Analisando a completude…
         </Button>
       )}
       {uiStep === "done" && (

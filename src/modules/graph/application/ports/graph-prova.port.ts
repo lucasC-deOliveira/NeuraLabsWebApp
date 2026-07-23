@@ -147,6 +147,22 @@ export interface GraphProvaPort {
     grafoId?: string;
   }): Promise<{ provaId: string }>;
   getProva(provaId: string): Promise<ProvaDetailView | null>;
+  // Persiste uma tentativa de quiz (score + respostas por questão). N por prova.
+  recordProvaAttempt(provaId: string, attempt: ProvaAttemptDraft): Promise<{ id: string }>;
   // Busca os bytes de uma figura salva (endpoint autenticado) como Blob.
   fetchProvaImagem(imagemId: string): Promise<Blob>;
+}
+
+export interface AnswerDraft {
+  questaoId: string;
+  respostaEscolhida: string;
+  acertou: boolean;
+  tempoRespostaMs: number | null;
+}
+
+export interface ProvaAttemptDraft {
+  acertos: number;
+  total: number;
+  tempoTotalMs: number;
+  respostas: AnswerDraft[];
 }

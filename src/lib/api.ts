@@ -31,22 +31,40 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
+// Teto de espera de qualquer requisição — nada trava a UI para sempre. Chamadas
+// longas (geração por IA) podem passar um timeoutMs maior via options.
+const DEFAULT_TIMEOUT_MS = 60_000;
+
+export async function apiFetch<T = unknown>(
+  path: string,
+  options: RequestInit & { timeoutMs?: number } = {},
+): Promise<T> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...init } = options;
   const token = getToken();
-  const headers = new Headers(options.headers);
-  if (!headers.has("Content-Type") && options.body) headers.set("Content-Type", "application/json");
+  const headers = new Headers(init.headers);
+  if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const res = await fetch(`${resolveApiUrl()}${path}`, { ...options, headers });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-
-  if (!res.ok) {
-    if (res.status === 401) clearToken();
-    const message = (data && (data.message || data.error)) || `Erro ${res.status}`;
-    throw new ApiError(res.status, Array.isArray(message) ? message.join(", ") : String(message));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${resolveApiUrl()}${path}`, { ...init, headers, signal: controller.signal });
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
+    if (!res.ok) {
+      if (res.status === 401) clearToken();
+      const message = (data && (data.message || data.error)) || `Erro ${res.status}`;
+      throw new ApiError(res.status, Array.isArray(message) ? message.join(", ") : String(message));
+    }
+    return data as T;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(0, "A requisição demorou demais para responder. Verifique sua conexão e tente novamente.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  return data as T;
 }
 
 // ---- Auth ----
