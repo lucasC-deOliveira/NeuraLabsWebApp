@@ -71,7 +71,7 @@ export function MiniGraphModal({ open, onOpenChange, title, tipo, id }: MiniGrap
             error={error}
             graph={graph}
             onNodeClick={recenter}
-            complete={active ? <CompleteWithAi type={active.type} id={active.id} label={active.label} onCompleted={reload} /> : null}
+            complete={active ? <CompleteWithAi type={active.type} id={active.id} onCompleted={reload} /> : null}
           />
         </div>
         {active && graph && graph.nodes.length > 1 && (
