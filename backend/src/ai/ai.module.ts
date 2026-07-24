@@ -1,6 +1,13 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { FeynmanController } from './feynman.controller';
+import { GradeFeynmanExplanationUseCase } from '../modules/ai/application/use-cases/grade-feynman-explanation.use-case';
+import {
+  FEYNMAN_CONTEXT_SOURCE,
+  type FeynmanContextSource,
+} from '../modules/ai/domain/ports/feynman-context-source';
+import { PrismaFeynmanContextSource } from '../modules/ai/infrastructure/persistence/prisma-feynman-context.source';
 import { AuthModule } from '../auth/auth.module';
 import { SettingsModule } from '../settings/settings.module';
 import { GraphModule } from '../graph/graph.module';
@@ -293,9 +300,16 @@ const graphRelationRules: RelationRulesPort = {
     TokenUsageModule,
     MulterModule.register({ storage: memoryStorage() }),
   ],
-  controllers: [AiController],
+  controllers: [AiController, FeynmanController],
   providers: [
     { provide: LLM_PORT, useClass: OpenAiLlmAdapter },
+    { provide: FEYNMAN_CONTEXT_SOURCE, useClass: PrismaFeynmanContextSource },
+    {
+      provide: GradeFeynmanExplanationUseCase,
+      useFactory: (source: FeynmanContextSource, llm: LlmPort) =>
+        new GradeFeynmanExplanationUseCase(source, llm),
+      inject: [FEYNMAN_CONTEXT_SOURCE, LLM_PORT],
+    },
     { provide: AI_CONFIG_RESOLVER, useFactory: aiConfigResolver, inject: [ResolveAiConfigUseCase] },
     { provide: DUPLICATE_NODES_REPOSITORY, useClass: PrismaDuplicateNodesRepository },
     { provide: EMBEDDING_CONFIG, useFactory: embeddingConfigFromEnv },
