@@ -32,7 +32,14 @@ const input: CompositionInput = {
       type: 'FLASHCARD',
       label: 'heap',
       chains: [
-        { conceitoId: 'c1', conceito: 'Heap', topicoId: null, topico: null, assuntoId: null, assunto: null },
+        {
+          conceitoId: 'c1',
+          conceito: 'Heap',
+          topicoId: null,
+          topico: null,
+          assuntoId: null,
+          assunto: null,
+        },
       ],
     },
   ],

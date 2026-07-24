@@ -8,7 +8,8 @@ import type {
 } from '../../domain/ports/compose-into-graph-repository';
 import type { CompositionGraph } from '../../domain/composition-views';
 
-const edgeKey = (origem: string, destino: string, rel: string): string => `${origem}->${destino}->${rel}`;
+const edgeKey = (origem: string, destino: string, rel: string): string =>
+  `${origem}->${destino}->${rel}`;
 
 interface EdgeRow {
   nodeOrigemId: string;
@@ -17,7 +18,11 @@ interface EdgeRow {
 }
 
 // Arestas da composição (traduzidas para ids de nó) que ainda não existem.
-function pendingEdges(graph: CompositionGraph, idMap: Map<string, string>, seen: Set<string>): EdgeRow[] {
+function pendingEdges(
+  graph: CompositionGraph,
+  idMap: Map<string, string>,
+  seen: Set<string>,
+): EdgeRow[] {
   return graph.edges
     .map((e) => ({
       nodeOrigemId: idMap.get(e.source) ?? '',
@@ -39,7 +44,9 @@ async function createEdges(
     where: { nodeOrigemId: { in: nodeIds }, nodeDestinoId: { in: nodeIds } },
     select: { nodeOrigemId: true, nodeDestinoId: true, tipoRelacao: true },
   });
-  const seen = new Set(existing.map((e) => edgeKey(e.nodeOrigemId ?? '', e.nodeDestinoId ?? '', e.tipoRelacao)));
+  const seen = new Set(
+    existing.map((e) => edgeKey(e.nodeOrigemId ?? '', e.nodeDestinoId ?? '', e.tipoRelacao)),
+  );
   const toCreate = pendingEdges(graph, idMap, seen);
   if (toCreate.length > 0) await tx.conhecimentoAresta.createMany({ data: toCreate });
   return toCreate.length;
@@ -71,7 +78,11 @@ async function mergeIntoGrafo(
 export class PrismaComposeIntoGraphRepository implements ComposeIntoGraphRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async compose(userId: string, grafoId: string, graph: CompositionGraph): Promise<ComposeResult | null> {
+  async compose(
+    userId: string,
+    grafoId: string,
+    graph: CompositionGraph,
+  ): Promise<ComposeResult | null> {
     const grafo = await this.prisma.grafosConhecimento.findFirst({
       where: { id: grafoId, usuarioId: userId },
       select: { id: true },

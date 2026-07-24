@@ -24,7 +24,12 @@ function toChain(tag: ConceptTag): ConceptChainItem {
   };
 }
 
-function toLeaf(id: string, type: 'FLASHCARD' | 'QUESTION', label: string, tags: ConceptTag[]): LeafInput {
+function toLeaf(
+  id: string,
+  type: 'FLASHCARD' | 'QUESTION',
+  label: string,
+  tags: ConceptTag[],
+): LeafInput {
   return { id, type, label, chains: tags.map(toChain) };
 }
 
@@ -73,19 +78,31 @@ export class PrismaCompositionSource implements CompositionSource {
       select: { id: true, titulo: true, flashcards: { select: { id: true, pergunta: true } } },
     });
     if (!b) return null;
-    const tags = await this.connected.forFlashcards(userId, b.flashcards.map((f) => f.id));
-    const leaves = b.flashcards.map((f) => toLeaf(f.id, 'FLASHCARD', f.pergunta, tags.get(f.id) ?? []));
+    const tags = await this.connected.forFlashcards(
+      userId,
+      b.flashcards.map((f) => f.id),
+    );
+    const leaves = b.flashcards.map((f) =>
+      toLeaf(f.id, 'FLASHCARD', f.pergunta, tags.get(f.id) ?? []),
+    );
     return { root: { id: b.id, type: 'BARALHO', label: b.titulo }, rootIsLeaf: false, leaves };
   }
 
   private async prova(userId: string, id: string): Promise<CompositionInput | null> {
     const p = await this.prisma.prova.findFirst({
       where: { id, usuarioId: userId },
-      select: { id: true, titulo: true, questoes: { select: { questao: { select: { id: true, enunciado: true } } } } },
+      select: {
+        id: true,
+        titulo: true,
+        questoes: { select: { questao: { select: { id: true, enunciado: true } } } },
+      },
     });
     if (!p) return null;
     const questoes = p.questoes.map((pq) => pq.questao);
-    const tags = await this.connected.forQuestions(userId, questoes.map((q) => q.id));
+    const tags = await this.connected.forQuestions(
+      userId,
+      questoes.map((q) => q.id),
+    );
     const leaves = questoes.map((q) => toLeaf(q.id, 'QUESTION', q.enunciado, tags.get(q.id) ?? []));
     return { root: { id: p.id, type: 'PROVA', label: p.titulo }, rootIsLeaf: false, leaves };
   }
