@@ -50,16 +50,18 @@ conceito e o progresso é **rastreado** (clareza no tempo + re-explicação espa
   conceitoId?}], analogia: string, reescrita: string }`.
 - Loop de refino até "claro"; a saída alimenta o feedback, o rastreio e (se salvar) a Nota.
 
-## Fases
-- **F1 — IA + contrato:** use-case `GradeFeynmanExplanation` (LlmPort) + endpoint
-  `POST /ai/feynman/grade` `{ alvoTipo, alvoId, texto }`; monta o contexto do alvo.
-- **F2 — Persistência + rastreio:** modelos `ExplicacaoFeynman`/`EstadoFeynman`
-  (migração aditiva); salvar tentativa; SM-2-lite por clareza.
-- **F3 — Superfícies:** tela/modal Feynman (explicação + feedback + refino), reusável;
-  ação no conceito (grafo/listagem) e no flashcard; salvar como Nota.
-- **F4 — Modo de estudo em série:** varredura por escopo (baralho/assunto/problemas).
-- **F5 — Analytics:** aba "Feynman" (clareza no tempo, conceitos explicados, lacunas
-  fechadas) reusando o módulo analytics.
+## Fases (todas concluídas)
+- ✅ **F1 — IA:** `GradeFeynmanExplanationUseCase` (LlmPort) + `POST /feynman/grade`.
+- ✅ **F2 — Persistência + rastreio:** `ExplicacaoFeynman`/`EstadoFeynman` (migração
+  aditiva), SM-2-lite (`nextFeynmanReview`), `POST /feynman/attempts`, botão "Salvar".
+- ✅ **F3 — Superfícies:** FeynmanModal/FeynmanPanel; ação no flashcard (listagem) e
+  no conceito/flashcard (painel do grafo).
+- ✅ **F4 — Modo em série:** `FeynmanSeriesModal` varre os conceitos de um baralho.
+- ✅ **F5 — Analytics:** aba "Feynman" (clareza no tempo + totais), `GET /analytics/feynman`.
+
+> Pendência conhecida: "salvar como **Nota** no grafo" (a explicação vira nó de NOTA
+> ligado ao conceito) — hoje salva o histórico/agendamento (o rastreio); a criação do
+> nó de nota fica para um passo futuro.
 
 ## Decisões (todas travadas)
 1. ✅ **Subtipo da Nota:** reusar `EXPLICACAO` (sem mudança de schema).
