@@ -14,3 +14,23 @@ export function gradeFeynman(
     timeoutMs: 60_000,
   });
 }
+
+// Persiste a explicação avaliada (histórico + agendamento de re-explicação).
+export function saveFeynmanAttempt(
+  alvoTipo: FeynmanAlvoTipo,
+  alvoId: string,
+  texto: string,
+  feedback: FeynmanFeedback,
+): Promise<void> {
+  return apiFetch<void>("/feynman/attempts", {
+    method: "POST",
+    body: JSON.stringify({
+      alvoTipo,
+      alvoId,
+      texto,
+      clareza: feedback.clareza,
+      lacunas: feedback.lacunas,
+      jargao: feedback.jargao,
+    }),
+  });
+}

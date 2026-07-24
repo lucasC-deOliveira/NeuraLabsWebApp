@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { SparklesIcon, Loader2Icon, LightbulbIcon } from "lucide-react";
+import { toast } from "sonner";
+import { SparklesIcon, Loader2Icon, LightbulbIcon, SaveIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { gradeFeynman } from "@/lib/feynman-api";
+import { gradeFeynman, saveFeynmanAttempt } from "@/lib/feynman-api";
 import type { FeynmanAlvoTipo, FeynmanFeedback } from "./feynman.types";
 import { FeynmanFeedbackView } from "./FeynmanFeedbackView";
 
@@ -28,6 +29,7 @@ export function FeynmanModal({ open, onOpenChange, alvoTipo, alvoId, title }: Fe
   const [texto, setTexto] = useState("");
   const [feedback, setFeedback] = useState<FeynmanFeedback | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prevId, setPrevId] = useState<string | null>(null);
 
@@ -47,6 +49,15 @@ export function FeynmanModal({ open, onOpenChange, alvoTipo, alvoId, title }: Fe
       .then((fb) => setFeedback(fb))
       .catch((e) => setError(e instanceof Error ? e.message : "Erro ao avaliar."))
       .finally(() => setLoading(false));
+  };
+
+  const salvar = (): void => {
+    if (!alvoId || !feedback) return;
+    setSaving(true);
+    saveFeynmanAttempt(alvoTipo, alvoId, texto, feedback)
+      .then(() => toast.success("Explicação salva — a re-explicação foi agendada."))
+      .catch(() => toast.error("Não foi possível salvar a explicação."))
+      .finally(() => setSaving(false));
   };
 
   return (
@@ -74,6 +85,12 @@ export function FeynmanModal({ open, onOpenChange, alvoTipo, alvoId, title }: Fe
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2 border-t pt-3">
+          {feedback && (
+            <Button variant="outline" onClick={salvar} disabled={saving} className="gap-2">
+              {saving ? <Loader2Icon className="size-4 animate-spin" /> : <SaveIcon className="size-4" />}
+              Salvar
+            </Button>
+          )}
           <Button onClick={avaliar} disabled={loading || !texto.trim()} className="gap-2">
             {loading ? <Loader2Icon className="size-4 animate-spin" /> : <SparklesIcon className="size-4" />}
             {feedback ? "Reavaliar" : "Avaliar com IA"}

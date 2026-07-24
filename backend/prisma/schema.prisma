@@ -18,28 +18,30 @@ model Usuario {
   dataCriacao  DateTime  @default(now()) @map("data_criacao")
   ultimoAcesso DateTime? @map("ultimo_acesso")
 
-  flashcards        Flashcard[]
-  sessoesEstudo     SessaoEstudo[]
-  aprendizagens     AprendizadoFlashcard[]
-  desempenhoNos     DesempenhoNo[]
-  notas             Nota[]
-  textosBrutos      TextoBruto[]
-  baralhos          Baralho[]
-  configAI          ConfigAI?
-  assuntos          Assunto[]
-  nodesConhecimento NodeConhecimento[]
-  grafos            GrafosConhecimento[]
-  topicos           Topico[]
-  conceitos         Conceito[]
-  questoes          Questao[]
-  provas            Prova[]
-  editais           Edital[]
-  roadmapTrilhas    RoadmapTrilha[]
-  nodeEmbeddings    NodeEmbedding[]
-  duplicateVerdicts DuplicateVerdictCache[]
-  nodeInsights      NodeInsightsCache[]
-  graphViewCache    GraphViewCache[]
-  tentativasProva   TentativaProva[]
+  flashcards         Flashcard[]
+  sessoesEstudo      SessaoEstudo[]
+  aprendizagens      AprendizadoFlashcard[]
+  desempenhoNos      DesempenhoNo[]
+  notas              Nota[]
+  textosBrutos       TextoBruto[]
+  baralhos           Baralho[]
+  configAI           ConfigAI?
+  assuntos           Assunto[]
+  nodesConhecimento  NodeConhecimento[]
+  grafos             GrafosConhecimento[]
+  topicos            Topico[]
+  conceitos          Conceito[]
+  questoes           Questao[]
+  provas             Prova[]
+  editais            Edital[]
+  roadmapTrilhas     RoadmapTrilha[]
+  nodeEmbeddings     NodeEmbedding[]
+  duplicateVerdicts  DuplicateVerdictCache[]
+  nodeInsights       NodeInsightsCache[]
+  graphViewCache     GraphViewCache[]
+  tentativasProva    TentativaProva[]
+  explicacoesFeynman ExplicacaoFeynman[]
+  estadosFeynman     EstadoFeynman[]
 
   @@map("usuarios")
 }
@@ -99,8 +101,8 @@ model Questao {
   explicacao   String?
   dataCriacao  DateTime    @default(now()) @map("data_criacao")
 
-  usuario       Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  conceito      Conceito?       @relation(fields: [conceitoId], references: [id], onDelete: SetNull)
+  usuario       Usuario           @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  conceito      Conceito?         @relation(fields: [conceitoId], references: [id], onDelete: SetNull)
   provasQuestao ProvaQuestao[]
   imagens       QuestaoImagem[]
   respostas     RespostaQuestao[]
@@ -497,16 +499,16 @@ model ConhecimentoAresta {
   notaOrigemId  String? @map("id_nota_origem")
   notaDestinoId String? @map("id_nota_destino")
 
-  tipoRelacao TipoRelacao
-  peso        Float       @default(1.0)
+  tipoRelacao       TipoRelacao
+  peso              Float       @default(1.0)
   // Timestamp de modificação: sem ele, editar peso/tipo (sem mudar a contagem) não
   // seria detectado pela assinatura do cache da view. @updatedAt bumpa em create/edit.
-  ultimaAtualizacao DateTime @default(now()) @updatedAt @map("ultima_atualizacao")
+  ultimaAtualizacao DateTime    @default(now()) @updatedAt @map("ultima_atualizacao")
 
-  nodeOrigem  NodeConhecimento?   @relation("NodeOrigem", fields: [nodeOrigemId], references: [id], onDelete: Cascade)
-  nodeDestino NodeConhecimento?   @relation("NodeDestino", fields: [nodeDestinoId], references: [id], onDelete: Cascade)
-  notaOrigem  Nota?               @relation("ArestaNotaOrigem", fields: [notaOrigemId], references: [id], onDelete: Cascade)
-  notaDestino Nota?               @relation("ArestaNotaDestino", fields: [notaDestinoId], references: [id], onDelete: Cascade)
+  nodeOrigem  NodeConhecimento? @relation("NodeOrigem", fields: [nodeOrigemId], references: [id], onDelete: Cascade)
+  nodeDestino NodeConhecimento? @relation("NodeDestino", fields: [nodeDestinoId], references: [id], onDelete: Cascade)
+  notaOrigem  Nota?             @relation("ArestaNotaOrigem", fields: [notaOrigemId], references: [id], onDelete: Cascade)
+  notaDestino Nota?             @relation("ArestaNotaDestino", fields: [notaDestinoId], references: [id], onDelete: Cascade)
 
   @@unique([nodeOrigemId, nodeDestinoId, tipoRelacao], name: "_edge_uk")
 }
@@ -632,4 +634,37 @@ model AppConfig {
   atualizadoEm       DateTime @default(now()) @updatedAt @map("atualizado_em")
 
   @@map("app_config")
+}
+
+// Uma tentativa de explicação pela Técnica Feynman (histórico → analytics).
+model ExplicacaoFeynman {
+  id          String   @id @default(cuid())
+  usuarioId   String   @map("id_usuario")
+  alvoTipo    String   @map("alvo_tipo") // CONCEITO | FLASHCARD
+  alvoId      String   @map("alvo_id")
+  texto       String
+  clareza     Int
+  lacunas     Json?
+  jargao      Json?
+  dataCriacao DateTime @default(now()) @map("data_criacao")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, alvoTipo, alvoId])
+  @@map("explicacoes_feynman")
+}
+
+// Estado de re-explicação (SM-2-lite) por alvo: quando revisar de novo.
+model EstadoFeynman {
+  usuarioId      String   @map("id_usuario")
+  alvoTipo       String   @map("alvo_tipo")
+  alvoId         String   @map("alvo_id")
+  ultimaClareza  Int      @map("ultima_clareza")
+  intervalo      Int      @default(0) // dias
+  proximaRevisao DateTime @default(now()) @map("proxima_revisao")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, alvoTipo, alvoId])
+  @@map("estados_feynman")
 }
