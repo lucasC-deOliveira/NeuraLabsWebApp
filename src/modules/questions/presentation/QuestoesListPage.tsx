@@ -21,6 +21,10 @@ import {
 import { useQuestoesList } from "./hooks/useQuestoesList";
 import { QuestoesFilters } from "./components/QuestoesFilters";
 import { QuestaoCard } from "./components/QuestaoCard";
+import { QuestaoItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/QuestaoItemAnalyticsModal";
+import { StudyProvaModal } from "@/modules/graph/presentation/components/deck/StudyProvaModal";
+import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
+import type { QuestaoListItem } from "../domain/questao.types";
 
 // 10 por página: os cartões são altos (enunciado + alternativas quando expandido).
 const PAGE_SIZE = 10;
@@ -50,6 +54,9 @@ export function QuestoesListPage() {
   const { questoes, loading, reload } = useQuestoesList();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [analyticsId, setAnalyticsId] = useState<string | null>(null);
+  const [studyId, setStudyId] = useState<string | null>(null);
+  const [graphQuestao, setGraphQuestao] = useState<QuestaoListItem | null>(null);
   const [criteria, setCriteria] = useState<QuestaoCriteria>(DEFAULT_QUESTAO_CRITERIA);
   const [page, setPage] = useState(1);
 
@@ -133,6 +140,9 @@ export function QuestoesListPage() {
                   deleting={deletingId === q.id}
                   onToggle={() => setExpandedId(expandedId === q.id ? null : q.id)}
                   onDelete={() => handleDelete(q.id)}
+                  onAnalytics={() => setAnalyticsId(q.id)}
+                  onStudy={() => setStudyId(q.id)}
+                  onGraph={() => setGraphQuestao(q)}
                   onSelectTag={selectTag}
                 />
               ))}
@@ -141,6 +151,24 @@ export function QuestoesListPage() {
           <Pagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
         </>
       )}
+      <QuestaoItemAnalyticsModal
+        open={analyticsId !== null}
+        onOpenChange={(open) => !open && setAnalyticsId(null)}
+        questaoId={analyticsId}
+      />
+      <StudyProvaModal
+        open={studyId !== null}
+        onOpenChange={(open) => !open && setStudyId(null)}
+        provaId={null}
+        questaoId={studyId}
+      />
+      <MiniGraphModal
+        open={!!graphQuestao}
+        onOpenChange={(open) => !open && setGraphQuestao(null)}
+        title={graphQuestao?.enunciado ?? "Mini-grafo"}
+        tipo="questao"
+        id={graphQuestao?.id ?? null}
+      />
     </PageContainer>
   );
 }

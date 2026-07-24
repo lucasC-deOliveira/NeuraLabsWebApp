@@ -26,12 +26,28 @@ import { FlashcardCard } from "./components/FlashcardCard";
 import { FlashcardDetailDialog } from "./components/FlashcardDetailDialog";
 import { FlashcardEditDialog, type FlashcardForm } from "./components/FlashcardEditDialog";
 import { FlashcardDeleteDialogs } from "./components/FlashcardDeleteDialogs";
+import { FlashcardItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/FlashcardItemAnalyticsModal";
+import { StudyFlashcardModal } from "@/modules/graph/presentation/components/deck/StudyFlashcardModal";
+import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
 
 const DEFAULT_CRITERIA: FlashcardCriteria = {
   search: "", assuntoFilter: "", topicoFilter: "", tipoFilter: "", statusFilter: "all", sortBy: "date",
 };
 const EMPTY_FORM: FlashcardForm = { pergunta: "", resposta: "", conceitoId: "" };
 const PAGE_SIZE = 12;
+
+// Mini-grafo de conceitos da carta; extraído para não inflar a complexidade da lista.
+function FlashcardMiniGraph({ card, onClose }: { card: FlashcardItem | null; onClose: () => void }) {
+  return (
+    <MiniGraphModal
+      open={!!card}
+      onOpenChange={(open) => !open && onClose()}
+      title={card?.pergunta ?? "Mini-grafo"}
+      tipo="flashcard"
+      id={card?.id ?? null}
+    />
+  );
+}
 
 export function FlashcardsListPage() {
   const { snapshot, loading, reload } = useFlashcardsData();
@@ -49,6 +65,9 @@ export function FlashcardsListPage() {
   const [deleteTarget, setDeleteTarget] = useState<FlashcardItem | null>(null);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [detailCard, setDetailCard] = useState<FlashcardItem | null>(null);
+  const [analyticsCardId, setAnalyticsCardId] = useState<string | null>(null);
+  const [studyCardId, setStudyCardId] = useState<string | null>(null);
+  const [graphCard, setGraphCard] = useState<FlashcardItem | null>(null);
 
   // Toda mudança de filtro/busca/ordenação volta para a página 1.
   const patch = (p: Partial<FlashcardCriteria>): void => {
@@ -214,6 +233,9 @@ export function FlashcardsListPage() {
                 onDetail={() => setDetailCard(fc)}
                 onEdit={() => openEdit(fc)}
                 onDelete={() => setDeleteTarget(fc)}
+                onAnalytics={() => setAnalyticsCardId(fc.id)}
+                onStudy={() => setStudyCardId(fc.id)}
+                onGraph={() => setGraphCard(fc)}
                 onFilter={patch}
               />
             ))}
@@ -227,6 +249,17 @@ export function FlashcardsListPage() {
         onClose={() => setDetailCard(null)}
         onEdit={() => { const c = detailCard; setDetailCard(null); if (c) openEdit(c); }}
       />
+      <FlashcardItemAnalyticsModal
+        open={!!analyticsCardId}
+        onOpenChange={(open) => !open && setAnalyticsCardId(null)}
+        flashcardId={analyticsCardId}
+      />
+      <StudyFlashcardModal
+        open={!!studyCardId}
+        onOpenChange={(open) => { if (!open) { setStudyCardId(null); void reload(); } }}
+        flashcardId={studyCardId}
+      />
+      <FlashcardMiniGraph card={graphCard} onClose={() => setGraphCard(null)} />
       <FlashcardEditDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}

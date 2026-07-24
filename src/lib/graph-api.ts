@@ -1,6 +1,7 @@
 // Cliente do grafo: mesmas assinaturas das antigas server actions, mas chamando
 // a API NestJS. Components/hooks só trocam o import (@/actions/graph → @/lib/graph-api).
 import { apiFetch } from "./api";
+import type { CompositionGraph, CompositionTipo } from "@/components/mini-graph/composition.types";
 import type {
   GrafoRefMeta,
   GraphNodeType,
@@ -252,4 +253,23 @@ export interface EntityGraphRef {
 }
 export function graphsContaining(tipo: string, refId: string): Promise<EntityGraphRef[]> {
   return apiFetch(`/graph/containing/${tipo}/${encodeURIComponent(refId)}`);
+}
+
+// Subgrafo composto de um item (mini-grafo). `tipo`: flashcard|questao|baralho|prova.
+export function getItemComposition(tipo: CompositionTipo, id: string): Promise<CompositionGraph> {
+  return apiFetch<CompositionGraph>(`/graph/composition/${tipo}/${encodeURIComponent(id)}`, {
+    timeoutMs: 20_000,
+  });
+}
+
+// Importa um item num grafo COMPONDO tudo (item + hierarquia), mesclado.
+export function composeItemIntoGraph(
+  grafoId: string,
+  tipo: CompositionTipo,
+  id: string,
+): Promise<{ nodes: number; edges: number }> {
+  return apiFetch(`/graph/graphs/${encodeURIComponent(grafoId)}/compose`, {
+    method: "POST",
+    body: JSON.stringify({ tipo, id }),
+  });
 }

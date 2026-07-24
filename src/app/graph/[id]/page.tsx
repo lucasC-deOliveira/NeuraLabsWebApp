@@ -84,6 +84,10 @@ import { ImproveNotaModal } from "@/modules/graph/presentation/components/ai/Imp
 import { NodeInsightsModal } from "@/modules/graph/presentation/components/ai/NodeInsightsModal";
 import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
 import { ViewDeckModal } from "@/modules/graph/presentation/components/deck/ViewDeckModal";
+import { DeckAnalyticsModal } from "@/modules/analytics/presentation/components/modals/DeckAnalyticsModal";
+import { ProvaAnalyticsModal } from "@/modules/analytics/presentation/components/modals/ProvaAnalyticsModal";
+import { FlashcardItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/FlashcardItemAnalyticsModal";
+import { QuestaoItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/QuestaoItemAnalyticsModal";
 import { VaultSyncModal } from "@/modules/graph/presentation/components/vault/VaultSyncModal";
 import { GraphDashboard } from "@/modules/graph/presentation/components/dashboard/GraphDashboard";
 import { isDesktop } from "@/lib/vault-bridge";
@@ -202,6 +206,8 @@ export default function GraphPage() {
   const [improveNotaId, setImproveNotaId] = useState<string | null>(null);
   const [studyDeckId, setStudyDeckId] = useState<string | null>(null);
   const [viewDeckId, setViewDeckId] = useState<string | null>(null);
+  // Nó cujo analytics está aberto em modal (baralho/prova/flashcard/questão).
+  const [analyticsNode, setAnalyticsNode] = useState<{ kind: string; id: string } | null>(null);
   const [editEdge, setEditEdge] = useState<any>(null);
   const [addEdgeSourceId, setAddEdgeSourceId] = useState<string | null>(null);
   const [grafoInfo, setGrafoInfo] = useState<GrafoInfoDetail | null>(null);
@@ -1199,6 +1205,11 @@ export default function GraphPage() {
           onViewDeck={() => setViewDeckId(controller.state.selectedNode?.id ?? null)}
           onStudyProva={() => setStudyProvaId(controller.state.selectedNode?.id ?? null)}
           onStudyQuestao={() => setStudyQuestaoId(controller.state.selectedNode?.id ?? null)}
+          onViewAnalytics={() => {
+            const node = controller.state.selectedNode;
+            if (!node) return;
+            setAnalyticsNode({ kind: node.tipoReal, id: node.id });
+          }}
           onLinkEdital={() => setLinkEditalOpen(true)}
           onGenerateDeck={handleGenerateDeck}
           onStudyNeighborhood={() => {
@@ -1528,6 +1539,26 @@ export default function GraphPage() {
         baralhoId={viewDeckId}
         grafoId={graphId}
         grafoNome={controller.state.grafoNome}
+      />
+      <DeckAnalyticsModal
+        open={analyticsNode?.kind === "BARALHO"}
+        onOpenChange={(open) => !open && setAnalyticsNode(null)}
+        baralhoId={analyticsNode?.kind === "BARALHO" ? analyticsNode.id : null}
+      />
+      <ProvaAnalyticsModal
+        open={analyticsNode?.kind === "PROVA"}
+        onOpenChange={(open) => !open && setAnalyticsNode(null)}
+        provaId={analyticsNode?.kind === "PROVA" ? analyticsNode.id : null}
+      />
+      <FlashcardItemAnalyticsModal
+        open={analyticsNode?.kind === "FLASHCARD"}
+        onOpenChange={(open) => !open && setAnalyticsNode(null)}
+        flashcardId={analyticsNode?.kind === "FLASHCARD" ? analyticsNode.id : null}
+      />
+      <QuestaoItemAnalyticsModal
+        open={analyticsNode?.kind === "QUESTION"}
+        onOpenChange={(open) => !open && setAnalyticsNode(null)}
+        questaoId={analyticsNode?.kind === "QUESTION" ? analyticsNode.id : null}
       />
       <CommunitiesPanel
         open={communitiesOpen}

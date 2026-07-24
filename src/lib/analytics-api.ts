@@ -3,6 +3,8 @@ import { apiFetch } from "./api";
 import type { FlashcardAnalytics } from "@/modules/analytics/domain/analytics.types";
 import type { ProvaAnalytics } from "@/modules/analytics/domain/prova-analytics.types";
 import type { DeckAnalytics } from "@/modules/analytics/domain/deck-analytics.types";
+import type { FlashcardItemAnalytics } from "@/modules/analytics/domain/flashcard-item.types";
+import type { QuestaoItemAnalytics } from "@/modules/analytics/domain/questao-item.types";
 
 // `days` filtra a janela; `baralhoId`/`assuntoId` restringem as cartas (opcionais).
 export function getFlashcardAnalytics(
@@ -25,4 +27,18 @@ export function getProvaAnalytics(days: number, provaId?: string): Promise<Prova
 
 export function getDeckAnalytics(days: number): Promise<DeckAnalytics> {
   return apiFetch<DeckAnalytics>(`/analytics/decks?days=${days}`, { timeoutMs: 20_000 });
+}
+
+// Analytics de UMA carta (histórico daquele flashcard).
+export function getFlashcardItemAnalytics(id: string): Promise<FlashcardItemAnalytics> {
+  return apiFetch<FlashcardItemAnalytics>(`/analytics/flashcards/${encodeURIComponent(id)}`, {
+    timeoutMs: 20_000,
+  });
+}
+
+// Analytics de UMA questão (respostas daquele item nas tentativas).
+export function getQuestaoItemAnalytics(id: string): Promise<QuestaoItemAnalytics> {
+  return apiFetch<QuestaoItemAnalytics>(`/analytics/questoes/${encodeURIComponent(id)}`, {
+    timeoutMs: 20_000,
+  });
 }

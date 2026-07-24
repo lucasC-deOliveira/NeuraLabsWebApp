@@ -6,6 +6,7 @@ import type {
   ProblemCardRow,
   ReviewRow,
 } from '../../domain/ports/flashcard-analytics-source';
+import { REVIEW_SELECT, toReviewRow } from './review-row.mapper';
 
 // Linha do groupBy de revisões por carta.
 interface CardCount {
@@ -24,31 +25,6 @@ function cardFilter(baralhoId?: string, assuntoId?: string): { flashcard?: Flash
   if (baralhoId) flashcard.baralhos = { some: { id: baralhoId } };
   if (assuntoId) flashcard.conceito = { topico: { assuntoId } };
   return Object.keys(flashcard).length > 0 ? { flashcard } : {};
-}
-
-const REVIEW_SELECT = {
-  acertou: true,
-  nivelConfianca: true,
-  tempoResposta: true,
-  tipoErro: true,
-  sessao: { select: { dataInicio: true } },
-} as const;
-
-interface RawReview {
-  acertou: boolean;
-  nivelConfianca: number;
-  tempoResposta: number | null;
-  tipoErro: string | null;
-  sessao: { dataInicio: Date };
-}
-function toReviewRow(row: RawReview): ReviewRow {
-  return {
-    data: row.sessao.dataInicio,
-    acertou: row.acertou,
-    nivelConfianca: row.nivelConfianca,
-    tempoResposta: row.tempoResposta,
-    tipoErro: row.tipoErro,
-  };
 }
 
 // Cruza total x erros por carta e mantém só as que erraram ao menos uma vez.

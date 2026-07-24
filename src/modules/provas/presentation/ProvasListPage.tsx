@@ -6,7 +6,7 @@ import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header/PageHeader";
-import { PlusIcon, Trash2Icon, ClipboardListIcon, ChevronRightIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, ClipboardListIcon, ChevronRightIcon, BarChart3Icon, GraduationCapIcon, NetworkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { paginate } from "@/lib/paginate";
 import { Pagination } from "@/components/pagination";
@@ -19,6 +19,7 @@ import {
 } from "../domain/services/prova-filters";
 import { useProvasList } from "./hooks/useProvasList";
 import { ProvasFilters } from "./components/ProvasFilters";
+import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
 
 // 11 por página: as linhas são baixas, cabem mais que os cartões de questão.
 const PAGE_SIZE = 11;
@@ -40,10 +41,13 @@ function EmptyState() {
   );
 }
 
-function ProvaRow({ prova, deleting, onDelete }: {
+function ProvaRow({ prova, deleting, onDelete, onAnalytics, onStudy, onGraph }: {
   prova: ProvaListItem;
   deleting: boolean;
   onDelete: (e: React.MouseEvent) => void;
+  onAnalytics: (e: React.MouseEvent) => void;
+  onStudy: (e: React.MouseEvent) => void;
+  onGraph: (e: React.MouseEvent) => void;
 }) {
   return (
     <Link
@@ -66,6 +70,27 @@ function ProvaRow({ prova, deleting, onDelete }: {
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <button
+          className="text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+          onClick={onGraph}
+          title="Ver mini-grafo"
+        >
+          <NetworkIcon className="size-4" />
+        </button>
+        <button
+          className="text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+          onClick={onStudy}
+          title="Estudar esta prova"
+        >
+          <GraduationCapIcon className="size-4" />
+        </button>
+        <button
+          className="text-zinc-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+          onClick={onAnalytics}
+          title="Ver analytics"
+        >
+          <BarChart3Icon className="size-4" />
+        </button>
+        <button
           className="text-zinc-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
           onClick={onDelete}
           disabled={deleting}
@@ -81,9 +106,16 @@ function ProvaRow({ prova, deleting, onDelete }: {
 
 const contarProvas = (n: number): string => `${n} prova${n !== 1 ? "s" : ""}`;
 
-export function ProvasListPage() {
+// `onOpenAnalytics`/`onOpenStudy` são injetados pela camada de app
+// (src/app/provas/page.tsx): esses modais vivem fora deste módulo, que só pode
+// cruzar contexto para `questions` (regra arch `provas-so-consome-questions`).
+export function ProvasListPage({ onOpenAnalytics, onOpenStudy }: {
+  onOpenAnalytics?: (provaId: string) => void;
+  onOpenStudy?: (provaId: string) => void;
+}) {
   const { provas, loading, remove } = useProvasList();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [graphProva, setGraphProva] = useState<ProvaListItem | null>(null);
   const [criteria, setCriteria] = useState<ProvaCriteria>(DEFAULT_PROVA_CRITERIA);
   const [page, setPage] = useState(1);
 
@@ -149,13 +181,28 @@ export function ProvasListPage() {
           ) : (
             <div className="space-y-3">
               {paged.items.map((p) => (
-                <ProvaRow key={p.id} prova={p} deleting={deletingId === p.id} onDelete={(e) => handleDelete(e, p.id)} />
+                <ProvaRow
+                  key={p.id}
+                  prova={p}
+                  deleting={deletingId === p.id}
+                  onDelete={(e) => handleDelete(e, p.id)}
+                  onAnalytics={(e) => { e.preventDefault(); e.stopPropagation(); onOpenAnalytics?.(p.id); }}
+                  onStudy={(e) => { e.preventDefault(); e.stopPropagation(); onOpenStudy?.(p.id); }}
+                  onGraph={(e) => { e.preventDefault(); e.stopPropagation(); setGraphProva(p); }}
+                />
               ))}
             </div>
           )}
           <Pagination page={paged.page} totalPages={paged.totalPages} onPage={setPage} />
         </>
       )}
+      <MiniGraphModal
+        open={!!graphProva}
+        onOpenChange={(open) => !open && setGraphProva(null)}
+        title={graphProva?.titulo ?? "Mini-grafo"}
+        tipo="prova"
+        id={graphProva?.id ?? null}
+      />
     </PageContainer>
   );
 }

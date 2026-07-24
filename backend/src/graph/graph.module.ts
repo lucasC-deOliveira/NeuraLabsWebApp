@@ -1,6 +1,19 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { GraphController } from './graph.controller';
+import { GetItemCompositionUseCase } from '../modules/graph/application/use-cases/get-item-composition.use-case';
+import { ComposeItemIntoGraphUseCase } from '../modules/graph/application/use-cases/compose-item-into-graph.use-case';
+import {
+  COMPOSITION_SOURCE,
+  type CompositionSource,
+} from '../modules/graph/domain/ports/composition-source';
+import {
+  COMPOSE_INTO_GRAPH_REPOSITORY,
+  type ComposeIntoGraphRepository,
+} from '../modules/graph/domain/ports/compose-into-graph-repository';
+import { PrismaCompositionSource } from '../modules/graph/infrastructure/persistence/prisma-composition.source';
+import { PrismaComposeIntoGraphRepository } from '../modules/graph/infrastructure/persistence/prisma-compose-into-graph.repository';
+import { PrismaConnectedConceptsQuery } from '../modules/curriculum/infrastructure/persistence/prisma-connected-concepts.query';
 import { CreateEdgeUseCase } from '../modules/graph/application/use-cases/create-edge.use-case';
 import { UpdateEdgeUseCase } from '../modules/graph/application/use-cases/update-edge.use-case';
 import { DeleteEdgeUseCase } from '../modules/graph/application/use-cases/delete-edge.use-case';
@@ -172,6 +185,20 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
     { provide: DECK_QUERY, useClass: PrismaDeckQuery },
     { provide: GRAPH_POSITION_REPOSITORY, useClass: PrismaGraphPositionRepository },
     { provide: AVAILABLE_ITEMS_QUERY, useClass: PrismaAvailableItemsQuery },
+    PrismaConnectedConceptsQuery,
+    { provide: COMPOSITION_SOURCE, useClass: PrismaCompositionSource },
+    { provide: COMPOSE_INTO_GRAPH_REPOSITORY, useClass: PrismaComposeIntoGraphRepository },
+    {
+      provide: GetItemCompositionUseCase,
+      useFactory: (source: CompositionSource) => new GetItemCompositionUseCase(source),
+      inject: [COMPOSITION_SOURCE],
+    },
+    {
+      provide: ComposeItemIntoGraphUseCase,
+      useFactory: (source: CompositionSource, repo: ComposeIntoGraphRepository) =>
+        new ComposeItemIntoGraphUseCase(source, repo),
+      inject: [COMPOSITION_SOURCE, COMPOSE_INTO_GRAPH_REPOSITORY],
+    },
     { provide: NODE_CREATION_REPOSITORY, useClass: PrismaNodeCreationRepository },
     { provide: NODE_UPDATE_REPOSITORY, useClass: PrismaNodeUpdateRepository },
     { provide: CREATE_DECK_REPOSITORY, useClass: PrismaCreateDeckRepository },
