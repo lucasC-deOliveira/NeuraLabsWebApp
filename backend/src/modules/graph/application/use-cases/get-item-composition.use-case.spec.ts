@@ -1,14 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { GetItemCompositionUseCase } from './get-item-composition.use-case';
-import type {
-  CompositionInput,
-  CompositionRootType,
-  CompositionSource,
-} from '../../domain/ports/composition-source';
+import type { CompositionInput, CompositionSource } from '../../domain/ports/composition-source';
 
 class FakeCompositionSource implements CompositionSource {
   constructor(private readonly input: CompositionInput | null) {}
-  load(_userId: string, _tipo: CompositionRootType, _id: string): Promise<CompositionInput | null> {
+  load(): Promise<CompositionInput | null> {
     return Promise.resolve(this.input);
   }
 }

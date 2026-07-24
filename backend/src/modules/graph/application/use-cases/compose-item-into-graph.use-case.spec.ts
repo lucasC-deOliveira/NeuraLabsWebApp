@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ComposeItemIntoGraphUseCase } from './compose-item-into-graph.use-case';
-import type {
-  CompositionInput,
-  CompositionRootType,
-  CompositionSource,
-} from '../../domain/ports/composition-source';
+import type { CompositionInput, CompositionSource } from '../../domain/ports/composition-source';
 import type {
   ComposeIntoGraphRepository,
   ComposeResult,
@@ -13,7 +9,7 @@ import type { CompositionGraph } from '../../domain/composition-views';
 
 class FakeSource implements CompositionSource {
   constructor(private readonly input: CompositionInput | null) {}
-  load(_u: string, _t: CompositionRootType, _i: string): Promise<CompositionInput | null> {
+  load(): Promise<CompositionInput | null> {
     return Promise.resolve(this.input);
   }
 }
