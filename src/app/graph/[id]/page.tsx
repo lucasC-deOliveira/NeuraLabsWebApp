@@ -88,6 +88,8 @@ import { DeckAnalyticsModal } from "@/modules/analytics/presentation/components/
 import { ProvaAnalyticsModal } from "@/modules/analytics/presentation/components/modals/ProvaAnalyticsModal";
 import { FlashcardItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/FlashcardItemAnalyticsModal";
 import { QuestaoItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/QuestaoItemAnalyticsModal";
+import { FeynmanModal } from "@/components/feynman/FeynmanModal";
+import type { FeynmanAlvoTipo } from "@/components/feynman/feynman.types";
 import { VaultSyncModal } from "@/modules/graph/presentation/components/vault/VaultSyncModal";
 import { GraphDashboard } from "@/modules/graph/presentation/components/dashboard/GraphDashboard";
 import { isDesktop } from "@/lib/vault-bridge";
@@ -208,6 +210,7 @@ export default function GraphPage() {
   const [viewDeckId, setViewDeckId] = useState<string | null>(null);
   // Nó cujo analytics está aberto em modal (baralho/prova/flashcard/questão).
   const [analyticsNode, setAnalyticsNode] = useState<{ kind: string; id: string } | null>(null);
+  const [feynmanNode, setFeynmanNode] = useState<{ tipo: string; id: string; label: string } | null>(null);
   const [editEdge, setEditEdge] = useState<any>(null);
   const [addEdgeSourceId, setAddEdgeSourceId] = useState<string | null>(null);
   const [grafoInfo, setGrafoInfo] = useState<GrafoInfoDetail | null>(null);
@@ -1210,6 +1213,11 @@ export default function GraphPage() {
             if (!node) return;
             setAnalyticsNode({ kind: node.tipoReal, id: node.id });
           }}
+          onFeynman={() => {
+            const node = controller.state.selectedNode;
+            if (!node) return;
+            setFeynmanNode({ tipo: node.tipoReal, id: node.id, label: node.label });
+          }}
           onLinkEdital={() => setLinkEditalOpen(true)}
           onGenerateDeck={handleGenerateDeck}
           onStudyNeighborhood={() => {
@@ -1559,6 +1567,13 @@ export default function GraphPage() {
         open={analyticsNode?.kind === "QUESTION"}
         onOpenChange={(open) => !open && setAnalyticsNode(null)}
         questaoId={analyticsNode?.kind === "QUESTION" ? analyticsNode.id : null}
+      />
+      <FeynmanModal
+        open={!!feynmanNode}
+        onOpenChange={(open) => !open && setFeynmanNode(null)}
+        alvoTipo={(feynmanNode?.tipo as FeynmanAlvoTipo) ?? "CONCEITO"}
+        alvoId={feynmanNode?.id ?? null}
+        title={feynmanNode?.label ?? ""}
       />
       <CommunitiesPanel
         open={communitiesOpen}
