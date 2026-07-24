@@ -29,12 +29,26 @@ import { FlashcardDeleteDialogs } from "./components/FlashcardDeleteDialogs";
 import { FlashcardItemAnalyticsModal } from "@/modules/analytics/presentation/components/modals/FlashcardItemAnalyticsModal";
 import { StudyFlashcardModal } from "@/modules/graph/presentation/components/deck/StudyFlashcardModal";
 import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
+import { FeynmanModal } from "@/components/feynman/FeynmanModal";
 
 const DEFAULT_CRITERIA: FlashcardCriteria = {
   search: "", assuntoFilter: "", topicoFilter: "", tipoFilter: "", statusFilter: "all", sortBy: "date",
 };
 const EMPTY_FORM: FlashcardForm = { pergunta: "", resposta: "", conceitoId: "" };
 const PAGE_SIZE = 12;
+
+// Feynman da carta; extraído para não inflar a complexidade da lista.
+function FlashcardFeynman({ card, onClose }: { card: FlashcardItem | null; onClose: () => void }) {
+  return (
+    <FeynmanModal
+      open={!!card}
+      onOpenChange={(open) => !open && onClose()}
+      alvoTipo="FLASHCARD"
+      alvoId={card?.id ?? null}
+      title={card?.pergunta ?? ""}
+    />
+  );
+}
 
 // Mini-grafo de conceitos da carta; extraído para não inflar a complexidade da lista.
 function FlashcardMiniGraph({ card, onClose }: { card: FlashcardItem | null; onClose: () => void }) {
@@ -68,6 +82,7 @@ export function FlashcardsListPage() {
   const [analyticsCardId, setAnalyticsCardId] = useState<string | null>(null);
   const [studyCardId, setStudyCardId] = useState<string | null>(null);
   const [graphCard, setGraphCard] = useState<FlashcardItem | null>(null);
+  const [feynmanCard, setFeynmanCard] = useState<FlashcardItem | null>(null);
 
   // Toda mudança de filtro/busca/ordenação volta para a página 1.
   const patch = (p: Partial<FlashcardCriteria>): void => {
@@ -236,6 +251,7 @@ export function FlashcardsListPage() {
                 onAnalytics={() => setAnalyticsCardId(fc.id)}
                 onStudy={() => setStudyCardId(fc.id)}
                 onGraph={() => setGraphCard(fc)}
+                onFeynman={() => setFeynmanCard(fc)}
                 onFilter={patch}
               />
             ))}
@@ -260,6 +276,7 @@ export function FlashcardsListPage() {
         flashcardId={studyCardId}
       />
       <FlashcardMiniGraph card={graphCard} onClose={() => setGraphCard(null)} />
+      <FlashcardFeynman card={feynmanCard} onClose={() => setFeynmanCard(null)} />
       <FlashcardEditDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}

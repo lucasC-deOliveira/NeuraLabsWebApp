@@ -1,6 +1,22 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { FeynmanController } from './feynman.controller';
+import { GradeFeynmanExplanationUseCase } from '../modules/ai/application/use-cases/grade-feynman-explanation.use-case';
+import { SaveFeynmanExplanationUseCase } from '../modules/ai/application/use-cases/save-feynman-explanation.use-case';
+import { SaveFeynmanSessionUseCase } from '../modules/ai/application/use-cases/save-feynman-session.use-case';
+import {
+  FEYNMAN_CONTEXT_SOURCE,
+  type FeynmanContextSource,
+} from '../modules/ai/domain/ports/feynman-context-source';
+import { FEYNMAN_STORE, type FeynmanStore } from '../modules/ai/domain/ports/feynman-store';
+import {
+  FEYNMAN_NOTE_PUBLISHER,
+  type FeynmanNotePublisher,
+} from '../modules/ai/domain/ports/feynman-note-publisher';
+import { PrismaFeynmanContextSource } from '../modules/ai/infrastructure/persistence/prisma-feynman-context.source';
+import { PrismaFeynmanStore } from '../modules/ai/infrastructure/persistence/prisma-feynman-store';
+import { PrismaFeynmanNotePublisher } from '../modules/ai/infrastructure/persistence/prisma-feynman-note-publisher';
 import { AuthModule } from '../auth/auth.module';
 import { SettingsModule } from '../settings/settings.module';
 import { GraphModule } from '../graph/graph.module';
@@ -293,9 +309,30 @@ const graphRelationRules: RelationRulesPort = {
     TokenUsageModule,
     MulterModule.register({ storage: memoryStorage() }),
   ],
-  controllers: [AiController],
+  controllers: [AiController, FeynmanController],
   providers: [
     { provide: LLM_PORT, useClass: OpenAiLlmAdapter },
+    { provide: FEYNMAN_CONTEXT_SOURCE, useClass: PrismaFeynmanContextSource },
+    { provide: FEYNMAN_STORE, useClass: PrismaFeynmanStore },
+    { provide: FEYNMAN_NOTE_PUBLISHER, useClass: PrismaFeynmanNotePublisher },
+    {
+      provide: GradeFeynmanExplanationUseCase,
+      useFactory: (source: FeynmanContextSource, llm: LlmPort) =>
+        new GradeFeynmanExplanationUseCase(source, llm),
+      inject: [FEYNMAN_CONTEXT_SOURCE, LLM_PORT],
+    },
+    {
+      provide: SaveFeynmanExplanationUseCase,
+      useFactory: (store: FeynmanStore, notes: FeynmanNotePublisher) =>
+        new SaveFeynmanExplanationUseCase(store, notes),
+      inject: [FEYNMAN_STORE, FEYNMAN_NOTE_PUBLISHER],
+    },
+    {
+      provide: SaveFeynmanSessionUseCase,
+      useFactory: (store: FeynmanStore, notes: FeynmanNotePublisher) =>
+        new SaveFeynmanSessionUseCase(store, notes),
+      inject: [FEYNMAN_STORE, FEYNMAN_NOTE_PUBLISHER],
+    },
     { provide: AI_CONFIG_RESOLVER, useFactory: aiConfigResolver, inject: [ResolveAiConfigUseCase] },
     { provide: DUPLICATE_NODES_REPOSITORY, useClass: PrismaDuplicateNodesRepository },
     { provide: EMBEDDING_CONFIG, useFactory: embeddingConfigFromEnv },

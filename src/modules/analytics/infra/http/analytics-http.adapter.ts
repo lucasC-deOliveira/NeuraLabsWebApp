@@ -3,6 +3,7 @@ import {
   getFlashcardAnalytics,
   getProvaAnalytics,
   getDeckAnalytics,
+  getFeynmanAnalytics,
   getFlashcardItemAnalytics,
   getQuestaoItemAnalytics,
 } from "@/lib/analytics-api";
@@ -13,6 +14,7 @@ import type { ProvaAnalytics } from "../../domain/prova-analytics.types";
 import type { DeckAnalytics } from "../../domain/deck-analytics.types";
 import type { FlashcardItemAnalytics } from "../../domain/flashcard-item.types";
 import type { QuestaoItemAnalytics } from "../../domain/questao-item.types";
+import type { FeynmanAnalytics } from "../../domain/feynman-analytics.types";
 
 export class HttpAnalyticsAdapter implements AnalyticsPort {
   getFlashcardAnalytics(days: number, baralhoId?: string, assuntoId?: string): Promise<FlashcardAnalytics> {
@@ -30,6 +32,10 @@ export class HttpAnalyticsAdapter implements AnalyticsPort {
 
   getDeckAnalytics(days: number): Promise<DeckAnalytics> {
     return getDeckAnalytics(days);
+  }
+
+  getFeynmanAnalytics(days: number): Promise<FeynmanAnalytics> {
+    return getFeynmanAnalytics(days);
   }
 
   getFlashcardItemAnalytics(id: string): Promise<FlashcardItemAnalytics> {

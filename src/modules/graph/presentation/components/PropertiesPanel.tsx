@@ -4,7 +4,7 @@ import { ChevronLeftIcon, SparklesIcon } from "lucide-react";
 import { useNotaMeta, type NotaMeta } from "../hooks/useNotaMeta";
 import { useDeckStats } from "../hooks/useDeckStats";
 import type { PropertiesNode, PropertiesEdge, DeckStats } from "./properties/properties-panel.types";
-import { NodeSummary, NodeAiSection, NodeStudySection, NodeAnalyticsAction, DeckStatsView, NotaMetaView } from "./properties/PropertiesSections";
+import { NodeSummary, NodeAiSection, NodeStudySection, NodeAnalyticsAction, NodeFeynmanAction, DeckStatsView, NotaMetaView } from "./properties/PropertiesSections";
 import { NodeRelations } from "./properties/NodeRelations";
 import { NodeActions, GenerateDeckAction, NodePosition } from "./properties/NodeActions";
 
@@ -32,6 +32,7 @@ export interface PropertiesPanelProps {
   onStudyProva?: () => void;
   onStudyQuestao?: () => void;
   onViewAnalytics?: () => void;
+  onFeynman?: () => void;
   onStudyNeighborhood?: () => void;
   onGenerateInsights?: () => void;
   onExpandNode?: () => void;
@@ -119,6 +120,7 @@ function NodeContent({ props, node, notaMeta, deckStats }: NodeContentProps) {
         onStudyQuestao={props.onStudyQuestao}
       />
       <NodeAnalyticsAction node={node} onViewAnalytics={props.onViewAnalytics} />
+      <NodeFeynmanAction node={node} onFeynman={props.onFeynman} />
       <DeckStatsView node={node} stats={deckStats} />
       <NotaMetaView node={node} meta={notaMeta} />
       <NodeRelations

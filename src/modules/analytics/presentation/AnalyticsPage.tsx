@@ -6,13 +6,15 @@ import { PageHeader } from "@/components/page-header/PageHeader";
 import { FlashcardAnalyticsTab } from "./components/FlashcardAnalyticsTab";
 import { ProvaAnalyticsTab } from "./components/ProvaAnalyticsTab";
 import { DeckAnalyticsTab } from "./components/DeckAnalyticsTab";
+import { FeynmanAnalyticsTab } from "./components/FeynmanAnalyticsTab";
 
-type Tab = "flashcards" | "questoes" | "baralhos";
+type Tab = "flashcards" | "questoes" | "baralhos" | "feynman";
 
 const TABS: { id: Tab; label: string; ready: boolean }[] = [
   { id: "flashcards", label: "Flashcards", ready: true },
   { id: "questoes", label: "Questões/Provas", ready: true },
   { id: "baralhos", label: "Baralhos", ready: true },
+  { id: "feynman", label: "Feynman", ready: true },
 ];
 
 export function AnalyticsPage() {
@@ -43,6 +45,7 @@ export function AnalyticsPage() {
       {tab === "flashcards" && <FlashcardAnalyticsTab />}
       {tab === "questoes" && <ProvaAnalyticsTab />}
       {tab === "baralhos" && <DeckAnalyticsTab />}
+      {tab === "feynman" && <FeynmanAnalyticsTab />}
     </PageContainer>
   );
 }

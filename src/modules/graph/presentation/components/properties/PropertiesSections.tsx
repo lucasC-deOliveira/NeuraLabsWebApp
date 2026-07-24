@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { SparklesIcon, WandSparklesIcon, BookOpenIcon, EyeIcon, GraduationCapIcon, BarChart3Icon } from "lucide-react";
+import { SparklesIcon, WandSparklesIcon, BookOpenIcon, EyeIcon, GraduationCapIcon, BarChart3Icon, LightbulbIcon } from "lucide-react";
 import type { PropertiesNode, DeckStats } from "./properties-panel.types";
 import type { NotaMeta } from "../../hooks/useNotaMeta";
 import { SUBTIPO_LABELS, TIPO_NOTA_LABELS, formatPanelDate, domainColor } from "./properties-panel.labels";
@@ -131,6 +131,27 @@ interface StudyProps {
   onViewDeck?: () => void;
   onStudyProva?: () => void;
   onStudyQuestao?: () => void;
+}
+
+// Tipos que se explicam pela Feynman (conceito é o alvo natural; flashcard também).
+const FEYNMAN_TYPES = ["CONCEITO", "FLASHCARD"];
+
+export function NodeFeynmanAction({ node, onFeynman }: { node: PropertiesNode; onFeynman?: () => void }) {
+  if (!onFeynman || !FEYNMAN_TYPES.includes(node.tipoReal)) return null;
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full gap-2 border-violet-500/40 text-violet-600 hover:bg-violet-500/10 dark:text-violet-400"
+        onClick={onFeynman}
+      >
+        <LightbulbIcon className="size-4" />
+        Explicar (Feynman)
+      </Button>
+      <Separator />
+    </>
+  );
 }
 
 // Tipos de nó que têm analytics próprio (abre em modal, similar às outras ações).

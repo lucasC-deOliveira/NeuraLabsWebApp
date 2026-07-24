@@ -7,12 +7,14 @@ import { GetProvaAnalyticsUseCase } from '../modules/analytics/application/use-c
 import { GetDeckAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-deck-analytics.use-case';
 import { GetFlashcardItemAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-item-analytics.use-case';
 import { GetQuestaoItemAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-questao-item-analytics.use-case';
+import { GetFeynmanAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-feynman-analytics.use-case';
 import { TtlCache } from '../modules/analytics/infrastructure/cache/ttl-cache';
 import type { FlashcardAnalytics } from '../modules/analytics/domain/analytics-views';
 import type { ProvaAnalytics } from '../modules/analytics/domain/prova-analytics-views';
 import type { DeckAnalytics } from '../modules/analytics/domain/deck-analytics-views';
 import type { FlashcardItemAnalytics } from '../modules/analytics/domain/flashcard-item-views';
 import type { QuestaoItemAnalytics } from '../modules/analytics/domain/questao-item-views';
+import type { FeynmanAnalytics } from '../modules/analytics/domain/feynman-analytics-views';
 
 @UseGuards(JwtAuthGuard)
 @Controller('analytics')
@@ -23,6 +25,7 @@ export class AnalyticsController {
     private readonly getDeckAnalytics: GetDeckAnalyticsUseCase,
     private readonly getFlashcardItem: GetFlashcardItemAnalyticsUseCase,
     private readonly getQuestaoItem: GetQuestaoItemAnalyticsUseCase,
+    private readonly getFeynmanAnalytics: GetFeynmanAnalyticsUseCase,
     private readonly cache: TtlCache,
   ) {}
 
@@ -61,6 +64,13 @@ export class AnalyticsController {
     const window = clampDays(days);
     const key = `deck:${userId}:${window}`;
     return this.cache.getOrCompute(key, () => this.getDeckAnalytics.execute(userId, window));
+  }
+
+  @Get('feynman')
+  feynman(@CurrentUser() userId: string, @Query('days') days?: string): Promise<FeynmanAnalytics> {
+    const window = clampDays(days);
+    const key = `feynman:${userId}:${window}`;
+    return this.cache.getOrCompute(key, () => this.getFeynmanAnalytics.execute(userId, window));
   }
 
   @Get('flashcards/:id')
