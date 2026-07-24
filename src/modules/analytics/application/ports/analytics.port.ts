@@ -4,6 +4,7 @@ import type { ProvaAnalytics } from "../../domain/prova-analytics.types";
 import type { DeckAnalytics } from "../../domain/deck-analytics.types";
 import type { FlashcardItemAnalytics } from "../../domain/flashcard-item.types";
 import type { QuestaoItemAnalytics } from "../../domain/questao-item.types";
+import type { FeynmanAnalytics } from "../../domain/feynman-analytics.types";
 
 // `days` é a janela; baralhoId/assuntoId/provaId refinam por entidade.
 export interface AnalyticsPort {
@@ -14,6 +15,7 @@ export interface AnalyticsPort {
   ): Promise<FlashcardAnalytics>;
   getProvaAnalytics(days: number, provaId?: string): Promise<ProvaAnalytics>;
   getDeckAnalytics(days: number): Promise<DeckAnalytics>;
+  getFeynmanAnalytics(days: number): Promise<FeynmanAnalytics>;
   // Analytics de um item específico (nó do grafo).
   getFlashcardItemAnalytics(id: string): Promise<FlashcardItemAnalytics>;
   getQuestaoItemAnalytics(id: string): Promise<QuestaoItemAnalytics>;

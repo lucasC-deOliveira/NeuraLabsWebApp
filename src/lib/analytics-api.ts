@@ -5,6 +5,7 @@ import type { ProvaAnalytics } from "@/modules/analytics/domain/prova-analytics.
 import type { DeckAnalytics } from "@/modules/analytics/domain/deck-analytics.types";
 import type { FlashcardItemAnalytics } from "@/modules/analytics/domain/flashcard-item.types";
 import type { QuestaoItemAnalytics } from "@/modules/analytics/domain/questao-item.types";
+import type { FeynmanAnalytics } from "@/modules/analytics/domain/feynman-analytics.types";
 
 // `days` filtra a janela; `baralhoId`/`assuntoId` restringem as cartas (opcionais).
 export function getFlashcardAnalytics(
@@ -27,6 +28,10 @@ export function getProvaAnalytics(days: number, provaId?: string): Promise<Prova
 
 export function getDeckAnalytics(days: number): Promise<DeckAnalytics> {
   return apiFetch<DeckAnalytics>(`/analytics/decks?days=${days}`, { timeoutMs: 20_000 });
+}
+
+export function getFeynmanAnalytics(days: number): Promise<FeynmanAnalytics> {
+  return apiFetch<FeynmanAnalytics>(`/analytics/feynman?days=${days}`, { timeoutMs: 20_000 });
 }
 
 // Analytics de UMA carta (histórico daquele flashcard).

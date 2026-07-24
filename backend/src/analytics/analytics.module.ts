@@ -6,6 +6,12 @@ import { GetProvaAnalyticsUseCase } from '../modules/analytics/application/use-c
 import { GetDeckAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-deck-analytics.use-case';
 import { GetFlashcardItemAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-item-analytics.use-case';
 import { GetQuestaoItemAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-questao-item-analytics.use-case';
+import { GetFeynmanAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-feynman-analytics.use-case';
+import {
+  FEYNMAN_ANALYTICS_SOURCE,
+  type FeynmanAnalyticsSource,
+} from '../modules/analytics/domain/ports/feynman-analytics-source';
+import { PrismaFeynmanAnalyticsSource } from '../modules/analytics/infrastructure/persistence/prisma-feynman-analytics.source';
 import {
   FLASHCARD_ANALYTICS_SOURCE,
   type FlashcardAnalyticsSource,
@@ -47,6 +53,7 @@ const ANALYTICS_CACHE_TTL_MS = 60_000;
     { provide: DECK_ANALYTICS_SOURCE, useClass: PrismaDeckAnalyticsSource },
     { provide: FLASHCARD_ITEM_SOURCE, useClass: PrismaFlashcardItemSource },
     { provide: QUESTAO_ITEM_SOURCE, useClass: PrismaQuestaoItemSource },
+    { provide: FEYNMAN_ANALYTICS_SOURCE, useClass: PrismaFeynmanAnalyticsSource },
     {
       provide: GetFlashcardAnalyticsUseCase,
       useFactory: (source: FlashcardAnalyticsSource) => new GetFlashcardAnalyticsUseCase(source),
@@ -71,6 +78,11 @@ const ANALYTICS_CACHE_TTL_MS = 60_000;
       provide: GetQuestaoItemAnalyticsUseCase,
       useFactory: (source: QuestaoItemSource) => new GetQuestaoItemAnalyticsUseCase(source),
       inject: [QUESTAO_ITEM_SOURCE],
+    },
+    {
+      provide: GetFeynmanAnalyticsUseCase,
+      useFactory: (source: FeynmanAnalyticsSource) => new GetFeynmanAnalyticsUseCase(source),
+      inject: [FEYNMAN_ANALYTICS_SOURCE],
     },
   ],
 })
