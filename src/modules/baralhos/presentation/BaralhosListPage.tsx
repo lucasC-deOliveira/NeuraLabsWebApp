@@ -28,7 +28,20 @@ import { ConfirmDeleteBaralhoDialog } from "./components/ConfirmDeleteBaralhoDia
 import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
 import { DeckAnalyticsModal } from "@/modules/analytics/presentation/components/modals/DeckAnalyticsModal";
 import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
+import { FeynmanSeriesModal } from "@/components/feynman/FeynmanSeriesModal";
 import type { BaralhoItem } from "../domain/baralho.types";
+
+// Modo Feynman do baralho; extraído para não inflar a complexidade da lista.
+function BaralhoFeynman({ baralho, onClose }: { baralho: BaralhoItem | null; onClose: () => void }) {
+  return (
+    <FeynmanSeriesModal
+      open={!!baralho}
+      onOpenChange={(open) => !open && onClose()}
+      baralhoId={baralho?.id ?? null}
+      title={baralho?.titulo ?? ""}
+    />
+  );
+}
 
 // Mini-grafo do baralho (compõe conceitos/tópicos/assuntos dos seus cartões).
 function BaralhoMiniGraph({ baralho, onClose }: { baralho: BaralhoItem | null; onClose: () => void }) {
@@ -55,6 +68,7 @@ export function BaralhosListPage() {
   const [studyId, setStudyId] = useState<string | null>(null);
   const [analyticsId, setAnalyticsId] = useState<string | null>(null);
   const [graphBaralho, setGraphBaralho] = useState<BaralhoItem | null>(null);
+  const [feynmanBaralho, setFeynmanBaralho] = useState<BaralhoItem | null>(null);
   const [criteria, setCriteria] = useState<BaralhoCriteria>(DEFAULT_BARALHO_CRITERIA);
   const [page, setPage] = useState(1);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -190,6 +204,7 @@ export function BaralhosListPage() {
                 onDelete={() => setDeleteTarget(baralho)}
                 onAnalytics={() => setAnalyticsId(baralho.id)}
                 onGraph={() => setGraphBaralho(baralho)}
+                onFeynman={() => setFeynmanBaralho(baralho)}
               />
             ))}
           </div>
@@ -219,6 +234,7 @@ export function BaralhosListPage() {
         baralhoId={analyticsId}
       />
       <BaralhoMiniGraph baralho={graphBaralho} onClose={() => setGraphBaralho(null)} />
+      <BaralhoFeynman baralho={feynmanBaralho} onClose={() => setFeynmanBaralho(null)} />
     </PageContainer>
   );
 }
