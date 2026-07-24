@@ -56,4 +56,14 @@ describe('GradeFeynmanExplanationUseCase', () => {
     expect(fb?.jargao).toEqual(['heapify']);
     expect(fb?.lacunas).toEqual([{ ponto: 'não citou prioridade', conceitoId: 'c1' }]);
   });
+
+  it('injects the angle rubric into the system prompt', async () => {
+    const llm = new FakeLlm('{}');
+    const useCase = new GradeFeynmanExplanationUseCase(new FakeContextSource(ctx), llm);
+
+    await useCase.execute('u1', 'CONCEITO', 'c0', 'minha explicação', 'TECNICO');
+
+    const system = llm.seen?.messages.find((m) => m.role === 'system')?.content ?? '';
+    expect(system).toContain('MODO TÉCNICO');
+  });
 });

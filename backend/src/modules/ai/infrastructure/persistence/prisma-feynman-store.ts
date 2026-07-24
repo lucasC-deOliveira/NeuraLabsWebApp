@@ -27,6 +27,7 @@ export class PrismaFeynmanStore implements FeynmanStore {
         clareza: input.clareza,
         lacunas: toJson(input.lacunas),
         jargao: toJson(input.jargao),
+        angulo: input.angulo ?? null,
       },
     });
   }

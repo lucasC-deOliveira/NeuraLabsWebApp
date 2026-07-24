@@ -1574,6 +1574,7 @@ export default function GraphPage() {
         alvoTipo={(feynmanNode?.tipo as FeynmanAlvoTipo) ?? "CONCEITO"}
         alvoId={feynmanNode?.id ?? null}
         title={feynmanNode?.label ?? ""}
+        onSaved={refreshGraph}
       />
       <CommunitiesPanel
         open={communitiesOpen}

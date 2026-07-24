@@ -8,6 +8,7 @@ export interface FeynmanAttemptInput {
   clareza: number;
   lacunas: unknown; // FeynmanGap[] serializado como JSON
   jargao: unknown; // string[] serializado como JSON
+  angulo?: string; // SIMPLES | ANALOGIA | TECNICO (null = legado, ângulo único)
 }
 
 export interface FeynmanStateInput {

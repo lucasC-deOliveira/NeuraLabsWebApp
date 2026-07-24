@@ -646,6 +646,7 @@ model ExplicacaoFeynman {
   clareza     Int
   lacunas     Json?
   jargao      Json?
+  angulo      String?  // SIMPLES | ANALOGIA | TECNICO (null = legado, ângulo único)
   dataCriacao DateTime @default(now()) @map("data_criacao")
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)

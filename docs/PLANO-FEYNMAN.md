@@ -59,9 +59,22 @@ conceito e o progresso é **rastreado** (clareza no tempo + re-explicação espa
 - ✅ **F4 — Modo em série:** `FeynmanSeriesModal` varre os conceitos de um baralho.
 - ✅ **F5 — Analytics:** aba "Feynman" (clareza no tempo + totais), `GET /analytics/feynman`.
 
-> Pendência conhecida: "salvar como **Nota** no grafo" (a explicação vira nó de NOTA
-> ligado ao conceito) — hoje salva o histórico/agendamento (o rastreio); a criação do
-> nó de nota fica para um passo futuro.
+- ✅ **F7 — 3 ângulos:** explicar o MESMO alvo de 3 formas — **Simples · Analogia ·
+  Técnico** — cada uma com sua régua na IA (`feynman-angulo.ts`: rubricas + labels +
+  `parseFeynmanAngulo` + `FEYNMAN_CLARO=70` + `isFeynmanSessionComplete`). `grade`
+  recebe `angulo`; `POST /feynman/sessions` (`SaveFeynmanSessionUseCase`) salva os 3
+  (coluna aditiva `angulo`), agenda pela clareza do **ângulo mais fraco** e publica UMA
+  nota combinada (`composeFeynmanNote`, seção por ângulo). Front: `FeynmanPanel` vira 3
+  abas com progresso/《Conceito dominado》quando as 3 ≥ 70. Migração
+  `20260724120000_add_feynman_angulo` (aditiva).
+- ✅ **F6 — Nota no grafo:** ao salvar, a explicação vira uma **NOTA** (`EXPLICACAO`)
+  ligada ao alvo e **contida nos mesmos grafos onde o alvo aparece**, renderizando
+  imediatamente. Idempotente por alvo (marcador em `Nota.fonte = feynman:<tipo>:<id>`):
+  re-salvar atualiza a mesma nota. Aresta `NOTA→CONCEITO (EXPLICA)` ou
+  `FLASHCARD→NOTA (TESTA)`. Peças: `feynman-note.ts` (título+marcador),
+  `FeynmanNotePublisher` (porta) + `PrismaFeynmanNotePublisher` (adapter, reusa
+  `createContainedNode`); o `SaveFeynmanExplanationUseCase` publica após rastrear; no
+  grafo o `FeynmanModal` recebe `onSaved={refreshGraph}` para a nota aparecer na hora.
 
 ## Decisões (todas travadas)
 1. ✅ **Subtipo da Nota:** reusar `EXPLICACAO` (sem mudança de schema).

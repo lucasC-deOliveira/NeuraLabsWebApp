@@ -1,6 +1,7 @@
 import { nextFeynmanReview } from '../../domain/services/feynman-schedule';
 import type { FeynmanAlvoTipo } from '../../domain/ports/feynman-context-source';
 import type { FeynmanStore } from '../../domain/ports/feynman-store';
+import type { FeynmanNotePublisher } from '../../domain/ports/feynman-note-publisher';
 
 export interface SaveFeynmanInput {
   texto: string;
@@ -10,12 +11,16 @@ export interface SaveFeynmanInput {
 }
 
 /**
- * Persiste uma tentativa de explicação Feynman (histórico → analytics) e agenda a
- * próxima re-explicação (SM-2-lite pela clareza).
+ * Persiste uma tentativa de explicação Feynman (histórico → analytics), agenda a
+ * próxima re-explicação (SM-2-lite pela clareza) e a publica como NOTA no grafo para
+ * ela renderizar imediatamente ao lado do alvo.
  * @example save.execute('u1', 'CONCEITO', 'c1', { texto, clareza: 72, lacunas, jargao })
  */
 export class SaveFeynmanExplanationUseCase {
-  constructor(private readonly store: FeynmanStore) {}
+  constructor(
+    private readonly store: FeynmanStore,
+    private readonly notes: FeynmanNotePublisher,
+  ) {}
 
   async execute(
     userId: string,
@@ -34,5 +39,6 @@ export class SaveFeynmanExplanationUseCase {
       intervalo: schedule.intervalo,
       proximaRevisao: schedule.proximaRevisao,
     });
+    await this.notes.publish({ userId, alvoTipo, alvoId, texto: input.texto });
   }
 }

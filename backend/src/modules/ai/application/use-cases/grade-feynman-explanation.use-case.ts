@@ -1,6 +1,7 @@
 import { parseAiJson } from '../../domain/services/ai-json';
 import { buildFeynmanMessages } from '../../domain/services/feynman-prompt';
 import { parseFeynmanFeedback } from '../../domain/services/feynman-feedback';
+import type { FeynmanAngulo } from '../../domain/services/feynman-angulo';
 import type {
   FeynmanAlvoTipo,
   FeynmanContextSource,
@@ -25,10 +26,12 @@ export class GradeFeynmanExplanationUseCase {
     tipo: FeynmanAlvoTipo,
     id: string,
     texto: string,
+    angulo: FeynmanAngulo = 'SIMPLES',
   ): Promise<FeynmanFeedback | null> {
     const ctx = await this.source.load(userId, tipo, id);
     if (!ctx) return null;
-    const content = await this.llm.complete({ userId, messages: buildFeynmanMessages(ctx, texto) });
+    const messages = buildFeynmanMessages(ctx, texto, angulo);
+    const content = await this.llm.complete({ userId, messages });
     return parseFeynmanFeedback(parseAiJson(content || '{}'), ctx.candidatos);
   }
 }

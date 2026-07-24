@@ -5,6 +5,10 @@ import type {
   FeynmanStateInput,
   FeynmanStore,
 } from '../../domain/ports/feynman-store';
+import type {
+  FeynmanNoteInput,
+  FeynmanNotePublisher,
+} from '../../domain/ports/feynman-note-publisher';
 
 class FakeStore implements FeynmanStore {
   public attempt: FeynmanAttemptInput | null = null;
@@ -23,10 +27,18 @@ class FakeStore implements FeynmanStore {
   }
 }
 
+class FakeNotePublisher implements FeynmanNotePublisher {
+  public published: FeynmanNoteInput | null = null;
+  publish(input: FeynmanNoteInput): Promise<void> {
+    this.published = input;
+    return Promise.resolve();
+  }
+}
+
 describe('SaveFeynmanExplanationUseCase', () => {
   it('saves the attempt and schedules the next review from clarity + current interval', async () => {
     const store = new FakeStore(10);
-    const useCase = new SaveFeynmanExplanationUseCase(store);
+    const useCase = new SaveFeynmanExplanationUseCase(store, new FakeNotePublisher());
 
     await useCase.execute('u1', 'CONCEITO', 'c1', {
       texto: 'minha explicação',
@@ -39,5 +51,24 @@ describe('SaveFeynmanExplanationUseCase', () => {
     expect(store.attempt?.jargao).toEqual(['heapify']);
     expect(store.state?.ultimaClareza).toBe(85);
     expect(store.state?.intervalo).toBe(22); // 10 * 2.2 (clareza alta)
+  });
+
+  it('publishes the explanation as a graph note for the same target', async () => {
+    const notes = new FakeNotePublisher();
+    const useCase = new SaveFeynmanExplanationUseCase(new FakeStore(0), notes);
+
+    await useCase.execute('u1', 'FLASHCARD', 'f1', {
+      texto: 'explico com minhas palavras',
+      clareza: 50,
+      lacunas: [],
+      jargao: [],
+    });
+
+    expect(notes.published).toEqual({
+      userId: 'u1',
+      alvoTipo: 'FLASHCARD',
+      alvoId: 'f1',
+      texto: 'explico com minhas palavras',
+    });
   });
 });
