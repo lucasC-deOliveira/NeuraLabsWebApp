@@ -41,6 +41,7 @@ import ProvasPage from "@/app/provas/page";
 import NewProvaPage from "@/app/provas/new/page";
 import ProvaDetailPage from "@/app/provas/[id]/page";
 import AnalyticsPage from "@/app/analytics/page";
+import EstudoPage from "@/app/estudo/page";
 
 const AUTH_PATHS = ["/login", "/register"];
 
@@ -70,6 +71,7 @@ function App() {
           <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
           <Route path="/flashcards" element={<RequireAuth><FlashcardsPage /></RequireAuth>} />
           <Route path="/flashcards/new" element={<RequireAuth><NewFlashcardPage /></RequireAuth>} />
+          <Route path="/estudo" element={<RequireAuth><EstudoPage /></RequireAuth>} />
           <Route path="/baralhos" element={<RequireAuth><BaralhosPage /></RequireAuth>} />
           <Route path="/baralhos/:id" element={<RequireAuth><BaralhoDetailPage /></RequireAuth>} />
           <Route path="/notes" element={<RequireAuth><NotesPage /></RequireAuth>} />

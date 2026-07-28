@@ -1,6 +1,30 @@
-import { Body, Controller, Get, Param, Post, UseFilters, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Inject,
+  Param,
+  Post,
+  Query,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { GetTodayPlanUseCase } from '../modules/study/application/use-cases/get-today-plan.use-case';
+import { SaveStudyPlanUseCase } from '../modules/study/application/use-cases/save-study-plan.use-case';
+import { StartPlannedSessionUseCase } from '../modules/study/application/use-cases/start-planned-session.use-case';
+import {
+  STUDY_PLAN_REPOSITORY,
+  type PlanMetaTipo,
+  type StudyPlanRepository,
+} from '../modules/study/domain/ports/study-plan-repository';
+import {
+  ROADMAP_OPTIONS_QUERY,
+  type RoadmapOptionsQuery,
+} from '../modules/study/domain/ports/roadmap-options-query';
 import {
   SubmitReviewUseCase,
   type SubmitReviewCommand,
@@ -32,6 +56,11 @@ export class StudyController {
     private readonly startDeckStudy: StartDeckStudyUseCase,
     private readonly syncVaultLog: SyncVaultLogUseCase,
     private readonly diagnoseConceptErrors: DiagnoseConceptErrorsUseCase,
+    private readonly getTodayPlan: GetTodayPlanUseCase,
+    private readonly saveStudyPlan: SaveStudyPlanUseCase,
+    private readonly startPlannedSession: StartPlannedSessionUseCase,
+    @Inject(STUDY_PLAN_REPOSITORY) private readonly plans: StudyPlanRepository,
+    @Inject(ROADMAP_OPTIONS_QUERY) private readonly roadmapOptions: RoadmapOptionsQuery,
   ) {}
 
   // Onde o usuário mais erra, por conceito. 0 token: sai do histórico de revisões
@@ -83,4 +112,61 @@ export class StudyController {
   sync(@CurrentUser() userId: string, @Body() body: { sessions?: VaultSessionInput[] }) {
     return this.syncVaultLog.execute(userId, body.sessions ?? []);
   }
+
+  // Todos os planos do usuário (o Dashboard usa o mais recente).
+  @Get('plans')
+  listPlans(@CurrentUser() userId: string) {
+    return this.plans.listByUser(userId);
+  }
+
+  // Escopos disponíveis (roadmaps já gerados) de um grafo, para montar um plano.
+  @Get('plan/roadmaps')
+  roadmaps(@CurrentUser() userId: string, @Query('grafoId') grafoId: string) {
+    return this.roadmapOptions.list(userId, grafoId ?? '');
+  }
+
+  // "Hoje" de um plano: alvo do dia + projeção (null se o plano não existe).
+  @Get('plan/:id/today')
+  today(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.getTodayPlan.execute(userId, id);
+  }
+
+  // Abre a sessão do dia do plano (intercalada, escopada ao grafo).
+  @Post('plan/:id/session')
+  planSession(@CurrentUser() userId: string, @Param('id') id: string) {
+    return this.startPlannedSession.execute(userId, id);
+  }
+
+  // Remove um plano (o histórico de estudo/agendamento não é afetado).
+  @Delete('plan/:id')
+  @HttpCode(204)
+  async deletePlan(@CurrentUser() userId: string, @Param('id') id: string): Promise<void> {
+    await this.plans.deleteById(userId, id);
+  }
+
+  // Cria/atualiza a config do plano.
+  @Post('plan')
+  savePlan(@CurrentUser() userId: string, @Body() body: PlanBody) {
+    return this.saveStudyPlan.execute(userId, {
+      grafoId: body.grafoId ?? '',
+      prioridade: (body.prioridade ?? '').trim(),
+      metaTipo: (body.metaTipo ?? '') as PlanMetaTipo,
+      metaValor: Number(body.metaValor),
+      dataAlvo: body.dataAlvo ? new Date(body.dataAlvo) : null,
+      baralhoIds: body.baralhoIds ?? [],
+      provaIds: body.provaIds ?? [],
+      conceitosExcluidos: body.conceitosExcluidos ?? [],
+    });
+  }
+}
+
+interface PlanBody {
+  grafoId?: string;
+  prioridade?: string;
+  metaTipo?: string;
+  metaValor?: number;
+  dataAlvo?: string | null;
+  baralhoIds?: string[];
+  provaIds?: string[];
+  conceitosExcluidos?: string[];
 }
