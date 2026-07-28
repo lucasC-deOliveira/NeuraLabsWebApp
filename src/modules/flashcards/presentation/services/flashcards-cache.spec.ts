@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadCachedFlashcards, saveCachedFlashcards, type FlashcardsSnapshot } from "./flashcards-cache";
+import {
+  loadCachedFlashcards,
+  saveCachedFlashcards,
+  invalidateFlashcardsList,
+  type FlashcardsSnapshot,
+} from "./flashcards-cache";
 import type { FlashcardItem } from "../../domain/flashcard.types";
 
+// API Storage completa (incl. length/key) porque invalidateFlashcardsList varre por tag.
 class FakeLocalStorage {
   private store = new Map<string, string>();
   getItem(key: string): string | null {
@@ -10,8 +16,14 @@ class FakeLocalStorage {
   setItem(key: string, value: string): void {
     this.store.set(key, value);
   }
-  clear(): void {
-    this.store.clear();
+  removeItem(key: string): void {
+    this.store.delete(key);
+  }
+  get length(): number {
+    return this.store.size;
+  }
+  key(index: number): string | null {
+    return [...this.store.keys()][index] ?? null;
   }
 }
 
@@ -75,13 +87,16 @@ describe("flashcards-cache", () => {
     expect(loadCachedFlashcards()?.cards[0].spacedRepetition).toBeNull();
   });
 
-  it("returns null instead of throwing on corrupt JSON", () => {
-    localStorage.setItem("neuralabs.flashcards-cache.v1", "{not json");
+  // Sem o array de cards o revive quebraria ao iterar — o accept faz virar miss.
+  it("returns null instead of throwing when the cached shape is unusable", () => {
+    saveCachedFlashcards({ cards: null } as unknown as FlashcardsSnapshot);
     expect(loadCachedFlashcards()).toBeNull();
   });
 
-  it("returns null instead of throwing when the cached shape is unusable", () => {
-    localStorage.setItem("neuralabs.flashcards-cache.v1", JSON.stringify({ cards: null }));
+  // Invalidação proativa: após criar/editar/apagar card, o snapshot cacheado some.
+  it("invalidateFlashcardsList drops the cached snapshot", () => {
+    saveCachedFlashcards(snapshot());
+    invalidateFlashcardsList();
     expect(loadCachedFlashcards()).toBeNull();
   });
 });

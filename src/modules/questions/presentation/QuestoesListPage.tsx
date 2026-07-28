@@ -25,6 +25,7 @@ import { QuestaoItemAnalyticsModal } from "@/modules/analytics/presentation/comp
 import { StudyProvaModal } from "@/modules/graph/presentation/components/deck/StudyProvaModal";
 import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
 import type { QuestaoListItem } from "../domain/questao.types";
+import { invalidateQuestoesList } from "./services/questoes-cache";
 
 // 10 por página: os cartões são altos (enunciado + alternativas quando expandido).
 const PAGE_SIZE = 10;
@@ -85,6 +86,7 @@ export function QuestoesListPage() {
     setDeletingId(id);
     try {
       await questionsHttp.deleteQuestao(id);
+      invalidateQuestoesList(); // outras telas/abas não veem a questão removida no cache
       toast.success("Questão removida");
       await reload();
     } catch {

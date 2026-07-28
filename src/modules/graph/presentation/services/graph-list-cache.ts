@@ -1,10 +1,12 @@
-// Cache local (localStorage) da listagem de grafos, por combinação de filtros/página
-// — para reabrir "Meus Grafos" instantaneamente (stale-while-revalidate): mostra a
-// última resposta na hora e revalida no backend em segundo plano. Falhas de
-// leitura/escrita são silenciosas (o cache é só uma otimização).
+// Cache local da listagem de grafos, por combinação de filtros/página — para
+// reabrir "Meus Grafos" instantaneamente (stale-while-revalidate). Sobre o
+// CacheStore unificado; criar/renomear/apagar grafo invalida a tag inteira.
 import type { GraphListParams, GraphListResult } from "../../domain/types/graph.types";
+import { cacheStore } from "../../../cache/infra/local-cache-store";
+import type { CacheSlot } from "../../../cache/domain/cache-store";
 
-const KEY_PREFIX = "neuralabs.graph-list-cache.";
+// Tag da listagem de grafos: uma mutação limpa todas as combinações de filtro.
+export const GRAPH_LIST_TAG = "graph-list";
 
 // Chave estável derivada dos parâmetros de consulta: a mesma query lê o mesmo cache.
 // assuntoIds é ordenado para que a ordem de seleção não gere chaves distintas.
@@ -21,19 +23,19 @@ function cacheKey(params: GraphListParams): string {
   });
 }
 
+function slotOf(params: GraphListParams): CacheSlot<GraphListResult> {
+  return cacheStore.slot({ key: `graph-list.${cacheKey(params)}`, version: 1, tags: [GRAPH_LIST_TAG] });
+}
+
 export function loadCachedGraphList(params: GraphListParams): GraphListResult | null {
-  try {
-    const raw = localStorage.getItem(KEY_PREFIX + cacheKey(params));
-    return raw ? (JSON.parse(raw) as GraphListResult) : null;
-  } catch {
-    return null;
-  }
+  return slotOf(params).read();
 }
 
 export function saveCachedGraphList(params: GraphListParams, result: GraphListResult): void {
-  try {
-    localStorage.setItem(KEY_PREFIX + cacheKey(params), JSON.stringify(result));
-  } catch {
-    // quota estourada / modo privado — o cache é apenas uma otimização.
-  }
+  slotOf(params).write(result);
+}
+
+/** Invalida todas as combinações de filtro — chamar após criar/renomear/apagar grafo. */
+export function invalidateGraphList(): void {
+  cacheStore.invalidateTag(GRAPH_LIST_TAG);
 }

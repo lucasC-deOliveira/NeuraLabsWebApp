@@ -76,6 +76,17 @@ function taggedInStorage(sk: string, tag: string): boolean {
   return env ? env.tags.includes(tag) : false;
 }
 
+// accept/revive rodam sobre dados não confiáveis (o disco pode ter um payload de
+// versão anterior). Se algum quebrar, o payload defasado vira miss — nunca crash.
+function decode<T>(raw: T, def: SlotDef<T>): T | null {
+  try {
+    if (def.accept && !def.accept(raw)) return null;
+    return def.revive ? def.revive(raw) : raw;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Cache unificado do frontend sobre localStorage. Um slot amarra chave + versão +
  * TTL + tags + accept/revive; o store invalida por tag. Falhas são silenciosas.
@@ -100,9 +111,7 @@ export class LocalCacheStore implements CacheStore {
   private readSlot<T>(sk: string, def: SlotDef<T>): T | null {
     const env = parseEnvelope(readRaw(sk));
     if (!env || this.expired(env)) return null;
-    const raw = env.data as T;
-    if (def.accept && !def.accept(raw)) return null;
-    return def.revive ? def.revive(raw) : raw;
+    return decode(env.data as T, def);
   }
 
   private writeSlot<T>(sk: string, def: SlotDef<T>, value: T): void {

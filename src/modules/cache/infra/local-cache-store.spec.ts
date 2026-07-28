@@ -116,6 +116,18 @@ describe("LocalCacheStore", () => {
     expect(new LocalCacheStore().slot(def).read()).toBeNull();
   });
 
+  // Um reviver que quebra sobre um payload defasado vira miss, não crash.
+  it("returns null instead of throwing when revive() throws on a stale payload", () => {
+    const store = new LocalCacheStore();
+    store.slot<{ items: number[] | null }>({ key: "rev", version: 1 }).write({ items: null });
+    const guarded = store.slot<{ items: number[] | null }>({
+      key: "rev",
+      version: 1,
+      revive: (raw): { items: number[] | null } => ({ items: raw.items!.map((n) => n + 1) }),
+    });
+    expect(guarded.read()).toBeNull();
+  });
+
   // Fronteira não confiável: um payload que não passa no accept vira miss.
   it("rejects a stored payload whose shape accept() refuses", () => {
     const store = new LocalCacheStore();

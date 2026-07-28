@@ -1,10 +1,12 @@
-// Cache local (localStorage) do último grafo carregado, por id — para reabrir um
-// grafo instantaneamente (stale-while-revalidate): mostra o cache na hora e revalida
-// no backend em segundo plano. Grafos muito grandes não são cacheados (estouram a
-// quota do localStorage). Falhas de leitura/escrita são silenciosas.
+// Cache local do último grafo carregado, por id — para reabrir um grafo
+// instantaneamente (stale-while-revalidate). Grafos muito grandes não são cacheados
+// (estouram a quota do localStorage). Sobre o CacheStore unificado.
 import type { GraphNodeType, GraphEdgeType } from "../../domain/types/graph.types";
+import { cacheStore } from "../../../cache/infra/local-cache-store";
+import type { CacheSlot } from "../../../cache/domain/cache-store";
 
-const KEY_PREFIX = "neuralabs.graph-cache.";
+// Tag da área "graph": mudanças na estrutura de um grafo invalidam seu cache.
+export const GRAPH_TAG = "graph";
 // Acima disto o JSON fica grande demais para o localStorage — não cacheia.
 const MAX_CACHEABLE_NODES = 4000;
 
@@ -17,20 +19,20 @@ export interface CachedGraph {
   savedAt: number;
 }
 
+function slotOf(graphId: string): CacheSlot<CachedGraph> {
+  return cacheStore.slot({ key: `graph.${graphId}`, version: 1, tags: [GRAPH_TAG] });
+}
+
 export function loadCachedGraph(graphId: string): CachedGraph | null {
-  try {
-    const raw = localStorage.getItem(KEY_PREFIX + graphId);
-    return raw ? (JSON.parse(raw) as CachedGraph) : null;
-  } catch {
-    return null;
-  }
+  return slotOf(graphId).read();
 }
 
 export function saveCachedGraph(graphId: string, data: CachedGraph): void {
   if (data.nodes.length > MAX_CACHEABLE_NODES) return;
-  try {
-    localStorage.setItem(KEY_PREFIX + graphId, JSON.stringify(data));
-  } catch {
-    // quota estourada / modo privado — o cache é apenas uma otimização.
-  }
+  slotOf(graphId).write(data);
+}
+
+/** Esquece um grafo específico — usar ao apagá-lo. */
+export function forgetCachedGraph(graphId: string): void {
+  slotOf(graphId).invalidate();
 }

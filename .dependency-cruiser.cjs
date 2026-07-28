@@ -66,12 +66,12 @@ module.exports = {
       name: "vr-so-consome-graph",
       severity: "error",
       comment:
-        "vr só pode cruzar contexto para o graph (do qual é um renderizador 3D); " +
-        "nenhum outro módulo externo",
+        "vr só pode cruzar contexto para o graph (do qual é um renderizador 3D) e para " +
+        "os shared kernels content/cache; nenhum outro módulo externo",
       from: { path: "src/modules/vr/" },
       to: {
         path: "src/modules/([^/]+)/(domain|application|infra|presentation)/",
-        pathNot: ["src/modules/(vr|graph)/"],
+        pathNot: ["src/modules/(vr|graph|content|cache)/"],
       },
     },
     {
@@ -79,11 +79,11 @@ module.exports = {
       severity: "error",
       comment:
         "provas só pode cruzar contexto para questions (uma prova é composta de " +
-        "questões); nenhum outro módulo externo",
+        "questões) e para os shared kernels content/cache; nenhum outro módulo externo",
       from: { path: "src/modules/provas/" },
       to: {
         path: "src/modules/([^/]+)/(domain|application|infra|presentation)/",
-        pathNot: ["src/modules/(provas|questions)/"],
+        pathNot: ["src/modules/(provas|questions|content|cache)/"],
       },
     },
     {

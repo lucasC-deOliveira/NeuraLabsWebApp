@@ -30,6 +30,7 @@ import { FlashcardItemAnalyticsModal } from "@/modules/analytics/presentation/co
 import { StudyFlashcardModal } from "@/modules/graph/presentation/components/deck/StudyFlashcardModal";
 import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
 import { FeynmanModal } from "@/components/feynman/FeynmanModal";
+import { invalidateFlashcardsList } from "./services/flashcards-cache";
 
 const DEFAULT_CRITERIA: FlashcardCriteria = {
   search: "", assuntoFilter: "", topicoFilter: "", tipoFilter: "", statusFilter: "all", sortBy: "date",
@@ -120,6 +121,7 @@ export function FlashcardsListPage() {
       } else {
         await flashcardsHttp.createFlashcard({ pergunta: form.pergunta, resposta: form.resposta, conceitoId: form.conceitoId });
       }
+      invalidateFlashcardsList(); // outras telas/abas não veem a lista de cards velha
       toast.success(editingCard ? "Flashcard atualizado!" : "Flashcard criado!");
       setDialogOpen(false);
       await reload();
@@ -135,6 +137,7 @@ export function FlashcardsListPage() {
     setSubmitting(true);
     try {
       await flashcardsHttp.deleteFlashcard(deleteTarget.id);
+      invalidateFlashcardsList(); // a listagem não ressuscita o card removido em outra aba
       toast.success("Flashcard removido!");
       setDeleteTarget(null);
       await reload();

@@ -19,6 +19,8 @@ import {
 } from "../domain/services/prova-filters";
 import { useProvasList } from "./hooks/useProvasList";
 import { ProvasFilters } from "./components/ProvasFilters";
+import { invalidateProvasList } from "./services/provas-cache";
+import { forgetCachedProva } from "./services/prova-detail-cache";
 import { MiniGraphModal } from "@/components/mini-graph/MiniGraphModal";
 
 // 11 por página: as linhas são baixas, cabem mais que os cartões de questão.
@@ -140,6 +142,8 @@ export function ProvasListPage({ onOpenAnalytics, onOpenStudy }: {
     try {
       await provasHttp.deleteProva(id);
       remove(id);
+      forgetCachedProva(id); // reabrir a URL da prova excluída não a mostra do cache
+      invalidateProvasList(); // e a listagem não a ressuscita em outra tela/aba
       toast.success("Prova excluída");
     } catch {
       toast.error("Erro ao excluir");

@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadCachedGraph, saveCachedGraph, type CachedGraph } from "./graph-cache";
+import { loadCachedGraph, saveCachedGraph, forgetCachedGraph, type CachedGraph } from "./graph-cache";
 
+// get/set/remove bastam para load/save/forget. A robustez do mecanismo (JSON
+// corrompido) é coberta em local-cache-store.spec.
 class FakeLocalStorage {
   private store = new Map<string, string>();
   getItem(key: string): string | null {
@@ -9,8 +11,8 @@ class FakeLocalStorage {
   setItem(key: string, value: string): void {
     this.store.set(key, value);
   }
-  clear(): void {
-    this.store.clear();
+  removeItem(key: string): void {
+    this.store.delete(key);
   }
 }
 
@@ -44,8 +46,10 @@ describe("graph-cache", () => {
     expect(loadCachedGraph("big")).toBeNull();
   });
 
-  it("returns null instead of throwing on corrupt JSON", () => {
-    localStorage.setItem("neuralabs.graph-cache.g1", "{not json");
+  // Esquecer um grafo: apagá-lo não deixa o cache ressuscitar sua vista.
+  it("forgets a specific graph's cache", () => {
+    saveCachedGraph("g1", graph());
+    forgetCachedGraph("g1");
     expect(loadCachedGraph("g1")).toBeNull();
   });
 });
