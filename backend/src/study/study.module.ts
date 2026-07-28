@@ -82,6 +82,7 @@ import {
 import { PrismaPlanContentSource } from '../modules/study/infrastructure/persistence/prisma-plan-content.source';
 import { SaveStudyPlanUseCase } from '../modules/study/application/use-cases/save-study-plan.use-case';
 import { GetTodayPlanUseCase } from '../modules/study/application/use-cases/get-today-plan.use-case';
+import { CACHE_PORT, type CachePort } from '../modules/cache/domain/cache-port';
 import { StartPlannedSessionUseCase } from '../modules/study/application/use-cases/start-planned-session.use-case';
 import {
   STUDY_SESSION_REPOSITORY,
@@ -190,8 +191,9 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
     },
     {
       provide: SaveStudyPlanUseCase,
-      useFactory: (plans: StudyPlanRepository) => new SaveStudyPlanUseCase(plans),
-      inject: [STUDY_PLAN_REPOSITORY],
+      useFactory: (plans: StudyPlanRepository, cache: CachePort) =>
+        new SaveStudyPlanUseCase(plans, cache),
+      inject: [STUDY_PLAN_REPOSITORY, CACHE_PORT],
     },
     {
       provide: GetTodayPlanUseCase,
@@ -200,8 +202,15 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
         context: PlanContextQuery,
         newCards: RoadmapNewCardsQuery,
         clock: Clock,
-      ) => new GetTodayPlanUseCase(plans, context, newCards, clock),
-      inject: [STUDY_PLAN_REPOSITORY, PLAN_CONTEXT_QUERY, ROADMAP_NEW_CARDS_QUERY, CLOCK],
+        cache: CachePort,
+      ) => new GetTodayPlanUseCase(plans, context, newCards, clock, cache),
+      inject: [
+        STUDY_PLAN_REPOSITORY,
+        PLAN_CONTEXT_QUERY,
+        ROADMAP_NEW_CARDS_QUERY,
+        CLOCK,
+        CACHE_PORT,
+      ],
     },
     {
       provide: StartPlannedSessionUseCase,

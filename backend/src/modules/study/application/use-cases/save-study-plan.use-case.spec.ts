@@ -1,5 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import { SaveStudyPlanUseCase } from './save-study-plan.use-case';
+import type { CachePort } from '../../../cache/domain/cache-port';
+
+// Cache pass-through que registra as invalidações (delByTag).
+class FakeCache implements CachePort {
+  public invalidated: string[] = [];
+  getOrCompute<T>(_k: string, _t: number, compute: () => Promise<T>): Promise<T> {
+    return compute();
+  }
+  get<T>(): Promise<T | null> {
+    return Promise.resolve(null);
+  }
+  set(): Promise<void> {
+    return Promise.resolve();
+  }
+  del(): Promise<void> {
+    return Promise.resolve();
+  }
+  delByTag(tag: string): Promise<void> {
+    this.invalidated.push(tag);
+    return Promise.resolve();
+  }
+}
 import type {
   StudyPlan,
   StudyPlanInput,
@@ -40,26 +62,41 @@ const valid: StudyPlanInput = {
 describe('SaveStudyPlanUseCase', () => {
   it('saves a valid plan', async () => {
     const plans = new FakePlans();
-    const plan = await new SaveStudyPlanUseCase(plans).execute('u1', valid);
+    const plan = await new SaveStudyPlanUseCase(plans, new FakeCache()).execute('u1', valid);
     expect(plan.id).toBe('p1');
     expect(plans.saved?.metaValor).toBe(5);
   });
 
   it('accepts a scoped priority key (prova|p:<id>)', async () => {
     const plans = new FakePlans();
-    await new SaveStudyPlanUseCase(plans).execute('u1', { ...valid, prioridade: 'prova|p:abc' });
+    await new SaveStudyPlanUseCase(plans, new FakeCache()).execute('u1', {
+      ...valid,
+      prioridade: 'prova|p:abc',
+    });
     expect(plans.saved?.prioridade).toBe('prova|p:abc');
   });
 
   it('rejects a non-positive daily goal', async () => {
     await expect(
-      new SaveStudyPlanUseCase(new FakePlans()).execute('u1', { ...valid, metaValor: 0 }),
+      new SaveStudyPlanUseCase(new FakePlans(), new FakeCache()).execute('u1', {
+        ...valid,
+        metaValor: 0,
+      }),
     ).rejects.toThrow(/metaValor/);
   });
 
   it('rejects an unknown priority', async () => {
     await expect(
-      new SaveStudyPlanUseCase(new FakePlans()).execute('u1', { ...valid, prioridade: 'xpto' }),
+      new SaveStudyPlanUseCase(new FakePlans(), new FakeCache()).execute('u1', {
+        ...valid,
+        prioridade: 'xpto',
+      }),
     ).rejects.toThrow(/prioridade/);
+  });
+
+  it("invalidates the saved plan's today cache", async () => {
+    const cache = new FakeCache();
+    const plan = await new SaveStudyPlanUseCase(new FakePlans(), cache).execute('u1', valid);
+    expect(cache.invalidated).toContain(`plan:${plan.id}`);
   });
 });

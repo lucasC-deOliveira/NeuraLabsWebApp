@@ -5,6 +5,33 @@ import type { PlanContext, PlanContextQuery } from '../../domain/ports/plan-cont
 import type { RoadmapNewCardsQuery } from '../../domain/ports/roadmap-new-cards-query';
 import type { StudyCardView } from '../../domain/ports/study-card-query';
 import type { Clock } from '../../domain/ports/clock';
+import type { CachePort } from '../../../cache/domain/cache-port';
+
+// Fake que cacheia por chave (Map) — o bastante para verificar o cache-aside sem
+// depender da infra (arch: application não importa infrastructure).
+class FakeCache implements CachePort {
+  private readonly store = new Map<string, unknown>();
+  async getOrCompute<T>(key: string, _t: number, compute: () => Promise<T>): Promise<T> {
+    if (this.store.has(key)) return this.store.get(key) as T;
+    const value = await compute();
+    this.store.set(key, value);
+    return value;
+  }
+  get<T>(key: string): Promise<T | null> {
+    return Promise.resolve((this.store.get(key) as T) ?? null);
+  }
+  set<T>(key: string, value: T): Promise<void> {
+    this.store.set(key, value);
+    return Promise.resolve();
+  }
+  del(key: string): Promise<void> {
+    this.store.delete(key);
+    return Promise.resolve();
+  }
+  delByTag(): Promise<void> {
+    return Promise.resolve();
+  }
+}
 
 const PLAN: StudyPlan = {
   id: 'p1',
@@ -39,8 +66,10 @@ class FakePlans implements StudyPlanRepository {
 }
 
 class FakeContext implements PlanContextQuery {
+  public calls = 0;
   constructor(private readonly ctx: PlanContext) {}
   load(): Promise<PlanContext> {
+    this.calls++;
     return Promise.resolve(this.ctx);
   }
 }
@@ -68,6 +97,7 @@ describe('GetTodayPlanUseCase', () => {
       new FakeContext(ctx),
       new FakeNewCards(10),
       clock,
+      new FakeCache(),
     );
     expect(await useCase.execute('u1', 'g1')).toBeNull();
   });
@@ -78,6 +108,7 @@ describe('GetTodayPlanUseCase', () => {
       new FakeContext(ctx),
       new FakeNewCards(10),
       clock,
+      new FakeCache(),
     );
     const today = await useCase.execute('u1', 'g1');
     expect(today?.target.reviews).toBe(32);
@@ -92,9 +123,24 @@ describe('GetTodayPlanUseCase', () => {
       new FakeContext(ctx),
       new FakeNewCards(2),
       clock,
+      new FakeCache(),
     );
     const today = await useCase.execute('u1', 'g1');
     expect(today?.target.novos).toBe(2);
+  });
+
+  it('caches the result: two executes compute only once', async () => {
+    const context = new FakeContext(ctx);
+    const useCase = new GetTodayPlanUseCase(
+      new FakePlans(PLAN),
+      context,
+      new FakeNewCards(10),
+      clock,
+      new FakeCache(),
+    );
+    await useCase.execute('u1', 'p1');
+    await useCase.execute('u1', 'p1');
+    expect(context.calls).toBe(1);
   });
 
   it('projects the completion from the pace', async () => {
@@ -103,6 +149,7 @@ describe('GetTodayPlanUseCase', () => {
       new FakeContext(ctx),
       new FakeNewCards(10),
       clock,
+      new FakeCache(),
     );
     const today = await useCase.execute('u1', 'g1');
     expect(today?.projection.daysNeeded).toBe(17); // ceil(68/4)

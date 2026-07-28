@@ -14,11 +14,13 @@ import { BaralhosModule } from './baralhos/baralhos.module';
 import { TokenUsageModule } from './token-usage/token-usage.module';
 import { TtsModule } from './tts/tts.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { CacheModule } from './cache/cache.module';
 import { HealthController } from './health.controller';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    CacheModule,
     PrismaModule,
     AuthModule,
     GraphModule,

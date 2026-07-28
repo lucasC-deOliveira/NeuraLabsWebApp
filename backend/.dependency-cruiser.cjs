@@ -28,14 +28,14 @@ module.exports = {
       name: 'sem-cruzar-contexto',
       severity: 'error',
       comment:
-        'um bounded context não importa o domínio de outro. Exceção: `curriculum` é ' +
-        'um shared kernel (taxonomia assunto/tópico/conceito e os conceitos que um ' +
-        'flashcard tem no grafo) que qualquer módulo pode consumir — o mesmo papel ' +
-        'que `content` cumpre no frontend',
+        'um bounded context não importa o domínio de outro. Exceções (shared kernels ' +
+        'que qualquer módulo consome): `curriculum` (taxonomia assunto/tópico/conceito e ' +
+        'os conceitos que um flashcard tem no grafo — mesmo papel do `content` no frontend) ' +
+        'e `cache` (o `CachePort`, uma preocupação transversal de infraestrutura)',
       from: { path: 'src/modules/([^/]+)/' },
       to: {
         path: 'src/modules/([^/]+)/domain/',
-        pathNot: ['src/modules/$1/', 'src/modules/curriculum/'],
+        pathNot: ['src/modules/$1/', 'src/modules/curriculum/', 'src/modules/cache/'],
       },
     },
     {

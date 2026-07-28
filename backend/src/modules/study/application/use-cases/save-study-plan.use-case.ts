@@ -3,6 +3,7 @@ import type {
   StudyPlanInput,
   StudyPlanRepository,
 } from '../../domain/ports/study-plan-repository';
+import type { CachePort } from '../../../cache/domain/cache-port';
 
 const META_TIPOS = ['TEMPO', 'NOVOS'];
 // Prefixo da prioridade = modo do roadmap (o escopo prova/edital vem dobrado na chave).
@@ -28,10 +29,16 @@ function validate(input: StudyPlanInput): void {
  * @example save.execute('u1', { grafoId: 'g1', prioridade: 'prova', metaTipo: 'NOVOS', metaValor: 5, dataAlvo: null })
  */
 export class SaveStudyPlanUseCase {
-  constructor(private readonly plans: StudyPlanRepository) {}
+  constructor(
+    private readonly plans: StudyPlanRepository,
+    private readonly cache: CachePort,
+  ) {}
 
   async execute(userId: string, input: StudyPlanInput): Promise<StudyPlan> {
     validate(input);
-    return this.plans.save(userId, input);
+    const plan = await this.plans.save(userId, input);
+    // Config mudou → o "hoje" cacheado desse plano some na hora.
+    await this.cache.delByTag(`plan:${plan.id}`);
+    return plan;
   }
 }
