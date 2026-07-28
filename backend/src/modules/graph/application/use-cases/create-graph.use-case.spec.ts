@@ -5,6 +5,28 @@ import type {
   CreateSubgraphInput,
   CreateSubgraphRepository,
 } from '../../domain/ports/create-subgraph-repository';
+import type { CachePort } from '../../../cache/domain/cache-port';
+
+// Cache pass-through que registra as invalidações (delByTag).
+class FakeCache implements CachePort {
+  public invalidated: string[] = [];
+  getOrCompute<T>(_k: string, _t: number, compute: () => Promise<T>): Promise<T> {
+    return compute();
+  }
+  get<T>(): Promise<T | null> {
+    return Promise.resolve(null);
+  }
+  set(): Promise<void> {
+    return Promise.resolve();
+  }
+  del(): Promise<void> {
+    return Promise.resolve();
+  }
+  delByTag(tag: string): Promise<void> {
+    this.invalidated.push(tag);
+    return Promise.resolve();
+  }
+}
 
 class FakeGraphRepository implements GraphRepository {
   readonly created: Array<{ name: string; descricao: string | null }> = [];
@@ -43,12 +65,14 @@ class FakeSubgraphRepository implements CreateSubgraphRepository {
 describe('CreateGraphUseCase', () => {
   let graphs: FakeGraphRepository;
   let subgraphs: FakeSubgraphRepository;
+  let cache: FakeCache;
   let useCase: CreateGraphUseCase;
 
   beforeEach(() => {
     graphs = new FakeGraphRepository();
     subgraphs = new FakeSubgraphRepository();
-    useCase = new CreateGraphUseCase(graphs, subgraphs);
+    cache = new FakeCache();
+    useCase = new CreateGraphUseCase(graphs, subgraphs, cache);
   });
 
   // Primeiro grafo do usuário: o master ainda não existe, então é criado antes.
@@ -86,5 +110,11 @@ describe('CreateGraphUseCase', () => {
     await useCase.execute('u1', 'C');
     expect(graphs.created).toHaveLength(1);
     expect(subgraphs.subgraphs.map((s) => s.parent)).toEqual(['root-1', 'root-1', 'root-1']);
+  });
+
+  // A lista de grafos do usuário fica stale ao criar um — invalida a tag dele.
+  it("invalidates the user's graph-list cache", async () => {
+    await useCase.execute('u1', 'Cálculo');
+    expect(cache.invalidated).toContain('user:u1');
   });
 });
