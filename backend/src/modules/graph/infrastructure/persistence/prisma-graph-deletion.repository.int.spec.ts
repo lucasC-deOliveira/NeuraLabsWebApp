@@ -4,6 +4,7 @@ import { PrismaService } from '../../../../prisma/prisma.service';
 import { PrismaGraphDeletionRepository } from './prisma-graph-deletion.repository';
 import { DeleteGraphUseCase } from '../../application/use-cases/delete-graph.use-case';
 import { DeleteNodeUseCase } from '../../application/use-cases/delete-node.use-case';
+import { InMemoryCache } from '../../../cache/infrastructure/in-memory-cache';
 
 // Integration of the deletion adapter against the real DB (neuralabs_test),
 // driven by the Delete graph/node use-cases. Validates entity removal and the
@@ -30,7 +31,7 @@ describe('Graph deletion (integration — neuralabs_test)', () => {
     prisma = moduleRef.get(PrismaService);
     await prisma.$connect();
     const repo = new PrismaGraphDeletionRepository(prisma);
-    deleteGraph = new DeleteGraphUseCase(repo);
+    deleteGraph = new DeleteGraphUseCase(repo, new InMemoryCache());
     deleteNode = new DeleteNodeUseCase(repo);
   });
 

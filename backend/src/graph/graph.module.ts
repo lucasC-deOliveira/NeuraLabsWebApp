@@ -65,6 +65,7 @@ import {
   type GraphRepository,
 } from '../modules/graph/domain/ports/graph-repository';
 import { GRAPH_QUERY, type GraphQuery } from '../modules/graph/domain/ports/graph-query';
+import { CACHE_PORT, type CachePort } from '../modules/cache/domain/cache-port';
 import {
   GRAPH_DELETION_REPOSITORY,
   type GraphDeletionRepository,
@@ -236,19 +237,23 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
     },
     {
       provide: CreateGraphUseCase,
-      useFactory: (graphs: GraphRepository, subgraphs: CreateSubgraphRepository) =>
-        new CreateGraphUseCase(graphs, subgraphs),
-      inject: [GRAPH_REPOSITORY, CREATE_SUBGRAPH_REPOSITORY],
+      useFactory: (
+        graphs: GraphRepository,
+        subgraphs: CreateSubgraphRepository,
+        cache: CachePort,
+      ) => new CreateGraphUseCase(graphs, subgraphs, cache),
+      inject: [GRAPH_REPOSITORY, CREATE_SUBGRAPH_REPOSITORY, CACHE_PORT],
     },
     {
       provide: RenameGraphUseCase,
-      useFactory: (graphs: GraphRepository) => new RenameGraphUseCase(graphs),
-      inject: [GRAPH_REPOSITORY],
+      useFactory: (graphs: GraphRepository, cache: CachePort) =>
+        new RenameGraphUseCase(graphs, cache),
+      inject: [GRAPH_REPOSITORY, CACHE_PORT],
     },
     {
       provide: ListGraphsUseCase,
-      useFactory: (graphs: GraphQuery) => new ListGraphsUseCase(graphs),
-      inject: [GRAPH_QUERY],
+      useFactory: (graphs: GraphQuery, cache: CachePort) => new ListGraphsUseCase(graphs, cache),
+      inject: [GRAPH_QUERY, CACHE_PORT],
     },
     {
       provide: ListGraphAssuntosUseCase,
@@ -262,8 +267,9 @@ import { PrismaVaultSyncRepository } from '../modules/graph/infrastructure/persi
     },
     {
       provide: DeleteGraphUseCase,
-      useFactory: (graphs: GraphDeletionRepository) => new DeleteGraphUseCase(graphs),
-      inject: [GRAPH_DELETION_REPOSITORY],
+      useFactory: (graphs: GraphDeletionRepository, cache: CachePort) =>
+        new DeleteGraphUseCase(graphs, cache),
+      inject: [GRAPH_DELETION_REPOSITORY, CACHE_PORT],
     },
     {
       provide: DeleteNodeUseCase,

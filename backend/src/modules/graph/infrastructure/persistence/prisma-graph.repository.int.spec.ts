@@ -6,6 +6,7 @@ import { CreateGraphUseCase } from '../../application/use-cases/create-graph.use
 import { RenameGraphUseCase } from '../../application/use-cases/rename-graph.use-case';
 import { MASTER_GRAPH_NAME } from '../../application/use-cases/create-graph.use-case';
 import { PrismaCreateSubgraphRepository } from './prisma-create-subgraph.repository';
+import { InMemoryCache } from '../../../cache/infrastructure/in-memory-cache';
 
 // Integration of the Prisma graph adapter against the real DB (neuralabs_test),
 // driven by the Create/Rename graph use-cases. Graphs start empty (no root
@@ -29,8 +30,9 @@ describe('Graph repository (integration — neuralabs_test)', () => {
     prisma = moduleRef.get(PrismaService);
     await prisma.$connect();
     const repo = new PrismaGraphRepository(prisma);
-    createGraph = new CreateGraphUseCase(repo, new PrismaCreateSubgraphRepository(prisma));
-    renameGraph = new RenameGraphUseCase(repo);
+    const cache = new InMemoryCache();
+    createGraph = new CreateGraphUseCase(repo, new PrismaCreateSubgraphRepository(prisma), cache);
+    renameGraph = new RenameGraphUseCase(repo, cache);
   });
 
   afterAll(async () => {

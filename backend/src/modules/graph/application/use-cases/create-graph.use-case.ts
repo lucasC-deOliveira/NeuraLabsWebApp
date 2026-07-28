@@ -1,5 +1,6 @@
 import type { GraphRepository } from '../../domain/ports/graph-repository';
 import type { CreateSubgraphRepository } from '../../domain/ports/create-subgraph-repository';
+import type { CachePort } from '../../../cache/domain/cache-port';
 
 // O app tem UM grafo de conhecimento — o master — e tudo o mais é subgrafo dele.
 // Criado sob demanda, no primeiro grafo que o usuário fizer.
@@ -19,6 +20,7 @@ export class CreateGraphUseCase {
   constructor(
     private readonly graphs: GraphRepository,
     private readonly subgraphs: CreateSubgraphRepository,
+    private readonly cache: CachePort,
   ) {}
 
   async execute(userId: string, nome: string, descricao?: string): Promise<{ id: string }> {
@@ -28,6 +30,8 @@ export class CreateGraphUseCase {
       descricao,
       tipoRelacao: DEFAULT_SUBGRAPH_RELATION,
     });
+    // Nova vista na lista do usuário → a listagem cacheada desse usuário some.
+    await this.cache.delByTag(`user:${userId}`);
     return { id: grafoId };
   }
 
