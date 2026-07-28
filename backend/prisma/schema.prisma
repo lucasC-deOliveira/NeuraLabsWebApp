@@ -42,6 +42,7 @@ model Usuario {
   tentativasProva    TentativaProva[]
   explicacoesFeynman ExplicacaoFeynman[]
   estadosFeynman     EstadoFeynman[]
+  planosEstudo       PlanoEstudo[]
 
   @@map("usuarios")
 }
@@ -340,8 +341,37 @@ model GrafosConhecimento {
   duplicateVerdicts DuplicateVerdictCache?
   nodeInsights      NodeInsightsCache[]
   viewCache         GraphViewCache?
+  planosEstudo      PlanoEstudo[]
 
   @@map("grafos_conhecimento")
+}
+
+// Plano de estudo por objetivo (grafo + prioridade do roadmap). Uma meta diária fixa
+// (tempo ou nº de novos) rege quanto entra por dia; a data-alvo (opcional) só projeta.
+model PlanoEstudo {
+  id              String    @id @default(cuid())
+  usuarioId       String    @map("id_usuario")
+  grafoId         String    @map("id_grafo")
+  // Chave da trilha do roadmap seguida: prova | edital | prova_edital | ai (+ escopo
+  // de prova/edital dobrado na chave, ex.: "prova|p:<provaId>").
+  prioridade      String
+  metaTipo        String    @map("meta_tipo") // TEMPO | NOVOS
+  metaValor       Int       @map("meta_valor") // minutos ou nº de cards novos
+  dataAlvo        DateTime? @map("data_alvo") // null = "completar tudo", sem prazo
+  // Curadoria do conteúdo (arrays de id em JSON). Fontes vazias = tudo do roadmap.
+  baralhoIds         Json?  @map("baralho_ids")
+  provaIds           Json?  @map("prova_ids")
+  conceitosExcluidos Json?  @map("conceitos_excluidos")
+  ativo           Boolean   @default(true)
+  dataCriacao     DateTime  @default(now()) @map("data_criacao")
+  dataAtualizacao DateTime  @default(now()) @updatedAt @map("data_atualizacao")
+
+  usuario Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  grafo   GrafosConhecimento @relation(fields: [grafoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, grafoId, prioridade], name: "_plano_uk")
+  @@index([usuarioId])
+  @@map("planos_estudo")
 }
 
 // Cache da view construída do grafo (nós + arestas resolvidos por buildKnowledgeGraph).
@@ -511,6 +541,9 @@ model ConhecimentoAresta {
   notaDestino Nota?             @relation("ArestaNotaDestino", fields: [notaDestinoId], references: [id], onDelete: Cascade)
 
   @@unique([nodeOrigemId, nodeDestinoId, tipoRelacao], name: "_edge_uk")
+  // A unique lidera por nodeOrigemId; consultas por destino (card/questão→conceito)
+  // precisam do índice próprio.
+  @@index([nodeDestinoId])
 }
 
 enum TipoRelacao {
@@ -597,6 +630,8 @@ model AprendizadoFlashcard {
   usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@id([flashcardId, usuarioId])
+  // Contar/listar vencidas do usuário sem varrer todos os cartões dele.
+  @@index([usuarioId, proximaRevisao])
 }
 
 model DesempenhoNo {

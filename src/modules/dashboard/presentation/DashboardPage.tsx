@@ -16,14 +16,15 @@ import { DashboardStatCards } from "./components/DashboardStatCards";
 import { SubjectsGrid } from "./components/SubjectsGrid";
 import { RecentActivity } from "./components/RecentActivity";
 import { AnalyticsSummaryCard } from "@/modules/analytics/presentation/components/AnalyticsSummaryCard";
+import { PlanTodayCard } from "@/components/study-plan/PlanTodayCard";
 
 function QuickActions() {
   return (
     <section className="mb-6 sm:mb-8">
       <h2 className="mb-3 text-base sm:text-lg font-semibold">Ações rápidas</h2>
       <div className="flex flex-wrap gap-2 sm:gap-3">
-        {/* A página /study saiu: estudar agora é escolher um baralho. */}
-        <Link href="/baralhos"><Button size="lg" className="text-sm sm:text-base px-4 sm:px-6">Estudar agora</Button></Link>
+        {/* "Estudar agora" abre o Plano de Estudo (sessão do dia, intercalada). */}
+        <Link href="/estudo"><Button size="lg" className="text-sm sm:text-base px-4 sm:px-6">Estudar agora</Button></Link>
         <Link href="/flashcards/new"><Button variant="outline" size="lg">Adicionar flashcard</Button></Link>
       </div>
     </section>
@@ -59,7 +60,8 @@ export function DashboardPage() {
           <PageHeader title="NeuraLabs" subtitle="Flashcards Inteligentes com IA" />
 
           <DashboardStatCards loading={loading} dueCardCount={dueCardCount} accuracy={accuracy} />
-          <div className="mb-6 sm:mb-8">
+          <div className="mb-6 space-y-3 sm:mb-8">
+            <PlanTodayCard />
             <AnalyticsSummaryCard />
           </div>
           <QuickActions />

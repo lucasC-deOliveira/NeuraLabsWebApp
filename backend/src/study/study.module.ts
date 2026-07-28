@@ -49,6 +49,41 @@ import {
   type StudyCardQuery,
 } from '../modules/study/domain/ports/study-card-query';
 import {
+  ROADMAP_NEW_CARDS_QUERY,
+  type RoadmapNewCardsQuery,
+} from '../modules/study/domain/ports/roadmap-new-cards-query';
+import { PrismaRoadmapNewCardsQuery } from '../modules/study/infrastructure/persistence/prisma-roadmap-new-cards.query';
+import {
+  ROADMAP_QUESTIONS_QUERY,
+  type RoadmapQuestionsQuery,
+} from '../modules/study/domain/ports/roadmap-questions-query';
+import { PrismaRoadmapQuestionsQuery } from '../modules/study/infrastructure/persistence/prisma-roadmap-questions.query';
+import {
+  STUDY_PLAN_REPOSITORY,
+  type StudyPlanRepository,
+} from '../modules/study/domain/ports/study-plan-repository';
+import {
+  PLAN_CONTEXT_QUERY,
+  type PlanContextQuery,
+} from '../modules/study/domain/ports/plan-context-query';
+import { PrismaStudyPlanRepository } from '../modules/study/infrastructure/persistence/prisma-study-plan.repository';
+import { PrismaPlanContextQuery } from '../modules/study/infrastructure/persistence/prisma-plan-context.query';
+import { ROADMAP_OPTIONS_QUERY } from '../modules/study/domain/ports/roadmap-options-query';
+import { PrismaRoadmapOptionsQuery } from '../modules/study/infrastructure/persistence/prisma-roadmap-options.query';
+import {
+  CARD_CONCEPT_SOURCE,
+  type CardConceptSource,
+} from '../modules/study/domain/ports/card-concept-source';
+import { PrismaCardConceptQuery } from '../modules/study/infrastructure/persistence/prisma-card-concept.query';
+import {
+  PLAN_CONTENT_SOURCE,
+  type PlanContentSource,
+} from '../modules/study/domain/ports/plan-content-source';
+import { PrismaPlanContentSource } from '../modules/study/infrastructure/persistence/prisma-plan-content.source';
+import { SaveStudyPlanUseCase } from '../modules/study/application/use-cases/save-study-plan.use-case';
+import { GetTodayPlanUseCase } from '../modules/study/application/use-cases/get-today-plan.use-case';
+import { StartPlannedSessionUseCase } from '../modules/study/application/use-cases/start-planned-session.use-case';
+import {
   STUDY_SESSION_REPOSITORY,
   type StudySessionRepository,
 } from '../modules/study/domain/ports/study-session-repository';
@@ -80,6 +115,13 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
     { provide: STUDY_UNIT_OF_WORK, useClass: PrismaStudyUnitOfWork },
     { provide: VAULT_IMPORT_SESSION_REPOSITORY, useClass: PrismaVaultImportSessionRepository },
     { provide: STUDY_CARD_QUERY, useClass: PrismaStudyCardQuery },
+    { provide: ROADMAP_NEW_CARDS_QUERY, useClass: PrismaRoadmapNewCardsQuery },
+    { provide: ROADMAP_QUESTIONS_QUERY, useClass: PrismaRoadmapQuestionsQuery },
+    { provide: STUDY_PLAN_REPOSITORY, useClass: PrismaStudyPlanRepository },
+    { provide: PLAN_CONTEXT_QUERY, useClass: PrismaPlanContextQuery },
+    { provide: ROADMAP_OPTIONS_QUERY, useClass: PrismaRoadmapOptionsQuery },
+    { provide: CARD_CONCEPT_SOURCE, useClass: PrismaCardConceptQuery },
+    { provide: PLAN_CONTENT_SOURCE, useClass: PrismaPlanContentSource },
     { provide: CARD_MASTERY_CALCULATOR, useValue: graphCardMastery },
     { provide: CONCEPT_REVIEW_TALLY_QUERY, useClass: PrismaConceptReviewTallyQuery },
     {
@@ -145,6 +187,54 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
       useFactory: (imports: VaultImportSessionRepository, uow: StudyUnitOfWork) =>
         new SyncVaultLogUseCase(imports, uow),
       inject: [VAULT_IMPORT_SESSION_REPOSITORY, STUDY_UNIT_OF_WORK],
+    },
+    {
+      provide: SaveStudyPlanUseCase,
+      useFactory: (plans: StudyPlanRepository) => new SaveStudyPlanUseCase(plans),
+      inject: [STUDY_PLAN_REPOSITORY],
+    },
+    {
+      provide: GetTodayPlanUseCase,
+      useFactory: (
+        plans: StudyPlanRepository,
+        context: PlanContextQuery,
+        newCards: RoadmapNewCardsQuery,
+        clock: Clock,
+      ) => new GetTodayPlanUseCase(plans, context, newCards, clock),
+      inject: [STUDY_PLAN_REPOSITORY, PLAN_CONTEXT_QUERY, ROADMAP_NEW_CARDS_QUERY, CLOCK],
+    },
+    {
+      provide: StartPlannedSessionUseCase,
+      useFactory: (
+        today: GetTodayPlanUseCase,
+        cards: StudyCardQuery,
+        newCards: RoadmapNewCardsQuery,
+        questions: RoadmapQuestionsQuery,
+        sessions: StudySessionRepository,
+        cardConcepts: CardConceptSource,
+        content: PlanContentSource,
+        prerequisites: PrerequisiteMasteryQuery,
+      ) =>
+        new StartPlannedSessionUseCase(
+          today,
+          cards,
+          newCards,
+          questions,
+          sessions,
+          cardConcepts,
+          content,
+          prerequisites,
+        ),
+      inject: [
+        GetTodayPlanUseCase,
+        STUDY_CARD_QUERY,
+        ROADMAP_NEW_CARDS_QUERY,
+        ROADMAP_QUESTIONS_QUERY,
+        STUDY_SESSION_REPOSITORY,
+        CARD_CONCEPT_SOURCE,
+        PLAN_CONTENT_SOURCE,
+        PREREQUISITE_MASTERY_QUERY,
+      ],
     },
   ],
 })
