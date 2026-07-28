@@ -10,6 +10,14 @@ Foi migrado de Next.js: não há SSR, server components, server actions nem rote
 - Tailwind v4 via `@tailwindcss/vite`. Fontes via `@fontsource-variable/*`.
 - Desktop (Electron): `electron/main.js` carrega o build estático (`dist/`) via `file://`.
 
+**Runtime do frontend: Bun.** O Vite (dev e build) roda no **Bun** — `bun run dev` /
+`bun run build` — que é ~18% mais rápido no build (benchmark em Windows; 1º build frio
+é lento porque o Bun cacheia as deps do Vite). O **backend continua no Node** (NestJS +
+Prisma não roda bem no Bun) e a **instalação continua no `npm`** (`bun install` foi mais
+lento no Windows por causa do postinstall do Prisma). Ou seja: `npm install` para deps,
+`bun run` para rodar o Vite, `node` para o backend. Os scripts em `package.json` não mudam
+— o que decide o runtime é invocar com `bun run` (frontend) vs `node`/`npm` (backend/CI).
+
 Não reintroduza dependências do Next (`next`, `eslint-config-next`) nem Prisma/auth
 de servidor — essa lógica vive no `backend/` (NestJS).
 
