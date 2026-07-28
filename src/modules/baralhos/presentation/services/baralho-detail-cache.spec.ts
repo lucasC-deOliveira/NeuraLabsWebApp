@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { loadCachedBaralho, saveCachedBaralho, forgetCachedBaralho } from "./baralho-detail-cache";
 import type { BaralhoDetail } from "../../domain/baralho.types";
 
+// API Storage suficiente para load/save/forget (get/set/remove). A robustez do
+// mecanismo (JSON corrompido, versão antiga) é coberta em local-cache-store.spec.
 class FakeLocalStorage {
   private store = new Map<string, string>();
   getItem(key: string): string | null {
@@ -12,9 +14,6 @@ class FakeLocalStorage {
   }
   removeItem(key: string): void {
     this.store.delete(key);
-  }
-  clear(): void {
-    this.store.clear();
   }
 }
 
@@ -79,13 +78,8 @@ describe("baralho-detail-cache", () => {
     expect(loadCachedBaralho("b1")).toBeNull();
   });
 
-  it("returns null instead of throwing on corrupt JSON", () => {
-    localStorage.setItem("neuralabs.baralho-detail-cache.v2.b1", "{not json");
-    expect(loadCachedBaralho("b1")).toBeNull();
-  });
-
   it("refuses a cached payload without cards, instead of rendering a broken deck", () => {
-    localStorage.setItem("neuralabs.baralho-detail-cache.v2.b1", JSON.stringify({ id: "b1" }));
+    saveCachedBaralho({ id: "b1" } as unknown as BaralhoDetail);
     expect(loadCachedBaralho("b1")).toBeNull();
   });
 
@@ -93,21 +87,8 @@ describe("baralho-detail-cache", () => {
   // lido de volta e a página quebrava ao iterar o campo ausente (tela preta). Um
   // payload de formato antigo tem de virar cache vazio.
   it("refuses cards from an older format, missing the connected concepts", () => {
-    localStorage.setItem(
-      "neuralabs.baralho-detail-cache.v2.b1",
-      JSON.stringify({
-        id: "b1",
-        titulo: "Antigo",
-        dataCriacao: CREATED.toISOString(),
-        origens: [],
-        cards: [{ id: "c1", pergunta: "p", resposta: "r", tipo: null, conceito: "X" }],
-      }),
-    );
-    expect(loadCachedBaralho("b1")).toBeNull();
-  });
-
-  it("ignores a deck cached under the previous version key", () => {
-    localStorage.setItem("neuralabs.baralho-detail-cache.v1.b1", JSON.stringify(detail()));
+    const stale = { ...detail(), cards: [{ id: "c1", pergunta: "p", resposta: "r" }] };
+    saveCachedBaralho(stale as unknown as BaralhoDetail);
     expect(loadCachedBaralho("b1")).toBeNull();
   });
 });

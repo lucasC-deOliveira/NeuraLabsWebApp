@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadCachedBaralhos, saveCachedBaralhos } from "./baralhos-cache";
+import { loadCachedBaralhos, saveCachedBaralhos, invalidateBaralhosList } from "./baralhos-cache";
 import type { BaralhoItem } from "../../domain/baralho.types";
 
+// API Storage completa (incl. length/key) porque invalidateBaralhosList varre as
+// chaves do namespace por tag.
 class FakeLocalStorage {
   private store = new Map<string, string>();
   getItem(key: string): string | null {
@@ -10,8 +12,14 @@ class FakeLocalStorage {
   setItem(key: string, value: string): void {
     this.store.set(key, value);
   }
-  clear(): void {
-    this.store.clear();
+  removeItem(key: string): void {
+    this.store.delete(key);
+  }
+  get length(): number {
+    return this.store.size;
+  }
+  key(index: number): string | null {
+    return [...this.store.keys()][index] ?? null;
   }
 }
 
@@ -62,13 +70,11 @@ describe("baralhos-cache", () => {
     expect(loadCachedBaralhos()).toEqual([]);
   });
 
-  it("returns null instead of throwing on corrupt JSON", () => {
-    localStorage.setItem("neuralabs.baralhos-cache.v1", "{not json");
-    expect(loadCachedBaralhos()).toBeNull();
-  });
-
-  it("returns null instead of throwing when the cached shape is unusable", () => {
-    localStorage.setItem("neuralabs.baralhos-cache.v1", JSON.stringify({ nope: true }));
+  // Invalidação proativa: após criar/apagar um baralho, a listagem cacheada some
+  // para não ressuscitar dado velho em outra tela/aba.
+  it("invalidateBaralhosList drops the cached list", () => {
+    saveCachedBaralhos([baralho()]);
+    invalidateBaralhosList();
     expect(loadCachedBaralhos()).toBeNull();
   });
 });
