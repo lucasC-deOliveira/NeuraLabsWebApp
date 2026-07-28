@@ -4,10 +4,15 @@ import type { StudyPlan, StudyPlanRepository } from '../../domain/ports/study-pl
 import type { PlanContext, PlanContextQuery } from '../../domain/ports/plan-context-query';
 import type { RoadmapNewCardsQuery } from '../../domain/ports/roadmap-new-cards-query';
 import type { Clock } from '../../domain/ports/clock';
+import type { CachePort } from '../../../cache/domain/cache-port';
 
 // Teto de novos que olhamos à frente só para saber a disponibilidade (a meta é bem
 // menor); evita carregar a trilha inteira só para contar.
 const NEW_LOOKAHEAD = 60;
+
+// O "hoje" é lido repetidamente (página + card do Dashboard) e muda pouco dentro de um
+// minuto; o TTL cobre as revisões, e salvar o plano invalida na hora (SaveStudyPlan).
+const TODAY_TTL_MS = 60_000;
 
 export interface TodayPlan {
   plan: StudyPlan;
@@ -27,9 +32,19 @@ export class GetTodayPlanUseCase {
     private readonly context: PlanContextQuery,
     private readonly newCards: RoadmapNewCardsQuery,
     private readonly clock: Clock,
+    private readonly cache: CachePort,
   ) {}
 
-  async execute(userId: string, planId: string): Promise<TodayPlan | null> {
+  execute(userId: string, planId: string): Promise<TodayPlan | null> {
+    return this.cache.getOrCompute(
+      `plan:today:${planId}`,
+      TODAY_TTL_MS,
+      () => this.compute(userId, planId),
+      [`plan:${planId}`],
+    );
+  }
+
+  private async compute(userId: string, planId: string): Promise<TodayPlan | null> {
     const plan = await this.plans.loadById(userId, planId);
     if (!plan) return null;
     // Independentes → em paralelo (o backlog e a disponibilidade de novos não se cruzam).
