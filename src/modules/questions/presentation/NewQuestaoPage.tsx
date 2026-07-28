@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { questionsHttp } from "../infra/http";
 import type { AlternativaMultipla, TipoQuestao } from "../domain/questao.types";
 import { LETRAS, reindexAlternativas, validateQuestao } from "../domain/services/questao-form";
+import { invalidateQuestoesList } from "./services/questoes-cache";
 
 function TipoSelector({ tipo, onSelect }: { tipo: TipoQuestao; onSelect: (t: TipoQuestao) => void }) {
   return (
@@ -178,6 +179,7 @@ export function NewQuestaoPage() {
         gabarito: tipo === "MULTIPLA_ESCOLHA" ? gabaritoMultipla : gabaritoVF,
         explicacao: explicacao.trim() || undefined,
       });
+      invalidateQuestoesList(); // a listagem cacheada não pode ignorar a questão nova
       toast.success("Questão criada!");
       router.push("/questions");
     } catch {

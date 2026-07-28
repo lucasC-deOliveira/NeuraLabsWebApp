@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadCachedGraphList, saveCachedGraphList } from "./graph-list-cache";
+import { loadCachedGraphList, saveCachedGraphList, invalidateGraphList } from "./graph-list-cache";
 import type { GraphListParams, GraphListResult } from "../../domain/types/graph.types";
 
+// API Storage completa (incl. length/key) porque invalidateGraphList varre por tag.
 class FakeLocalStorage {
   private store = new Map<string, string>();
   getItem(key: string): string | null {
@@ -10,8 +11,14 @@ class FakeLocalStorage {
   setItem(key: string, value: string): void {
     this.store.set(key, value);
   }
-  clear(): void {
-    this.store.clear();
+  removeItem(key: string): void {
+    this.store.delete(key);
+  }
+  get length(): number {
+    return this.store.size;
+  }
+  key(index: number): string | null {
+    return [...this.store.keys()][index] ?? null;
   }
 }
 
@@ -51,9 +58,12 @@ describe("graph-list-cache", () => {
     );
   });
 
-  it("returns null instead of throwing on corrupt JSON", () => {
-    saveCachedGraphList({ page: 1, pageSize: 12 }, result("g1"));
-    localStorage.setItem("neuralabs.graph-list-cache.broken", "{not json");
-    expect(loadCachedGraphList({ page: 1, pageSize: 12 })?.items[0].id).toBe("g1");
+  // Invalidação proativa: uma mutação de grafo limpa TODAS as combinações de filtro.
+  it("invalidateGraphList drops every cached query at once", () => {
+    saveCachedGraphList({ page: 1, pageSize: 12 }, result("p1"));
+    saveCachedGraphList({ page: 2, pageSize: 12 }, result("p2"));
+    invalidateGraphList();
+    expect(loadCachedGraphList({ page: 1, pageSize: 12 })).toBeNull();
+    expect(loadCachedGraphList({ page: 2, pageSize: 12 })).toBeNull();
   });
 });

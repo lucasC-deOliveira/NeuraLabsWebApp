@@ -13,6 +13,7 @@ import { baralhosHttp } from "../infra/http";
 import { toExportPayload, exportFileName } from "../domain/services/export-baralhos";
 import { downloadJson, readJsonFile } from "./services/download-json";
 import { forgetCachedBaralho } from "./services/baralho-detail-cache";
+import { invalidateBaralhosList } from "./services/baralhos-cache";
 import { useBaralhosList } from "./hooks/useBaralhosList";
 import {
   filterAndSortBaralhos,
@@ -91,6 +92,7 @@ export function BaralhosListPage() {
     setSubmitting(true);
     try {
       await baralhosHttp.createBaralho(titulo, []);
+      invalidateBaralhosList(); // outras telas/abas que leem a lista não veem o cache velho
       toast.success("Baralho criado!");
       setCreating(false);
       await reload();
@@ -107,6 +109,7 @@ export function BaralhosListPage() {
       await baralhosHttp.deleteBaralho(deleteTarget.id);
       // Sem isso, reabrir a URL do baralho excluído o mostraria a partir do cache.
       forgetCachedBaralho(deleteTarget.id);
+      invalidateBaralhosList(); // e a listagem não ressuscita o baralho apagado
       toast.success("Baralho removido! Os cartões continuam nos seus flashcards.");
       setDeleteTarget(null);
       await reload();

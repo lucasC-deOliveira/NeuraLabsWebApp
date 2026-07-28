@@ -53,24 +53,25 @@ module.exports = {
       severity: "error",
       comment:
         "um módulo não importa o domínio de outro módulo. Exceções: vr → graph, " +
-        "provas → questions (composição/rendering deliberados); `content` é um " +
-        "shared kernel (hierarquia de conceitos) que qualquer módulo pode consumir",
+        "provas → questions (composição/rendering deliberados); shared kernels que " +
+        "qualquer módulo pode consumir: `content` (hierarquia de conceitos) e `cache` " +
+        "(o CacheStore, preocupação transversal — espelha o `cache` do backend)",
       from: { path: "src/modules/([^/]+)/", pathNot: ["src/modules/(vr|provas)/"] },
       to: {
         path: "src/modules/([^/]+)/domain/",
-        pathNot: ["src/modules/$1/", "src/modules/content/"],
+        pathNot: ["src/modules/$1/", "src/modules/content/", "src/modules/cache/"],
       },
     },
     {
       name: "vr-so-consome-graph",
       severity: "error",
       comment:
-        "vr só pode cruzar contexto para o graph (do qual é um renderizador 3D); " +
-        "nenhum outro módulo externo",
+        "vr só pode cruzar contexto para o graph (do qual é um renderizador 3D) e para " +
+        "os shared kernels content/cache; nenhum outro módulo externo",
       from: { path: "src/modules/vr/" },
       to: {
         path: "src/modules/([^/]+)/(domain|application|infra|presentation)/",
-        pathNot: ["src/modules/(vr|graph)/"],
+        pathNot: ["src/modules/(vr|graph|content|cache)/"],
       },
     },
     {
@@ -78,11 +79,11 @@ module.exports = {
       severity: "error",
       comment:
         "provas só pode cruzar contexto para questions (uma prova é composta de " +
-        "questões); nenhum outro módulo externo",
+        "questões) e para os shared kernels content/cache; nenhum outro módulo externo",
       from: { path: "src/modules/provas/" },
       to: {
         path: "src/modules/([^/]+)/(domain|application|infra|presentation)/",
-        pathNot: ["src/modules/(provas|questions)/"],
+        pathNot: ["src/modules/(provas|questions|content|cache)/"],
       },
     },
     {

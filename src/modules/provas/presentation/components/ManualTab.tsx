@@ -12,6 +12,7 @@ import { questionsHttp } from "@/modules/questions/infra/http";
 import type { QuestaoListItem } from "@/modules/questions/domain/questao.types";
 import { provasHttp } from "../../infra/http";
 import { validateProvaDraft } from "../../domain/services/prova-form";
+import { invalidateProvasList } from "../services/provas-cache";
 
 const TIPO_LABEL: Record<string, string> = {
   VERDADEIRO_FALSO: "V/F",
@@ -64,6 +65,7 @@ export function ManualTab({ onCreated }: { onCreated: (id: string) => void }) {
         descricao: descricao.trim() || undefined,
         questaoIds: selected.map((q) => q.id),
       });
+      invalidateProvasList(); // a listagem cacheada não pode ignorar a prova nova
       toast.success("Prova criada!");
       onCreated(provaId);
     } catch {

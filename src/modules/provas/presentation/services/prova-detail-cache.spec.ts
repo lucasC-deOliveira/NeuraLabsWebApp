@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadCachedProva, saveCachedProva } from "./prova-detail-cache";
+import { loadCachedProva, saveCachedProva, forgetCachedProva } from "./prova-detail-cache";
 import type { ProvaDetail, ProvaQuestaoItem } from "../../domain/prova.types";
 
+// get/set/remove bastam (load/save/forget não varrem por tag). A robustez do
+// mecanismo (JSON corrompido, versão) é coberta em local-cache-store.spec.
 class FakeLocalStorage {
   private store = new Map<string, string>();
   getItem(key: string): string | null {
@@ -12,9 +14,6 @@ class FakeLocalStorage {
   }
   removeItem(key: string): void {
     this.store.delete(key);
-  }
-  clear(): void {
-    this.store.clear();
   }
 }
 
@@ -70,21 +69,23 @@ describe("prova detail cache", () => {
     expect(loadCachedProva("p3")).toBeNull();
   });
 
-  it("treats corrupted json as no cache, instead of throwing", () => {
-    localStorage.setItem("neuralabs.prova-detail-cache.v1.p1", "{ not json");
-    expect(loadCachedProva("p1")).toBeNull();
-  });
-
   // Regressão: foi um payload de formato antigo (sem as tags) que deixou o baralho
   // em tela preta. Aqui um payload defasado tem de virar "cache vazio".
   it("refuses a payload from an older shape, with no concept tags", () => {
-    const antigo = { ...detail(), questoes: [{ ...questao(), conceitosConectados: undefined }] };
-    localStorage.setItem("neuralabs.prova-detail-cache.v1.p1", JSON.stringify(antigo));
+    const stale = { ...detail(), questoes: [{ ...questao(), conceitosConectados: undefined }] };
+    saveCachedProva(stale as unknown as ProvaDetail);
     expect(loadCachedProva("p1")).toBeNull();
   });
 
   it("refuses a payload with no questions array at all", () => {
-    localStorage.setItem("neuralabs.prova-detail-cache.v1.p1", JSON.stringify({ id: "p1" }));
+    saveCachedProva({ id: "p1" } as unknown as ProvaDetail);
+    expect(loadCachedProva("p1")).toBeNull();
+  });
+
+  // Esquecer a prova: reabri-la após excluí-la não a traz de volta do cache.
+  it("forgets an exam so a deleted one does not come back", () => {
+    saveCachedProva(detail());
+    forgetCachedProva("p1");
     expect(loadCachedProva("p1")).toBeNull();
   });
 });

@@ -1,49 +1,40 @@
-// Cache local (localStorage) de um baralho aberto — para reabrir o mesmo baralho
-// instantaneamente (stale-while-revalidate). Diferente do cache da listagem, este é
-// por baralho: a chave leva o id. Falhas são silenciosas: é só uma otimização.
+// Cache local de um baralho aberto — para reabri-lo instantaneamente
+// (stale-while-revalidate). Diferente do cache da listagem, este é por baralho: a
+// chave leva o id. Sobre o CacheStore unificado; a checagem de forma (accept) faz
+// um payload defasado virar miss em vez de quebrar a tela.
 import type { BaralhoDetail } from "../../domain/baralho.types";
+import { cacheStore } from "../../../cache/infra/local-cache-store";
+import type { CacheSlot } from "../../../cache/domain/cache-store";
 
-// Versionada: um payload antigo com outro formato é ignorado em vez de quebrar a
-// página. v2 = cartões passaram a ter conceitosConectados; um payload v1 não tem o
-// campo e quebrava a tela ao ser lido. Mudou a forma de BaralhoDetail? Vire a versão.
-const KEY_PREFIX = "neuralabs.baralho-detail-cache.v2.";
+// v2 = cartões passaram a ter conceitosConectados; um payload v1 não tem o campo.
+// Mudou a forma de BaralhoDetail? Vire a versão.
+const VERSION = 2;
 
-const keyOf = (baralhoId: string): string => KEY_PREFIX + baralhoId;
-
-// O cache é uma fronteira não confiável: o que está no disco pode ter sido gravado
-// por uma versão anterior do app. Virar a chave acima é o mecanismo principal, mas
-// depende de alguém lembrar — então a forma também é conferida antes de usar, para
-// um payload defasado virar "cache vazio" em vez de quebrar a tela.
+// O cache é uma fronteira não confiável: virar a versão é o mecanismo principal,
+// mas depende de alguém lembrar — a forma também é conferida antes de usar.
 function isUsable(parsed: BaralhoDetail): boolean {
   if (!parsed || !Array.isArray(parsed.cards)) return false;
   return parsed.cards.every((card) => Array.isArray(card.conceitosConectados));
 }
 
+function slotOf(baralhoId: string): CacheSlot<BaralhoDetail> {
+  return cacheStore.slot({
+    key: `baralho-detail.${baralhoId}`,
+    version: VERSION,
+    accept: isUsable,
+    revive: (b): BaralhoDetail => ({ ...b, dataCriacao: new Date(b.dataCriacao) }),
+  });
+}
+
 export function loadCachedBaralho(baralhoId: string): BaralhoDetail | null {
-  try {
-    const raw = localStorage.getItem(keyOf(baralhoId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as BaralhoDetail;
-    if (!isUsable(parsed)) return null;
-    return { ...parsed, dataCriacao: new Date(parsed.dataCriacao) };
-  } catch {
-    return null;
-  }
+  return slotOf(baralhoId).read();
 }
 
 export function saveCachedBaralho(baralho: BaralhoDetail): void {
-  try {
-    localStorage.setItem(keyOf(baralho.id), JSON.stringify(baralho));
-  } catch {
-    // quota estourada / modo privado — o cache é apenas uma otimização.
-  }
+  slotOf(baralho.id).write(baralho);
 }
 
 /** Esquece o baralho — usado ao excluí-lo, para o cache não ressuscitar um fantasma. */
 export function forgetCachedBaralho(baralhoId: string): void {
-  try {
-    localStorage.removeItem(keyOf(baralhoId));
-  } catch {
-    // sem cache para limpar; segue o jogo.
-  }
+  slotOf(baralhoId).invalidate();
 }

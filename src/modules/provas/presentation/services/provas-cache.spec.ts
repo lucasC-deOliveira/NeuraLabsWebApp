@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadCachedProvas, saveCachedProvas } from "./provas-cache";
+import { loadCachedProvas, saveCachedProvas, invalidateProvasList } from "./provas-cache";
 import type { ProvaListItem } from "../../domain/prova.types";
 
+// API Storage completa (incl. length/key) porque invalidateProvasList varre por tag.
 class FakeLocalStorage {
   private store = new Map<string, string>();
   getItem(key: string): string | null {
@@ -13,8 +14,11 @@ class FakeLocalStorage {
   removeItem(key: string): void {
     this.store.delete(key);
   }
-  clear(): void {
-    this.store.clear();
+  get length(): number {
+    return this.store.size;
+  }
+  key(index: number): string | null {
+    return [...this.store.keys()][index] ?? null;
   }
 }
 
@@ -46,14 +50,16 @@ describe("provas cache", () => {
     expect(loadCachedProvas()).toEqual([]);
   });
 
-  it("treats corrupted json as no cache, instead of throwing", () => {
-    localStorage.setItem("neuralabs.provas-cache.v1", "{ not json");
+  // Regressão: foi um payload de formato antigo que deixou o baralho em tela preta.
+  it("refuses a payload from an older shape, instead of returning it", () => {
+    saveCachedProvas([{ id: "p1" } as unknown as ProvaListItem]);
     expect(loadCachedProvas()).toBeNull();
   });
 
-  // Regressão: foi um payload de formato antigo que deixou o baralho em tela preta.
-  it("refuses a payload from an older shape", () => {
-    localStorage.setItem("neuralabs.provas-cache.v1", JSON.stringify([{ id: "p1" }]));
+  // Invalidação proativa: após criar/apagar prova, a listagem cacheada some.
+  it("invalidateProvasList drops the cached list", () => {
+    saveCachedProvas([prova()]);
+    invalidateProvasList();
     expect(loadCachedProvas()).toBeNull();
   });
 });

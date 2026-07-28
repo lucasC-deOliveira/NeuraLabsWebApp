@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadCachedQuestoes, saveCachedQuestoes } from "./questoes-cache";
+import { loadCachedQuestoes, saveCachedQuestoes, invalidateQuestoesList } from "./questoes-cache";
 import type { QuestaoListItem } from "../../domain/questao.types";
 
+// API Storage completa (incl. length/key) porque invalidateQuestoesList varre por tag.
 class FakeLocalStorage {
   private store = new Map<string, string>();
   getItem(key: string): string | null {
@@ -10,12 +11,16 @@ class FakeLocalStorage {
   setItem(key: string, value: string): void {
     this.store.set(key, value);
   }
-  clear(): void {
-    this.store.clear();
+  removeItem(key: string): void {
+    this.store.delete(key);
+  }
+  get length(): number {
+    return this.store.size;
+  }
+  key(index: number): string | null {
+    return [...this.store.keys()][index] ?? null;
   }
 }
-
-const KEY = "neuralabs.questoes-cache.v1";
 
 function questao(over: Partial<QuestaoListItem> = {}): QuestaoListItem {
   return {
@@ -60,20 +65,18 @@ describe("questoes-cache", () => {
     expect(loadCachedQuestoes()).toEqual([]);
   });
 
-  it("returns null instead of throwing on corrupt JSON", () => {
-    localStorage.setItem(KEY, "{not json");
-    expect(loadCachedQuestoes()).toBeNull();
-  });
-
   // Regressão da mesma classe que quebrou o baralho: payload de formato antigo,
   // sem conceitosConectados, quebrava a página ao iterar o campo ausente.
   it("refuses questions from an older format, missing the connected concepts", () => {
-    localStorage.setItem(KEY, JSON.stringify([{ id: "q1", enunciado: "x", tipo: "MULTIPLA_ESCOLHA" }]));
+    const stale = [{ id: "q1", enunciado: "x", tipo: "MULTIPLA_ESCOLHA" }];
+    saveCachedQuestoes(stale as unknown as QuestaoListItem[]);
     expect(loadCachedQuestoes()).toBeNull();
   });
 
-  it("refuses a payload that is not a list", () => {
-    localStorage.setItem(KEY, JSON.stringify({ nope: true }));
+  // Invalidação proativa: após criar/apagar questão, a listagem cacheada some.
+  it("invalidateQuestoesList drops the cached list", () => {
+    saveCachedQuestoes([questao()]);
+    invalidateQuestoesList();
     expect(loadCachedQuestoes()).toBeNull();
   });
 });
