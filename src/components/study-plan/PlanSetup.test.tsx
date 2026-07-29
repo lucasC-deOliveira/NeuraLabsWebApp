@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlanSetup } from "./PlanSetup";
-import { saveStudyPlan, getGraphRoadmaps, buildRoadmap } from "@/lib/study-plan-api";
+import { saveStudyPlan, getGraphRoadmaps, getPlanScope, buildRoadmap } from "@/lib/study-plan-api";
 
 vi.mock("@/lib/study-plan-api", () => ({
   saveStudyPlan: vi.fn((input) => Promise.resolve({ id: "p1", ativo: true, ...input })),
   getGraphRoadmaps: vi.fn(() => Promise.resolve([])), // nenhum roadmap ainda → gera ao salvar
+  getPlanScope: vi.fn(() => Promise.resolve({ hasProva: false, hasEdital: false })),
   buildRoadmap: vi.fn(() => Promise.resolve({ itens: [] })),
 }));
 vi.mock("@/lib/baralhos-api", () => ({ getBaralhos: vi.fn(() => Promise.resolve([])) }));
@@ -52,5 +53,23 @@ describe("PlanSetup", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cálculo" }));
     await waitFor(() => expect(getGraphRoadmaps).toHaveBeenCalledWith("g1"));
     expect(screen.getByText(/a ordem de estudo dos grafos/i)).toBeInTheDocument();
+  });
+
+  // Sem prova avulsa, o modo "prova" fica bloqueado…
+  it("keeps the exam-priority option locked when no graph has a prova", async () => {
+    render(<PlanSetup graphs={graphs} initial={null} onSaved={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Cálculo" }));
+    await waitFor(() => expect(getPlanScope).toHaveBeenCalledWith(["g1"]));
+    expect(screen.getByRole("button", { name: /O que mais cai na prova/ })).toBeDisabled();
+  });
+
+  // …mas se o grafo escolhido CONTÉM uma prova, "o que mais cai na prova" libera.
+  it("unlocks the exam-priority option when a chosen graph contains a prova", async () => {
+    vi.mocked(getPlanScope).mockResolvedValue({ hasProva: true, hasEdital: false });
+    render(<PlanSetup graphs={graphs} initial={null} onSaved={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Cálculo" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /O que mais cai na prova/ })).toBeEnabled(),
+    );
   });
 });

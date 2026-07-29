@@ -70,6 +70,8 @@ import { PrismaStudyPlanRepository } from '../modules/study/infrastructure/persi
 import { PrismaPlanContextQuery } from '../modules/study/infrastructure/persistence/prisma-plan-context.query';
 import { ROADMAP_OPTIONS_QUERY } from '../modules/study/domain/ports/roadmap-options-query';
 import { PrismaRoadmapOptionsQuery } from '../modules/study/infrastructure/persistence/prisma-roadmap-options.query';
+import { PLAN_SCOPE_QUERY } from '../modules/study/domain/ports/plan-scope-query';
+import { PrismaPlanScopeQuery } from '../modules/study/infrastructure/persistence/prisma-plan-scope.query';
 import {
   CARD_CONCEPT_SOURCE,
   type CardConceptSource,
@@ -121,6 +123,7 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
     { provide: STUDY_PLAN_REPOSITORY, useClass: PrismaStudyPlanRepository },
     { provide: PLAN_CONTEXT_QUERY, useClass: PrismaPlanContextQuery },
     { provide: ROADMAP_OPTIONS_QUERY, useClass: PrismaRoadmapOptionsQuery },
+    { provide: PLAN_SCOPE_QUERY, useClass: PrismaPlanScopeQuery },
     { provide: CARD_CONCEPT_SOURCE, useClass: PrismaCardConceptQuery },
     { provide: PLAN_CONTENT_SOURCE, useClass: PrismaPlanContentSource },
     { provide: CARD_MASTERY_CALCULATOR, useValue: graphCardMastery },

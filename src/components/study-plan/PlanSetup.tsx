@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import {
   saveStudyPlan,
   getGraphRoadmaps,
+  getPlanScope,
   buildRoadmap,
   type PlanMetaTipo,
+  type PlanScope,
   type RoadmapOption,
   type StudyPlan,
 } from "@/lib/study-plan-api";
@@ -37,9 +39,6 @@ interface SourceItem {
 const iso = (d: string): string | null => (d ? new Date(d).toISOString() : null);
 const toggle = (ids: string[], id: string): string[] =>
   ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
-// Critérios que dependem de uma prova no plano. O edital é ligado à prova
-// (Edital.provaId), então "ênfase do edital" também precisa de uma prova; só a IA não.
-const requiresProva = (modo: string): boolean => modo !== "ai";
 
 // Config do plano: CONTEÚDO = grafos + baralhos + provas (o objetivo é aprender tudo);
 // a prioridade é só a ORDEM; meta diária; data-alvo.
@@ -53,6 +52,8 @@ export function PlanSetup({ graphs, initial, onSaved, onCancel }: {
   const [grafoIds, setGrafoIds] = useState<string[]>(initial?.grafoIds ?? []);
   // Roadmaps já gerados por grafo, para saber o que precisa ser gerado ao salvar.
   const [roadmapsByGraph, setRoadmapsByGraph] = useState<Record<string, RoadmapOption[]>>({});
+  // Os grafos escolhidos contêm prova/edital? Libera os modos prova/edital.
+  const [scope, setScope] = useState<PlanScope>({ hasProva: false, hasEdital: false });
   // Sem prova no plano, o critério padrão não pode depender de prova → IA.
   const [prioridade, setPrioridade] = useState(
     initial?.prioridade ?? (initial?.provaIds?.length ? "prova" : "ai"),
@@ -75,6 +76,15 @@ export function PlanSetup({ graphs, initial, onSaved, onCancel }: {
     return () => { active = false; };
   }, [grafoIds]);
 
+  // Descobre se os grafos escolhidos têm prova/edital dentro (libera esses modos).
+  useEffect(() => {
+    let active = true;
+    getPlanScope(grafoIds)
+      .then((s) => { if (active) setScope(s); })
+      .catch(() => { if (active) setScope({ hasProva: false, hasEdital: false }); });
+    return () => { active = false; };
+  }, [grafoIds]);
+
   useEffect(() => {
     let active = true;
     Promise.all([getBaralhos(), listProvas()])
@@ -90,6 +100,29 @@ export function PlanSetup({ graphs, initial, onSaved, onCancel }: {
   // Grafos escolhidos que ainda não têm o roadmap do modo → precisam gerar ao salvar.
   const graphsMissing = (modo: string): string[] =>
     grafoIds.filter((g) => !(roadmapsByGraph[g] ?? []).some((r) => r.modo === modo));
+
+  // A prova/edital pode vir do conteúdo (provaIds) OU de dentro dos grafos escolhidos.
+  const provaAvailable = provaIds.length > 0 || scope.hasProva;
+  const editalAvailable = provaIds.length > 0 || scope.hasEdital;
+  // Modo bloqueado se falta a fonte que ele precisa (só a IA nunca depende de prova).
+  const modeLocked = (modo: string): boolean => {
+    if (modo === "ai") return false;
+    if (modo === "prova") return !provaAvailable;
+    if (modo === "edital") return !editalAvailable;
+    return !(provaAvailable && editalAvailable); // prova_edital
+  };
+  const lockedHint = (modo: string): string =>
+    modo === "edital"
+      ? "Requer edital no conteúdo ou no grafo"
+      : modo === "prova_edital"
+        ? "Requer prova e edital no conteúdo ou no grafo"
+        : "Requer prova no conteúdo ou no grafo";
+
+  // Se o modo escolhido deixou de estar disponível (tirou a prova/grafo), volta pra IA.
+  useEffect(() => {
+    if (prioridade !== "ai" && modeLocked(prioridade)) setPrioridade("ai");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope, provaIds, grafoIds]);
 
   const salvar = async (): Promise<void> => {
     const valor = Number(metaValor);
@@ -131,12 +164,8 @@ export function PlanSetup({ graphs, initial, onSaved, onCancel }: {
     setGenerating(false);
   };
 
-  // Tirar todas as provas invalida um critério que depende delas → volta pra IA.
-  const toggleProva = (id: string): void => {
-    const next = toggle(provaIds, id);
-    setProvaIds(next);
-    if (next.length === 0 && requiresProva(prioridade)) setPrioridade("ai");
-  };
+  // O efeito acima repõe a prioridade em IA se o modo ficar indisponível.
+  const toggleProva = (id: string): void => setProvaIds((v) => toggle(v, id));
 
   return (
     <div className="space-y-5 rounded-xl border bg-card p-5">
@@ -158,21 +187,21 @@ export function PlanSetup({ graphs, initial, onSaved, onCancel }: {
         <Field label="Prioridade (a ordem de estudo dos grafos)">
           <div className="grid gap-2 sm:grid-cols-2">
             {CRITERIA.map((c) => {
-              const needsProva = requiresProva(c.modo) && provaIds.length === 0;
+              const locked = modeLocked(c.modo);
               const on = prioridade === c.modo;
               const missing = graphsMissing(c.modo).length;
               return (
                 <button
                   key={c.modo}
                   type="button"
-                  disabled={needsProva}
+                  disabled={locked}
                   onClick={() => setPrioridade(c.modo)}
                   className={`rounded-lg border p-3 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${on ? "border-primary bg-primary/10" : "border-border hover:border-primary/40"}`}
                 >
                   <div className="font-medium">{c.label}</div>
                   <div className="text-xs text-muted-foreground">{c.hint}</div>
-                  {needsProva ? (
-                    <div className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">Requer uma prova no plano</div>
+                  {locked ? (
+                    <div className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">{lockedHint(c.modo)}</div>
                   ) : missing > 0 ? (
                     <div className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">
                       Gera o roadmap ao salvar{missing > 1 ? ` (${missing} grafos)` : ""}

@@ -26,6 +26,10 @@ import {
   type RoadmapOptionsQuery,
 } from '../modules/study/domain/ports/roadmap-options-query';
 import {
+  PLAN_SCOPE_QUERY,
+  type PlanScopeQuery,
+} from '../modules/study/domain/ports/plan-scope-query';
+import {
   SubmitReviewUseCase,
   type SubmitReviewCommand,
 } from '../modules/study/application/use-cases/submit-review.use-case';
@@ -61,6 +65,7 @@ export class StudyController {
     private readonly startPlannedSession: StartPlannedSessionUseCase,
     @Inject(STUDY_PLAN_REPOSITORY) private readonly plans: StudyPlanRepository,
     @Inject(ROADMAP_OPTIONS_QUERY) private readonly roadmapOptions: RoadmapOptionsQuery,
+    @Inject(PLAN_SCOPE_QUERY) private readonly planScope: PlanScopeQuery,
   ) {}
 
   // Onde o usuário mais erra, por conceito. 0 token: sai do histórico de revisões
@@ -123,6 +128,16 @@ export class StudyController {
   @Get('plan/roadmaps')
   roadmaps(@CurrentUser() userId: string, @Query('grafoId') grafoId: string) {
     return this.roadmapOptions.list(userId, grafoId ?? '');
+  }
+
+  // Os grafos escolhidos contêm prova/edital? Libera os modos prova/edital na UI.
+  @Get('plan/scope')
+  planScopeCaps(@CurrentUser() userId: string, @Query('grafoIds') grafoIds?: string) {
+    const ids = (grafoIds ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return this.planScope.capabilities(userId, ids);
   }
 
   // "Hoje" de um plano: alvo do dia + projeção (null se o plano não existe).

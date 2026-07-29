@@ -93,6 +93,17 @@ export function getGraphRoadmaps(grafoId: string): Promise<RoadmapOption[]> {
   return apiFetch<RoadmapOption[]>(`/study/plan/roadmaps?grafoId=${encodeURIComponent(grafoId)}`);
 }
 
+// Os grafos escolhidos contêm prova/edital? Libera os modos prova/edital na UI.
+export interface PlanScope {
+  hasProva: boolean;
+  hasEdital: boolean;
+}
+
+export function getPlanScope(grafoIds: string[]): Promise<PlanScope> {
+  if (grafoIds.length === 0) return Promise.resolve({ hasProva: false, hasEdital: false });
+  return apiFetch<PlanScope>(`/study/plan/scope?grafoIds=${encodeURIComponent(grafoIds.join(","))}`);
+}
+
 // Gera (ou recomputa) o roadmap de um critério, para o plano poder segui-lo mesmo que
 // ele ainda não exista. Determinístico (0 token) para prova/edital; a IA ordena no 'ai'.
 export function buildRoadmap(grafoId: string, modo: string): Promise<{ itens: unknown[] }> {
