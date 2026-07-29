@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CreateSubgrafoModal } from "./CreateSubgrafoModal";
 import { createSubgrafo } from "@/lib/graph-api";
+import { invalidateGraphList } from "../../services/graph-list-cache";
 
 vi.mock("@/lib/graph-api", () => ({
   createSubgrafo: vi.fn(() => Promise.resolve({ grafoId: "sg1", grafoRefNodeId: "ref1" })),
@@ -11,6 +12,7 @@ vi.mock("@/lib/graph-api", () => ({
     { value: "DERIVA_DE", label: "Deriva de" },
   ],
 }));
+vi.mock("../../services/graph-list-cache", () => ({ invalidateGraphList: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -34,6 +36,8 @@ describe("CreateSubgrafoModal", () => {
     });
     expect(onCreated).toHaveBeenCalledWith("sg1", "ref1");
     expect(onClose).toHaveBeenCalled();
+    // O subgrafo novo precisa aparecer em "Meus Grafos" — a listagem é invalidada.
+    expect(invalidateGraphList).toHaveBeenCalled();
   });
 
   it("keeps the create button disabled until a name is typed", async () => {

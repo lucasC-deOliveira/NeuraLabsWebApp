@@ -16,6 +16,8 @@ import { useRouter } from "@/lib/navigation";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { ImportGraphPayload } from "@/modules/graph/domain/types/graph-import.types";
 import { parseGraphImport } from "@/modules/graph/domain/services/graph-json-import";
+import { invalidateGraphList } from "../../services/graph-list-cache";
+import { forgetCachedGraph } from "../../services/graph-cache";
 import { RELATION_PAIRS } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 
@@ -78,6 +80,9 @@ export function ImportJsonModal({ open, onOpenChange, grafoId, onSuccess }: Impo
     setLoading(true);
     try {
       const r = await graphHttp.importGraph(grafoId, payload);
+      // O conteúdo do grafo mudou (vista descartada) e a lista reflete os novos nós.
+      forgetCachedGraph(grafoId);
+      invalidateGraphList();
       toast.success(
         `${r.nodes} nó(s) e ${r.edges} relação(ões) importados!` +
           (r.reused > 0 ? ` ${r.reused} já existia(m) no grafo e foi(ram) reaproveitado(s).` : ""),
