@@ -20,6 +20,8 @@ import {
 import { PlanSetup } from "./PlanSetup";
 import { TodayView } from "./TodayView";
 import { PlannedSessionModal } from "./PlannedSessionModal";
+import { loadCachedToday, saveCachedToday, invalidateToday } from "./today-plan-cache";
+import { saveCachedPlans } from "./study-plans-cache";
 
 interface GraphOption {
   id: string;
@@ -50,6 +52,7 @@ export function StudyPlanPage() {
       .then(([g, p]) => {
         setGraphs(g.items.map((x) => ({ id: x.id, nome: x.nome })));
         setPlans(p);
+        saveCachedPlans(p); // alimenta o card da home (PlanTodayCard abre instantâneo)
         setSelectedId(p[0]?.id ?? null);
         setMode(p.length === 0 ? "new" : "view");
       })
@@ -60,9 +63,11 @@ export function StudyPlanPage() {
   useEffect(() => {
     if (mode !== "view" || !selectedId) return;
     let active = true;
+    const cached = loadCachedToday(selectedId);
+    if (cached) setToday(cached); // abertura/troca de plano instantânea; revalida abaixo
     getTodayPlan(selectedId)
-      .then((t) => { if (active) { setToday(t); setTodayError(false); } })
-      .catch(() => { if (active) setTodayError(true); });
+      .then((t) => { if (active) { setToday(t); setTodayError(false); if (t) saveCachedToday(selectedId, t); } })
+      .catch(() => { if (active && !cached) setTodayError(true); }); // com cache na tela, não vira erro
     return () => { active = false; };
   }, [selectedId, mode]);
 
@@ -72,7 +77,7 @@ export function StudyPlanPage() {
     setToday(null);
     setTodayError(false);
     getTodayPlan(selectedId)
-      .then((t) => { setToday(t); })
+      .then((t) => { setToday(t); if (t) saveCachedToday(selectedId, t); })
       .catch(() => setTodayError(true));
   };
 
@@ -81,7 +86,8 @@ export function StudyPlanPage() {
   const current = plans.find((p) => p.id === selectedId) ?? null;
 
   const afterSave = (plan: StudyPlan): void => {
-    getStudyPlans().then(setPlans).catch(() => {});
+    invalidateToday(plan.id); // a config mudou → o "hoje" cacheado desse plano some
+    getStudyPlans().then((ps) => { setPlans(ps); saveCachedPlans(ps); }).catch(() => {});
     setSelectedId(plan.id);
     setToday(null);
     setMode("view");
@@ -89,10 +95,12 @@ export function StudyPlanPage() {
 
   const remover = (): void => {
     if (!selectedId || !window.confirm("Remover este plano? Seu histórico de estudo não é afetado.")) return;
+    invalidateToday(selectedId); // plano removido → seu "hoje" cacheado não pode ressuscitar
     deleteStudyPlan(selectedId)
       .then(getStudyPlans)
       .then((ps) => {
         setPlans(ps);
+        saveCachedPlans(ps); // mantém o card da home em dia após remover
         setSelectedId(ps[0]?.id ?? null);
         setToday(null);
         setMode(ps.length === 0 ? "new" : "view");
@@ -161,7 +169,13 @@ export function StudyPlanPage() {
         session={session}
         onClose={() => {
           setSession(null);
-          if (selectedId) getTodayPlan(selectedId).then(setToday).catch(() => {});
+          // Sessão concluída: as revisões do dia mudaram → invalida e revalida o "hoje".
+          if (selectedId) {
+            invalidateToday(selectedId);
+            getTodayPlan(selectedId)
+              .then((t) => { setToday(t); if (t) saveCachedToday(selectedId, t); })
+              .catch(() => {});
+          }
         }}
       />
     </PageContainer>

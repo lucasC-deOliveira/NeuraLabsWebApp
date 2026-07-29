@@ -3,7 +3,8 @@
 import { PageContainer } from "@/components/page-container";
 import { ConceptWeakSpots } from "@/components/graph/ConceptWeakSpots";
 import { PageHeader } from "@/components/page-header/PageHeader";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useCachedResource } from "@/modules/cache/presentation/useCachedResource";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -31,27 +32,47 @@ function QuickActions() {
   );
 }
 
+interface DashboardData {
+  subjects: SubjectSummary[];
+  sessions: StudySessionEntry[];
+  dueCardCount: number;
+}
+
+// Deriva o payload MÍNIMO da home (resumos + 5 sessões + a contagem de vencidos) —
+// os flashcards crus não vão para o cache (evita duplicar o cache de flashcards).
+async function loadDashboard(): Promise<DashboardData> {
+  const [subjectsData, sessionsData, flashcardsData] = await Promise.all([
+    dashboardHttp.getSubjects(),
+    dashboardHttp.getSessionHistory(),
+    dashboardHttp.getFlashcards(),
+  ]);
+  return {
+    subjects: toSubjectSummaries(subjectsData),
+    sessions: sessionsData.slice(0, 5),
+    dueCardCount: countDueCards(flashcardsData),
+  };
+}
+
+// JSON perde o tipo Date; as sessões carregam datas que o cache reconstrói na leitura.
+function reviveDashboard(d: DashboardData): DashboardData {
+  const sessions = d.sessions.map((s) => ({
+    ...s,
+    dataInicio: new Date(s.dataInicio),
+    dataFim: s.dataFim ? new Date(s.dataFim) : null,
+  }));
+  return { ...d, sessions };
+}
+
 export function DashboardPage() {
-  const [subjects, setSubjects] = useState<SubjectSummary[]>([]);
-  const [sessions, setSessions] = useState<StudySessionEntry[]>([]);
-  const [dueCardCount, setDueCardCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([dashboardHttp.getSubjects(), dashboardHttp.getSessionHistory(), dashboardHttp.getFlashcards()])
-      .then(([subjectsData, sessionsData, flashcardsData]) => {
-        if (cancelled) return;
-        setSubjects(toSubjectSummaries(subjectsData));
-        setSessions(sessionsData.slice(0, 5));
-        setDueCardCount(countDueCards(flashcardsData));
-      })
-      .catch((err) => console.error("Failed to load dashboard data:", err))
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
-
-  const accuracy = useMemo(() => computeAccuracy(sessions), [sessions]);
+  const { data, loading } = useCachedResource(
+    { key: "dashboard.home", version: 1, tags: ["dashboard"], revive: reviveDashboard },
+    loadDashboard,
+    "",
+  );
+  const subjects = data?.subjects ?? [];
+  const sessions = data?.sessions ?? [];
+  const dueCardCount = data?.dueCardCount ?? 0;
+  const accuracy = useMemo(() => computeAccuracy(data?.sessions ?? []), [data]);
 
   return (
     <TooltipProvider>

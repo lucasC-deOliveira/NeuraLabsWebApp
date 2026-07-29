@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, InboxIcon } from "lucide-react";
+import { useCachedResource } from "@/modules/cache/presentation/useCachedResource";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,12 @@ interface Concept {
   label: string;
 }
 
+// Extrai os conceitos (nós CONCEITO) do baralho via composição do grafo.
+async function loadConcepts(baralhoId: string): Promise<Concept[]> {
+  const g = await getItemComposition("baralho", baralhoId);
+  return g.nodes.filter((n) => n.type === "CONCEITO").map((n) => ({ id: n.id, label: n.label }));
+}
+
 // Modo Feynman em série: varre os conceitos de um baralho (via composição do grafo)
 // e explica um a um, reusando o FeynmanPanel com navegação.
 export function FeynmanSeriesModal({ open, onOpenChange, baralhoId, title }: {
@@ -27,31 +34,16 @@ export function FeynmanSeriesModal({ open, onOpenChange, baralhoId, title }: {
   baralhoId: string | null;
   title: string;
 }) {
-  const [concepts, setConcepts] = useState<Concept[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [idx, setIdx] = useState(0);
   const [prevId, setPrevId] = useState<string | null>(null);
+  if (baralhoId !== prevId) { setPrevId(baralhoId); setIdx(0); } // reseta a navegação ao trocar de baralho
 
-  if (baralhoId !== prevId) {
-    setPrevId(baralhoId);
-    setConcepts(null);
-    setError(null);
-    setIdx(0);
-    setLoading(Boolean(baralhoId));
-  }
-
-  useEffect(() => {
-    if (!open || !baralhoId) return;
-    let active = true;
-    getItemComposition("baralho", baralhoId)
-      .then((g) => {
-        if (active) setConcepts(g.nodes.filter((n) => n.type === "CONCEITO").map((n) => ({ id: n.id, label: n.label })));
-      })
-      .catch((e) => { if (active) setError(e instanceof Error ? e.message : "Erro ao carregar os conceitos."); })
-      .finally(() => { if (active) setLoading(false); });
-    return (): void => { active = false; };
-  }, [open, baralhoId]);
+  // Conceitos do baralho, cacheados por id (SWR): reabrir o mesmo baralho é instantâneo.
+  const { data: concepts, loading, error } = useCachedResource<Concept[]>(
+    open && baralhoId ? { key: `feynman.concepts.${baralhoId}`, version: 1, tags: ["feynman"] } : null,
+    () => loadConcepts(baralhoId as string),
+    "Erro ao carregar os conceitos.",
+  );
 
   const total = concepts?.length ?? 0;
   const current = total > 0 ? (concepts as Concept[])[Math.min(idx, total - 1)] : null;

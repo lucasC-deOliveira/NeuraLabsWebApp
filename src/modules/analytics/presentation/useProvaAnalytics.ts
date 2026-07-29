@@ -1,31 +1,14 @@
-import { useEffect, useState } from "react";
 import { analyticsHttp } from "../infra/http";
 import type { ProvaAnalytics } from "../domain/prova-analytics.types";
+import { useCachedResource, type CachedResource } from "@/modules/cache/presentation/useCachedResource";
 
-interface ProvaAnalyticsState {
-  data: ProvaAnalytics | null;
-  loading: boolean;
-  error: string | null;
-  reload: () => void;
-}
+export type ProvaAnalyticsState = CachedResource<ProvaAnalytics>;
 
-// Carrega o analytics de questões/provas (janela `days`). Refaz ao mudar days.
+// Carrega o analytics de questões/provas (janela `days` + prova). SWR sobre o CacheStore.
 export function useProvaAnalytics(days: number, provaId?: string): ProvaAnalyticsState {
-  const [data, setData] = useState<ProvaAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [nonce, setNonce] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    analyticsHttp
-      .getProvaAnalytics(days, provaId)
-      .then((d) => { if (active) { setData(d); setError(null); } })
-      .catch((e) => { if (active) setError(e instanceof Error ? e.message : "Erro ao carregar os analytics."); })
-      .finally(() => { if (active) setLoading(false); });
-    return (): void => { active = false; };
-  }, [days, provaId, nonce]);
-
-  const reload = (): void => { setLoading(true); setError(null); setData(null); setNonce((n) => n + 1); };
-  return { data, loading, error, reload };
+  return useCachedResource(
+    { key: `analytics.provas.${days}.${provaId ?? ""}`, version: 1, tags: ["analytics"] },
+    () => analyticsHttp.getProvaAnalytics(days, provaId),
+    "Erro ao carregar os analytics.",
+  );
 }
