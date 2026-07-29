@@ -1,31 +1,14 @@
-import { useEffect, useState } from "react";
 import { analyticsHttp } from "../infra/http";
 import type { DeckAnalytics } from "../domain/deck-analytics.types";
+import { useCachedResource, type CachedResource } from "@/modules/cache/presentation/useCachedResource";
 
-interface DeckAnalyticsState {
-  data: DeckAnalytics | null;
-  loading: boolean;
-  error: string | null;
-  reload: () => void;
-}
+export type DeckAnalyticsState = CachedResource<DeckAnalytics>;
 
-// Carrega o analytics por baralho (janela `days` afeta a acurácia). Refaz ao mudar.
+// Carrega o analytics por baralho (janela `days`). SWR sobre o CacheStore.
 export function useDeckAnalytics(days: number): DeckAnalyticsState {
-  const [data, setData] = useState<DeckAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [nonce, setNonce] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    analyticsHttp
-      .getDeckAnalytics(days)
-      .then((d) => { if (active) { setData(d); setError(null); } })
-      .catch((e) => { if (active) setError(e instanceof Error ? e.message : "Erro ao carregar os analytics."); })
-      .finally(() => { if (active) setLoading(false); });
-    return (): void => { active = false; };
-  }, [days, nonce]);
-
-  const reload = (): void => { setLoading(true); setError(null); setData(null); setNonce((n) => n + 1); };
-  return { data, loading, error, reload };
+  return useCachedResource(
+    { key: `analytics.decks.${days}`, version: 1, tags: ["analytics"] },
+    () => analyticsHttp.getDeckAnalytics(days),
+    "Erro ao carregar os analytics.",
+  );
 }
