@@ -21,6 +21,16 @@ function toNewView(fc: FlashcardRow, conceito: string | null): StudyCardView {
   return { ...fc, conceito, ...NEW_CARD_SCHEDULE, ...NO_IMPORTANCE };
 }
 
+type EdgeRow = { nodeDestinoId: string | null; nodeOrigem: { referenciaId: string } | null };
+
+function toLinks(edges: EdgeRow[]): ConceptLink[] {
+  return edges.flatMap((e) =>
+    e.nodeDestinoId && e.nodeOrigem
+      ? [{ conceptNodeId: e.nodeDestinoId, flashcardId: e.nodeOrigem.referenciaId }]
+      : [],
+  );
+}
+
 /**
  * Cards novos dos grafos do plano, na ordem do roadmap (trilhas concatenadas). O
  * `conceitoId` relacional é nulo para o usuário real (conceitos vivem em arestas do
@@ -87,11 +97,7 @@ export class PrismaRoadmapNewCardsQuery implements RoadmapNewCardsQuery {
       },
       select: { nodeDestinoId: true, nodeOrigem: { select: { referenciaId: true } } },
     });
-    return edges.flatMap((e) =>
-      e.nodeDestinoId && e.nodeOrigem
-        ? [{ conceptNodeId: e.nodeDestinoId, flashcardId: e.nodeOrigem.referenciaId }]
-        : [],
-    );
+    return toLinks(edges);
   }
 
   // Dos candidatos, os que NÃO têm aprendizado (nunca revisados) = novos.

@@ -30,6 +30,29 @@ function toPlanQuestion(r: Ranked, names: Map<string, string>): PlanQuestion {
   };
 }
 
+type EdgeRow = { nodeDestinoId: string | null; nodeOrigem: { referenciaId: string } | null };
+
+// Registra o PRIMEIRO conceito ligado a cada questão (ignora arestas seguintes).
+function addFirstConcept(
+  out: Map<string, string>,
+  e: EdgeRow,
+  conceptNodes: Map<string, string>,
+): void {
+  const conceitoId = e.nodeDestinoId ? conceptNodes.get(e.nodeDestinoId) : undefined;
+  if (e.nodeOrigem && conceitoId && !out.has(e.nodeOrigem.referenciaId)) {
+    out.set(e.nodeOrigem.referenciaId, conceitoId);
+  }
+}
+
+function firstQuestionConcepts(
+  edges: EdgeRow[],
+  conceptNodes: Map<string, string>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of edges) addFirstConcept(out, e, conceptNodes);
+  return out;
+}
+
 /**
  * Questões dos conceitos do roadmap para a prática do plano. Ligam ao conceito pelas
  * arestas QUESTION→CONCEITO do grafo (o `conceitoId` relacional é nulo no acervo real);
@@ -111,14 +134,7 @@ export class PrismaRoadmapQuestionsQuery implements RoadmapQuestionsQuery {
       },
       select: { nodeDestinoId: true, nodeOrigem: { select: { referenciaId: true } } },
     });
-    const out = new Map<string, string>();
-    for (const e of edges) {
-      const conceitoId = e.nodeDestinoId ? conceptNodes.get(e.nodeDestinoId) : undefined;
-      if (e.nodeOrigem && conceitoId && !out.has(e.nodeOrigem.referenciaId)) {
-        out.set(e.nodeOrigem.referenciaId, conceitoId);
-      }
-    }
-    return out;
+    return firstQuestionConcepts(edges, conceptNodes);
   }
 
   private fetchQuestions(userId: string, ids: string[]): Promise<QuestaoRow[]> {
