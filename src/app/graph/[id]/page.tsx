@@ -36,6 +36,8 @@ import { GraphChatModal } from "@/modules/graph/presentation/components/ai/Graph
 import { CompletenessModal } from "@/modules/graph/presentation/components/ai/CompletenessModal";
 import type { Community, StructuralGap } from "@/lib/graph-communities";
 import { graphHttp } from "@/modules/graph/infra/http";
+import { invalidateGraphList } from "@/modules/graph/presentation/services/graph-list-cache";
+import { forgetCachedGraph } from "@/modules/graph/presentation/services/graph-cache";
 import { useGraphCommunities } from "@/modules/graph/presentation/hooks/useGraphCommunities";
 
 import { useGraphController } from "@/modules/graph/presentation/controllers/useGraphController";
@@ -650,6 +652,9 @@ export default function GraphPage() {
         toast.loading(`Dividindo ${done}/${baralhos.length} baralhos…`, { id: toastId });
       }
 
+      // Vários subgrafos criados e o pai mudou: descarta a vista dele e a lista.
+      forgetCachedGraph(graphId);
+      invalidateGraphList();
       toast.success(`${baralhos.length} baralho(s) divididos com sucesso!`, { id: toastId });
       const result = await graphHttp.getGraphNodes(graphId);
       controller.actions.setRawNodes(result.nodes);

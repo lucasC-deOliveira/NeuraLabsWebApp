@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2Icon, NetworkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { graphHttp } from "@/modules/graph/infra/http";
+import { invalidateGraphList } from "../../services/graph-list-cache";
 import { GRAFO_REF_RELATIONS } from "./grafo-ref-relations";
 
 interface Props {
@@ -28,6 +29,7 @@ export function CreateSubgrafoModal({ open, onClose, parentGrafoId, onCreated }:
     setSaving(true);
     try {
       const result = await graphHttp.createSubgrafo(parentGrafoId, { nome: nome.trim(), descricao: descricao.trim() || undefined, tipoRelacao });
+      invalidateGraphList(); // o subgrafo novo aparece na lista "Meus Grafos"
       toast.success(`Subgrafo "${nome}" criado!`);
       setNome(""); setDescricao(""); setTipoRelacao("APROFUNDA");
       onCreated(result.grafoId, result.grafoRefNodeId);

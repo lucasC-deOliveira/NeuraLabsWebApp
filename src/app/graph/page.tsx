@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/page-header/PageHeader";
 import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
 import { graphHttp } from "@/modules/graph/infra/http";
+import { invalidateGraphList } from "@/modules/graph/presentation/services/graph-list-cache";
+import { forgetCachedGraph } from "@/modules/graph/presentation/services/graph-cache";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +50,7 @@ export default function GraphListPage() {
     setCreatingGrafo(true);
     try {
       const { id } = await graphHttp.createGrafo(newGrafoName.trim());
+      invalidateGraphList(); // ao voltar para "Meus Grafos", o novo grafo já aparece
 
       if (isDesktop()) {
         try {
@@ -82,6 +85,8 @@ export default function GraphListPage() {
     setDeletingGrafo(true);
     try {
       await graphHttp.deleteGrafo(id);
+      forgetCachedGraph(id); // a vista cacheada do grafo apagado não pode ressuscitar
+      invalidateGraphList(); // e ele some de toda combinação de filtro da lista
       toast.success(`Grafo "${nome}" removido`);
       setDeleteTarget(null);
       reload();

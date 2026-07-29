@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2Icon, ScissorsIcon, ArrowRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import { graphHttp } from "@/modules/graph/infra/http";
+import { invalidateGraphList } from "../../services/graph-list-cache";
+import { forgetCachedGraph } from "../../services/graph-cache";
 import { GRAFO_REF_RELATIONS } from "./grafo-ref-relations";
 
 interface Props {
@@ -33,6 +35,9 @@ export function ExtractSubgrafoModal({ open, onClose, parentGrafoId, selectedNod
         nome: nome.trim(),
         tipoRelacao,
       });
+      // Subgrafo novo na lista; o pai perdeu nós, então sua vista cacheada é descartada.
+      invalidateGraphList();
+      forgetCachedGraph(parentGrafoId);
       toast.success(`${result.movedCount} nó(s) extraído(s) · ${result.rewiredEdgeCount} aresta(s) redirecionada(s)`);
       setNome(""); setTipoRelacao("APROFUNDA");
       onExtracted(result.grafoId, result.grafoRefNodeId);
