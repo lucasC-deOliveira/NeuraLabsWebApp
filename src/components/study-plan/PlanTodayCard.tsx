@@ -4,18 +4,35 @@ import { useEffect, useState } from "react";
 import { Link } from "@/components/link";
 import { CalendarClockIcon, ArrowRightIcon, SparklesIcon } from "lucide-react";
 import { getStudyPlans, getTodayPlan, type TodayPlan } from "@/lib/study-plan-api";
+import { loadCachedPlans, saveCachedPlans } from "./study-plans-cache";
+import { loadCachedToday, saveCachedToday } from "./today-plan-cache";
+
+// "Hoje" do plano mais recente já cacheado — para a home renderizar na hora.
+function firstCachedToday(): TodayPlan | null {
+  const first = loadCachedPlans()?.[0];
+  return first ? loadCachedToday(first.id) : null;
+}
 
 // Resumo do "hoje" do plano na home, com atalho para /estudo. Usa o plano mais
 // recente. Some enquanto carrega e quando não há plano (sem ruído na home).
+// Cacheado (SWR): abre com o último "hoje" e revalida em background.
 export function PlanTodayCard() {
-  const [today, setToday] = useState<TodayPlan | null>(null);
-  const [ready, setReady] = useState(false);
+  const [today, setToday] = useState<TodayPlan | null>(firstCachedToday);
+  const [ready, setReady] = useState(today !== null);
 
   useEffect(() => {
     let active = true;
     getStudyPlans()
-      .then((plans) => (plans[0] ? getTodayPlan(plans[0].id) : null))
-      .then((t) => { if (active) { setToday(t); setReady(true); } })
+      .then((plans) => {
+        saveCachedPlans(plans);
+        const first = plans[0];
+        return first ? getTodayPlan(first.id).then((t) => ({ planId: first.id, t })) : null;
+      })
+      .then((r) => {
+        if (!active) return;
+        if (r) { setToday(r.t); if (r.t) saveCachedToday(r.planId, r.t); }
+        setReady(true);
+      })
       .catch(() => { if (active) setReady(true); });
     return () => { active = false; };
   }, []);

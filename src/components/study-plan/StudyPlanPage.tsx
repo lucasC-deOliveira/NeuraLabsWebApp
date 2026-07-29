@@ -21,6 +21,7 @@ import { PlanSetup } from "./PlanSetup";
 import { TodayView } from "./TodayView";
 import { PlannedSessionModal } from "./PlannedSessionModal";
 import { loadCachedToday, saveCachedToday, invalidateToday } from "./today-plan-cache";
+import { saveCachedPlans } from "./study-plans-cache";
 
 interface GraphOption {
   id: string;
@@ -51,6 +52,7 @@ export function StudyPlanPage() {
       .then(([g, p]) => {
         setGraphs(g.items.map((x) => ({ id: x.id, nome: x.nome })));
         setPlans(p);
+        saveCachedPlans(p); // alimenta o card da home (PlanTodayCard abre instantâneo)
         setSelectedId(p[0]?.id ?? null);
         setMode(p.length === 0 ? "new" : "view");
       })
@@ -85,7 +87,7 @@ export function StudyPlanPage() {
 
   const afterSave = (plan: StudyPlan): void => {
     invalidateToday(plan.id); // a config mudou → o "hoje" cacheado desse plano some
-    getStudyPlans().then(setPlans).catch(() => {});
+    getStudyPlans().then((ps) => { setPlans(ps); saveCachedPlans(ps); }).catch(() => {});
     setSelectedId(plan.id);
     setToday(null);
     setMode("view");
@@ -98,6 +100,7 @@ export function StudyPlanPage() {
       .then(getStudyPlans)
       .then((ps) => {
         setPlans(ps);
+        saveCachedPlans(ps); // mantém o card da home em dia após remover
         setSelectedId(ps[0]?.id ?? null);
         setToday(null);
         setMode(ps.length === 0 ? "new" : "view");
