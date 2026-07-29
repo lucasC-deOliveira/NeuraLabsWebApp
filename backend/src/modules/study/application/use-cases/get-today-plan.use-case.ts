@@ -49,8 +49,8 @@ export class GetTodayPlanUseCase {
     if (!plan) return null;
     // Independentes → em paralelo (o backlog e a disponibilidade de novos não se cruzam).
     const [ctx, available] = await Promise.all([
-      this.context.load(userId, plan.grafoId, plan.prioridade),
-      this.newCards.findByRoadmap(userId, plan.grafoId, plan.prioridade, NEW_LOOKAHEAD),
+      this.context.load(userId, plan.grafoIds, plan.prioridade),
+      this.newCards.findByRoadmap(userId, plan.grafoIds, plan.prioridade, NEW_LOOKAHEAD),
     ]);
     const target = this.buildTarget(plan, ctx, available.length);
     const projection = this.project(plan, ctx, target.novos);

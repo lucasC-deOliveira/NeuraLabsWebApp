@@ -38,7 +38,7 @@ class FakeCards implements StudyCardQuery {
 class FakeNewCards implements RoadmapNewCardsQuery {
   public askedLimit = -1;
   constructor(private readonly fresh: StudyCardView[]) {}
-  findByRoadmap(_u: string, _g: string, _m: string, limit: number): Promise<StudyCardView[]> {
+  findByRoadmap(_u: string, _g: string[], _m: string, limit: number): Promise<StudyCardView[]> {
     this.askedLimit = limit;
     return Promise.resolve(this.fresh.slice(0, limit));
   }
@@ -46,7 +46,7 @@ class FakeNewCards implements RoadmapNewCardsQuery {
 
 class FakeQuestions implements RoadmapQuestionsQuery {
   constructor(private readonly qs: PlanQuestion[] = []) {}
-  findByRoadmap(_u: string, _g: string, _m: string, limit: number): Promise<PlanQuestion[]> {
+  findByRoadmap(_u: string, _g: string[], _m: string, limit: number): Promise<PlanQuestion[]> {
     return Promise.resolve(this.qs.slice(0, limit));
   }
 }
@@ -96,7 +96,7 @@ class FakeContent implements PlanContentSource {
 const planWith = (over: Partial<TodayPlan['plan']>, novos: number): TodayPlan =>
   ({
     plan: {
-      grafoId: 'g1',
+      grafoIds: ['g1'],
       prioridade: 'prova',
       baralhoIds: [] as string[],
       provaIds: [] as string[],
@@ -185,11 +185,13 @@ describe('StartPlannedSessionUseCase', () => {
     expect(result?.items.some((i) => i.kind === 'flashcard' && i.id === 'd1')).toBe(true);
   });
 
-  it('uses baralho sources (not the roadmap/global) when the plan has them', async () => {
+  // Objetivo = aprender TUDO: com baralho E grafo no conteúdo, as fontes se UNEM
+  // (cards do baralho + do roadmap do grafo). As vencidas seguem dos baralhos.
+  it('unites baralho and graph sources when the plan has both', async () => {
     const content = new FakeContent({ due: [card('bd', 'A')], fresh: [card('bn', 'B')] });
     const roadmapNew = new FakeNewCards([card('rm', 'X')]);
     const useCase = new StartPlannedSessionUseCase(
-      new FakeToday(planWith({ baralhoIds: ['b1'] }, 5)),
+      new FakeToday(planWith({ baralhoIds: ['b1'], grafoIds: ['g1'] }, 5)),
       new FakeCards([card('global', 'G')]),
       roadmapNew,
       new FakeQuestions(),
@@ -198,10 +200,30 @@ describe('StartPlannedSessionUseCase', () => {
       content,
     );
     const ids = (await useCase.execute('u1', 'p1'))?.items.map((i) => i.id) ?? [];
-    expect(ids).toContain('bd');
+    expect(ids).toContain('bd'); // vencida do baralho
+    expect(ids).toContain('bn'); // nova do baralho
+    expect(ids).toContain('rm'); // nova do roadmap do grafo (UNIÃO)
+    expect(ids).not.toContain('global'); // vencidas vêm do baralho, não globais
+    expect(roadmapNew.askedLimit).toBe(5); // roadmap consultado (grafo no conteúdo)
+  });
+
+  // Sem grafos no conteúdo, o roadmap não é consultado — só as fontes escolhidas.
+  it('does not query the graph roadmap when no graph is in the content', async () => {
+    const content = new FakeContent({ fresh: [card('bn', 'B')] });
+    const roadmapNew = new FakeNewCards([card('rm', 'X')]);
+    const useCase = new StartPlannedSessionUseCase(
+      new FakeToday(planWith({ baralhoIds: ['b1'], grafoIds: [] }, 5)),
+      new FakeCards([]),
+      roadmapNew,
+      new FakeQuestions(),
+      new FakeSessions(),
+      new FakeCardConcepts(),
+      content,
+    );
+    const ids = (await useCase.execute('u1', 'p1'))?.items.map((i) => i.id) ?? [];
     expect(ids).toContain('bn');
-    expect(ids).not.toContain('global');
-    expect(roadmapNew.askedLimit).toBe(-1); // roadmap new cards nunca consultados
+    expect(ids).not.toContain('rm');
+    expect(roadmapNew.askedLimit).toBe(-1); // grafoIds vazio → roadmap nunca consultado
   });
 
   it('removes items of excluded concepts from the pool', async () => {

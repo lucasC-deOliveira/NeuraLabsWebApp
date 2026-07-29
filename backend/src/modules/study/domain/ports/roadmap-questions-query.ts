@@ -10,11 +10,12 @@ export interface PlanQuestion {
   conceitoId: string | null;
 }
 
-// Read port: questões dos conceitos do roadmap (na ordem dele), ainda não acertadas.
+// Read port: questões dos conceitos do roadmap dos grafos do plano (na ordem dele),
+// ainda não acertadas.
 export interface RoadmapQuestionsQuery {
   findByRoadmap(
     userId: string,
-    grafoId: string,
+    grafoIds: string[],
     modo: string,
     limit: number,
   ): Promise<PlanQuestion[]>;

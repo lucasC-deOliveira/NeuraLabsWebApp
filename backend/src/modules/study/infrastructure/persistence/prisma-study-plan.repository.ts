@@ -9,12 +9,12 @@ import type {
 
 type PlanRow = {
   id: string;
-  grafoId: string;
   prioridade: string;
   metaTipo: string;
   metaValor: number;
   dataAlvo: Date | null;
   ativo: boolean;
+  grafoIds: unknown;
   baralhoIds: unknown;
   provaIds: unknown;
   conceitosExcluidos: unknown;
@@ -27,21 +27,38 @@ function toIds(value: unknown): string[] {
 
 function toPlan(row: PlanRow): StudyPlan {
   return {
-    ...row,
+    id: row.id,
+    prioridade: row.prioridade,
     metaTipo: row.metaTipo as PlanMetaTipo,
+    metaValor: row.metaValor,
+    dataAlvo: row.dataAlvo,
+    ativo: row.ativo,
+    grafoIds: toIds(row.grafoIds),
     baralhoIds: toIds(row.baralhoIds),
     provaIds: toIds(row.provaIds),
     conceitosExcluidos: toIds(row.conceitosExcluidos),
   };
 }
 
-function toData(input: StudyPlanInput): StudyPlanInput {
+// Campos persistíveis (sem o `id`, que é identidade, não dado).
+type PlanData = {
+  prioridade: string;
+  metaTipo: string;
+  metaValor: number;
+  dataAlvo: Date | null;
+  grafoIds: string[];
+  baralhoIds: string[];
+  provaIds: string[];
+  conceitosExcluidos: string[];
+};
+
+function toData(input: StudyPlanInput): PlanData {
   return {
-    grafoId: input.grafoId,
     prioridade: input.prioridade,
     metaTipo: input.metaTipo,
     metaValor: input.metaValor,
     dataAlvo: input.dataAlvo,
+    grafoIds: input.grafoIds,
     baralhoIds: input.baralhoIds,
     provaIds: input.provaIds,
     conceitosExcluidos: input.conceitosExcluidos,
@@ -57,20 +74,27 @@ export class PrismaStudyPlanRepository implements StudyPlanRepository {
     return row ? toPlan(row) : null;
   }
 
-  async load(userId: string, grafoId: string): Promise<StudyPlan | null> {
-    const row = await this.prisma.planoEstudo.findFirst({
-      where: { usuarioId: userId, grafoId, ativo: true },
-      orderBy: { dataAtualizacao: 'desc' },
-    });
-    return row ? toPlan(row) : null;
+  // Cria (sem id) ou atualiza por id — checando o dono antes de atualizar.
+  async save(userId: string, input: StudyPlanInput): Promise<StudyPlan> {
+    if (input.id && (await this.owns(userId, input.id))) return this.update(input.id, input);
+    return this.create(userId, input);
   }
 
-  async save(userId: string, input: StudyPlanInput): Promise<StudyPlan> {
-    const key = { usuarioId: userId, grafoId: input.grafoId, prioridade: input.prioridade };
-    const row = await this.prisma.planoEstudo.upsert({
-      where: { _plano_uk: key },
-      create: { usuarioId: userId, ...toData(input) },
-      update: { ...toData(input), ativo: true },
+  private async owns(userId: string, id: string): Promise<boolean> {
+    return (await this.prisma.planoEstudo.count({ where: { id, usuarioId: userId } })) > 0;
+  }
+
+  private async update(id: string, input: StudyPlanInput): Promise<StudyPlan> {
+    const row = await this.prisma.planoEstudo.update({
+      where: { id },
+      data: { ...toData(input), ativo: true },
+    });
+    return toPlan(row);
+  }
+
+  private async create(userId: string, input: StudyPlanInput): Promise<StudyPlan> {
+    const row = await this.prisma.planoEstudo.create({
+      data: { usuarioId: userId, ...toData(input) },
     });
     return toPlan(row);
   }

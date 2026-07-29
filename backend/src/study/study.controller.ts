@@ -144,15 +144,16 @@ export class StudyController {
     await this.plans.deleteById(userId, id);
   }
 
-  // Cria/atualiza a config do plano.
+  // Cria (sem id) ou atualiza (com id) a config do plano.
   @Post('plan')
   savePlan(@CurrentUser() userId: string, @Body() body: PlanBody) {
     return this.saveStudyPlan.execute(userId, {
-      grafoId: body.grafoId ?? '',
+      id: body.id,
       prioridade: (body.prioridade ?? '').trim(),
       metaTipo: (body.metaTipo ?? '') as PlanMetaTipo,
       metaValor: Number(body.metaValor),
       dataAlvo: body.dataAlvo ? new Date(body.dataAlvo) : null,
+      grafoIds: body.grafoIds ?? [],
       baralhoIds: body.baralhoIds ?? [],
       provaIds: body.provaIds ?? [],
       conceitosExcluidos: body.conceitosExcluidos ?? [],
@@ -161,11 +162,12 @@ export class StudyController {
 }
 
 interface PlanBody {
-  grafoId?: string;
+  id?: string;
   prioridade?: string;
   metaTipo?: string;
   metaValor?: number;
   dataAlvo?: string | null;
+  grafoIds?: string[];
   baralhoIds?: string[];
   provaIds?: string[];
   conceitosExcluidos?: string[];

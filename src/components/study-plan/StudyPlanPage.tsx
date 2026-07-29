@@ -82,7 +82,15 @@ export function StudyPlanPage() {
   };
 
   const graphName = (grafoId: string): string => graphs.find((g) => g.id === grafoId)?.nome ?? "Grafo";
-  const planLabel = (p: StudyPlan): string => `${graphName(p.grafoId)} · ${BASE_LABEL[p.prioridade.split("|")[0]] ?? p.prioridade}`;
+  // Rótulo do conteúdo do plano: 1 grafo → o nome; vários → "N grafos"; nenhum → "Conteúdo".
+  const contentLabel = (p: StudyPlan): string =>
+    p.grafoIds.length === 1
+      ? graphName(p.grafoIds[0])
+      : p.grafoIds.length > 1
+        ? `${p.grafoIds.length} grafos`
+        : "Conteúdo";
+  const planLabel = (p: StudyPlan): string =>
+    `${contentLabel(p)} · ${BASE_LABEL[p.prioridade.split("|")[0]] ?? p.prioridade}`;
   const current = plans.find((p) => p.id === selectedId) ?? null;
 
   const afterSave = (plan: StudyPlan): void => {

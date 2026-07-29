@@ -6,8 +6,10 @@ export type PlanPrioridade = "prova" | "edital" | "prova_edital" | "ai";
 
 export interface StudyPlan {
   id: string;
-  grafoId: string;
-  prioridade: string; // pode vir com escopo dobrado: "prova|p:<id>"
+  // Grafos escolhidos como CONTEÚDO (o objetivo é aprender tudo). Não há mais
+  // "grafo objetivo"; vazio = todos os grafos.
+  grafoIds: string[];
+  prioridade: string; // a ORDEM de estudo (modo do roadmap); "prova|p:<id>" traz escopo
   metaTipo: PlanMetaTipo;
   metaValor: number;
   dataAlvo: string | null; // ISO ou null (sem prazo)
@@ -66,7 +68,8 @@ export interface PlannedSession {
 }
 
 export interface SaveStudyPlanInput {
-  grafoId: string;
+  id?: string; // presente = atualiza esse plano; ausente = cria um novo
+  grafoIds: string[];
   prioridade: string;
   metaTipo: PlanMetaTipo;
   metaValor: number;
