@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlanSetup } from "./PlanSetup";
-import { saveStudyPlan, getGraphRoadmaps, getPlanScope, buildRoadmap } from "@/lib/study-plan-api";
+import { saveStudyPlan, getPlanScope, buildRoadmap } from "@/lib/study-plan-api";
 
 vi.mock("@/lib/study-plan-api", () => ({
   saveStudyPlan: vi.fn((input) => Promise.resolve({ id: "p1", ativo: true, ...input })),
@@ -19,19 +19,27 @@ const graphs = [
   { id: "g2", nome: "Física" },
 ];
 
-beforeEach(() => vi.clearAllMocks());
+const btn = (name: RegExp | string) => screen.getByRole("button", { name });
 
-describe("PlanSetup", () => {
-  it("saves graphs as content and generates the roadmap for each chosen graph", async () => {
+beforeEach(() => {
+  vi.clearAllMocks();
+  // clearAllMocks zera as chamadas, não a implementação — repõe o default do escopo.
+  vi.mocked(getPlanScope).mockResolvedValue({ hasProva: false, hasEdital: false });
+});
+
+describe("PlanSetup (assistente guiado)", () => {
+  it("flui objetivo → conteúdo → ritmo e salva 'dominar assunto' com prioridade IA", async () => {
     const onSaved = vi.fn();
     render(<PlanSetup graphs={graphs} initial={null} onSaved={onSaved} onCancel={vi.fn()} />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Cálculo" }));
-    await userEvent.click(screen.getByRole("button", { name: "Física" }));
-    await userEvent.click(screen.getByRole("button", { name: /Criar plano/ }));
+    await userEvent.click(btn(/Dominar um assunto/));
+    await userEvent.click(btn(/Próximo/));
+    await userEvent.click(btn("Cálculo"));
+    await userEvent.click(btn("Física"));
+    await userEvent.click(btn(/Próximo/));
+    await userEvent.click(btn(/Criar plano/));
 
     await waitFor(() => expect(saveStudyPlan).toHaveBeenCalled());
-    // Roadmap gerado para cada grafo do conteúdo (prioridade padrão "ai", sem provas).
     expect(buildRoadmap).toHaveBeenCalledWith("g1", "ai");
     expect(buildRoadmap).toHaveBeenCalledWith("g2", "ai");
     const input = vi.mocked(saveStudyPlan).mock.calls[0][0];
@@ -40,36 +48,36 @@ describe("PlanSetup", () => {
     expect(onSaved).toHaveBeenCalled();
   });
 
-  it("refuses to save when no content is selected", async () => {
+  it("objetivo prova + grafo com prova → salva na ordem 'o que mais cai na prova'", async () => {
+    vi.mocked(getPlanScope).mockResolvedValue({ hasProva: true, hasEdital: false });
     render(<PlanSetup graphs={graphs} initial={null} onSaved={vi.fn()} />);
-    await userEvent.click(screen.getByRole("button", { name: /Criar plano/ }));
+
+    await userEvent.click(btn(/Passar numa prova/));
+    await userEvent.click(btn(/Próximo/));
+    await userEvent.click(btn("Cálculo"));
+    await waitFor(() => expect(getPlanScope).toHaveBeenCalledWith(["g1"]));
+    await userEvent.click(btn(/Próximo/));
+    await userEvent.click(btn(/Criar plano/));
+
+    await waitFor(() => expect(saveStudyPlan).toHaveBeenCalled());
+    expect(buildRoadmap).toHaveBeenCalledWith("g1", "prova");
+    expect(vi.mocked(saveStudyPlan).mock.calls[0][0].prioridade).toBe("prova");
+  });
+
+  it("objetivo prova sem prova no grafo → bloqueia salvar", async () => {
+    render(<PlanSetup graphs={graphs} initial={null} onSaved={vi.fn()} />);
+    await userEvent.click(btn(/Passar numa prova/));
+    await userEvent.click(btn(/Próximo/));
+    await userEvent.click(btn("Cálculo"));
+    await userEvent.click(btn(/Próximo/));
+    await userEvent.click(btn(/Criar plano/));
     expect(saveStudyPlan).not.toHaveBeenCalled();
   });
 
-  it("hides the priority selector until a graph is in the content", async () => {
+  it("não avança do conteúdo sem escolher nada", async () => {
     render(<PlanSetup graphs={graphs} initial={null} onSaved={vi.fn()} />);
-    // Sem grafos, prioridade (ordem dos grafos) não aparece.
-    expect(screen.queryByText(/a ordem de estudo dos grafos/i)).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Cálculo" }));
-    await waitFor(() => expect(getGraphRoadmaps).toHaveBeenCalledWith("g1"));
-    expect(screen.getByText(/a ordem de estudo dos grafos/i)).toBeInTheDocument();
-  });
-
-  // Sem prova avulsa, o modo "prova" fica bloqueado…
-  it("keeps the exam-priority option locked when no graph has a prova", async () => {
-    render(<PlanSetup graphs={graphs} initial={null} onSaved={vi.fn()} />);
-    await userEvent.click(screen.getByRole("button", { name: "Cálculo" }));
-    await waitFor(() => expect(getPlanScope).toHaveBeenCalledWith(["g1"]));
-    expect(screen.getByRole("button", { name: /O que mais cai na prova/ })).toBeDisabled();
-  });
-
-  // …mas se o grafo escolhido CONTÉM uma prova, "o que mais cai na prova" libera.
-  it("unlocks the exam-priority option when a chosen graph contains a prova", async () => {
-    vi.mocked(getPlanScope).mockResolvedValue({ hasProva: true, hasEdital: false });
-    render(<PlanSetup graphs={graphs} initial={null} onSaved={vi.fn()} />);
-    await userEvent.click(screen.getByRole("button", { name: "Cálculo" }));
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /O que mais cai na prova/ })).toBeEnabled(),
-    );
+    await userEvent.click(btn(/Dominar um assunto/));
+    await userEvent.click(btn(/Próximo/));
+    expect(btn(/Próximo/)).toBeDisabled();
   });
 });
