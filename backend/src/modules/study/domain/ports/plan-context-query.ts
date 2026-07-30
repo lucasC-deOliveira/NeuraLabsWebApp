@@ -8,7 +8,7 @@ export interface PlanContext {
 }
 
 export interface PlanContextQuery {
-  load(userId: string, grafoId: string, prioridade: string): Promise<PlanContext>;
+  load(userId: string, grafoIds: string[], prioridade: string): Promise<PlanContext>;
 }
 
 export const PLAN_CONTEXT_QUERY = Symbol('PLAN_CONTEXT_QUERY');

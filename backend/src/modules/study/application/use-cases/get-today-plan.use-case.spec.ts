@@ -35,7 +35,7 @@ class FakeCache implements CachePort {
 
 const PLAN: StudyPlan = {
   id: 'p1',
-  grafoId: 'g1',
+  grafoIds: ['g1'],
   prioridade: 'prova',
   metaTipo: 'NOVOS',
   metaValor: 4,

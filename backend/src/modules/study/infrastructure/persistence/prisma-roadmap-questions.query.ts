@@ -6,10 +6,7 @@ import type {
   RoadmapQuestionsQuery,
 } from '../../domain/ports/roadmap-questions-query';
 import { orderPlanQuestions } from '../../domain/services/plan-questions';
-
-interface TrilhaStep {
-  nodeId: string;
-}
+import { dedupeConceptOrder } from '../../domain/services/roadmap-concept-order';
 
 type QuestaoRow = {
   id: string;
@@ -33,6 +30,29 @@ function toPlanQuestion(r: Ranked, names: Map<string, string>): PlanQuestion {
   };
 }
 
+type EdgeRow = { nodeDestinoId: string | null; nodeOrigem: { referenciaId: string } | null };
+
+// Registra o PRIMEIRO conceito ligado a cada questão (ignora arestas seguintes).
+function addFirstConcept(
+  out: Map<string, string>,
+  e: EdgeRow,
+  conceptNodes: Map<string, string>,
+): void {
+  const conceitoId = e.nodeDestinoId ? conceptNodes.get(e.nodeDestinoId) : undefined;
+  if (e.nodeOrigem && conceitoId && !out.has(e.nodeOrigem.referenciaId)) {
+    out.set(e.nodeOrigem.referenciaId, conceitoId);
+  }
+}
+
+function firstQuestionConcepts(
+  edges: EdgeRow[],
+  conceptNodes: Map<string, string>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of edges) addFirstConcept(out, e, conceptNodes);
+  return out;
+}
+
 /**
  * Questões dos conceitos do roadmap para a prática do plano. Ligam ao conceito pelas
  * arestas QUESTION→CONCEITO do grafo (o `conceitoId` relacional é nulo no acervo real);
@@ -45,15 +65,15 @@ export class PrismaRoadmapQuestionsQuery implements RoadmapQuestionsQuery {
 
   async findByRoadmap(
     userId: string,
-    grafoId: string,
+    grafoIds: string[],
     modo: string,
     limit: number,
   ): Promise<PlanQuestion[]> {
     if (limit <= 0) return [];
-    const order = await this.roadmapConceptOrder(userId, grafoId, modo);
+    const order = await this.roadmapConceptOrder(userId, grafoIds, modo);
     if (order.length === 0) return [];
     const conceptNodes = await this.conceptNodes(userId, order);
-    const qToConcept = await this.questionConcepts(grafoId, conceptNodes);
+    const qToConcept = await this.questionConcepts(grafoIds, conceptNodes);
     if (qToConcept.size === 0) return [];
     const rows = await this.fetchQuestions(userId, [...qToConcept.keys()]);
     return this.rankAndBuild(userId, rows, order, qToConcept, limit);
@@ -79,16 +99,15 @@ export class PrismaRoadmapQuestionsQuery implements RoadmapQuestionsQuery {
 
   private async roadmapConceptOrder(
     userId: string,
-    grafoId: string,
+    grafoIds: string[],
     modo: string,
   ): Promise<string[]> {
-    const row = await this.prisma.roadmapTrilha.findUnique({
-      where: { _trilha_uk: { grafoId, modo } },
-      select: { usuarioId: true, itens: true },
+    if (grafoIds.length === 0) return [];
+    const rows = await this.prisma.roadmapTrilha.findMany({
+      where: { usuarioId: userId, grafoId: { in: grafoIds }, modo },
+      select: { itens: true },
     });
-    if (!row || row.usuarioId !== userId) return [];
-    const steps = (row.itens as unknown as TrilhaStep[]) ?? [];
-    return steps.map((s) => s.nodeId).filter((id): id is string => typeof id === 'string');
+    return dedupeConceptOrder(rows);
   }
 
   // conceptNodeId → conceitoId, para os conceitos da trilha.
@@ -102,24 +121,20 @@ export class PrismaRoadmapQuestionsQuery implements RoadmapQuestionsQuery {
 
   // questaoId → conceitoId, pelas arestas QUESTION→CONCEITO (primeiro conceito ligado).
   private async questionConcepts(
-    grafoId: string,
+    grafoIds: string[],
     conceptNodes: Map<string, string>,
   ): Promise<Map<string, string>> {
     const edges = await this.prisma.conhecimentoAresta.findMany({
       where: {
         nodeDestinoId: { in: [...conceptNodes.keys()] },
-        nodeOrigem: { tipoNode: TipoNode.QUESTION, contidoEm: { some: { grafoId } } },
+        nodeOrigem: {
+          tipoNode: TipoNode.QUESTION,
+          contidoEm: { some: { grafoId: { in: grafoIds } } },
+        },
       },
       select: { nodeDestinoId: true, nodeOrigem: { select: { referenciaId: true } } },
     });
-    const out = new Map<string, string>();
-    for (const e of edges) {
-      const conceitoId = e.nodeDestinoId ? conceptNodes.get(e.nodeDestinoId) : undefined;
-      if (e.nodeOrigem && conceitoId && !out.has(e.nodeOrigem.referenciaId)) {
-        out.set(e.nodeOrigem.referenciaId, conceitoId);
-      }
-    }
-    return out;
+    return firstQuestionConcepts(edges, conceptNodes);
   }
 
   private fetchQuestions(userId: string, ids: string[]): Promise<QuestaoRow[]> {

@@ -6,8 +6,10 @@ export type PlanPrioridade = "prova" | "edital" | "prova_edital" | "ai";
 
 export interface StudyPlan {
   id: string;
-  grafoId: string;
-  prioridade: string; // pode vir com escopo dobrado: "prova|p:<id>"
+  // Grafos escolhidos como CONTEÚDO (o objetivo é aprender tudo). Não há mais
+  // "grafo objetivo"; vazio = todos os grafos.
+  grafoIds: string[];
+  prioridade: string; // a ORDEM de estudo (modo do roadmap); "prova|p:<id>" traz escopo
   metaTipo: PlanMetaTipo;
   metaValor: number;
   dataAlvo: string | null; // ISO ou null (sem prazo)
@@ -66,7 +68,8 @@ export interface PlannedSession {
 }
 
 export interface SaveStudyPlanInput {
-  grafoId: string;
+  id?: string; // presente = atualiza esse plano; ausente = cria um novo
+  grafoIds: string[];
   prioridade: string;
   metaTipo: PlanMetaTipo;
   metaValor: number;
@@ -88,6 +91,17 @@ export function getStudyPlans(): Promise<StudyPlan[]> {
 
 export function getGraphRoadmaps(grafoId: string): Promise<RoadmapOption[]> {
   return apiFetch<RoadmapOption[]>(`/study/plan/roadmaps?grafoId=${encodeURIComponent(grafoId)}`);
+}
+
+// Os grafos escolhidos contêm prova/edital? Libera os modos prova/edital na UI.
+export interface PlanScope {
+  hasProva: boolean;
+  hasEdital: boolean;
+}
+
+export function getPlanScope(grafoIds: string[]): Promise<PlanScope> {
+  if (grafoIds.length === 0) return Promise.resolve({ hasProva: false, hasEdital: false });
+  return apiFetch<PlanScope>(`/study/plan/scope?grafoIds=${encodeURIComponent(grafoIds.join(","))}`);
 }
 
 // Gera (ou recomputa) o roadmap de um critério, para o plano poder segui-lo mesmo que

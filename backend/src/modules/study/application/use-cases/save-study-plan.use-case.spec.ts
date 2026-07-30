@@ -49,7 +49,7 @@ class FakePlans implements StudyPlanRepository {
 }
 
 const valid: StudyPlanInput = {
-  grafoId: 'g1',
+  grafoIds: ['g1'],
   prioridade: 'prova',
   metaTipo: 'NOVOS',
   metaValor: 5,
@@ -65,6 +65,16 @@ describe('SaveStudyPlanUseCase', () => {
     const plan = await new SaveStudyPlanUseCase(plans, new FakeCache()).execute('u1', valid);
     expect(plan.id).toBe('p1');
     expect(plans.saved?.metaValor).toBe(5);
+  });
+
+  // O grafo virou conteúdo (multi): não é mais obrigatório e passa direto ao repo.
+  it('accepts graphs as content and no longer requires a graph', async () => {
+    const plans = new FakePlans();
+    await new SaveStudyPlanUseCase(plans, new FakeCache()).execute('u1', {
+      ...valid,
+      grafoIds: ['g1', 'g2'],
+    });
+    expect(plans.saved?.grafoIds).toEqual(['g1', 'g2']);
   });
 
   it('accepts a scoped priority key (prova|p:<id>)', async () => {

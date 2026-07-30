@@ -13,11 +13,7 @@ import {
   type ConceptLink,
   type ConceptNewCards,
 } from '../../domain/services/roadmap-new-cards';
-
-// A trilha do roadmap guarda os passos como { nodeId } (= conceitoId), já ordenados.
-interface TrilhaStep {
-  nodeId: string;
-}
+import { dedupeConceptOrder } from '../../domain/services/roadmap-concept-order';
 
 type FlashcardRow = { id: string; pergunta: string; resposta: string };
 
@@ -25,11 +21,21 @@ function toNewView(fc: FlashcardRow, conceito: string | null): StudyCardView {
   return { ...fc, conceito, ...NEW_CARD_SCHEDULE, ...NO_IMPORTANCE };
 }
 
+type EdgeRow = { nodeDestinoId: string | null; nodeOrigem: { referenciaId: string } | null };
+
+function toLinks(edges: EdgeRow[]): ConceptLink[] {
+  return edges.flatMap((e) =>
+    e.nodeDestinoId && e.nodeOrigem
+      ? [{ conceptNodeId: e.nodeDestinoId, flashcardId: e.nodeOrigem.referenciaId }]
+      : [],
+  );
+}
+
 /**
- * Cards novos de um grafo na ordem do roadmap. O `conceitoId` relacional é nulo para o
- * usuário real (os conceitos vivem em arestas do grafo), então o mapa conceito→cards
- * vem das arestas FLASHCARD→CONCEITO — o mesmo caminho da importância/composição.
- * @example query.findByRoadmap('u1', 'g1', 'prova', 10)
+ * Cards novos dos grafos do plano, na ordem do roadmap (trilhas concatenadas). O
+ * `conceitoId` relacional é nulo para o usuário real (conceitos vivem em arestas do
+ * grafo), então o mapa conceito→cards vem das arestas FLASHCARD→CONCEITO.
+ * @example query.findByRoadmap('u1', ['g1', 'g2'], 'prova', 10)
  */
 @Injectable()
 export class PrismaRoadmapNewCardsQuery implements RoadmapNewCardsQuery {
@@ -37,14 +43,14 @@ export class PrismaRoadmapNewCardsQuery implements RoadmapNewCardsQuery {
 
   async findByRoadmap(
     userId: string,
-    grafoId: string,
+    grafoIds: string[],
     modo: string,
     limit: number,
   ): Promise<StudyCardView[]> {
-    const order = await this.roadmapConceptOrder(userId, grafoId, modo);
+    const order = await this.roadmapConceptOrder(userId, grafoIds, modo);
     if (order.length === 0) return [];
     const conceptNodes = await this.conceptNodes(userId, order);
-    const links = await this.flashcardLinks(grafoId, [...conceptNodes.keys()]);
+    const links = await this.flashcardLinks(grafoIds, [...conceptNodes.keys()]);
     const isNew = await this.keepNew(
       userId,
       links.map((l) => l.flashcardId),
@@ -55,16 +61,15 @@ export class PrismaRoadmapNewCardsQuery implements RoadmapNewCardsQuery {
 
   private async roadmapConceptOrder(
     userId: string,
-    grafoId: string,
+    grafoIds: string[],
     modo: string,
   ): Promise<string[]> {
-    const row = await this.prisma.roadmapTrilha.findUnique({
-      where: { _trilha_uk: { grafoId, modo } },
-      select: { usuarioId: true, itens: true },
+    if (grafoIds.length === 0) return [];
+    const rows = await this.prisma.roadmapTrilha.findMany({
+      where: { usuarioId: userId, grafoId: { in: grafoIds }, modo },
+      select: { itens: true },
     });
-    if (!row || row.usuarioId !== userId) return [];
-    const steps = (row.itens as unknown as TrilhaStep[]) ?? [];
-    return steps.map((s) => s.nodeId).filter((id): id is string => typeof id === 'string');
+    return dedupeConceptOrder(rows);
   }
 
   // conceptNodeId → conceitoId, para os conceitos da trilha.
@@ -76,21 +81,23 @@ export class PrismaRoadmapNewCardsQuery implements RoadmapNewCardsQuery {
     return new Map(nodes.map((n) => [n.id, n.referenciaId]));
   }
 
-  // Arestas FLASHCARD→CONCEITO (destino = conceito) cujo card está neste grafo.
-  private async flashcardLinks(grafoId: string, conceptNodeIds: string[]): Promise<ConceptLink[]> {
+  // Arestas FLASHCARD→CONCEITO (destino = conceito) cujo card está num dos grafos.
+  private async flashcardLinks(
+    grafoIds: string[],
+    conceptNodeIds: string[],
+  ): Promise<ConceptLink[]> {
     if (conceptNodeIds.length === 0) return [];
     const edges = await this.prisma.conhecimentoAresta.findMany({
       where: {
         nodeDestinoId: { in: conceptNodeIds },
-        nodeOrigem: { tipoNode: TipoNode.FLASHCARD, contidoEm: { some: { grafoId } } },
+        nodeOrigem: {
+          tipoNode: TipoNode.FLASHCARD,
+          contidoEm: { some: { grafoId: { in: grafoIds } } },
+        },
       },
       select: { nodeDestinoId: true, nodeOrigem: { select: { referenciaId: true } } },
     });
-    return edges.flatMap((e) =>
-      e.nodeDestinoId && e.nodeOrigem
-        ? [{ conceptNodeId: e.nodeDestinoId, flashcardId: e.nodeOrigem.referenciaId }]
-        : [],
-    );
+    return toLinks(edges);
   }
 
   // Dos candidatos, os que NÃO têm aprendizado (nunca revisados) = novos.

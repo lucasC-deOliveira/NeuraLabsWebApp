@@ -67,12 +67,13 @@ const toQuestionItem = (q: PlanQuestion): QuestionItem => ({
 
 // O "hoje" do plano, tipado estruturalmente para o GetTodayPlanUseCase satisfazer.
 export interface TodayPlanProvider {
-  execute(userId: string, grafoId: string): Promise<TodayPlan | null>;
+  execute(userId: string, planId: string): Promise<TodayPlan | null>;
 }
 
 /**
- * Abre a sessão do dia. O conteúdo vem das FONTES do plano (baralhos/provas) quando há;
- * senão, do roadmap. Remove os conceitos excluídos, ordena por prontidão e intercala.
+ * Abre a sessão do dia. O objetivo é aprender TODO o conteúdo do plano: cards vêm dos
+ * baralhos E dos grafos (roadmap), questões das provas E dos grafos — a UNIÃO das
+ * fontes escolhidas. Remove os conceitos excluídos, ordena por prontidão e intercala.
  * `null` quando o plano não existe.
  * @example useCase.execute('u1', 'plan1')
  */
@@ -105,27 +106,63 @@ export class StartPlannedSessionUseCase {
     return { sessionId: session.id, items: await this.arrange(userId, pool) };
   }
 
-  // Cards novos: dos baralhos do plano, ou (sem fontes) na ordem do roadmap.
-  private freshCards(userId: string, plan: StudyPlan, novos: number): Promise<StudyCardView[]> {
-    if (novos <= 0) return Promise.resolve([]);
-    if (plan.baralhoIds.length > 0) {
-      return this.content.newCardsFromBaralhos(userId, plan.baralhoIds, novos);
-    }
-    return this.newCards.findByRoadmap(userId, plan.grafoId, plan.prioridade, novos);
+  // Cards novos = UNIÃO: novos dos baralhos do plano + novos dos grafos (roadmap).
+  private async freshCards(
+    userId: string,
+    plan: StudyPlan,
+    novos: number,
+  ): Promise<StudyCardView[]> {
+    if (novos <= 0) return [];
+    const [fromBaralhos, fromGraphs] = await Promise.all([
+      this.newFromBaralhos(userId, plan, novos),
+      this.newFromGraphs(userId, plan, novos),
+    ]);
+    return [...fromBaralhos, ...fromGraphs].slice(0, novos);
   }
 
-  // Revisões vencidas: dos baralhos do plano, ou (sem fontes) globais.
+  private newFromBaralhos(
+    userId: string,
+    plan: StudyPlan,
+    novos: number,
+  ): Promise<StudyCardView[]> {
+    if (plan.baralhoIds.length === 0) return Promise.resolve([]);
+    return this.content.newCardsFromBaralhos(userId, plan.baralhoIds, novos);
+  }
+
+  private newFromGraphs(userId: string, plan: StudyPlan, novos: number): Promise<StudyCardView[]> {
+    if (plan.grafoIds.length === 0) return Promise.resolve([]);
+    return this.newCards.findByRoadmap(userId, plan.grafoIds, plan.prioridade, novos);
+  }
+
+  // Revisões vencidas: dos baralhos do plano, ou (sem baralhos) globais — a memória
+  // é global; o recorte por conteúdo do plano é sobre os NOVOS.
   private dueCards(userId: string, plan: StudyPlan): Promise<StudyCardView[]> {
     if (plan.baralhoIds.length > 0)
       return this.content.dueCardsFromBaralhos(userId, plan.baralhoIds);
     return this.cards.findDueCards(userId);
   }
 
-  // Questões: das provas do plano, ou (sem fontes) dos conceitos do roadmap.
-  private planQuestions(userId: string, plan: StudyPlan, novos: number): Promise<PlanQuestion[]> {
-    if (plan.provaIds.length > 0)
-      return this.content.questionsFromProvas(userId, plan.provaIds, novos);
-    return this.questions.findByRoadmap(userId, plan.grafoId, plan.prioridade, novos);
+  // Questões = UNIÃO: das provas do plano + dos conceitos do roadmap dos grafos.
+  private async planQuestions(
+    userId: string,
+    plan: StudyPlan,
+    novos: number,
+  ): Promise<PlanQuestion[]> {
+    const [fromProvas, fromGraphs] = await Promise.all([
+      this.qFromProvas(userId, plan, novos),
+      this.qFromGraphs(userId, plan, novos),
+    ]);
+    return [...fromProvas, ...fromGraphs].slice(0, novos);
+  }
+
+  private qFromProvas(userId: string, plan: StudyPlan, novos: number): Promise<PlanQuestion[]> {
+    if (plan.provaIds.length === 0) return Promise.resolve([]);
+    return this.content.questionsFromProvas(userId, plan.provaIds, novos);
+  }
+
+  private qFromGraphs(userId: string, plan: StudyPlan, novos: number): Promise<PlanQuestion[]> {
+    if (plan.grafoIds.length === 0) return Promise.resolve([]);
+    return this.questions.findByRoadmap(userId, plan.grafoIds, plan.prioridade, novos);
   }
 
   private excluded(userId: string, plan: StudyPlan): Promise<Excluded> {

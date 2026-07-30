@@ -26,6 +26,10 @@ import {
   type RoadmapOptionsQuery,
 } from '../modules/study/domain/ports/roadmap-options-query';
 import {
+  PLAN_SCOPE_QUERY,
+  type PlanScopeQuery,
+} from '../modules/study/domain/ports/plan-scope-query';
+import {
   SubmitReviewUseCase,
   type SubmitReviewCommand,
 } from '../modules/study/application/use-cases/submit-review.use-case';
@@ -61,6 +65,7 @@ export class StudyController {
     private readonly startPlannedSession: StartPlannedSessionUseCase,
     @Inject(STUDY_PLAN_REPOSITORY) private readonly plans: StudyPlanRepository,
     @Inject(ROADMAP_OPTIONS_QUERY) private readonly roadmapOptions: RoadmapOptionsQuery,
+    @Inject(PLAN_SCOPE_QUERY) private readonly planScope: PlanScopeQuery,
   ) {}
 
   // Onde o usuário mais erra, por conceito. 0 token: sai do histórico de revisões
@@ -125,6 +130,16 @@ export class StudyController {
     return this.roadmapOptions.list(userId, grafoId ?? '');
   }
 
+  // Os grafos escolhidos contêm prova/edital? Libera os modos prova/edital na UI.
+  @Get('plan/scope')
+  planScopeCaps(@CurrentUser() userId: string, @Query('grafoIds') grafoIds?: string) {
+    const ids = (grafoIds ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return this.planScope.capabilities(userId, ids);
+  }
+
   // "Hoje" de um plano: alvo do dia + projeção (null se o plano não existe).
   @Get('plan/:id/today')
   today(@CurrentUser() userId: string, @Param('id') id: string) {
@@ -144,15 +159,16 @@ export class StudyController {
     await this.plans.deleteById(userId, id);
   }
 
-  // Cria/atualiza a config do plano.
+  // Cria (sem id) ou atualiza (com id) a config do plano.
   @Post('plan')
   savePlan(@CurrentUser() userId: string, @Body() body: PlanBody) {
     return this.saveStudyPlan.execute(userId, {
-      grafoId: body.grafoId ?? '',
+      id: body.id,
       prioridade: (body.prioridade ?? '').trim(),
       metaTipo: (body.metaTipo ?? '') as PlanMetaTipo,
       metaValor: Number(body.metaValor),
       dataAlvo: body.dataAlvo ? new Date(body.dataAlvo) : null,
+      grafoIds: body.grafoIds ?? [],
       baralhoIds: body.baralhoIds ?? [],
       provaIds: body.provaIds ?? [],
       conceitosExcluidos: body.conceitosExcluidos ?? [],
@@ -161,11 +177,12 @@ export class StudyController {
 }
 
 interface PlanBody {
-  grafoId?: string;
+  id?: string;
   prioridade?: string;
   metaTipo?: string;
   metaValor?: number;
   dataAlvo?: string | null;
+  grafoIds?: string[];
   baralhoIds?: string[];
   provaIds?: string[];
   conceitosExcluidos?: string[];

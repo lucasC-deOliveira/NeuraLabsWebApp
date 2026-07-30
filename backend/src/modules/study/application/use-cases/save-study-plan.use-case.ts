@@ -10,7 +10,6 @@ const META_TIPOS = ['TEMPO', 'NOVOS'];
 const PRIORIDADES = ['prova', 'edital', 'prova_edital', 'ai'];
 
 function validate(input: StudyPlanInput): void {
-  if (!input.grafoId) throw new Error('invalid plan: grafoId is required');
   if (!META_TIPOS.includes(input.metaTipo)) {
     throw new Error(`invalid metaTipo: "${input.metaTipo}". Expected: TEMPO|NOVOS`);
   }
