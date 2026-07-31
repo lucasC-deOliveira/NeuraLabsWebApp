@@ -15,7 +15,11 @@ describe('gamificationSummary', () => {
 
   it('counts only today reviews for the daily goal, not the whole history', () => {
     const summary = gamificationSummary(
-      [review('2026-07-31T09:00:00Z'), review('2026-07-31T14:00:00Z'), review('2026-07-30T10:00:00Z')],
+      [
+        review('2026-07-31T09:00:00Z'),
+        review('2026-07-31T14:00:00Z'),
+        review('2026-07-30T10:00:00Z'),
+      ],
       now,
     );
 
@@ -25,7 +29,11 @@ describe('gamificationSummary', () => {
   it('carries the current streak from the shared streak service', () => {
     // Hoje, ontem e anteontem → streak 3.
     const summary = gamificationSummary(
-      [review('2026-07-31T09:00:00Z'), review('2026-07-30T09:00:00Z'), review('2026-07-29T09:00:00Z')],
+      [
+        review('2026-07-31T09:00:00Z'),
+        review('2026-07-30T09:00:00Z'),
+        review('2026-07-29T09:00:00Z'),
+      ],
       now,
     );
 
