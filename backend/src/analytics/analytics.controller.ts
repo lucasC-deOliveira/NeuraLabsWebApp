@@ -4,6 +4,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { clampDays } from '../modules/analytics/domain/services/period';
 import { GetFlashcardAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-analytics.use-case';
 import { GetGamificationSummaryUseCase } from '../modules/analytics/application/use-cases/get-gamification-summary.use-case';
+import { GetConquestSummaryUseCase } from '../modules/analytics/application/use-cases/get-conquest-summary.use-case';
 import { GetProvaAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-prova-analytics.use-case';
 import { GetDeckAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-deck-analytics.use-case';
 import { GetFlashcardItemAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-item-analytics.use-case';
@@ -17,6 +18,7 @@ import type { FlashcardItemAnalytics } from '../modules/analytics/domain/flashca
 import type { QuestaoItemAnalytics } from '../modules/analytics/domain/questao-item-views';
 import type { FeynmanAnalytics } from '../modules/analytics/domain/feynman-analytics-views';
 import type { GamificationSummary } from '../modules/analytics/domain/services/gamification-summary';
+import type { ConquestSummary } from '../modules/analytics/domain/services/conquest-summary';
 
 @UseGuards(JwtAuthGuard)
 @Controller('analytics')
@@ -29,6 +31,7 @@ export class AnalyticsController {
     private readonly getQuestaoItem: GetQuestaoItemAnalyticsUseCase,
     private readonly getFeynmanAnalytics: GetFeynmanAnalyticsUseCase,
     private readonly getGamificationSummary: GetGamificationSummaryUseCase,
+    private readonly getConquestSummary: GetConquestSummaryUseCase,
     private readonly cache: TtlCache,
   ) {}
 
@@ -38,6 +41,15 @@ export class AnalyticsController {
   gamification(@CurrentUser() userId: string): Promise<GamificationSummary> {
     return this.cache.getOrCompute(`gami:${userId}`, () =>
       this.getGamificationSummary.execute(userId),
+    );
+  }
+
+  // Conquista do grafo: conceitos dominados (SRS + questões + Feynman) vs em
+  // progresso. Para o painel de Progresso.
+  @Get('conquest')
+  conquest(@CurrentUser() userId: string): Promise<ConquestSummary> {
+    return this.cache.getOrCompute(`conquest:${userId}`, () =>
+      this.getConquestSummary.execute(userId),
     );
   }
 

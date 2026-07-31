@@ -3,6 +3,7 @@
 import { PageContainer } from "@/components/page-container";
 import { ConceptWeakSpots } from "@/components/graph/ConceptWeakSpots";
 import { DailyGoalCard } from "@/components/gamification/DailyGoalCard";
+import { ConquestCard } from "@/components/gamification/ConquestCard";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useMemo } from "react";
 import { useCachedResource } from "@/modules/cache/presentation/useCachedResource";
@@ -84,6 +85,7 @@ export function DashboardPage() {
           <DashboardStatCards loading={loading} dueCardCount={dueCardCount} accuracy={accuracy} />
           <div className="mb-6 space-y-3 sm:mb-8">
             <DailyGoalCard />
+            <ConquestCard />
             <PlanTodayCard />
             <AnalyticsSummaryCard />
           </div>

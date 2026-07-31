@@ -3,6 +3,13 @@ import { AuthModule } from '../auth/auth.module';
 import { AnalyticsController } from './analytics.controller';
 import { GetFlashcardAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-analytics.use-case';
 import { GetGamificationSummaryUseCase } from '../modules/analytics/application/use-cases/get-gamification-summary.use-case';
+import { GetConquestSummaryUseCase } from '../modules/analytics/application/use-cases/get-conquest-summary.use-case';
+import {
+  CONCEPT_MASTERY_SOURCE,
+  type ConceptMasterySource,
+} from '../modules/analytics/domain/ports/concept-mastery-source';
+import { PrismaConceptMasterySource } from '../modules/analytics/infrastructure/persistence/prisma-concept-mastery.source';
+import { computeMastery } from '../modules/graph/domain/services/domain-propagation';
 import { GetProvaAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-prova-analytics.use-case';
 import { GetDeckAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-deck-analytics.use-case';
 import { GetFlashcardItemAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-item-analytics.use-case';
@@ -55,6 +62,13 @@ const ANALYTICS_CACHE_TTL_MS = 60_000;
     { provide: FLASHCARD_ITEM_SOURCE, useClass: PrismaFlashcardItemSource },
     { provide: QUESTAO_ITEM_SOURCE, useClass: PrismaQuestaoItemSource },
     { provide: FEYNMAN_ANALYTICS_SOURCE, useClass: PrismaFeynmanAnalyticsSource },
+    { provide: CONCEPT_MASTERY_SOURCE, useClass: PrismaConceptMasterySource },
+    {
+      provide: GetConquestSummaryUseCase,
+      useFactory: (source: ConceptMasterySource) =>
+        new GetConquestSummaryUseCase(source, (i, nowMs) => computeMastery(i, nowMs)),
+      inject: [CONCEPT_MASTERY_SOURCE],
+    },
     {
       provide: GetFlashcardAnalyticsUseCase,
       useFactory: (source: FlashcardAnalyticsSource) => new GetFlashcardAnalyticsUseCase(source),
