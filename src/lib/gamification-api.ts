@@ -33,3 +33,25 @@ export function getConquestSummary(): Promise<ConquestSummary> {
 export function getConquestConcepts(): Promise<ConquistaConceito[]> {
   return apiFetch<ConquistaConceito[]>("/analytics/conquest/concepts", { timeoutMs: 20_000 });
 }
+
+// Progresso: XP/nível (tempero) + conquistas de consistência e domínio.
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  earned: boolean;
+  current: number;
+  target: number;
+  progress: number;
+}
+export interface GamificationProgress {
+  xp: number;
+  level: number;
+  xpInLevel: number;
+  xpForNext: number;
+  achievements: Achievement[];
+}
+
+export function getGamificationProgress(): Promise<GamificationProgress> {
+  return apiFetch<GamificationProgress>("/analytics/progress", { timeoutMs: 20_000 });
+}
