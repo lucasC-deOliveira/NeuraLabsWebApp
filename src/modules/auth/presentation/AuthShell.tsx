@@ -23,10 +23,13 @@ export function AuthShell({ image, title, subtitle, children }: {
 
         <div className="flex flex-col justify-center p-6 sm:p-10">
           <div className="mb-6 flex flex-col items-center gap-2 text-center">
-            <div className="flex size-11 items-center justify-center rounded-full bg-red-500/15 ring-1 ring-red-400/30">
-              <BrainIcon className="size-5 text-red-400" />
+            <div className="flex items-center gap-2">
+              <div className="flex size-9 items-center justify-center rounded-full bg-red-500/15 ring-1 ring-red-400/30">
+                <BrainIcon className="size-5 text-red-400" />
+              </div>
+              <span className="text-lg font-bold tracking-tight text-white">NeuraLabs</span>
             </div>
-            <h1 className="text-xl font-semibold text-white">{title}</h1>
+            <h1 className="mt-2 text-xl font-semibold text-white">{title}</h1>
             <p className="text-sm text-white/60">{subtitle}</p>
           </div>
           {children}
