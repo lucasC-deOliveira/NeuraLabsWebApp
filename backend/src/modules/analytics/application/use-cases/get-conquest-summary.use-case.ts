@@ -1,7 +1,9 @@
 import {
   conquestSummary,
+  studiedConcepts,
   type ConceptSignalRow,
   type ConquestSummary,
+  type ConquistaConceito,
 } from '../../domain/services/conquest-summary';
 import type {
   ConceptMasterySource,
@@ -28,13 +30,21 @@ export class GetConquestSummaryUseCase {
   ) {}
 
   async execute(userId: string): Promise<ConquestSummary> {
+    return conquestSummary(await this.loadRows(userId));
+  }
+
+  // Lista por conceito (id, score, dominado) — para o grafo pintar o território.
+  async concepts(userId: string): Promise<ConquistaConceito[]> {
+    return studiedConcepts(await this.loadRows(userId));
+  }
+
+  private async loadRows(userId: string): Promise<ConceptSignalRow[]> {
     const [states, questions, feynman] = await Promise.all([
       this.source.flashcardStates(userId),
       this.source.questionStats(userId),
       this.source.feynmanClarity(userId),
     ]);
-    const rows = await this.buildRows(userId, states, questions, feynman);
-    return conquestSummary(rows);
+    return this.buildRows(userId, states, questions, feynman);
   }
 
   private async buildRows(

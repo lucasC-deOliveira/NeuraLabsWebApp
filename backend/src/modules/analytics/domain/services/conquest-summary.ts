@@ -42,7 +42,7 @@ export function conquestSummary(rows: ConceptSignalRow[]): ConquestSummary {
 }
 
 // Só os conceitos com alguma evidência viram "estudado"; os sem evidência somem.
-function studiedConcepts(rows: ConceptSignalRow[]): ConquistaConceito[] {
+export function studiedConcepts(rows: ConceptSignalRow[]): ConquistaConceito[] {
   const out: ConquistaConceito[] = [];
   for (const row of rows) {
     const m = conceptMastery(row);

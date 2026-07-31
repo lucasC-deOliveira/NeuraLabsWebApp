@@ -18,7 +18,10 @@ import type { FlashcardItemAnalytics } from '../modules/analytics/domain/flashca
 import type { QuestaoItemAnalytics } from '../modules/analytics/domain/questao-item-views';
 import type { FeynmanAnalytics } from '../modules/analytics/domain/feynman-analytics-views';
 import type { GamificationSummary } from '../modules/analytics/domain/services/gamification-summary';
-import type { ConquestSummary } from '../modules/analytics/domain/services/conquest-summary';
+import type {
+  ConquestSummary,
+  ConquistaConceito,
+} from '../modules/analytics/domain/services/conquest-summary';
 
 @UseGuards(JwtAuthGuard)
 @Controller('analytics')
@@ -50,6 +53,14 @@ export class AnalyticsController {
   conquest(@CurrentUser() userId: string): Promise<ConquestSummary> {
     return this.cache.getOrCompute(`conquest:${userId}`, () =>
       this.getConquestSummary.execute(userId),
+    );
+  }
+
+  // Lista por conceito (id, score, dominado) — o grafo pinta o território com isto.
+  @Get('conquest/concepts')
+  conquestConcepts(@CurrentUser() userId: string): Promise<ConquistaConceito[]> {
+    return this.cache.getOrCompute(`conquest-concepts:${userId}`, () =>
+      this.getConquestSummary.concepts(userId),
     );
   }
 
