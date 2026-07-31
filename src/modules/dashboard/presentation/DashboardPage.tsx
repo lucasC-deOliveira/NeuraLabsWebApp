@@ -40,20 +40,23 @@ interface DashboardData {
   subjects: SubjectSummary[];
   sessions: StudySessionEntry[];
   dueCardCount: number;
+  streak: number;
 }
 
-// Deriva o payload MÍNIMO da home (resumos + 5 sessões + a contagem de vencidos) —
+// Deriva o payload MÍNIMO da home (resumos + 5 sessões + vencidos + ofensiva) —
 // os flashcards crus não vão para o cache (evita duplicar o cache de flashcards).
 async function loadDashboard(): Promise<DashboardData> {
-  const [subjectsData, sessionsData, flashcardsData] = await Promise.all([
+  const [subjectsData, sessionsData, flashcardsData, streak] = await Promise.all([
     dashboardHttp.getSubjects(),
     dashboardHttp.getSessionHistory(),
     dashboardHttp.getFlashcards(),
+    dashboardHttp.getStreak(),
   ]);
   return {
     subjects: toSubjectSummaries(subjectsData),
     sessions: sessionsData.slice(0, 5),
     dueCardCount: countDueCards(flashcardsData),
+    streak,
   };
 }
 
@@ -69,13 +72,14 @@ function reviveDashboard(d: DashboardData): DashboardData {
 
 export function DashboardPage() {
   const { data, loading } = useCachedResource(
-    { key: "dashboard.home", version: 1, tags: ["dashboard"], revive: reviveDashboard },
+    { key: "dashboard.home", version: 2, tags: ["dashboard"], revive: reviveDashboard },
     loadDashboard,
     "",
   );
   const subjects = data?.subjects ?? [];
   const sessions = data?.sessions ?? [];
   const dueCardCount = data?.dueCardCount ?? 0;
+  const streak = data?.streak ?? 0;
   const accuracy = useMemo(() => computeAccuracy(data?.sessions ?? []), [data]);
 
   return (
@@ -84,7 +88,7 @@ export function DashboardPage() {
         <PageContainer>
           <PageHeader title="NeuraLabs" subtitle="Flashcards Inteligentes com IA" />
 
-          <DashboardStatCards loading={loading} dueCardCount={dueCardCount} accuracy={accuracy} />
+          <DashboardStatCards loading={loading} dueCardCount={dueCardCount} accuracy={accuracy} streak={streak} />
           <div className="mb-6 space-y-3 sm:mb-8">
             <ConquestCelebration />
             <DailyGoalCard />
