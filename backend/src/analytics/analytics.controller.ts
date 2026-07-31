@@ -3,6 +3,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { clampDays } from '../modules/analytics/domain/services/period';
 import { GetFlashcardAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-analytics.use-case';
+import { GetGamificationSummaryUseCase } from '../modules/analytics/application/use-cases/get-gamification-summary.use-case';
 import { GetProvaAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-prova-analytics.use-case';
 import { GetDeckAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-deck-analytics.use-case';
 import { GetFlashcardItemAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-item-analytics.use-case';
@@ -15,6 +16,7 @@ import type { DeckAnalytics } from '../modules/analytics/domain/deck-analytics-v
 import type { FlashcardItemAnalytics } from '../modules/analytics/domain/flashcard-item-views';
 import type { QuestaoItemAnalytics } from '../modules/analytics/domain/questao-item-views';
 import type { FeynmanAnalytics } from '../modules/analytics/domain/feynman-analytics-views';
+import type { GamificationSummary } from '../modules/analytics/domain/services/gamification-summary';
 
 @UseGuards(JwtAuthGuard)
 @Controller('analytics')
@@ -26,8 +28,18 @@ export class AnalyticsController {
     private readonly getFlashcardItem: GetFlashcardItemAnalyticsUseCase,
     private readonly getQuestaoItem: GetQuestaoItemAnalyticsUseCase,
     private readonly getFeynmanAnalytics: GetFeynmanAnalyticsUseCase,
+    private readonly getGamificationSummary: GetGamificationSummaryUseCase,
     private readonly cache: TtlCache,
   ) {}
+
+  // Resumo do laço de hábito (revisões de hoje + ofensiva), para o painel de
+  // Progresso no dashboard. Leve — não carrega as métricas pesadas de analytics.
+  @Get('gamification')
+  gamification(@CurrentUser() userId: string): Promise<GamificationSummary> {
+    return this.cache.getOrCompute(`gami:${userId}`, () =>
+      this.getGamificationSummary.execute(userId),
+    );
+  }
 
   @Get('flashcards')
   flashcards(
