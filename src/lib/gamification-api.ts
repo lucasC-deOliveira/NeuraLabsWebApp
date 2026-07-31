@@ -28,3 +28,8 @@ export interface ConquestSummary {
 export function getConquestSummary(): Promise<ConquestSummary> {
   return apiFetch<ConquestSummary>("/analytics/conquest", { timeoutMs: 20_000 });
 }
+
+// Lista por conceito (id, score, dominado) — o grafo pinta o território com isto.
+export function getConquestConcepts(): Promise<ConquistaConceito[]> {
+  return apiFetch<ConquistaConceito[]>("/analytics/conquest/concepts", { timeoutMs: 20_000 });
+}

@@ -7,6 +7,7 @@ import {
 import { computeEdgeCurve } from "@/modules/graph/presentation/services/edge-geometry.service";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { heatmapColor } from "@/modules/graph/domain/services/heatmap-color";
+import { territoryColor } from "@/modules/graph/domain/services/conquest-color";
 import { useColorTheme } from "@/components/color-theme-provider";
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -26,6 +27,8 @@ type Props = {
   highContrast?: boolean;
   // Colore cada nó pelo domínio (nivelDominio) em vez do tipo: o mapa de calor.
   heatmap?: boolean;
+  // Conceitos dominados (referenciaId): no mapa de calor viram dourados (território).
+  dominatedConceptIds?: Set<string>;
   focusMode?: boolean;
   focusDepth?: number;
   matchedIds?: Set<string> | null;
@@ -240,7 +243,7 @@ function drawEdgeBezier(ctx: CanvasRenderingContext2D, edge: any, nodeById: Map<
 // ─── Component ────────────────────────────────────────────────────────────────
 export function GraphRenderer({
   nodes, edges, zoom, pan, isDark, svgRef, tool,
-  selectedNodeIds, marquee, highContrast = false, heatmap = false,
+  selectedNodeIds, marquee, highContrast = false, heatmap = false, dominatedConceptIds,
   focusMode = false, focusDepth = 1, matchedIds = null,
   showClusters = false,
   onNodeClick, onNodeDoubleClick, onNodeContextMenu, onNodeDragStart,
@@ -306,6 +309,7 @@ export function GraphRenderer({
 
   const S = useRef({
     nodes, edges, zoom, pan, isDark, tool, highContrast, heatmap, primaryHex,
+    dominatedConceptIds: dominatedConceptIds as Set<string> | undefined,
     showClusters,
     selectedNodeIds, marquee,
     effectiveMatchedIds: effectiveMatchedIds as Set<string> | null,
@@ -338,6 +342,7 @@ export function GraphRenderer({
   // S.current.pan to the stale React prop, making the graph jump mid-pan.
   if (!s.panActive) s.pan = pan;
   s.isDark = isDark; s.tool = tool; s.highContrast = highContrast; s.heatmap = heatmap; s.primaryHex = primaryHex;
+  s.dominatedConceptIds = dominatedConceptIds;
   s.showClusters = showClusters;
   s.selectedNodeIds = selectedNodeIds; s.marquee = marquee;
   s.effectiveMatchedIds = effectiveMatchedIds;
@@ -353,15 +358,18 @@ export function GraphRenderer({
 
     const {
       nodes, edges, nodeById, zoom, pan, isDark, highContrast, heatmap, primaryHex,
-      showClusters,
+      dominatedConceptIds, showClusters,
       selectedNodeIds, hoveredId, marquee, hideEdges, effectiveMatchedIds,
       canvasW, canvasH,
     } = S.current;
     const hcColor = highContrast ? primaryHex : null;
-    // Override de cor por nó: no mapa de calor cada nó vem do seu domínio; senão,
-    // segue o alto-contraste (um tom só) ou a cor por tipo (null).
-    const nodeOverride = (n: any): string | null =>
-      heatmap ? heatmapColor(typeof n.nivelDominio === "number" ? n.nivelDominio : 0) : hcColor;
+    // Override de cor por nó: no mapa de calor cada nó vem do seu domínio, e um
+    // conceito DOMINADO vira dourado (território). Senão, alto-contraste ou tipo.
+    const nodeOverride = (n: any): string | null => {
+      if (!heatmap) return hcColor;
+      const conquered = n.group === "CONCEITO" && Boolean(dominatedConceptIds?.has(n.id));
+      return territoryColor(typeof n.nivelDominio === "number" ? n.nivelDominio : 0, conquered);
+    };
 
     const dpr = window.devicePixelRatio || 1;
     const w   = canvasW  || canvas.clientWidth  || 1;

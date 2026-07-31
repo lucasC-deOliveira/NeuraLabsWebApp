@@ -95,6 +95,7 @@ import type { FeynmanAlvoTipo } from "@/components/feynman/feynman.types";
 import { VaultSyncModal } from "@/modules/graph/presentation/components/vault/VaultSyncModal";
 import { GraphDashboard } from "@/modules/graph/presentation/components/dashboard/GraphDashboard";
 import { isDesktop } from "@/lib/vault-bridge";
+import { getConquestConcepts } from "@/lib/gamification-api";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 import { splitGraphEntities, countNodesByType, neighborhoodFlashcardIds } from "@/modules/graph/domain/services/graph-derivations";
 import { getRelationStats } from "@/modules/graph/domain/selectors/graph.selectors";
@@ -186,6 +187,17 @@ export default function GraphPage() {
   const [has3DBeenOpened, setHas3DBeenOpened] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [heatmap, setHeatmap] = useState(false);
+  // Conceitos dominados (conquista): pintam o território dourado no mapa de calor.
+  // Busca só ao ligar o mapa de calor — é dado da gamificação, não da view do grafo.
+  const [dominatedConceptIds, setDominatedConceptIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!heatmap) return;
+    let ignore = false;
+    getConquestConcepts()
+      .then((cs) => { if (!ignore) setDominatedConceptIds(new Set(cs.filter((c) => c.dominated).map((c) => c.conceitoId))); })
+      .catch(() => {});
+    return () => { ignore = true; };
+  }, [heatmap]);
   const [focusMode, setFocusMode] = useState(false);
   const { focusDepth, setFocusDepth } = useGraphSettings(
     controller.state.physicsOptions,
@@ -1145,6 +1157,7 @@ export default function GraphPage() {
               marquee={controller.interactions.marquee}
               highContrast={highContrast}
               heatmap={heatmap}
+              dominatedConceptIds={dominatedConceptIds}
               focusMode={focusMode}
               focusDepth={focusDepth}
               matchedIds={combinedMatchedIds}
