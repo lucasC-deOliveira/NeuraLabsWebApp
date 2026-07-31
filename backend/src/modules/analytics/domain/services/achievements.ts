@@ -64,6 +64,13 @@ const DEFS: AchievementDef<Metric>[] = [
     target: 1000,
   },
   {
+    id: 'reviews-5000',
+    title: 'Maratonista',
+    description: '5000 revisões feitas',
+    metric: 'reviews',
+    target: 5000,
+  },
+  {
     id: 'dominated-1',
     title: 'Primeiro domínio',
     description: '1 conceito dominado',

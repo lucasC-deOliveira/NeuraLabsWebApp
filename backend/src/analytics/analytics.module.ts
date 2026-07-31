@@ -95,9 +95,12 @@ const ANALYTICS_CACHE_TTL_MS = 60_000;
     },
     {
       provide: GetGamificationProgressUseCase,
-      useFactory: (source: FlashcardAnalyticsSource, conquest: GetConquestSummaryUseCase) =>
-        new GetGamificationProgressUseCase(source, conquest),
-      inject: [FLASHCARD_ANALYTICS_SOURCE, GetConquestSummaryUseCase],
+      useFactory: (
+        source: FlashcardAnalyticsSource,
+        conquest: GetConquestSummaryUseCase,
+        creation: ContentCreationSource,
+      ) => new GetGamificationProgressUseCase(source, conquest, creation),
+      inject: [FLASHCARD_ANALYTICS_SOURCE, GetConquestSummaryUseCase, CONTENT_CREATION_SOURCE],
     },
     {
       provide: GetBuilderSummaryUseCase,
