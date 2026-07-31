@@ -6,4 +6,5 @@ export interface DashboardPort {
   getSubjects(): Promise<SubjectWithTopics[]>;
   getSessionHistory(): Promise<StudySessionEntry[]>;
   getFlashcards(): Promise<DueCandidate[]>;
+  getStreak(): Promise<number>;
 }
