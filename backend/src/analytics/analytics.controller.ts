@@ -5,6 +5,7 @@ import { clampDays } from '../modules/analytics/domain/services/period';
 import { GetFlashcardAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-analytics.use-case';
 import { GetGamificationSummaryUseCase } from '../modules/analytics/application/use-cases/get-gamification-summary.use-case';
 import { GetConquestSummaryUseCase } from '../modules/analytics/application/use-cases/get-conquest-summary.use-case';
+import { GetGamificationProgressUseCase } from '../modules/analytics/application/use-cases/get-gamification-progress.use-case';
 import { GetProvaAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-prova-analytics.use-case';
 import { GetDeckAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-deck-analytics.use-case';
 import { GetFlashcardItemAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-item-analytics.use-case';
@@ -22,6 +23,7 @@ import type {
   ConquestSummary,
   ConquistaConceito,
 } from '../modules/analytics/domain/services/conquest-summary';
+import type { GamificationProgress } from '../modules/analytics/domain/services/gamification-progress';
 
 @UseGuards(JwtAuthGuard)
 @Controller('analytics')
@@ -35,6 +37,7 @@ export class AnalyticsController {
     private readonly getFeynmanAnalytics: GetFeynmanAnalyticsUseCase,
     private readonly getGamificationSummary: GetGamificationSummaryUseCase,
     private readonly getConquestSummary: GetConquestSummaryUseCase,
+    private readonly getGamificationProgress: GetGamificationProgressUseCase,
     private readonly cache: TtlCache,
   ) {}
 
@@ -61,6 +64,15 @@ export class AnalyticsController {
   conquestConcepts(@CurrentUser() userId: string): Promise<ConquistaConceito[]> {
     return this.cache.getOrCompute(`conquest-concepts:${userId}`, () =>
       this.getConquestSummary.concepts(userId),
+    );
+  }
+
+  // Progresso: XP/nível (tempero) + conquistas de consistência e domínio. Para o
+  // painel de Progresso — mesma fonte de revisões e a conquista do grafo.
+  @Get('progress')
+  progress(@CurrentUser() userId: string): Promise<GamificationProgress> {
+    return this.cache.getOrCompute(`progress:${userId}`, () =>
+      this.getGamificationProgress.execute(userId),
     );
   }
 

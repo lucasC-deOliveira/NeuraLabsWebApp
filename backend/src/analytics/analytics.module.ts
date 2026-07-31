@@ -4,6 +4,7 @@ import { AnalyticsController } from './analytics.controller';
 import { GetFlashcardAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-analytics.use-case';
 import { GetGamificationSummaryUseCase } from '../modules/analytics/application/use-cases/get-gamification-summary.use-case';
 import { GetConquestSummaryUseCase } from '../modules/analytics/application/use-cases/get-conquest-summary.use-case';
+import { GetGamificationProgressUseCase } from '../modules/analytics/application/use-cases/get-gamification-progress.use-case';
 import {
   CONCEPT_MASTERY_SOURCE,
   type ConceptMasterySource,
@@ -78,6 +79,12 @@ const ANALYTICS_CACHE_TTL_MS = 60_000;
       provide: GetGamificationSummaryUseCase,
       useFactory: (source: FlashcardAnalyticsSource) => new GetGamificationSummaryUseCase(source),
       inject: [FLASHCARD_ANALYTICS_SOURCE],
+    },
+    {
+      provide: GetGamificationProgressUseCase,
+      useFactory: (source: FlashcardAnalyticsSource, conquest: GetConquestSummaryUseCase) =>
+        new GetGamificationProgressUseCase(source, conquest),
+      inject: [FLASHCARD_ANALYTICS_SOURCE, GetConquestSummaryUseCase],
     },
     {
       provide: GetProvaAnalyticsUseCase,
