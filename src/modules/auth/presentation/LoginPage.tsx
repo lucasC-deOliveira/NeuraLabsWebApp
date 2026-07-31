@@ -1,104 +1,83 @@
 "use client";
 
-import { Suspense, useState, useRef, type FormEvent } from "react";
+import { Suspense, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "@/lib/navigation";
 import { Link } from "@/components/link";
-import { BrainIcon, Loader2Icon } from "lucide-react";
+import { Loader2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError } from "@/lib/api";
 import { authHttp } from "../infra/http";
 import { safeCallbackUrl } from "../domain/services/credential-validation";
+import { loginSchema, type LoginInput } from "../domain/services/auth-schemas";
+import { AuthShell, FIELD_CLASS, FieldError } from "./AuthShell";
+import loginHero from "@/assets/auth/login-hero.jpg";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl") ?? "/");
 
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState("");
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
-  const emailRef = useRef<HTMLInputElement>(null);
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
+  async function onSubmit(data: LoginInput) {
+    setServerError("");
     try {
-      await authHttp.login({ email, senha });
+      await authHttp.login(data);
       router.push(callbackUrl);
       router.refresh();
     } catch (err) {
-      if (err instanceof ApiError) setError(err.message);
-      else setError("Erro ao conectar. Tente novamente.");
-    } finally {
-      setLoading(false);
+      setServerError(err instanceof ApiError ? err.message : "Erro ao conectar. Tente novamente.");
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4">
-      <Card className="w-full max-w-sm border-zinc-200 dark:border-zinc-800">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-primary/10">
-            <BrainIcon className="size-5 text-primary" />
+    <AuthShell image={loginHero} title="Entrar" subtitle="Acesse seus estudos">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        {serverError && (
+          <div className="rounded-md bg-red-500/15 px-3 py-2 text-xs text-red-300">{serverError}</div>
+        )}
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-white/80">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="seu@email.com"
+            autoFocus
+            className={FIELD_CLASS}
+            {...register("email")}
+          />
+          <FieldError message={errors.email?.message} />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="senha" className="text-white/80">Senha</Label>
+            <Link href="/register" className="text-xs text-cyan-300 underline-offset-4 hover:underline">
+              Criar conta
+            </Link>
           </div>
-          <CardTitle className="text-xl">NeuraLabs</CardTitle>
-          <CardDescription>Faca login para acessar seus estudos</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  ref={emailRef}
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="senha">Senha</Label>
-                  <Link href="/register" className="text-xs text-primary underline-offset-4 hover:underline">
-                    Criar conta
-                  </Link>
-                </div>
-                <Input
-                  id="senha"
-                  type="password"
-                  placeholder="••••••"
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  required
-                />
-              </div>
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2Icon className="size-4 animate-spin" /> : "Entrar"}
-              </Button>
-            </form>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          <Input
+            id="senha"
+            type="password"
+            placeholder="••••••"
+            className={FIELD_CLASS}
+            {...register("senha")}
+          />
+          <FieldError message={errors.senha?.message} />
+        </div>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2Icon className="size-4 animate-spin" /> : "Entrar"}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }
 
