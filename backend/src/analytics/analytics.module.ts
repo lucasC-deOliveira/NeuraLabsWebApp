@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { AnalyticsController } from './analytics.controller';
 import { GetFlashcardAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-analytics.use-case';
+import { GetGamificationSummaryUseCase } from '../modules/analytics/application/use-cases/get-gamification-summary.use-case';
 import { GetProvaAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-prova-analytics.use-case';
 import { GetDeckAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-deck-analytics.use-case';
 import { GetFlashcardItemAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-item-analytics.use-case';
@@ -57,6 +58,11 @@ const ANALYTICS_CACHE_TTL_MS = 60_000;
     {
       provide: GetFlashcardAnalyticsUseCase,
       useFactory: (source: FlashcardAnalyticsSource) => new GetFlashcardAnalyticsUseCase(source),
+      inject: [FLASHCARD_ANALYTICS_SOURCE],
+    },
+    {
+      provide: GetGamificationSummaryUseCase,
+      useFactory: (source: FlashcardAnalyticsSource) => new GetGamificationSummaryUseCase(source),
       inject: [FLASHCARD_ANALYTICS_SOURCE],
     },
     {

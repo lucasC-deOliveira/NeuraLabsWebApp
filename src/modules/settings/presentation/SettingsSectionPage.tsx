@@ -12,14 +12,16 @@ import { ThemeSection } from "./components/ThemeSection";
 import { CardStyleSection } from "./components/CardStyleSection";
 import { StudyOrderSection } from "./components/StudyOrderSection";
 import { SpeechSection } from "./components/SpeechSection";
+import { DailyGoalSection } from "./components/DailyGoalSection";
 import { IaSectionBody } from "./components/IaSectionBody";
 import { DesktopSectionBody } from "./components/DesktopSectionBody";
 
-// A seção "Estudo" reúne o que rege a sessão: a ordem dos cards e a leitura em
-// voz alta. Duas preferências independentes, uma tela.
+// A seção "Estudo" reúne o que rege a sessão: a meta diária, a ordem dos cards e a
+// leitura em voz alta. Preferências independentes, uma tela.
 function EstudoSection() {
   return (
     <>
+      <DailyGoalSection />
       <StudyOrderSection />
       <SpeechSection />
     </>
