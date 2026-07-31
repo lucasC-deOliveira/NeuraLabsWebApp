@@ -6,6 +6,8 @@ import { DailyGoalCard } from "@/components/gamification/DailyGoalCard";
 import { ConquestCard } from "@/components/gamification/ConquestCard";
 import { ConquestCelebration } from "@/components/gamification/ConquestCelebration";
 import { ProgressCard } from "@/components/gamification/ProgressCard";
+import { BuilderCard } from "@/components/gamification/BuilderCard";
+import { BuilderCelebration } from "@/components/gamification/BuilderCelebration";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useMemo } from "react";
 import { useCachedResource } from "@/modules/cache/presentation/useCachedResource";
@@ -91,9 +93,11 @@ export function DashboardPage() {
           <DashboardStatCards loading={loading} dueCardCount={dueCardCount} accuracy={accuracy} streak={streak} />
           <div className="mb-6 space-y-3 sm:mb-8">
             <ConquestCelebration />
+            <BuilderCelebration />
             <DailyGoalCard />
             <ProgressCard />
             <ConquestCard />
+            <BuilderCard />
             <PlanTodayCard />
             <AnalyticsSummaryCard />
           </div>

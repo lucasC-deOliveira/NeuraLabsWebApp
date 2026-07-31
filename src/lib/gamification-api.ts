@@ -55,3 +55,32 @@ export interface GamificationProgress {
 export function getGamificationProgress(): Promise<GamificationProgress> {
   return apiFetch<GamificationProgress>("/analytics/progress", { timeoutMs: 20_000 });
 }
+
+// Construtor & Explorador: criar conteúdo + ampliar o mapa (amplitude).
+export interface CreatedTotals {
+  flashcard: number;
+  questao: number;
+  baralho: number;
+  prova: number;
+  edital: number;
+  feynman: number;
+  nota: number;
+  node: number;
+}
+export interface TerritoryItem {
+  referenciaId: string;
+  nome: string;
+  tipo: "ASSUNTO" | "TOPICO";
+}
+export interface BuilderSummary {
+  creationStreak: number;
+  created: number;
+  createdTotals: CreatedTotals;
+  breadth: { concepts: number; topics: number; subjects: number };
+  achievements: Achievement[];
+  recentTerritory: TerritoryItem[];
+}
+
+export function getBuilderSummary(): Promise<BuilderSummary> {
+  return apiFetch<BuilderSummary>("/analytics/builder", { timeoutMs: 20_000 });
+}
