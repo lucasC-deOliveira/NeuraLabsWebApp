@@ -43,22 +43,12 @@ export class GetConquestSummaryUseCase {
     questions: { conceitoId: string; total: number; acertos: number }[],
     feynman: { conceitoId: string; clareza: number }[],
   ): Promise<ConceptSignalRow[]> {
-    const flashcardMastery = this.flashcardMasteryByConcept(states);
-    const questionAccuracy = new Map(questions.map((q) => [q.conceitoId, q.acertos / q.total]));
-    const feynmanClarity = new Map(feynman.map((f) => [f.conceitoId, f.clareza]));
-    const ids = new Set([
-      ...flashcardMastery.keys(),
-      ...questionAccuracy.keys(),
-      ...feynmanClarity.keys(),
-    ]);
-    const names = await this.source.conceptNames(userId, [...ids]);
-    return [...ids].map((conceitoId) => ({
-      conceitoId,
-      nome: names.get(conceitoId) ?? conceitoId,
-      flashcardMastery: flashcardMastery.get(conceitoId) ?? null,
-      questionAccuracy: questionAccuracy.get(conceitoId) ?? null,
-      feynmanClarity: feynmanClarity.get(conceitoId) ?? null,
-    }));
+    const flashcard = this.flashcardMasteryByConcept(states);
+    const question = new Map(questions.map((q) => [q.conceitoId, q.acertos / q.total]));
+    const feyn = new Map(feynman.map((f) => [f.conceitoId, f.clareza]));
+    const ids = [...new Set([...flashcard.keys(), ...question.keys(), ...feyn.keys()])];
+    const names = await this.source.conceptNames(userId, ids);
+    return ids.map((id) => toSignalRow(id, names, flashcard, question, feyn));
   }
 
   // Domínio do conceito pelos flashcards = média do domínio SM-2 dos cards que o DEFINE.
@@ -73,4 +63,20 @@ export class GetConquestSummaryUseCase {
     }
     return new Map([...soma].map(([id, { total, n }]) => [id, total / n]));
   }
+}
+
+function toSignalRow(
+  conceitoId: string,
+  names: Map<string, string>,
+  flashcard: Map<string, number>,
+  question: Map<string, number>,
+  feyn: Map<string, number>,
+): ConceptSignalRow {
+  return {
+    conceitoId,
+    nome: names.get(conceitoId) ?? conceitoId,
+    flashcardMastery: flashcard.get(conceitoId) ?? null,
+    questionAccuracy: question.get(conceitoId) ?? null,
+    feynmanClarity: feyn.get(conceitoId) ?? null,
+  };
 }

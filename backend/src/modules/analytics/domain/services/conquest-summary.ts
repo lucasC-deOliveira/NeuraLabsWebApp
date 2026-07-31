@@ -31,23 +31,28 @@ const QUASE_LA_LIMIT = 5;
  * @example conquestSummary(rows)
  */
 export function conquestSummary(rows: ConceptSignalRow[]): ConquestSummary {
-  const avaliados: ConquistaConceito[] = [];
+  const avaliados = studiedConcepts(rows);
+  const emProgresso = avaliados.filter((c) => !c.dominated);
+  return {
+    dominated: avaliados.filter((c) => c.dominated).length,
+    inProgress: emProgresso.length,
+    studied: avaliados.length,
+    quaseLa: [...emProgresso].sort((a, b) => b.score - a.score).slice(0, QUASE_LA_LIMIT),
+  };
+}
+
+// Só os conceitos com alguma evidência viram "estudado"; os sem evidência somem.
+function studiedConcepts(rows: ConceptSignalRow[]): ConquistaConceito[] {
+  const out: ConquistaConceito[] = [];
   for (const row of rows) {
     const m = conceptMastery(row);
-    if (m.evidenceCount === 0) continue; // sem evidência não conta como "estudado"
-    avaliados.push({
+    if (m.evidenceCount === 0) continue;
+    out.push({
       conceitoId: row.conceitoId,
       nome: row.nome,
       score: m.score,
       dominated: m.dominated,
     });
   }
-  const dominated = avaliados.filter((c) => c.dominated).length;
-  const emProgresso = avaliados.filter((c) => !c.dominated);
-  return {
-    dominated,
-    inProgress: emProgresso.length,
-    studied: avaliados.length,
-    quaseLa: [...emProgresso].sort((a, b) => b.score - a.score).slice(0, QUASE_LA_LIMIT),
-  };
+  return out;
 }
