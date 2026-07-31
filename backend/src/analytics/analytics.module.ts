@@ -5,6 +5,17 @@ import { GetFlashcardAnalyticsUseCase } from '../modules/analytics/application/u
 import { GetGamificationSummaryUseCase } from '../modules/analytics/application/use-cases/get-gamification-summary.use-case';
 import { GetConquestSummaryUseCase } from '../modules/analytics/application/use-cases/get-conquest-summary.use-case';
 import { GetGamificationProgressUseCase } from '../modules/analytics/application/use-cases/get-gamification-progress.use-case';
+import { GetBuilderSummaryUseCase } from '../modules/analytics/application/use-cases/get-builder-summary.use-case';
+import {
+  CONTENT_CREATION_SOURCE,
+  type ContentCreationSource,
+} from '../modules/analytics/domain/ports/content-creation-source';
+import { PrismaContentCreationSource } from '../modules/analytics/infrastructure/persistence/prisma-content-creation.source';
+import {
+  GRAPH_BREADTH_SOURCE,
+  type GraphBreadthSource,
+} from '../modules/analytics/domain/ports/graph-breadth-source';
+import { PrismaGraphBreadthSource } from '../modules/analytics/infrastructure/persistence/prisma-graph-breadth.source';
 import {
   CONCEPT_MASTERY_SOURCE,
   type ConceptMasterySource,
@@ -64,6 +75,8 @@ const ANALYTICS_CACHE_TTL_MS = 60_000;
     { provide: QUESTAO_ITEM_SOURCE, useClass: PrismaQuestaoItemSource },
     { provide: FEYNMAN_ANALYTICS_SOURCE, useClass: PrismaFeynmanAnalyticsSource },
     { provide: CONCEPT_MASTERY_SOURCE, useClass: PrismaConceptMasterySource },
+    { provide: CONTENT_CREATION_SOURCE, useClass: PrismaContentCreationSource },
+    { provide: GRAPH_BREADTH_SOURCE, useClass: PrismaGraphBreadthSource },
     {
       provide: GetConquestSummaryUseCase,
       useFactory: (source: ConceptMasterySource) =>
@@ -85,6 +98,12 @@ const ANALYTICS_CACHE_TTL_MS = 60_000;
       useFactory: (source: FlashcardAnalyticsSource, conquest: GetConquestSummaryUseCase) =>
         new GetGamificationProgressUseCase(source, conquest),
       inject: [FLASHCARD_ANALYTICS_SOURCE, GetConquestSummaryUseCase],
+    },
+    {
+      provide: GetBuilderSummaryUseCase,
+      useFactory: (creation: ContentCreationSource, graph: GraphBreadthSource) =>
+        new GetBuilderSummaryUseCase(creation, graph),
+      inject: [CONTENT_CREATION_SOURCE, GRAPH_BREADTH_SOURCE],
     },
     {
       provide: GetProvaAnalyticsUseCase,

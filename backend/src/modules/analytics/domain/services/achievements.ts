@@ -1,33 +1,19 @@
-// Conquistas: marcos de CONSISTÊNCIA (ofensiva) e DOMÍNIO (conceitos dominados) —
-// a recompensa que o usuário pediu. Cada marco carrega o progresso atual para a UI
-// mostrar "quase lá", não só o selo aceso. Os títulos/descrições vão à UI (PT).
+// Conquistas de estudo: marcos de CONSISTÊNCIA (ofensiva) e DOMÍNIO (conceitos
+// dominados). Cada marco carrega o progresso atual para a UI mostrar "quase lá".
+// A mecânica genérica vive em achievement-eval; aqui só o catálogo de estudo.
+import { buildAchievements, type Achievement, type AchievementDef } from './achievement-eval';
+
+export type { Achievement } from './achievement-eval';
+
 export interface AchievementSignals {
   streak: number;
   reviews: number;
   dominated: number;
 }
 
-export interface Achievement {
-  id: string;
-  title: string;
-  description: string;
-  earned: boolean;
-  current: number;
-  target: number;
-  progress: number;
-}
-
 type Metric = keyof AchievementSignals;
 
-interface AchievementDef {
-  id: string;
-  title: string;
-  description: string;
-  metric: Metric;
-  target: number;
-}
-
-const DEFS: AchievementDef[] = [
+const DEFS: AchievementDef<Metric>[] = [
   {
     id: 'streak-3',
     title: 'Aquecendo',
@@ -100,19 +86,7 @@ const DEFS: AchievementDef[] = [
   },
 ];
 
-/** Avalia todas as conquistas contra os sinais atuais. @example evaluateAchievements({ streak: 4, reviews: 120, dominated: 0 }) */
+/** Avalia todas as conquistas de estudo. @example evaluateAchievements({ streak: 4, reviews: 120, dominated: 0 }) */
 export function evaluateAchievements(s: AchievementSignals): Achievement[] {
-  return DEFS.map((d) => toAchievement(d, s[d.metric]));
-}
-
-function toAchievement(d: AchievementDef, value: number): Achievement {
-  return {
-    id: d.id,
-    title: d.title,
-    description: d.description,
-    earned: value >= d.target,
-    current: Math.min(value, d.target),
-    target: d.target,
-    progress: Math.min(1, value / d.target),
-  };
+  return buildAchievements(DEFS, s);
 }
