@@ -6,6 +6,7 @@ import { GetFlashcardAnalyticsUseCase } from '../modules/analytics/application/u
 import { GetGamificationSummaryUseCase } from '../modules/analytics/application/use-cases/get-gamification-summary.use-case';
 import { GetConquestSummaryUseCase } from '../modules/analytics/application/use-cases/get-conquest-summary.use-case';
 import { GetGamificationProgressUseCase } from '../modules/analytics/application/use-cases/get-gamification-progress.use-case';
+import { GetBuilderSummaryUseCase } from '../modules/analytics/application/use-cases/get-builder-summary.use-case';
 import { GetProvaAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-prova-analytics.use-case';
 import { GetDeckAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-deck-analytics.use-case';
 import { GetFlashcardItemAnalyticsUseCase } from '../modules/analytics/application/use-cases/get-flashcard-item-analytics.use-case';
@@ -24,6 +25,7 @@ import type {
   ConquistaConceito,
 } from '../modules/analytics/domain/services/conquest-summary';
 import type { GamificationProgress } from '../modules/analytics/domain/services/gamification-progress';
+import type { BuilderSummary } from '../modules/analytics/domain/services/builder-summary';
 
 @UseGuards(JwtAuthGuard)
 @Controller('analytics')
@@ -38,6 +40,7 @@ export class AnalyticsController {
     private readonly getGamificationSummary: GetGamificationSummaryUseCase,
     private readonly getConquestSummary: GetConquestSummaryUseCase,
     private readonly getGamificationProgress: GetGamificationProgressUseCase,
+    private readonly getBuilderSummary: GetBuilderSummaryUseCase,
     private readonly cache: TtlCache,
   ) {}
 
@@ -73,6 +76,15 @@ export class AnalyticsController {
   progress(@CurrentUser() userId: string): Promise<GamificationProgress> {
     return this.cache.getOrCompute(`progress:${userId}`, () =>
       this.getGamificationProgress.execute(userId),
+    );
+  }
+
+  // Construtor & Explorador: ofensiva de criação + totais criados + amplitude do
+  // mapa + badges + território novo. Para o painel de Progresso.
+  @Get('builder')
+  builder(@CurrentUser() userId: string): Promise<BuilderSummary> {
+    return this.cache.getOrCompute(`builder:${userId}`, () =>
+      this.getBuilderSummary.execute(userId),
     );
   }
 
