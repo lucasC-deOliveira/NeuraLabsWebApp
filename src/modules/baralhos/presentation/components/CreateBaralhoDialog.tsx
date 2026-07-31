@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Loader2Icon } from "lucide-react";
+import { baralhoSchema, type BaralhoInput } from "../../domain/services/baralho-schema";
 
 interface CreateBaralhoDialogProps {
   open: boolean;
@@ -17,11 +20,16 @@ interface CreateBaralhoDialogProps {
 }
 
 export function CreateBaralhoDialog({ open, onOpenChange, submitting, onCreate }: CreateBaralhoDialogProps) {
-  const [titulo, setTitulo] = useState("");
-  const submit = (): void => {
-    onCreate(titulo);
-    setTitulo("");
-  };
+  const form = useForm<BaralhoInput>({ resolver: zodResolver(baralhoSchema), defaultValues: { titulo: "" } });
+
+  // Ao reabrir o diálogo, limpa o campo e os erros da tentativa anterior.
+  useEffect(() => {
+    if (open) form.reset({ titulo: "" });
+  }, [open, form]);
+
+  function onSubmit(data: BaralhoInput): void {
+    onCreate(data.titulo);
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -32,23 +40,30 @@ export function CreateBaralhoDialog({ open, onOpenChange, submitting, onCreate }
             Crie o baralho e depois adicione os cartões que quiser estudar junto.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2 mt-2">
-          <Label htmlFor="titulo-baralho">Titulo</Label>
-          <Input
-            id="titulo-baralho"
-            placeholder="Ex.: Biologia — Genética"
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && titulo.trim()) submit(); }}
-          />
-        </div>
-        <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button disabled={!titulo.trim() || submitting} onClick={submit}>
-            {submitting && <Loader2Icon className="size-3.5 mr-1 animate-spin" />}
-            Criar baralho
-          </Button>
-        </DialogFooter>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <FormField
+              control={form.control}
+              name="titulo"
+              render={({ field }) => (
+                <FormItem className="mt-2">
+                  <FormLabel>Titulo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex.: Biologia — Genética" autoFocus {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter className="mt-4 gap-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting && <Loader2Icon className="size-3.5 mr-1 animate-spin" />}
+                Criar baralho
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
