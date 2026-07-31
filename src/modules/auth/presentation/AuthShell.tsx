@@ -8,6 +8,11 @@ import { BrainIcon } from "lucide-react";
 // um com a sua imagem, sem duplicar o layout.
 export const FIELD_CLASS = "border-white/15 bg-white/5 text-white placeholder:text-white/40";
 
+// Mensagem de erro de um campo (validação do react-hook-form/zod).
+export function FieldError({ message }: { message?: string }) {
+  return message ? <p className="text-xs text-red-300">{message}</p> : null;
+}
+
 export function AuthShell({ image, title, subtitle, children }: {
   image: string;
   title: string;

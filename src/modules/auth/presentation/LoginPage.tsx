@@ -1,6 +1,8 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "@/lib/navigation";
 import { Link } from "@/components/link";
 import { Loader2Icon } from "lucide-react";
@@ -10,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
 import { authHttp } from "../infra/http";
 import { safeCallbackUrl } from "../domain/services/credential-validation";
-import { AuthShell, FIELD_CLASS } from "./AuthShell";
+import { loginSchema, type LoginInput } from "../domain/services/auth-schemas";
+import { AuthShell, FIELD_CLASS, FieldError } from "./AuthShell";
 import loginHero from "@/assets/auth/login-hero.jpg";
 
 function LoginForm() {
@@ -18,31 +21,29 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl") ?? "/");
 
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState("");
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  async function onSubmit(data: LoginInput) {
+    setServerError("");
     try {
-      await authHttp.login({ email, senha });
+      await authHttp.login(data);
       router.push(callbackUrl);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erro ao conectar. Tente novamente.");
-    } finally {
-      setLoading(false);
+      setServerError(err instanceof ApiError ? err.message : "Erro ao conectar. Tente novamente.");
     }
   }
 
   return (
     <AuthShell image={loginHero} title="Entrar" subtitle="Acesse seus estudos">
-      <form onSubmit={onSubmit} className="space-y-4">
-        {error && (
-          <div className="rounded-md bg-red-500/15 px-3 py-2 text-xs text-red-300">{error}</div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        {serverError && (
+          <div className="rounded-md bg-red-500/15 px-3 py-2 text-xs text-red-300">{serverError}</div>
         )}
         <div className="space-y-2">
           <Label htmlFor="email" className="text-white/80">Email</Label>
@@ -50,12 +51,11 @@ function LoginForm() {
             id="email"
             type="email"
             placeholder="seu@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
             autoFocus
             className={FIELD_CLASS}
+            {...register("email")}
           />
+          <FieldError message={errors.email?.message} />
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -68,14 +68,13 @@ function LoginForm() {
             id="senha"
             type="password"
             placeholder="••••••"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            required
             className={FIELD_CLASS}
+            {...register("senha")}
           />
+          <FieldError message={errors.senha?.message} />
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? <Loader2Icon className="size-4 animate-spin" /> : "Entrar"}
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2Icon className="size-4 animate-spin" /> : "Entrar"}
         </Button>
       </form>
     </AuthShell>
