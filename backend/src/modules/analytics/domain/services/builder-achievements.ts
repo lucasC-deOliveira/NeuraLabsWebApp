@@ -41,6 +41,27 @@ const DEFS: AchievementDef<Metric>[] = [
     target: 1000,
   },
   {
+    id: 'created-5000',
+    title: 'Produção em escala',
+    description: '5000 conteúdos criados',
+    metric: 'created',
+    target: 5000,
+  },
+  {
+    id: 'created-25000',
+    title: 'Mestre construtor',
+    description: '25000 conteúdos criados',
+    metric: 'created',
+    target: 25000,
+  },
+  {
+    id: 'created-50000',
+    title: 'Lenda da oficina',
+    description: '50000 conteúdos criados',
+    metric: 'created',
+    target: 50000,
+  },
+  {
     id: 'flashcards-100',
     title: 'Cem cartas',
     description: '100 flashcards criados',
@@ -53,6 +74,27 @@ const DEFS: AchievementDef<Metric>[] = [
     description: '500 flashcards criados',
     metric: 'flashcardsCreated',
     target: 500,
+  },
+  {
+    id: 'flashcards-2000',
+    title: 'Baralho imenso',
+    description: '2000 flashcards criados',
+    metric: 'flashcardsCreated',
+    target: 2000,
+  },
+  {
+    id: 'flashcards-10000',
+    title: 'Colecionador',
+    description: '10000 flashcards criados',
+    metric: 'flashcardsCreated',
+    target: 10000,
+  },
+  {
+    id: 'flashcards-25000',
+    title: 'Arquivo vivo',
+    description: '25000 flashcards criados',
+    metric: 'flashcardsCreated',
+    target: 25000,
   },
   {
     id: 'concepts-100',
@@ -76,6 +118,20 @@ const DEFS: AchievementDef<Metric>[] = [
     target: 1000,
   },
   {
+    id: 'concepts-2000',
+    title: 'Atlas',
+    description: '2000 conceitos no mapa',
+    metric: 'concepts',
+    target: 2000,
+  },
+  {
+    id: 'concepts-5000',
+    title: 'Enciclopédia',
+    description: '5000 conceitos no mapa',
+    metric: 'concepts',
+    target: 5000,
+  },
+  {
     id: 'subjects-5',
     title: 'Explorador',
     description: '5 assuntos no mapa',
@@ -95,6 +151,20 @@ const DEFS: AchievementDef<Metric>[] = [
     description: '40 assuntos no mapa',
     metric: 'subjects',
     target: 40,
+  },
+  {
+    id: 'subjects-75',
+    title: 'Enciclopedista',
+    description: '75 assuntos no mapa',
+    metric: 'subjects',
+    target: 75,
+  },
+  {
+    id: 'subjects-150',
+    title: 'Universalista',
+    description: '150 assuntos no mapa',
+    metric: 'subjects',
+    target: 150,
   },
 ];
 

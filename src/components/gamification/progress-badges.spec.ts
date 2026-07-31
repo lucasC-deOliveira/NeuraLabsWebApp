@@ -7,9 +7,9 @@ function make(id: string, earned: boolean, target: number, progress: number): Ac
 }
 
 describe("orderAchievements", () => {
-  it("puts earned before pending", () => {
+  it("puts pending (the chase) before earned", () => {
     const out = orderAchievements([make("a", false, 3, 0.5), make("b", true, 3, 1)]);
-    expect(out.map((a) => a.id)).toEqual(["b", "a"]);
+    expect(out.map((a) => a.id)).toEqual(["a", "b"]);
   });
 
   it("orders earned by hardest (largest target) first", () => {

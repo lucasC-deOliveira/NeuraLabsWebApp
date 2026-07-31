@@ -2,12 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { levelFromXp, xpFromSignals } from './xp-level';
 
 describe('xpFromSignals', () => {
-  it('weights dominated and streak above raw reviews', () => {
-    expect(xpFromSignals({ reviews: 10, dominated: 2, streak: 4 })).toBe(10 + 100 + 20);
+  it('weights dominated and streak above raw reviews, plus creation', () => {
+    expect(xpFromSignals({ reviews: 10, dominated: 2, streak: 4, created: 5 })).toBe(
+      10 + 100 + 20 + 15,
+    );
   });
 
   it('is zero with no activity', () => {
-    expect(xpFromSignals({ reviews: 0, dominated: 0, streak: 0 })).toBe(0);
+    expect(xpFromSignals({ reviews: 0, dominated: 0, streak: 0, created: 0 })).toBe(0);
+  });
+
+  it('caps the creation contribution so a bulk-imported library cannot dominate', () => {
+    const huge = xpFromSignals({ reviews: 0, dominated: 0, streak: 0, created: 100000 });
+    expect(huge).toBe(1500);
   });
 });
 
