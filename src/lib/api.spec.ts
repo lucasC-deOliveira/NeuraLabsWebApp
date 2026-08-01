@@ -6,6 +6,7 @@ import {
   setToken,
   clearToken,
   resolveApiUrl,
+  readFieldErrors,
   authApi,
 } from "./api";
 
@@ -67,6 +68,25 @@ describe("ApiError", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.status).toBe(404);
     expect(err.message).toBe("missing");
+    expect(err.fieldErrors).toEqual([]);
+  });
+});
+
+describe("readFieldErrors", () => {
+  it("reads the validation 400 shape", () => {
+    const body = { errors: [{ path: "email", message: "Informe um email válido" }] };
+    expect(readFieldErrors(body)).toEqual([{ path: "email", message: "Informe um email válido" }]);
+  });
+
+  it("ignores a body without errors, or with errors in another shape", () => {
+    expect(readFieldErrors({ message: "nope" })).toEqual([]);
+    expect(readFieldErrors({ errors: "boom" })).toEqual([]);
+    expect(readFieldErrors(null)).toEqual([]);
+  });
+
+  it("drops entries that are not path/message pairs", () => {
+    const body = { errors: [{ path: "email", message: "ok" }, { path: 1 }, "junk"] };
+    expect(readFieldErrors(body)).toEqual([{ path: "email", message: "ok" }]);
   });
 });
 
@@ -101,6 +121,20 @@ describe("apiFetch", () => {
   it("joins array validation messages", async () => {
     fetchMock.mockResolvedValue(httpResponse(false, 400, { message: ["a", "b"] }));
     await expect(apiFetch("/x")).rejects.toThrow("a, b");
+  });
+
+  it("keeps the per-field errors of a validation 400 alongside the joined message", async () => {
+    const body = {
+      message: ["Informe um email válido"],
+      errors: [{ path: "email", message: "Informe um email válido" }],
+    };
+    fetchMock.mockResolvedValue(httpResponse(false, 400, body));
+
+    await expect(apiFetch("/x")).rejects.toMatchObject({
+      status: 400,
+      message: "Informe um email válido",
+      fieldErrors: [{ path: "email", message: "Informe um email válido" }],
+    });
   });
 });
 

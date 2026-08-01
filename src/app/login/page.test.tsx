@@ -11,6 +11,7 @@ vi.mock("@/lib/api", () => {
     constructor(
       public status: number,
       message: string,
+      public fieldErrors: Array<{ path: string; message: string }> = [],
     ) {
       super(message);
     }

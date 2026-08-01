@@ -9,7 +9,7 @@ import { Loader2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { ApiError } from "@/lib/api";
+import { applyServerErrors } from "@/lib/form-errors";
 import { authHttp } from "../infra/http";
 import { registerSchema, type RegisterInput } from "../domain/services/auth-schemas";
 import { AuthShell, FIELD_CLASS } from "./AuthShell";
@@ -28,7 +28,7 @@ export function RegisterPage() {
       router.push("/");
       router.refresh();
     } catch (err) {
-      setServerError(err instanceof ApiError ? err.message : "Erro ao conectar. Tente novamente.");
+      setServerError(applyServerErrors(form, err) ?? "");
     }
   }
 

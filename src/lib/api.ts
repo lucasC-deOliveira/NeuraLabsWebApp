@@ -25,10 +25,32 @@ export function clearToken(): void {
   if (typeof window !== "undefined") window.localStorage.removeItem(TOKEN_KEY);
 }
 
+/** Um erro de validação do backend, já associado ao campo que o causou. */
+export interface FieldError {
+  path: string;
+  message: string;
+}
+
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+    /** Vazio quando o erro não é por campo (401, 500, timeout...). */
+    public fieldErrors: FieldError[] = [],
+  ) {
     super(message);
   }
+}
+
+function isFieldError(value: unknown): value is FieldError {
+  const candidate = value as FieldError | null;
+  return typeof candidate?.path === "string" && typeof candidate?.message === "string";
+}
+
+/** Lê o `errors` do 400 de validação; qualquer outra forma vira lista vazia. */
+export function readFieldErrors(data: unknown): FieldError[] {
+  const errors = (data as { errors?: unknown } | null)?.errors;
+  return Array.isArray(errors) ? errors.filter(isFieldError) : [];
 }
 
 // Teto de espera de qualquer requisição — nada trava a UI para sempre. Chamadas
@@ -54,7 +76,11 @@ export async function apiFetch<T = unknown>(
     if (!res.ok) {
       if (res.status === 401) clearToken();
       const message = (data && (data.message || data.error)) || `Erro ${res.status}`;
-      throw new ApiError(res.status, Array.isArray(message) ? message.join(", ") : String(message));
+      throw new ApiError(
+        res.status,
+        Array.isArray(message) ? message.join(", ") : String(message),
+        readFieldErrors(data),
+      );
     }
     return data as T;
   } catch (err) {
