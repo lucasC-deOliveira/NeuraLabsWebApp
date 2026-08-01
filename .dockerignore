@@ -2,7 +2,10 @@ node_modules
 dist
 dist-electron
 build
-backend
+# backend/ NÃO é ignorado: desde que contracts/ existe, o build do backend usa a raiz
+# como contexto (docker-compose.yml). Só o que é pesado e regenerável fica de fora.
+backend/node_modules
+backend/dist
 electron
 .git
 .github
