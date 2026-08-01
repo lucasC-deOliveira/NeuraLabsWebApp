@@ -1,5 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import type { CreateNodeControl } from "./NodeFields";
 
 export interface DeckFlashcard {
   id: string;
@@ -8,8 +10,7 @@ export interface DeckFlashcard {
 }
 
 interface DeckFormProps {
-  titulo: string;
-  onTitulo: (value: string) => void;
+  control: CreateNodeControl;
   flashcards: DeckFlashcard[];
   loading: boolean;
   selected: Set<string>;
@@ -21,15 +22,19 @@ interface DeckFormProps {
 export function DeckForm(props: DeckFormProps) {
   return (
     <div className="space-y-3">
-      <div className="space-y-1.5">
-        <Label htmlFor="baralho-titulo">Título do baralho</Label>
-        <Input
-          id="baralho-titulo"
-          placeholder="Ex: Revisão de Redes"
-          value={props.titulo}
-          onChange={(e) => props.onTitulo(e.target.value)}
-        />
-      </div>
+      <FormField
+        control={props.control}
+        name="nome"
+        render={({ field }) => (
+          <FormItem className="space-y-1.5">
+            <FormLabel>Título do baralho</FormLabel>
+            <FormControl>
+              <Input placeholder="Ex: Revisão de Redes" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">

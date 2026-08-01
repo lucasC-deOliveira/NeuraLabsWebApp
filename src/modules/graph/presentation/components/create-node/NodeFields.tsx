@@ -1,6 +1,11 @@
+import type { Control } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import type { CreateNodeFormValues } from "@/modules/graph/domain/services/create-node-form";
+
+export type CreateNodeControl = Control<CreateNodeFormValues>;
 
 interface TypeOption {
   value: string;
@@ -56,71 +61,73 @@ export function NodeTypeSelect({ value, onChange }: { value: string; onChange: (
 }
 
 interface NameDescriptionFieldsProps {
-  idPrefix: string;
-  nome: string;
-  descricao: string;
-  onNome: (value: string) => void;
-  onDescricao: (value: string) => void;
+  control: CreateNodeControl;
   nomePlaceholder: string;
   descricaoPlaceholder: string;
 }
 
-export function NameDescriptionFields(props: NameDescriptionFieldsProps) {
+export function NameDescriptionFields({ control, nomePlaceholder, descricaoPlaceholder }: NameDescriptionFieldsProps) {
   return (
     <>
-      <div className="space-y-1.5">
-        <Label htmlFor={`${props.idPrefix}-nome`}>Nome</Label>
-        <Input
-          id={`${props.idPrefix}-nome`}
-          placeholder={props.nomePlaceholder}
-          value={props.nome}
-          onChange={(e) => props.onNome(e.target.value)}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor={`${props.idPrefix}-descricao`}>Descrição (opcional)</Label>
-        <Textarea
-          id={`${props.idPrefix}-descricao`}
-          placeholder={props.descricaoPlaceholder}
-          value={props.descricao}
-          onChange={(e) => props.onDescricao(e.target.value)}
-          rows={3}
-        />
-      </div>
+      <FormField
+        control={control}
+        name="nome"
+        render={({ field }) => (
+          <FormItem className="space-y-1.5">
+            <FormLabel>Nome</FormLabel>
+            <FormControl>
+              <Input placeholder={nomePlaceholder} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={control}
+        name="descricao"
+        render={({ field }) => (
+          <FormItem className="space-y-1.5">
+            <FormLabel>Descrição (opcional)</FormLabel>
+            <FormControl>
+              <Textarea placeholder={descricaoPlaceholder} rows={3} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </>
   );
 }
 
-interface FlashcardFieldsProps {
-  pergunta: string;
-  resposta: string;
-  onPergunta: (value: string) => void;
-  onResposta: (value: string) => void;
-}
-
-export function FlashcardFields({ pergunta, resposta, onPergunta, onResposta }: FlashcardFieldsProps) {
+export function FlashcardFields({ control }: { control: CreateNodeControl }) {
   return (
     <>
-      <div className="space-y-1.5">
-        <Label htmlFor="pergunta">Pergunta</Label>
-        <Textarea
-          id="pergunta"
-          placeholder="O que você quer memorizar?"
-          value={pergunta}
-          onChange={(e) => onPergunta(e.target.value)}
-          rows={3}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="resposta">Resposta</Label>
-        <Textarea
-          id="resposta"
-          placeholder="A resposta para a pergunta"
-          value={resposta}
-          onChange={(e) => onResposta(e.target.value)}
-          rows={3}
-        />
-      </div>
+      <FormField
+        control={control}
+        name="pergunta"
+        render={({ field }) => (
+          <FormItem className="space-y-1.5">
+            <FormLabel>Pergunta</FormLabel>
+            <FormControl>
+              <Textarea placeholder="O que você quer memorizar?" rows={3} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={control}
+        name="resposta"
+        render={({ field }) => (
+          <FormItem className="space-y-1.5">
+            <FormLabel>Resposta</FormLabel>
+            <FormControl>
+              <Textarea placeholder="A resposta para a pergunta" rows={3} {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </>
   );
 }

@@ -19,7 +19,7 @@ import { Loader2Icon, PlusIcon, NetworkIcon } from "lucide-react";
 import type { AvailableItem } from "@/modules/graph/application/ports/graph-data.port";
 import type { ParsedQuestao } from "@/modules/graph/application/ports/graph-prova.port";
 import type { ConceitoPickerEntry } from "@/modules/graph/domain/services/prova-conceitos";
-import type { CreateNodeFormValues } from "@/modules/graph/domain/services/create-node-form";
+import type { CreateNodeControl } from "./NodeFields";
 import { RelationLinkList, type LinkRow } from "./RelationLinkList";
 import { ProvaForm, type ProvaSubMode, type ProvaUploadStep } from "./ProvaForm";
 import type { ProvaAiConfig } from "@/modules/graph/presentation/hooks/useProvaAiConfig";
@@ -60,8 +60,7 @@ export interface CreateNodeVm {
   setActiveTab: (tab: CreateTab) => void;
   selectedType: string;
   changeType: (type: string) => void;
-  form: CreateNodeFormValues;
-  setForm: (patch: Partial<CreateNodeFormValues>) => void;
+  control: CreateNodeControl;
   availableItems: { flashcards: AvailableItem[]; notas: AvailableItem[]; provas: AvailableItem[] };
   filteredFlashcards: AvailableItem[];
   selectedItems: Set<string>;
@@ -303,8 +302,7 @@ function CreateTabBody({ vm, parents }: { vm: CreateNodeVm; parents: CreateNodeP
       <NodeTypeSelect value={vm.selectedType} onChange={vm.changeType} />
       {vm.selectedType === "BARALHO" && (
         <DeckForm
-          titulo={vm.form.nome}
-          onTitulo={(value) => vm.setForm({ nome: value })}
+          control={vm.control}
           flashcards={vm.deckFlashcards}
           loading={vm.deckLoading}
           selected={vm.deckSelected}
@@ -353,30 +351,30 @@ function CreateTabBody({ vm, parents }: { vm: CreateNodeVm; parents: CreateNodeP
       )}
       {vm.selectedType === "ASSUNTO" && (
         <div className="space-y-3">
-          <NameDescriptionFields idPrefix="assunto" nome={vm.form.nome} descricao={vm.form.descricao} onNome={(v) => vm.setForm({ nome: v })} onDescricao={(v) => vm.setForm({ descricao: v })} nomePlaceholder="Ex: Direito Constitucional" descricaoPlaceholder="Breve descrição do assunto" />
+          <NameDescriptionFields control={vm.control} nomePlaceholder="Ex: Direito Constitucional" descricaoPlaceholder="Breve descrição do assunto" />
         </div>
       )}
       {vm.selectedType === "TOPICO" && (
         <div className="space-y-3">
-          <NameDescriptionFields idPrefix="topico" nome={vm.form.nome} descricao={vm.form.descricao} onNome={(v) => vm.setForm({ nome: v })} onDescricao={(v) => vm.setForm({ descricao: v })} nomePlaceholder="Ex: Princípios Fundamentais" descricaoPlaceholder="Breve descrição do tópico" />
+          <NameDescriptionFields control={vm.control} nomePlaceholder="Ex: Princípios Fundamentais" descricaoPlaceholder="Breve descrição do tópico" />
           <LinkEditorView editor={vm.topicoAssuntos} title="Assuntos relacionados (opcional)" emptyMessage="Nenhum assunto no grafo para relacionar." addLabel="Adicionar assunto" />
         </div>
       )}
       {vm.selectedType === "CONCEITO" && (
         <div className="space-y-3">
-          <NameDescriptionFields idPrefix="conceito" nome={vm.form.nome} descricao={vm.form.descricao} onNome={(v) => vm.setForm({ nome: v })} onDescricao={(v) => vm.setForm({ descricao: v })} nomePlaceholder="Ex: Habeas Corpus" descricaoPlaceholder="Breve descrição do conceito" />
+          <NameDescriptionFields control={vm.control} nomePlaceholder="Ex: Habeas Corpus" descricaoPlaceholder="Breve descrição do conceito" />
           <LinkEditorView editor={vm.conceitoTopicos} title="Tópicos relacionados (opcional)" emptyMessage="Nenhum tópico no grafo para relacionar." addLabel="Adicionar tópico" />
         </div>
       )}
       {vm.selectedType === "FLASHCARD" && (
         <div className="space-y-3">
-          <FlashcardFields pergunta={vm.form.pergunta} resposta={vm.form.resposta} onPergunta={(v) => vm.setForm({ pergunta: v })} onResposta={(v) => vm.setForm({ resposta: v })} />
+          <FlashcardFields control={vm.control} />
           <LinkEditorView editor={vm.flashcardConceitos} title="Conceitos relacionados (opcional)" emptyMessage="Nenhum conceito no grafo para relacionar." addLabel="Adicionar conceito" />
         </div>
       )}
       {vm.selectedType === "NOTA" && (
         <div className="space-y-3">
-          <NotaFields form={vm.form} onField={(key, value) => vm.setForm({ [key]: value })} />
+          <NotaFields control={vm.control} />
           <NotaLinkEditors vm={vm} parents={parents} />
           <NotaAiSuggestions loading={vm.aiLoading} suggestions={vm.aiSuggestions} onSuggest={vm.suggest} onChange={vm.setAiSuggestions} />
         </div>

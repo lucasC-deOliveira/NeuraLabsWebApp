@@ -1,8 +1,10 @@
+import { useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import type { CreateNodeControl } from "./NodeFields";
 import {
   Select,
   SelectContent,
@@ -39,78 +41,108 @@ const TIPO_HINTS: Record<string, string> = {
   ESTRUTURA: "Dica: use esta nota como índice — relacione-a aos tópicos e conceitos que ela organiza.",
 };
 
-interface NotaFieldsProps {
-  form: NotaFieldValues;
-  onField: (key: keyof NotaFieldValues, value: string) => void;
-}
-
-export function NotaFields({ form, onField }: NotaFieldsProps) {
+export function NotaFields({ control }: { control: CreateNodeControl }) {
+  // A fonte e a dica dependem do tipo de nota escolhido agora, não do valor no submit.
+  const tipoNota = useWatch({ control, name: "tipoNota" });
   return (
     <>
-      <div className="space-y-1.5">
-        <Label htmlFor="nota-titulo">Título</Label>
-        <Input
-          id="nota-titulo"
-          placeholder="Ex: SVM maximiza a margem entre classes"
-          value={form.nome}
-          onChange={(e) => onField("nome", e.target.value)}
+      <FormField
+        control={control}
+        name="nome"
+        render={({ field }) => (
+          <FormItem className="space-y-1.5">
+            <FormLabel>Título</FormLabel>
+            <FormControl>
+              <Input placeholder="Ex: SVM maximiza a margem entre classes" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="tipoNota"
+        render={({ field }) => (
+          <FormItem className="space-y-1.5">
+            <FormLabel>Tipo de nota (Zettelkasten)</FormLabel>
+            <Select value={field.value} onValueChange={(value) => field.onChange(value ?? "PERMANENTE")}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <TipoNotaItem value="LITERATURA" title="Nota de referência (literatura)" desc="Anotações de leitura — próximas da fonte original" />
+                <TipoNotaItem value="PERMANENTE" title="Nota permanente" desc="Uma ideia, suas palavras, compreensível isoladamente" />
+                <TipoNotaItem value="ESTRUTURA" title="Nota de estrutura" desc="Índice ou mapa de conhecimento" />
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="subtipo"
+        render={({ field }) => (
+          <FormItem className="space-y-1.5">
+            <FormLabel>Subtipo</FormLabel>
+            <Select value={field.value} onValueChange={(value) => field.onChange(value ?? "")}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o subtipo" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {SUBTIPOS.map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {tipoNota === "LITERATURA" && (
+        <FormField
+          control={control}
+          name="fonte"
+          render={({ field }) => (
+            <FormItem className="space-y-1.5">
+              <FormLabel>Fonte</FormLabel>
+              <FormControl>
+                <Input placeholder="Ex: Livro sobre Machine Learning, cap. 4" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="nota-tipo">Tipo de nota (Zettelkasten)</Label>
-        <Select value={form.tipoNota} onValueChange={(value) => onField("tipoNota", value ?? "PERMANENTE")}>
-          <SelectTrigger id="nota-tipo">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <TipoNotaItem value="LITERATURA" title="Nota de referência (literatura)" desc="Anotações de leitura — próximas da fonte original" />
-            <TipoNotaItem value="PERMANENTE" title="Nota permanente" desc="Uma ideia, suas palavras, compreensível isoladamente" />
-            <TipoNotaItem value="ESTRUTURA" title="Nota de estrutura" desc="Índice ou mapa de conhecimento" />
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="nota-subtipo">Subtipo</Label>
-        <Select value={form.subtipo} onValueChange={(value) => onField("subtipo", value ?? "")}>
-          <SelectTrigger id="nota-subtipo">
-            <SelectValue placeholder="Selecione o subtipo" />
-          </SelectTrigger>
-          <SelectContent>
-            {SUBTIPOS.map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {form.tipoNota === "LITERATURA" && (
-        <div className="space-y-1.5">
-          <Label htmlFor="nota-fonte">Fonte</Label>
-          <Input
-            id="nota-fonte"
-            placeholder="Ex: Livro sobre Machine Learning, cap. 4"
-            value={form.fonte}
-            onChange={(e) => onField("fonte", e.target.value)}
-          />
-        </div>
       )}
 
-      {TIPO_HINTS[form.tipoNota] && <p className="text-xs text-muted-foreground">{TIPO_HINTS[form.tipoNota]}</p>}
+      {TIPO_HINTS[tipoNota] && <p className="text-xs text-muted-foreground">{TIPO_HINTS[tipoNota]}</p>}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="texto-bruto">Texto da nota (suporta Markdown)</Label>
-        <Textarea
-          id="texto-bruto"
-          placeholder="Digite ou cole sua nota aqui... (markdown: # título, **negrito**, - listas, tabelas)"
-          value={form.conteudo}
-          onChange={(e) => onField("conteudo", e.target.value)}
-          rows={6}
-        />
-      </div>
+      <FormField
+        control={control}
+        name="conteudo"
+        render={({ field }) => (
+          <FormItem className="space-y-1.5">
+            <FormLabel>Texto da nota (suporta Markdown)</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="Digite ou cole sua nota aqui... (markdown: # título, **negrito**, - listas, tabelas)"
+                rows={6}
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </>
   );
 }
