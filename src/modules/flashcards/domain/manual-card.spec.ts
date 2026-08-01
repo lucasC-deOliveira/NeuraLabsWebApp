@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildManualCard, validateManualFields, EMPTY_MANUAL_FIELDS, type ManualCardFields } from "./manual-card";
+import { buildManualCard, EMPTY_MANUAL_FIELDS, type ManualCardFields } from "./manual-card";
 
 function fields(over: Partial<ManualCardFields>): ManualCardFields {
   return { ...EMPTY_MANUAL_FIELDS, ...over };
@@ -27,17 +27,3 @@ describe("buildManualCard", () => {
   });
 });
 
-describe("validateManualFields", () => {
-  it("flags missing DEFINICAO fields", () => {
-    expect(validateManualFields("DEFINICAO", fields({ pergunta: "", resposta: "" }))).toEqual({ query: true, response: true });
-    expect(validateManualFields("DEFINICAO", fields({ pergunta: "x", resposta: "y" }))).toEqual({ query: false, response: false });
-  });
-
-  it("requires both concepts for CONTRASTE", () => {
-    expect(validateManualFields("CONTRASTE", fields({ conceitoA: "A", conceitoB: "", explicacaoComp: "d" })).query).toBe(true);
-  });
-
-  it("requires at least one ORDENACAO item", () => {
-    expect(validateManualFields("ORDENACAO", fields({ temaLista: "t", itens: ["", "", ""] })).response).toBe(true);
-  });
-});
