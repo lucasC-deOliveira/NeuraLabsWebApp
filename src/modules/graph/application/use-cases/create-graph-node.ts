@@ -2,11 +2,11 @@
 // Orchestrate the create-node domain rules + the node/edge ports. Pure application
 // logic (no React). Throws CreateNodeValidationError with the domain CODE.
 import {
-  validateCreateNodeForm,
   buildCreateNodePayload,
   type CreateNodeError,
   type CreateNodeFormValues,
 } from "../../domain/services/create-node-form";
+import { validateCreateNodeForm } from "../../domain/services/create-node-schema";
 import {
   buildCreatedNodeEdges,
   type AcceptedSuggestion,

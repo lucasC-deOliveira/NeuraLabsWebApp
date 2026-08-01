@@ -22,26 +22,9 @@ export type CreateNodeError =
   | "nota-missing-source"
   | "nota-missing-content";
 
-function validateFlashcard(form: CreateNodeFormValues): CreateNodeError | null {
-  if (!form.pergunta.trim()) return "flashcard-missing-question";
-  if (!form.resposta.trim()) return "flashcard-missing-answer";
-  return null;
-}
-
-function validateNota(form: CreateNodeFormValues): CreateNodeError | null {
-  if (!form.nome.trim()) return "missing-name";
-  if (!form.subtipo) return "nota-missing-subtype";
-  if (form.tipoNota === "LITERATURA" && !form.fonte.trim()) return "nota-missing-source";
-  if (!form.conteudo.trim()) return "nota-missing-content";
-  return null;
-}
-
-/** Validate the form for a knowledge node type. Returns the first violated rule, or null. */
-export function validateCreateNodeForm(type: string, form: CreateNodeFormValues): CreateNodeError | null {
-  if (type === "FLASHCARD") return validateFlashcard(form);
-  if (type === "NOTA") return validateNota(form);
-  return form.nome.trim() ? null : "missing-name";
-}
+// As REGRAS de obrigatoriedade vivem em create-node-schema.ts (zod), junto das
+// mensagens pt-BR: o formulário consome o schema pelo resolver e o use-case consome
+// o validateCreateNodeForm de lá, que devolve o código abaixo. Uma regra só.
 
 const nameWithDescricao = (form: CreateNodeFormValues): Record<string, unknown> => ({
   nome: form.nome.trim(),

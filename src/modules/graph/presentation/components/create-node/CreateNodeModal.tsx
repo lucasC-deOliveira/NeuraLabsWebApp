@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { Form } from "@/components/ui/form";
 import { getAllowedRelations } from "@/modules/graph/domain/services/relation-rules";
+import type { CreateNodeFormValues } from "@/modules/graph/domain/services/create-node-form";
 import {
-  validateCreateNodeForm,
-  type CreateNodeError,
-  type CreateNodeFormValues,
-} from "@/modules/graph/domain/services/create-node-form";
+  schemaForNodeType,
+  EMPTY_CREATE_NODE_FORM,
+} from "@/modules/graph/domain/services/create-node-schema";
 import type { NotaRelationSuggestion } from "@/modules/graph/application/ports/graph-ai.port";
 import type { ParsedQuestao } from "@/modules/graph/application/ports/graph-prova.port";
 import type { AvailableItem } from "@/modules/graph/application/ports/graph-data.port";
@@ -24,47 +27,13 @@ import { graphHttp } from "@/modules/graph/infra/http";
 import { CreateNodeDialog, type CreateNodeVm } from "./CreateNodeDialog";
 import { useRouter } from "@/lib/navigation";
 
-// Mensagens pt-BR específicas por tipo para os códigos de validação da criação.
-const CREATE_NAME_MESSAGES: Record<string, string> = {
-  ASSUNTO: "Digite um nome para o assunto",
-  TOPICO: "Digite um nome para o tópico",
-  CONCEITO: "Digite um nome para o conceito",
-  NOTA: "Digite um título para a nota",
-};
-
-function createNodeErrorMessage(code: CreateNodeError, type: string): string {
-  switch (code) {
-    case "missing-name":
-      return CREATE_NAME_MESSAGES[type] ?? "Digite um nome";
-    case "flashcard-missing-question":
-      return "Digite a pergunta do flashcard";
-    case "flashcard-missing-answer":
-      return "Digite a resposta para o flashcard";
-    case "nota-missing-subtype":
-      return "Selecione o subtipo da nota";
-    case "nota-missing-source":
-      return "Notas de referência exigem a fonte (livro, artigo, vídeo...)";
-    case "nota-missing-content":
-      return "Digite o texto da nota";
-  }
-}
+// As mensagens pt-BR por tipo moram no create-node-schema (zod), junto da regra.
 
 const TOPICO_ASSUNTO_RELATIONS = getAllowedRelations("TOPICO", "ASSUNTO");
 const CONCEITO_TOPICO_RELATIONS = getAllowedRelations("CONCEITO", "TOPICO");
 // Na criação manual o flashcard não vem de uma nota, então não usa HERDA.
 const FLASHCARD_CONCEITO_RELATIONS = getAllowedRelations("FLASHCARD", "CONCEITO").filter((r) => r !== "HERDA");
 const NOTA_CONCEITO_RELATIONS = getAllowedRelations("NOTA", "CONCEITO");
-
-const EMPTY_FORM: CreateNodeFormValues = {
-  nome: "",
-  descricao: "",
-  pergunta: "",
-  resposta: "",
-  conteudo: "",
-  tipoNota: "PERMANENTE",
-  subtipo: "",
-  fonte: "",
-};
 
 type LinkOf<K extends string> = { relacao: string; peso: number } & Record<K, string>;
 
@@ -135,11 +104,20 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   const [conceitosLoading, setConceitosLoading] = useState(false);
   const [formatandoQuestoes, setFormatandoQuestoes] = useState(false);
   const { config: aiConfig, toggle: toggleAi } = useProvaAiConfig();
-  const [formData, setFormData] = useState<CreateNodeFormValues>(EMPTY_FORM);
+  // O resolver acompanha o tipo de nó selecionado — cada tipo exige campos
+  // diferentes. O RHF relê as opções a cada render, então trocar o tipo troca a
+  // validação sem precisar recriar o form.
+  const form = useForm<CreateNodeFormValues>({
+    resolver: zodResolver(schemaForNodeType(selectedType)),
+    defaultValues: EMPTY_CREATE_NODE_FORM,
+  });
 
   // Muda o tipo e volta à aba "create" quando o novo tipo não tem aba de existentes.
   const changeType = (type: string): void => {
     setSelectedType(type);
+    // O que já foi digitado permanece, mas os erros do tipo anterior não valem
+    // para os campos que o novo tipo passa a exigir.
+    form.clearErrors();
     if (type && type !== "FLASHCARD" && type !== "NOTA") setActiveTab("create");
   };
 
@@ -211,7 +189,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     setConceitosByQuestao({});
     setConceitosLoading(false);
     setFormatandoQuestoes(false);
-    setFormData(EMPTY_FORM);
+    form.reset(EMPTY_CREATE_NODE_FORM);
   };
 
   const finishSubmit = (): void => {
@@ -222,10 +200,11 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   };
 
   const handleSuggestRelations = async (): Promise<void> => {
-    if (!formData.nome.trim() || !formData.conteudo.trim()) return void toast.error("Preencha o título e o texto antes de pedir sugestões");
+    const { nome, conteudo } = form.getValues();
+    if (!nome.trim() || !conteudo.trim()) return void toast.error("Preencha o título e o texto antes de pedir sugestões");
     setAiLoading(true);
     try {
-      const suggestions = await graphHttp.suggestNotaRelations(grafoId, formData.nome.trim(), formData.conteudo.trim());
+      const suggestions = await graphHttp.suggestNotaRelations(grafoId, nome.trim(), conteudo.trim());
       if (suggestions.length === 0) toast.info("A IA não encontrou relações pertinentes no grafo atual.");
       setAiSuggestions(suggestions.map((sg) => ({ ...sg, accepted: true })));
     } catch (e) {
@@ -235,11 +214,10 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     }
   };
 
-  const submitBaralho = async (): Promise<void> => {
-    if (!formData.nome.trim()) return void toast.error("Digite um título para o baralho");
+  const submitBaralho = async ({ nome }: CreateNodeFormValues): Promise<void> => {
     setLoading(true);
     try {
-      await createDeck(graphHttp, grafoId, formData.nome, Array.from(deckSelected));
+      await createDeck(graphHttp, grafoId, nome, Array.from(deckSelected));
       toast.success(deckSelected.size > 0 ? `Baralho criado com ${deckSelected.size} flashcard(s)!` : "Baralho criado (vazio)!");
       finishSubmit();
     } catch (e) {
@@ -390,15 +368,13 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     }
   };
 
-  const submitCreateNode = async (): Promise<void> => {
-    const validationError = validateCreateNodeForm(selectedType, formData);
-    if (validationError) return void toast.error(createNodeErrorMessage(validationError, selectedType));
+  const submitCreateNode = async (values: CreateNodeFormValues): Promise<void> => {
     setLoading(true);
     try {
       const { createdEdges } = await createGraphNode(graphHttp, {
         grafoId,
         type: selectedType,
-        form: formData,
+        form: values,
         topicoAssuntos,
         conceitoTopicos,
         flashcardConceitos,
@@ -446,10 +422,12 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
       toast.error("Selecione um tipo de nó");
       return Promise.resolve();
     }
-    if (selectedType === "BARALHO") return submitBaralho();
+    // PROVA e EDITAL têm estado próprio (arquivos, questões parseadas) e não
+    // passam pelo formulário de nó, então não vão pelo handleSubmit do RHF.
     if (selectedType === "PROVA") return submitProva();
     if (selectedType === "EDITAL") return submitEdital();
-    return submitCreateNode();
+    if (selectedType === "BARALHO") return form.handleSubmit(submitBaralho)();
+    return form.handleSubmit(submitCreateNode)();
   };
 
   const handleOpenChange = (next: boolean): void => {
@@ -466,8 +444,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     setActiveTab,
     selectedType,
     changeType,
-    form: formData,
-    setForm: (patch) => setFormData((f) => ({ ...f, ...patch })),
+    control: form.control,
     availableItems,
     filteredFlashcards,
     selectedItems,
@@ -547,5 +524,9 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     },
   };
 
-  return <CreateNodeDialog vm={vm} parents={parentIds} />;
+  return (
+    <Form {...form}>
+      <CreateNodeDialog vm={vm} parents={parentIds} />
+    </Form>
+  );
 }
