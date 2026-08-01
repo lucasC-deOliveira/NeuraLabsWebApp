@@ -11,6 +11,7 @@ vi.mock("@/lib/api", () => {
     constructor(
       public status: number,
       message: string,
+      public fieldErrors: Array<{ path: string; message: string }> = [],
     ) {
       super(message);
     }
@@ -46,5 +47,20 @@ describe("RegisterPage", () => {
     await fill({ senha: "secret", confirm: "other" });
     expect(screen.getByText("As senhas nao coincidem")).toBeInTheDocument();
     expect(authApi.register).not.toHaveBeenCalled();
+  });
+
+  it("lands the server's field error on the field itself, not on the banner", async () => {
+    const { ApiError } = await import("@/lib/api");
+    vi.mocked(authApi.register).mockRejectedValue(
+      new ApiError(400, "Informe um email válido", [{ path: "email", message: "Informe um email válido" }]),
+    );
+    render(<RegisterPage />);
+
+    await fill();
+
+    // A mensagem aparece uma vez só — no campo, via FormMessage; o banner fica vazio.
+    expect(await screen.findByText("Informe um email válido")).toBeInTheDocument();
+    expect(screen.getAllByText("Informe um email válido")).toHaveLength(1);
+    expect(push).not.toHaveBeenCalled();
   });
 });
