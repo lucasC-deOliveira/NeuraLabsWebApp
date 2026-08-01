@@ -58,24 +58,6 @@ export function buildManualCard(tipo: ManualCardType, fields: ManualCardFields):
   return BUILDERS[tipo](fields);
 }
 
-export interface ManualFormErrors {
-  query: boolean;
-  response: boolean;
-}
-
-const VALIDATORS: Record<ManualCardType, (f: ManualCardFields) => ManualFormErrors> = {
-  DEFINICAO: (f) => ({ query: !f.pergunta.trim(), response: !f.resposta.trim() }),
-  EXPLICACAO: (f) => ({ query: !f.pergunta.trim(), response: !f.resposta.trim() }),
-  EXEMPLO: (f) => ({ query: !f.pergunta.trim(), response: !f.resposta.trim() }),
-  RELACIONAL: (f) => ({ query: !f.pergunta.trim(), response: !f.resposta.trim() }),
-  APLICACAO: (f) => ({ query: !f.cenario.trim(), response: !f.explicacaoApp.trim() }),
-  CONTRASTE: (f) => ({ query: !f.conceitoA.trim() || !f.conceitoB.trim(), response: !f.explicacaoComp.trim() }),
-  COMPLETAR: (f) => ({ query: !f.frase.trim(), response: !f.lacuna.trim() }),
-  ORDENACAO: (f) => ({ query: !f.temaLista.trim(), response: !f.itens.some((v) => v.trim()) }),
-  ERRO_COMUM: (f) => ({ query: !f.temaErro.trim(), response: !f.erro.trim() || !f.correto.trim() }),
-};
-
-/** Per-field validity for the current type (true = missing/invalid). */
-export function validateManualFields(tipo: ManualCardType, fields: ManualCardFields): ManualFormErrors {
-  return VALIDATORS[tipo](fields);
-}
+// A validação por tipo vive em services/manual-card-schema.ts (zod), consumida pelo
+// react-hook-form via resolver — o antigo validateManualFields saiu junto com o
+// estado manual de erros do editor.
