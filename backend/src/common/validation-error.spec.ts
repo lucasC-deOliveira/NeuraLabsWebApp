@@ -9,7 +9,9 @@ describe('zodFieldErrors', () => {
 
     expect(parsed.success).toBe(false);
     if (parsed.success) return;
-    expect(zodFieldErrors(parsed.error)).toEqual([{ path: 'email', message: 'Informe um email válido' }]);
+    expect(zodFieldErrors(parsed.error)).toEqual([
+      { path: 'email', message: 'Informe um email válido' },
+    ]);
   });
 
   it('reports every failing field, not just the first', () => {
@@ -24,7 +26,9 @@ describe('zodFieldErrors', () => {
   });
 
   it('dots the path of a nested field', () => {
-    const schema = z.object({ endereco: z.object({ cidade: z.string().min(1, 'Informe a cidade') }) });
+    const schema = z.object({
+      endereco: z.object({ cidade: z.string().min(1, 'Informe a cidade') }),
+    });
     const parsed = schema.safeParse({ endereco: { cidade: '' } });
 
     if (parsed.success) throw new Error('esperava falha');

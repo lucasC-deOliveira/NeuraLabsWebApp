@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  UseFilters,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Delete, Get, Param, Patch, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { ZodBody } from '../../../common/zod-body.decorator';
 import {
   addCardsToBaralhoContract,
