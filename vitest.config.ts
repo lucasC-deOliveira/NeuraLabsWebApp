@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@contracts": path.resolve(__dirname, "./contracts"),
     },
   },
   test: {
@@ -47,7 +48,8 @@ export default defineConfig({
         test: {
           name: "logic",
           environment: "node",
-          include: ["src/**/*.spec.ts"],
+          // contracts/ é lógica pura compartilhada com o backend — mesma suíte.
+          include: ["src/**/*.spec.ts", "contracts/**/*.spec.ts"],
         },
       },
       {

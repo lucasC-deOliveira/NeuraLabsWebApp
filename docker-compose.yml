@@ -53,7 +53,11 @@ services:
       start_period: 30s
 
   backend:
-    build: ./backend
+    # Contexto na raiz (não ./backend): o build precisa de contracts/, que é irmã
+    # de backend/. Ver o cabeçalho do backend/Dockerfile.
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: "postgresql://neuralabs:neuralabs@postgres:5432/neuralabs?schema=public"

@@ -10,6 +10,19 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    // contracts/ mora fora de backend/, então o rootDir sobe para a raiz do repo.
+    // Isso desloca a saída para dist/backend/src/** (ver start:prod e o Dockerfile).
+    // Os imports do contrato são RELATIVOS de propósito: o tsc não reescreve path
+    // alias no JS emitido, e o alias explodiria em runtime.
+    "rootDir": "..",
+    // contracts/ importa "zod" e fica FORA de backend/, então o tsc procuraria em
+    // <raiz>/node_modules — que não existe no CI nem na imagem Docker (só o build
+    // local achava, por causa do node_modules do frontend). Aponta para o do backend.
+    // Vale só para a compilação: em runtime o dist mora dentro de backend/, e o
+    // require("zod") sobe naturalmente até backend/node_modules.
+    "paths": {
+      "zod": ["./node_modules/zod"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
@@ -20,6 +33,6 @@
     "esModuleInterop": true,
     "moduleResolution": "node"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "../contracts/**/*"],
+  "exclude": ["node_modules", "dist", "../node_modules", "../contracts/**/*.spec.ts"]
 }

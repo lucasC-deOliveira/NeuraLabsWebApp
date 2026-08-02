@@ -8,7 +8,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), basicSsl()],
   base: "./",
   resolve: {
-    alias: { "@": path.resolve(__dirname, "src") },
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      "@contracts": path.resolve(__dirname, "contracts"),
+    },
   },
   server: {
     port: 5173,
