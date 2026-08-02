@@ -117,3 +117,111 @@ export const extractSubgraphContract = z.object({
   tipoRelacao,
 });
 export type ExtractSubgraphBody = z.infer<typeof extractSubgraphContract>;
+
+// ---- Nó: criação e edição ----
+// A regra vem de assertCreatableNode (graph/domain/services/node-creation.ts) e as
+// mensagens do graph-domain-exception.filter, para o usuário ver o mesmo texto.
+
+/** Nem todo tipo de nó pode ser CRIADO por esta rota — GRAFO_REF, QUESTION e PROVA não. */
+export const CREATABLE_NODE_TYPES = [
+  "FLASHCARD",
+  "NOTA",
+  "TEXTO_BRUTO",
+  "ASSUNTO",
+  "TOPICO",
+  "CONCEITO",
+  "BARALHO",
+] as const;
+
+export const NOTA_SUBTIPOS = [
+  "DEFINICAO",
+  "EXPLICACAO",
+  "EXEMPLO",
+  "COMPARACAO",
+  "SINTESE",
+  "PREREQUISITO",
+  "ERRO_COMUM",
+  "APLICACAO",
+] as const;
+
+// Campos do nó. Quais valem depende do tipo; o adapter aplica os defaults de
+// persistência para os que ficarem indefinidos. nivelDominio fica SEM faixa de
+// propósito: o backend não cobra nenhuma, e inventar uma aqui recusaria dado válido.
+const nodeFields = {
+  nome: z.string().optional(),
+  descricao: z.string().nullable().optional(),
+  pergunta: z.string().optional(),
+  resposta: z.string().optional(),
+  titulo: z.string().optional(),
+  conteudo: z.string().optional(),
+  tipoNota: z.string().optional(),
+  subtipo: z.string().optional(),
+  fonte: z.string().nullable().optional(),
+  texto: z.string().optional(),
+  posicaoX: z.number().nullable().optional(),
+  posicaoY: z.number().nullable().optional(),
+  nivelDominio: z.number().optional(),
+};
+
+type NodePayload = { tipoNode: string; titulo?: string; subtipo?: string; tipoNota?: string; texto?: string };
+
+/** Invariantes de NOTA: título, subtipo válido e fonte quando for de literatura. */
+function checkNota(node: NodePayload, ctx: z.RefinementCtx): void {
+  if (!(node.titulo ?? "").trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["titulo"], message: "O título da nota é obrigatório" });
+  }
+  if (!node.subtipo || !NOTA_SUBTIPOS.includes(node.subtipo as (typeof NOTA_SUBTIPOS)[number])) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["subtipo"], message: "Selecione o subtipo da nota" });
+  }
+}
+
+function checkCreatableNode(node: NodePayload & { fonte?: string | null }, ctx: z.RefinementCtx): void {
+  if (node.tipoNode === "NOTA") {
+    checkNota(node, ctx);
+    // O default do backend é PERMANENTE quando tipoNota vem vazio.
+    if ((node.tipoNota ?? "PERMANENTE") === "LITERATURA" && !node.fonte?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["fonte"], message: "Notas de literatura exigem a fonte" });
+    }
+    return;
+  }
+  if (node.tipoNode === "TEXTO_BRUTO" && !node.texto?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["texto"], message: "O texto original é obrigatório" });
+  }
+}
+
+export const createNodeContract = z
+  .object({ tipoNode: z.enum(CREATABLE_NODE_TYPES), ...nodeFields })
+  .superRefine(checkCreatableNode);
+export type CreateNodeBody = z.infer<typeof createNodeContract>;
+
+// A edição não repassa por assertCreatableNode — só o tipo é obrigatório, e ela
+// alcança tipos que não podem ser criados por aqui (GRAFO_REF, PROVA...).
+export const updateNodeContract = z.object({ tipoNode, ...nodeFields });
+export type UpdateNodeBody = z.infer<typeof updateNodeContract>;
+
+// ---- Import e sync ----
+
+// O parsing item a item vive no adapter de import, que aceita mais de um formato.
+// Aqui só garantimos que vieram duas listas, em vez de estourar lá dentro.
+export const importGraphContract = z.object({
+  nodes: z.array(z.unknown()),
+  edges: z.array(z.unknown()),
+});
+export type ImportGraphBody = z.infer<typeof importGraphContract>;
+
+const vaultNode = z.object({ ref: z.string().min(1), tipo: z.string().min(1), ...nodeFields });
+
+// O peso NÃO tem faixa aqui: o vault-sync usa clampPeso, que coage para 1 fora de
+// (0, 2] em vez de recusar. Rejeitar quebraria o Push de arquivo editado à mão.
+const vaultEdge = z.object({
+  origem: z.string().min(1),
+  destino: z.string().min(1),
+  relacao: z.string().min(1),
+  peso: z.number().optional(),
+});
+
+export const vaultSyncContract = z.object({
+  nodes: z.array(vaultNode),
+  edges: z.array(vaultEdge),
+});
+export type VaultSyncBody = z.infer<typeof vaultSyncContract>;

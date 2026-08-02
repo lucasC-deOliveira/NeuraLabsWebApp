@@ -5,6 +5,10 @@ import {
   createEdgeContract,
   createGraphBaralhoContract,
   createGraphContract,
+  createNodeContract,
+  importGraphContract,
+  updateNodeContract,
+  vaultSyncContract,
   createSubgraphContract,
   extractSubgraphContract,
   graphPositionsContract,
@@ -19,6 +23,10 @@ import type {
   CreateEdgeBody,
   CreateGraphBaralhoBody,
   CreateGraphBody,
+  CreateNodeBody,
+  ImportGraphBody,
+  UpdateNodeBody,
+  VaultSyncBody,
   CreateSubgraphBody,
   ExtractSubgraphBody,
   GraphPositionsBody,
@@ -29,7 +37,6 @@ import type {
 } from '../../../contracts/graph';
 import {
   BadRequestException,
-  Body,
   Controller,
   Delete,
   Get,
@@ -84,7 +91,6 @@ import { ExpandSubgraphUseCase } from '../modules/graph/application/use-cases/ex
 import { ExportGraphUseCase } from '../modules/graph/application/use-cases/export-graph.use-case';
 import { ImportGraphUseCase } from '../modules/graph/application/use-cases/import-graph.use-case';
 import { SyncVaultUseCase } from '../modules/graph/application/use-cases/sync-vault.use-case';
-import type { VaultPayload } from '../modules/graph/domain/ports/vault-sync-repository';
 import { GraphDomainExceptionFilter } from '../modules/graph/interface/graph-domain-exception.filter';
 
 type TipoNode = CreateNodeInput['tipoNode'];
@@ -274,7 +280,7 @@ export class GraphController {
   createNode(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: CreateNodeInput,
+    @ZodBody(createNodeContract) body: CreateNodeBody,
   ) {
     return this.createNodeUseCase.execute(userId, grafoId, body);
   }
@@ -311,7 +317,7 @@ export class GraphController {
   importGraph(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { nodes: unknown[]; edges: unknown[] },
+    @ZodBody(importGraphContract) body: ImportGraphBody,
   ) {
     return this.importGraphUseCase.execute(userId, grafoId, body);
   }
@@ -325,7 +331,7 @@ export class GraphController {
   syncFromVault(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: VaultPayload,
+    @ZodBody(vaultSyncContract) body: VaultSyncBody,
   ) {
     return this.syncVaultUseCase.execute(userId, grafoId, body);
   }
@@ -334,7 +340,7 @@ export class GraphController {
   updateNode(
     @CurrentUser() userId: string,
     @Param('refId') refId: string,
-    @Body() body: Partial<CreateNodeInput> & { tipoNode: TipoNode },
+    @ZodBody(updateNodeContract) body: UpdateNodeBody,
   ) {
     return this.updateNodeUseCase.execute(userId, body.tipoNode, refId, body);
   }

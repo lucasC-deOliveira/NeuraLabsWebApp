@@ -3,6 +3,10 @@ import { BARALHO_TITULO_MAX } from "@contracts/baralhos";
 import {
   MAX_DECK_FLASHCARDS,
   createEdgeContract,
+  createNodeContract,
+  importGraphContract,
+  updateNodeContract,
+  vaultSyncContract,
   createGraphBaralhoContract,
   createGraphContract,
   extractSubgraphContract,
@@ -95,5 +99,93 @@ describe("extractSubgraphContract", () => {
     const base = { nome: "Recorte", tipoRelacao: "PERTENCE_A" };
     expect(extractSubgraphContract.safeParse({ ...base, nodeIds: [] }).success).toBe(false);
     expect(extractSubgraphContract.safeParse({ ...base, nodeIds: ["n1"] }).success).toBe(true);
+  });
+});
+
+describe("createNodeContract", () => {
+  it("recusa um tipo que esta rota não cria (GRAFO_REF, PROVA, QUESTION)", () => {
+    expect(createNodeContract.safeParse({ tipoNode: "GRAFO_REF" }).success).toBe(false);
+    expect(createNodeContract.safeParse({ tipoNode: "PROVA" }).success).toBe(false);
+  });
+
+  // assertCreatableNode NÃO cobra nada nesses tipos — o contrato copia isso em vez
+  // de apertar por conta própria, o que recusaria requisição que hoje funciona.
+  it("aceita os tipos sem invariante, como o backend faz hoje", () => {
+    for (const tipoNode of ["ASSUNTO", "TOPICO", "CONCEITO", "FLASHCARD", "BARALHO"]) {
+      expect(createNodeContract.safeParse({ tipoNode }).success, tipoNode).toBe(true);
+    }
+  });
+
+  it("cobra título e subtipo da NOTA, com o texto que o usuário já via", () => {
+    const parsed = createNodeContract.safeParse({ tipoNode: "NOTA" });
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    const byPath = Object.fromEntries(parsed.error.issues.map((i) => [i.path.join("."), i.message]));
+    expect(byPath.titulo).toBe("O título da nota é obrigatório");
+    expect(byPath.subtipo).toBe("Selecione o subtipo da nota");
+  });
+
+  it("recusa subtipo de nota fora da lista", () => {
+    const nota = { tipoNode: "NOTA", titulo: "t", subtipo: "INVENTADO" };
+    expect(createNodeContract.safeParse(nota).success).toBe(false);
+  });
+
+  it("exige a fonte só na nota de literatura", () => {
+    const base = { tipoNode: "NOTA", titulo: "t", subtipo: "DEFINICAO" };
+    expect(createNodeContract.safeParse({ ...base, tipoNota: "LITERATURA" }).success).toBe(false);
+    expect(createNodeContract.safeParse({ ...base, tipoNota: "LITERATURA", fonte: "Livro" }).success).toBe(true);
+    expect(createNodeContract.safeParse(base).success).toBe(true);
+  });
+
+  it("exige o texto do TEXTO_BRUTO", () => {
+    expect(createNodeContract.safeParse({ tipoNode: "TEXTO_BRUTO" }).success).toBe(false);
+    expect(createNodeContract.safeParse({ tipoNode: "TEXTO_BRUTO", texto: "  " }).success).toBe(false);
+    expect(createNodeContract.safeParse({ tipoNode: "TEXTO_BRUTO", texto: "conteúdo" }).success).toBe(true);
+  });
+
+  it("não inventa faixa para nivelDominio — o backend não cobra nenhuma", () => {
+    expect(createNodeContract.safeParse({ tipoNode: "CONCEITO", nivelDominio: 5 }).success).toBe(true);
+    expect(createNodeContract.safeParse({ tipoNode: "CONCEITO", nivelDominio: 0.8 }).success).toBe(true);
+  });
+});
+
+describe("updateNodeContract", () => {
+  it("alcança tipos que a criação não alcança", () => {
+    expect(updateNodeContract.safeParse({ tipoNode: "GRAFO_REF", nome: "x" }).success).toBe(true);
+  });
+
+  it("não repete os invariantes da criação — a edição não passa por eles", () => {
+    expect(updateNodeContract.safeParse({ tipoNode: "NOTA" }).success).toBe(true);
+  });
+
+  it("exige o tipo do nó", () => {
+    expect(updateNodeContract.safeParse({ nome: "x" }).success).toBe(false);
+  });
+});
+
+describe("vaultSyncContract", () => {
+  const node = { ref: "n1", tipo: "CONCEITO" };
+  const edge = { origem: "n1", destino: "n2", relacao: "PERTENCE_A" };
+
+  it("aceita um payload de vault mínimo", () => {
+    expect(vaultSyncContract.safeParse({ nodes: [node], edges: [edge] }).success).toBe(true);
+  });
+
+  // clampPeso coage para 1 fora de (0, 2]. Rejeitar aqui quebraria o Push de um
+  // arquivo editado à mão — diferente da rota de criar aresta, que recusa.
+  it("não recusa peso fora da faixa, porque o vault coage em vez de rejeitar", () => {
+    expect(vaultSyncContract.safeParse({ nodes: [], edges: [{ ...edge, peso: 7 }] }).success).toBe(true);
+  });
+
+  it("exige ref e tipo em cada nó", () => {
+    expect(vaultSyncContract.safeParse({ nodes: [{ ref: "n1" }], edges: [] }).success).toBe(false);
+  });
+});
+
+describe("importGraphContract", () => {
+  it("garante as duas listas, sem opinar sobre os itens", () => {
+    expect(importGraphContract.safeParse({ nodes: [], edges: [] }).success).toBe(true);
+    expect(importGraphContract.safeParse({ nodes: [{ qualquer: 1 }], edges: [] }).success).toBe(true);
+    expect(importGraphContract.safeParse({ nodes: "x", edges: [] }).success).toBe(false);
   });
 });
