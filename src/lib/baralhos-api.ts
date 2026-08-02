@@ -1,4 +1,5 @@
 // Cliente de baralhos (decks) → API NestJS.
+import { baralhoDetailResponse, baralhoListResponse } from "@contracts/baralhos";
 import { apiFetch } from "./api";
 
 export interface BaralhoOrigin {
@@ -46,12 +47,12 @@ type RawListItem = Omit<BaralhoListItem, "dataCriacao"> & { dataCriacao: string 
 type RawDetail = Omit<BaralhoDetail, "dataCriacao"> & { dataCriacao: string };
 
 export async function getBaralhos(): Promise<BaralhoListItem[]> {
-  const rows = await apiFetch<RawListItem[]>("/baralhos");
+  const rows = await apiFetch<RawListItem[]>("/baralhos", { schema: baralhoListResponse });
   return rows.map((r) => ({ ...r, dataCriacao: new Date(r.dataCriacao) }));
 }
 
 export async function getBaralho(baralhoId: string): Promise<BaralhoDetail> {
-  const row = await apiFetch<RawDetail>(`/baralhos/${baralhoId}`);
+  const row = await apiFetch<RawDetail>(`/baralhos/${baralhoId}`, { schema: baralhoDetailResponse });
   return { ...row, dataCriacao: new Date(row.dataCriacao) };
 }
 

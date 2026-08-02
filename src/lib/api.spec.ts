@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { z } from "zod";
 import {
   apiFetch,
   ApiError,
@@ -135,6 +136,49 @@ describe("apiFetch", () => {
       message: "Informe um email válido",
       fieldErrors: [{ path: "email", message: "Informe um email válido" }],
     });
+  });
+});
+
+describe("apiFetch com schema de resposta", () => {
+  const schema = z.object({ id: z.string(), total: z.number() }).passthrough();
+
+  it("devolve a resposta que casa com o contrato", async () => {
+    fetchMock.mockResolvedValue(httpResponse(true, 200, { id: "b1", total: 3 }));
+    expect(await apiFetch("/x", { schema })).toEqual({ id: "b1", total: 3 });
+  });
+
+  it("deixa passar campo novo do backend, sem descartá-lo", async () => {
+    fetchMock.mockResolvedValue(httpResponse(true, 200, { id: "b1", total: 3, novoCampo: "ok" }));
+    expect(await apiFetch("/x", { schema })).toEqual({ id: "b1", total: 3, novoCampo: "ok" });
+  });
+
+  // O ponto do PR: antes isso virava `undefined` no meio de um componente.
+  it("falha alto quando a resposta foge do contrato", async () => {
+    fetchMock.mockResolvedValue(httpResponse(true, 200, { id: "b1", total: "três" }));
+    await expect(apiFetch("/x", { schema })).rejects.toThrow(/fora do contrato/);
+  });
+
+  it("aponta o campo culpado na mensagem", async () => {
+    fetchMock.mockResolvedValue(httpResponse(true, 200, { id: "b1" }));
+    await expect(apiFetch("/x", { schema })).rejects.toThrow(/total/);
+  });
+
+  it("sem schema, segue devolvendo o corpo sem conferir", async () => {
+    fetchMock.mockResolvedValue(httpResponse(true, 200, { qualquer: "coisa" }));
+    expect(await apiFetch("/x")).toEqual({ qualquer: "coisa" });
+  });
+
+  // Em produção derrubar a tela é pior que renderizar algo incompleto: loga e segue.
+  it("em produção, loga o desvio e devolve o dado cru em vez de quebrar", async () => {
+    vi.stubEnv("DEV", false);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockResolvedValue(httpResponse(true, 200, { id: "b1", total: "três" }));
+
+    expect(await apiFetch("/x", { schema })).toEqual({ id: "b1", total: "três" });
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining("fora do contrato"));
+
+    logged.mockRestore();
+    vi.unstubAllEnvs();
   });
 });
 
