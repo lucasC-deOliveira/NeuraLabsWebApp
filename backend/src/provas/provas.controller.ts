@@ -1,3 +1,22 @@
+import { ZodBody } from '../common/zod-body.decorator';
+import {
+  createEditalContract,
+  createProvaContract,
+  createProvaFromParsedContract,
+  linkEditalContract,
+  provaAttemptContract,
+  suggestConceitosContract,
+  updateProvaContract,
+} from '../../../contracts/provas';
+import type {
+  CreateEditalBody,
+  CreateProvaBody,
+  CreateProvaFromParsedBody,
+  LinkEditalBody,
+  ProvaAttemptBody,
+  SuggestConceitosBody,
+  UpdateProvaBody,
+} from '../../../contracts/provas';
 import {
   Controller,
   Get,
@@ -26,20 +45,12 @@ import { RemoveProvaUseCase } from '../modules/provas/application/use-cases/remo
 import { ParseExamUploadUseCase } from '../modules/provas/application/use-cases/parse-exam-upload.use-case';
 import { SuggestQuestaoConceitosUseCase } from '../modules/provas/application/use-cases/suggest-questao-conceitos.use-case';
 import { RecordProvaAttemptUseCase } from '../modules/provas/application/use-cases/record-prova-attempt.use-case';
-import type { ProvaAttemptInput } from '../modules/provas/domain/ports/prova-attempt-repository';
 import {
   CreateEditalUseCase,
   LinkEditalToProvaUseCase,
   ListEditaisUseCase,
 } from '../modules/provas/application/use-cases/edital.use-cases';
 import { ProvasExceptionFilter } from '../modules/provas/interface/provas-exception.filter';
-import type {
-  CreateEditalInput,
-  CreateProvaFromParsedInput,
-  CreateProvaInput,
-  ParsedQuestao,
-  UpdateProvaPatch,
-} from '../modules/provas/domain/prova';
 
 @Controller('provas')
 @UseGuards(JwtAuthGuard)
@@ -62,7 +73,7 @@ export class ProvasController {
   ) {}
 
   @Post()
-  create(@CurrentUser() userId: string, @Body() dto: CreateProvaInput) {
+  create(@CurrentUser() userId: string, @ZodBody(createProvaContract) dto: CreateProvaBody) {
     return this.createProva.execute(userId, dto);
   }
 
@@ -99,13 +110,13 @@ export class ProvasController {
   @Post('suggest-conceitos')
   suggestConceitosForQuestoes(
     @CurrentUser() userId: string,
-    @Body() dto: { questoes: ParsedQuestao[] },
+    @ZodBody(suggestConceitosContract) dto: SuggestConceitosBody,
   ) {
     return this.suggestConceitos.execute(userId, dto.questoes ?? []);
   }
 
   @Post('from-parsed')
-  createFromParsed(@CurrentUser() userId: string, @Body() dto: CreateProvaFromParsedInput) {
+  createFromParsed(@CurrentUser() userId: string, @ZodBody(createProvaFromParsedContract) dto: CreateProvaFromParsedBody) {
     return this.createProvaFromParsed.execute(userId, dto);
   }
 
@@ -114,14 +125,14 @@ export class ProvasController {
   recordAttempt(
     @CurrentUser() userId: string,
     @Param('id') provaId: string,
-    @Body() dto: Omit<ProvaAttemptInput, 'provaId'>,
+    @ZodBody(provaAttemptContract) dto: ProvaAttemptBody,
   ): Promise<{ id: string }> {
     return this.recordProvaAttempt.execute(userId, { ...dto, provaId });
   }
 
   // Cria o nó EDITAL (título + programa); com provaId, vincula 1:1 à prova.
   @Post('editais')
-  createEditalNode(@CurrentUser() userId: string, @Body() dto: CreateEditalInput) {
+  createEditalNode(@CurrentUser() userId: string, @ZodBody(createEditalContract) dto: CreateEditalBody) {
     return this.createEdital.execute(userId, dto);
   }
 
@@ -130,7 +141,7 @@ export class ProvasController {
   linkEditalToProva(
     @CurrentUser() userId: string,
     @Param('id') editalId: string,
-    @Body() dto: { provaId: string; grafoId: string },
+    @ZodBody(linkEditalContract) dto: LinkEditalBody,
   ) {
     return this.linkEdital.execute(userId, editalId, dto.provaId, dto.grafoId);
   }
@@ -161,7 +172,7 @@ export class ProvasController {
   }
 
   @Patch(':id')
-  update(@CurrentUser() userId: string, @Param('id') id: string, @Body() dto: UpdateProvaPatch) {
+  update(@CurrentUser() userId: string, @Param('id') id: string, @ZodBody(updateProvaContract) dto: UpdateProvaBody) {
     return this.updateProva.execute(userId, id, dto);
   }
 
