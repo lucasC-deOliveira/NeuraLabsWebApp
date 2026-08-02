@@ -1,3 +1,6 @@
+import { ZodBody } from '../common/zod-body.decorator';
+import { feynmanAttemptContract, feynmanGradeContract, feynmanSessionContract } from '../../../contracts/estudo-e-anexos';
+import type { FeynmanAttemptBody, FeynmanGradeBody, FeynmanSessionBody } from '../../../contracts/estudo-e-anexos';
 import {
   BadRequestException,
   Body,
@@ -71,7 +74,7 @@ export class FeynmanController {
   @Post('grade')
   async gradeExplanation(
     @CurrentUser() userId: string,
-    @Body() body: { alvoTipo?: string; alvoId?: string; texto?: string; angulo?: string },
+    @ZodBody(feynmanGradeContract) body: FeynmanGradeBody,
   ): Promise<FeynmanFeedback> {
     const tipo = (body.alvoTipo ?? '').toUpperCase();
     if (!ALVO_TIPOS.includes(tipo) || !body.alvoId || !body.texto?.trim()) {
@@ -94,7 +97,7 @@ export class FeynmanController {
   // Persiste a explicação (histórico) e agenda a re-explicação (SM-2-lite).
   @Post('attempts')
   @HttpCode(204)
-  async saveAttempt(@CurrentUser() userId: string, @Body() body: AttemptBody): Promise<void> {
+  async saveAttempt(@CurrentUser() userId: string, @ZodBody(feynmanAttemptContract) body: FeynmanAttemptBody): Promise<void> {
     const tipo = (body.alvoTipo ?? '').toUpperCase();
     if (
       !ALVO_TIPOS.includes(tipo) ||
@@ -118,7 +121,7 @@ export class FeynmanController {
   // do mais fraco e publica UMA nota combinada no grafo.
   @Post('sessions')
   @HttpCode(204)
-  async saveSessionAttempt(@CurrentUser() userId: string, @Body() body: SessionBody): Promise<void> {
+  async saveSessionAttempt(@CurrentUser() userId: string, @ZodBody(feynmanSessionContract) body: FeynmanSessionBody): Promise<void> {
     const tipo = (body.alvoTipo ?? '').toUpperCase();
     const explicacoes = toSessionExplanations(body.explicacoes ?? []);
     if (!ALVO_TIPOS.includes(tipo) || !body.alvoId || explicacoes.length === 0) {
