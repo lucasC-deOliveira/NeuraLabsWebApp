@@ -57,11 +57,37 @@ export function readFieldErrors(data: unknown): FieldError[] {
 // longas (geração por IA) podem passar um timeoutMs maior via options.
 const DEFAULT_TIMEOUT_MS = 60_000;
 
+/**
+ * Confere a resposta contra o contrato da rota.
+ *
+ * Tolerante de propósito: os schemas usam .passthrough(), então campo novo no
+ * backend não quebra o cliente. Quando a forma foge do contrato, a decisão muda
+ * com o ambiente — em dev/teste falha alto, para o contrato quebrado aparecer no
+ * ato; em produção loga e devolve o dado cru, porque derrubar a tela do usuário
+ * é pior do que renderizar algo incompleto.
+ */
+function parseResponse<T>(path: string, data: unknown, schema: ResponseSchema<T>): T {
+  const parsed = schema.safeParse(data);
+  if (parsed.success) return parsed.data;
+
+  const detail = `${path}: ${parsed.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`;
+  if (import.meta.env.DEV) throw new ApiError(0, `Resposta fora do contrato — ${detail}`);
+  console.error(`[api] resposta fora do contrato em ${detail}`);
+  return data as T;
+}
+
+/** O mínimo de zod que a fachada precisa — evita casar a assinatura com a versão da lib. */
+export interface ResponseSchema<T> {
+  safeParse(value: unknown):
+    | { success: true; data: T }
+    | { success: false; error: { issues: Array<{ path: Array<string | number>; message: string }> } };
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
-  options: RequestInit & { timeoutMs?: number } = {},
+  options: RequestInit & { timeoutMs?: number; schema?: ResponseSchema<T> } = {},
 ): Promise<T> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...init } = options;
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, schema, ...init } = options;
   const token = getToken();
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
@@ -82,7 +108,7 @@ export async function apiFetch<T = unknown>(
         readFieldErrors(data),
       );
     }
-    return data as T;
+    return schema ? parseResponse(path, data, schema) : (data as T);
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       throw new ApiError(0, "A requisição demorou demais para responder. Verifique sua conexão e tente novamente.");

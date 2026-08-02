@@ -36,3 +36,60 @@ export const importBaralhosContract = z.object({
   baralhos: z.unknown(),
 });
 export type ImportBaralhosBody = z.infer<typeof importBaralhosContract>;
+
+// ---- Respostas ----
+// Todos com .passthrough(): um campo novo no backend NÃO pode quebrar o cliente.
+// Descrevem o JSON cru — dataCriacao chega como string e vira Date na fachada.
+
+const baralhoOrigin = z
+  .object({
+    grafoId: z.string(),
+    nome: z.string(),
+  })
+  .passthrough();
+
+export const baralhoListItemResponse = z
+  .object({
+    id: z.string(),
+    titulo: z.string(),
+    totalCards: z.number(),
+    novos: z.number(),
+    aprender: z.number(),
+    revisar: z.number(),
+    dataCriacao: z.string(),
+    origens: z.array(baralhoOrigin),
+  })
+  .passthrough();
+
+export const baralhoListResponse = z.array(baralhoListItemResponse);
+
+const conceptTag = z
+  .object({
+    conceito: z.string(),
+    topico: z.string(),
+    topicoId: z.string(),
+    assunto: z.string(),
+    assuntoId: z.string(),
+  })
+  .passthrough();
+
+const baralhoCard = z
+  .object({
+    id: z.string(),
+    pergunta: z.string(),
+    resposta: z.string(),
+    tipo: z.string().nullable(),
+    conceito: z.string(),
+    conceitosConectados: z.array(conceptTag),
+  })
+  .passthrough();
+
+export const baralhoDetailResponse = z
+  .object({
+    id: z.string(),
+    titulo: z.string(),
+    dataCriacao: z.string(),
+    origens: z.array(baralhoOrigin),
+    cards: z.array(baralhoCard),
+  })
+  .passthrough();
