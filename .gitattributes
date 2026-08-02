@@ -1,0 +1,25 @@
+# Fim de linha LF no diretório de trabalho, em qualquer sistema.
+#
+# Por quê: sem isso, o checkout no Windows entrega CRLF e o `prettier --check` do
+# backend reprova TODO arquivo (o padrão do Prettier é endOfLine "lf"). O gate
+# local vira ruído — pior que não existir, porque ensina a ignorá-lo. Os fixtures
+# de texto dos extratores de prova também quebravam, porque fatiam por "\n".
+#
+# Os blobs no git já eram LF; isto alinha a cópia de trabalho ao que o CI (Linux) vê.
+* text=auto eol=lf
+
+# Binários: nunca converter, sob risco de corromper o arquivo.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.svg text eol=lf
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.mp4 binary
+*.onnx binary
