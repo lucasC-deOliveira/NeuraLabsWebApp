@@ -1,3 +1,32 @@
+import { ZodBody } from '../common/zod-body.decorator';
+import {
+  addProvaToGraphContract,
+  composeGraphContract,
+  createEdgeContract,
+  createGraphBaralhoContract,
+  createGraphContract,
+  createSubgraphContract,
+  extractSubgraphContract,
+  graphPositionsContract,
+  graphVisualContract,
+  linkNodeContract,
+  renameGraphContract,
+  updateEdgeContract,
+} from '../../../contracts/graph';
+import type {
+  AddProvaToGraphBody,
+  ComposeGraphBody,
+  CreateEdgeBody,
+  CreateGraphBaralhoBody,
+  CreateGraphBody,
+  CreateSubgraphBody,
+  ExtractSubgraphBody,
+  GraphPositionsBody,
+  GraphVisualBody,
+  LinkNodeBody,
+  RenameGraphBody,
+  UpdateEdgeBody,
+} from '../../../contracts/graph';
 import {
   BadRequestException,
   Body,
@@ -133,7 +162,7 @@ export class GraphController {
   async composeIntoGraph(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { tipo?: string; id?: string },
+    @ZodBody(composeGraphContract) body: ComposeGraphBody,
   ): Promise<ComposeResult> {
     const root = COMPOSITION_TIPO[(body.tipo ?? '').toLowerCase()];
     if (!root || !body.id) {
@@ -160,7 +189,7 @@ export class GraphController {
   }
 
   @Post('graphs')
-  createGraph(@CurrentUser() userId: string, @Body() body: { nome: string; descricao?: string }) {
+  createGraph(@CurrentUser() userId: string, @ZodBody(createGraphContract) body: CreateGraphBody) {
     return this.createGraphUseCase.execute(userId, body.nome, body.descricao);
   }
 
@@ -180,7 +209,7 @@ export class GraphController {
   renameGraph(
     @CurrentUser() userId: string,
     @Param('id') id: string,
-    @Body() body: { nome: string },
+    @ZodBody(renameGraphContract) body: RenameGraphBody,
   ) {
     return this.renameGraphUseCase.execute(userId, id, body.nome);
   }
@@ -194,7 +223,7 @@ export class GraphController {
   saveVisual(
     @CurrentUser() userId: string,
     @Param('id') id: string,
-    @Body() body: { state: unknown },
+    @ZodBody(graphVisualContract) body: GraphVisualBody,
   ) {
     return this.saveVisualStateUseCase.execute(userId, id, body.state);
   }
@@ -255,7 +284,7 @@ export class GraphController {
   addExisting(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { tipoNode: TipoNode; entityId: string },
+    @ZodBody(linkNodeContract) body: LinkNodeBody,
   ) {
     return this.addExistingNodeUseCase.execute(userId, grafoId, body.tipoNode, body.entityId);
   }
@@ -264,7 +293,7 @@ export class GraphController {
   createBaralho(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { titulo: string; flashcardIds: string[] },
+    @ZodBody(createGraphBaralhoContract) body: CreateGraphBaralhoBody,
   ) {
     return this.createDeckUseCase.execute(userId, grafoId, body.titulo, body.flashcardIds ?? []);
   }
@@ -273,7 +302,7 @@ export class GraphController {
   addProva(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { provaId: string },
+    @ZodBody(addProvaToGraphContract) body: AddProvaToGraphBody,
   ) {
     return this.addProvaToGraphUseCase.execute(userId, grafoId, body.provaId);
   }
@@ -344,8 +373,7 @@ export class GraphController {
   createEdge(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body()
-    body: { sourceNodeId: string; targetNodeId: string; tipoRelacao: string; peso?: number },
+    @ZodBody(createEdgeContract) body: CreateEdgeBody,
   ) {
     return this.createEdgeUseCase.execute({ userId, grafoId, ...body });
   }
@@ -355,7 +383,7 @@ export class GraphController {
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
     @Param('id') id: string,
-    @Body() body: { tipoRelacao?: string; peso?: number },
+    @ZodBody(updateEdgeContract) body: UpdateEdgeBody,
   ) {
     return this.updateEdgeUseCase.execute({ userId, grafoId, edgeId: id, ...body });
   }
@@ -374,7 +402,7 @@ export class GraphController {
   savePositions(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { positions: Record<string, { x: number; y: number }> },
+    @ZodBody(graphPositionsContract) body: GraphPositionsBody,
   ) {
     return this.savePositionsUseCase.execute(userId, grafoId, body.positions);
   }
@@ -384,8 +412,7 @@ export class GraphController {
   createSubgrafo(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body()
-    body: { nome: string; descricao?: string; tipoRelacao: string; posX?: number; posY?: number },
+    @ZodBody(createSubgraphContract) body: CreateSubgraphBody,
   ) {
     return this.createSubgraphUseCase.execute(userId, grafoId, body);
   }
@@ -394,7 +421,7 @@ export class GraphController {
   extractSubgrafo(
     @CurrentUser() userId: string,
     @Param('grafoId') grafoId: string,
-    @Body() body: { nodeIds: string[]; nome: string; tipoRelacao: string },
+    @ZodBody(extractSubgraphContract) body: ExtractSubgraphBody,
   ) {
     return this.extractSubgraphUseCase.execute(userId, grafoId, body);
   }
