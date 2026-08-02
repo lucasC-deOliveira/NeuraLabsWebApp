@@ -1,5 +1,7 @@
-import { Body, Controller, Get, Post, UseFilters, UseGuards } from '@nestjs/common';
-import { LoginDto, RegisterDto } from './dto';
+import { Controller, Get, Post, UseFilters, UseGuards } from '@nestjs/common';
+import { ZodBody } from '../common/zod-body.decorator';
+import { loginContract, registerContract } from '../../../contracts/auth';
+import type { LoginBody, RegisterBody } from '../../../contracts/auth';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import { RegisterUserUseCase } from '../modules/auth/application/use-cases/register-user.use-case';
@@ -17,12 +19,12 @@ export class AuthController {
   ) {}
 
   @Post('register')
-  register(@Body() dto: RegisterDto) {
+  register(@ZodBody(registerContract) dto: RegisterBody) {
     return this.registerUser.execute(dto);
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
+  login(@ZodBody(loginContract) dto: LoginBody) {
     return this.loginUser.execute(dto);
   }
 

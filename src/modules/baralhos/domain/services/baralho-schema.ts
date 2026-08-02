@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { baralhoTitulo } from "@contracts/baralhos";
 
-// Validação do formulário de novo baralho. Regra pura no domínio; a UI
-// (react-hook-form) consome via resolver. Mensagem voltada ao usuário (pt-BR).
+// Validação do formulário de novo baralho. O título REUSA a regra do contrato
+// (contracts/baralhos.ts), então o teto que o servidor cobra vira erro de campo
+// aqui em vez de um 400 depois do submit.
 export const baralhoSchema = z.object({
-  titulo: z.string().trim().min(1, "Informe o título do baralho"),
+  titulo: baralhoTitulo,
 });
 export type BaralhoInput = z.infer<typeof baralhoSchema>;
