@@ -1,9 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import { validationExceptionFactory } from './common/validation-error';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -15,10 +13,8 @@ async function bootstrap(): Promise<void> {
   // todas as rotas sob /api
   app.setGlobalPrefix('api');
 
-  // valida os DTOs decorados (auth) e converte tipos. A exceptionFactory devolve
-  // o erro POR CAMPO — sem ela o Nest achata tudo em string[] e o cliente não tem
-  // como marcar o campo certo no formulário.
-  app.useGlobalPipes(new ValidationPipe({ transform: true, exceptionFactory: validationExceptionFactory }));
+  // Sem pipe global: a validação é explícita por rota, via @ZodBody(contrato).
+  // Ver src/common/zod-body.decorator.ts.
 
   // CORS para o frontend (Next). Origem configurável; * em dev.
   const origin = process.env.FRONTEND_ORIGIN?.split(',').map((s) => s.trim()) ?? true;

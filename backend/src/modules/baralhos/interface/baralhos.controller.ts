@@ -1,14 +1,17 @@
+import { Controller, Delete, Get, Param, Patch, Post, UseFilters, UseGuards } from '@nestjs/common';
+import { ZodBody } from '../../../common/zod-body.decorator';
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  UseFilters,
-  UseGuards,
-} from '@nestjs/common';
+  addCardsToBaralhoContract,
+  createBaralhoContract,
+  importBaralhosContract,
+  renameBaralhoContract,
+} from '../../../../../contracts/baralhos';
+import type {
+  AddCardsToBaralhoBody,
+  CreateBaralhoBody,
+  ImportBaralhosBody,
+  RenameBaralhoBody,
+} from '../../../../../contracts/baralhos';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/current-user.decorator';
 import {
@@ -23,23 +26,6 @@ import {
 } from '../application/use-cases/baralho.use-cases';
 import { BaralhosExceptionFilter } from './baralhos-exception.filter';
 import type { BaralhoDetail, BaralhoListItem } from '../domain/baralho-views';
-
-interface CreateBaralhoBody {
-  titulo?: string;
-  flashcardIds?: string[];
-}
-
-interface RenameBaralhoBody {
-  titulo?: string;
-}
-
-interface AddCardsBody {
-  flashcardIds?: string[];
-}
-
-interface ImportBody {
-  baralhos?: unknown;
-}
 
 @UseGuards(JwtAuthGuard)
 @UseFilters(BaralhosExceptionFilter)
@@ -64,15 +50,15 @@ export class BaralhosController {
   @Post()
   create(
     @CurrentUser('id') userId: string,
-    @Body() body: CreateBaralhoBody,
+    @ZodBody(createBaralhoContract) body: CreateBaralhoBody,
   ): Promise<{ baralhoId: string }> {
-    return this.createBaralho.execute(userId, body.titulo ?? '', body.flashcardIds ?? []);
+    return this.createBaralho.execute(userId, body.titulo, body.flashcardIds);
   }
 
   @Post('import')
   async import(
     @CurrentUser('id') userId: string,
-    @Body() body: ImportBody,
+    @ZodBody(importBaralhosContract) body: ImportBaralhosBody,
   ): Promise<{ count: number }> {
     return this.importBaralhos.execute(userId, body.baralhos);
   }
@@ -89,9 +75,9 @@ export class BaralhosController {
   async rename(
     @CurrentUser('id') userId: string,
     @Param('baralhoId') baralhoId: string,
-    @Body() body: RenameBaralhoBody,
+    @ZodBody(renameBaralhoContract) body: RenameBaralhoBody,
   ): Promise<{ success: boolean }> {
-    await this.renameBaralho.execute(userId, baralhoId, body.titulo ?? '');
+    await this.renameBaralho.execute(userId, baralhoId, body.titulo);
     return { success: true };
   }
 
@@ -108,9 +94,9 @@ export class BaralhosController {
   async addCardsToBaralho(
     @CurrentUser('id') userId: string,
     @Param('baralhoId') baralhoId: string,
-    @Body() body: AddCardsBody,
+    @ZodBody(addCardsToBaralhoContract) body: AddCardsToBaralhoBody,
   ): Promise<{ success: boolean }> {
-    await this.addCards.execute(userId, baralhoId, body.flashcardIds ?? []);
+    await this.addCards.execute(userId, baralhoId, body.flashcardIds);
     return { success: true };
   }
 

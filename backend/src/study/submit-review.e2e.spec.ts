@@ -1,13 +1,13 @@
 import { Test } from '@nestjs/testing';
-import { ValidationPipe, type INestApplication } from '@nestjs/common';
+import { type INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { AppModule } from '../app.module';
 import { PrismaService } from '../prisma/prisma.service';
 
-// E2E da rota POST /api/study/review: app Nest real (auth JWT, ValidationPipe,
-// filtro de erros de domínio) contra o banco de teste (neuralabs_test).
+// E2E da rota POST /api/study/review: app Nest real (auth JWT, filtro de erros
+// de domínio) contra o banco de teste (neuralabs_test).
 
 const TABLES = [
   '"revisoes_flashcard"',
@@ -28,7 +28,6 @@ describe('POST /api/study/review (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
-    app.useGlobalPipes(new ValidationPipe({ transform: true }));
     await app.init();
     prisma = app.get(PrismaService);
     jwt = app.get(JwtService);

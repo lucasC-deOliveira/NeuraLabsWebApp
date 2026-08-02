@@ -1,43 +1,50 @@
 import { describe, it, expect } from 'vitest';
-import type { ValidationError } from '@nestjs/common';
-import { toFieldErrors, validationExceptionFactory } from './validation-error';
+import { z } from 'zod';
+import { validationErrorBody, zodFieldErrors } from './validation-error';
 
-function error(property: string, constraints: Record<string, string>, children: ValidationError[] = []): ValidationError {
-  return { property, constraints, children } as ValidationError;
-}
+describe('zodFieldErrors', () => {
+  it('pairs each issue with its field', () => {
+    const schema = z.object({ email: z.string().email('Informe um email válido') });
+    const parsed = schema.safeParse({ email: 'x' });
 
-describe('toFieldErrors', () => {
-  it('pairs each constraint with its field', () => {
-    expect(toFieldErrors([error('email', { isEmail: 'Informe um email válido' })])).toEqual([
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(zodFieldErrors(parsed.error)).toEqual([
       { path: 'email', message: 'Informe um email válido' },
     ]);
   });
 
-  it('keeps every constraint of the same field', () => {
-    const errors = toFieldErrors([error('senha', { isString: 'Texto', minLength: 'Mínimo 6' })]);
-    expect(errors.map((e) => e.message)).toEqual(['Texto', 'Mínimo 6']);
-    expect(errors.every((e) => e.path === 'senha')).toBe(true);
+  it('reports every failing field, not just the first', () => {
+    const schema = z.object({
+      nome: z.string().min(1, 'Informe seu nome'),
+      email: z.string().email('Informe um email válido'),
+    });
+    const parsed = schema.safeParse({ nome: '', email: 'x' });
+
+    if (parsed.success) throw new Error('esperava falha');
+    expect(zodFieldErrors(parsed.error).map((f) => f.path)).toEqual(['nome', 'email']);
   });
 
   it('dots the path of a nested field', () => {
-    const nested = error('endereco', {}, [error('cidade', { isString: 'Informe a cidade' })]);
-    expect(toFieldErrors([nested])).toEqual([{ path: 'endereco.cidade', message: 'Informe a cidade' }]);
-  });
+    const schema = z.object({
+      endereco: z.object({ cidade: z.string().min(1, 'Informe a cidade') }),
+    });
+    const parsed = schema.safeParse({ endereco: { cidade: '' } });
 
-  it('survives an error with neither constraints nor children', () => {
-    expect(toFieldErrors([{ property: 'x' } as ValidationError])).toEqual([]);
+    if (parsed.success) throw new Error('esperava falha');
+    expect(zodFieldErrors(parsed.error)[0].path).toBe('endereco.cidade');
   });
 });
 
-describe('validationExceptionFactory', () => {
-  it('answers 400 with the field errors and keeps message as string[]', () => {
-    const exception = validationExceptionFactory([error('email', { isEmail: 'Informe um email válido' })]);
-    expect(exception.getStatus()).toBe(400);
-    expect(exception.getResponse()).toEqual({
+describe('validationErrorBody', () => {
+  it('monta o 400 mantendo message como string[] e o erro por campo', () => {
+    const fields = [{ path: 'email', message: 'Informe um email válido' }];
+
+    expect(validationErrorBody(fields)).toEqual({
       statusCode: 400,
       error: 'Bad Request',
       message: ['Informe um email válido'],
-      errors: [{ path: 'email', message: 'Informe um email válido' }],
+      errors: fields,
     });
   });
 });

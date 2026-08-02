@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { ValidationPipe, type INestApplication } from '@nestjs/common';
+import { type INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import { readFileSync } from 'node:fs';
@@ -8,7 +8,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { AppModule } from '../app.module';
 import { PrismaService } from '../prisma/prisma.service';
 
-// E2E das rotas de prova: app Nest real (auth JWT, ValidationPipe) contra o banco
+// E2E das rotas de prova: app Nest real (auth JWT) contra o banco
 // de teste. Cobre o parse determinístico (0 token, sem chave de IA) e a ligação
 // das questões ao grafo via conceitos confirmados (nós QUESTION + arestas TESTA).
 
@@ -37,7 +37,6 @@ describe('provas routes (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
-    app.useGlobalPipes(new ValidationPipe({ transform: true }));
     await app.init();
     prisma = app.get(PrismaService);
     jwt = app.get(JwtService);
