@@ -64,6 +64,26 @@ jobs:
         continue-on-error: true
         run: npm run lint
 
+  # Desde que contracts/ existe, o build do backend depende do LAYOUT do repositório:
+  # rootDir ".." no tsconfig, contexto Docker na raiz e os COPY prefixados. Nada
+  # disso é exercitado por `nest build` — um caminho errado só apareceria ao subir
+  # a imagem. Este job é o gate que faltava.
+  imagens:
+    name: Imagens Docker (build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build da imagem do backend
+        run: docker compose build backend
+      - name: A API arranca da imagem (dist no lugar certo + contrato resolvível)
+        run: |
+          docker compose run --rm --no-deps --entrypoint sh backend -c '
+            node -e "require(\"./dist/contracts/baralhos.js\")" &&
+            test -f dist/backend/src/main.js
+          '
+      - name: Build da imagem do frontend
+        run: docker compose build frontend
+
   secrets:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
