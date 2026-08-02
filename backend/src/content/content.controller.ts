@@ -1,5 +1,21 @@
+import { ZodBody } from '../common/zod-body.decorator';
 import {
-  Body,
+  createAssuntoContract,
+  createConceitoContract,
+  createFlashcardContract,
+  createNotaFlashcardsContract,
+  createTopicoContract,
+  updateFlashcardContract,
+} from '../../../contracts/content';
+import type {
+  CreateAssuntoBody,
+  CreateConceitoBody,
+  CreateFlashcardBody,
+  CreateNotaFlashcardsBody,
+  CreateTopicoBody,
+  UpdateFlashcardBody,
+} from '../../../contracts/content';
+import {
   Controller,
   Delete,
   Get,
@@ -20,11 +36,6 @@ import { DeleteAllFlashcardsUseCase } from '../modules/flashcards/application/us
 import { PreviewFlashcardsFromNotaUseCase } from '../modules/flashcards/application/use-cases/preview-flashcards-from-nota.use-case';
 import { SaveFlashcardPreviewsUseCase } from '../modules/flashcards/application/use-cases/save-flashcard-previews.use-case';
 import { FlashcardsExceptionFilter } from '../modules/flashcards/interface/flashcards-exception.filter';
-import type {
-  CreateFlashcardInput,
-  PreviewCard,
-  UpdateFlashcardPatch,
-} from '../modules/flashcards/domain/flashcard-views';
 import { CreateAssuntoUseCase } from '../modules/curriculum/application/use-cases/create-assunto.use-case';
 import { CreateTopicoUseCase } from '../modules/curriculum/application/use-cases/create-topico.use-case';
 import { CreateConceptUseCase } from '../modules/curriculum/application/use-cases/create-concept.use-case';
@@ -75,7 +86,7 @@ export class ContentController {
   }
 
   @Post('subjects')
-  create(@CurrentUser() userId: string, @Body() body: { nome: string }) {
+  create(@CurrentUser() userId: string, @ZodBody(createAssuntoContract) body: CreateAssuntoBody) {
     return this.createAssunto.execute(userId, body.nome);
   }
 
@@ -83,7 +94,7 @@ export class ContentController {
   topico(
     @CurrentUser() userId: string,
     @Param('assuntoId') assuntoId: string,
-    @Body() body: { nome: string },
+    @ZodBody(createTopicoContract) body: CreateTopicoBody,
   ) {
     return this.createTopico.execute(userId, body.nome, assuntoId);
   }
@@ -91,7 +102,7 @@ export class ContentController {
   @Post('conceitos')
   concept(
     @CurrentUser() userId: string,
-    @Body() body: { nome: string; assuntoId: string; topicoId: string },
+    @ZodBody(createConceitoContract) body: CreateConceitoBody,
   ) {
     return this.createConcept.execute(userId, body);
   }
@@ -111,7 +122,7 @@ export class ContentController {
   }
 
   @Post('flashcards')
-  newFlashcard(@CurrentUser() userId: string, @Body() body: CreateFlashcardInput) {
+  newFlashcard(@CurrentUser() userId: string, @ZodBody(createFlashcardContract) body: CreateFlashcardBody) {
     return this.createFlashcard.execute(userId, body);
   }
 
@@ -119,7 +130,7 @@ export class ContentController {
   update(
     @CurrentUser() userId: string,
     @Param('id') id: string,
-    @Body() body: UpdateFlashcardPatch,
+    @ZodBody(updateFlashcardContract) body: UpdateFlashcardBody,
   ) {
     return this.updateFlashcard.execute(userId, id, body);
   }
@@ -143,7 +154,7 @@ export class ContentController {
   saveFromNota(
     @CurrentUser() userId: string,
     @Param('notaId') _notaId: string,
-    @Body() body: { flashcards: PreviewCard[] },
+    @ZodBody(createNotaFlashcardsContract) body: CreateNotaFlashcardsBody,
   ) {
     return this.saveFromNotaUseCase.execute(userId, body.flashcards ?? []);
   }
