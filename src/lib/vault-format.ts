@@ -42,6 +42,7 @@ export interface VaultNode {
   explicacao?: string | null;
   tipoQuestao?: string;
   nivelDominio?: number;
+  pesoEdital?: number | null;
   posicaoX?: number | null;
   posicaoY?: number | null;
   relacoes: VaultRelacao[];
@@ -147,6 +148,9 @@ export function serializeNode(n: VaultNode): string {
   // arquivo poder voltar sem perder essa informação.
   if (n.tipoQuestao) fm.tipoQuestao = n.tipoQuestao;
   if (typeof n.nivelDominio === "number") fm.nivelDominio = n.nivelDominio;
+  // Quanto o nó vale na prova deste grafo. Ausente = sem peso declarado, que o
+  // roadmap trata como 1 — escrever 1 explicitamente seria ruído no arquivo.
+  if (typeof n.pesoEdital === "number") fm.pesoEdital = n.pesoEdital;
   if (n.posicaoX != null || n.posicaoY != null) fm.posicao = { x: n.posicaoX ?? 0, y: n.posicaoY ?? 0 };
   if (n.relacoes.length > 0) {
     fm.relacoes = n.relacoes.map((r) => ({ rel: r.rel, alvo: `[[${r.alvo}]]`, peso: r.peso }));
@@ -236,6 +240,7 @@ export function parseNode(raw: string): VaultNode | null {
     tipo,
     grafoId: typeof fm.grafo === "string" ? fm.grafo : "",
     nivelDominio: typeof fm.nivelDominio === "number" ? fm.nivelDominio : undefined,
+    pesoEdital: typeof fm.pesoEdital === "number" ? fm.pesoEdital : null,
     posicaoX: pos?.x ?? null,
     posicaoY: pos?.y ?? null,
     tipoNota: typeof fm.tipoNota === "string" ? fm.tipoNota : undefined,

@@ -218,6 +218,7 @@ export interface ExportGraphNode extends ImportGraphNode {
   posicaoX?: number | null;
   posicaoY?: number | null;
   nivelDominio?: number;
+  pesoEdital?: number | null;
   // Conteúdo de QUESTION. Fica aqui e não em ImportGraphNode porque só o vault
   // (Pull/Push) leva questão — o import de JSON não conhece esse tipo.
   enunciado?: string;

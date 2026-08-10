@@ -43,3 +43,68 @@ describe('isRoadmapMode', () => {
     expect(isRoadmapMode('nope')).toBe(false);
   });
 });
+
+describe('scoreConceitos with pesoEdital', () => {
+  const signal = (over: Partial<ConceitoSignal>): ConceitoSignal => ({
+    refId: 'c1',
+    nome: 'C',
+    provaFreq: 0,
+    covered: true,
+    ...over,
+  });
+
+  // Sem peso declarado o ranking tem de ser exatamente o de antes, senão a
+  // migração muda a ordem de estudo de quem nunca preencheu o campo.
+  it('scores exactly like the old boolean coverage when no weight is declared', () => {
+    const signals = [signal({ refId: 'a' }), signal({ refId: 'b', covered: false })];
+    const scores = scoreConceitos(signals, 'edital');
+    expect(scores.map((s) => s.score)).toEqual([1, 0]);
+  });
+
+  it('ranks a heavier topic above a lighter one, both in the edital', () => {
+    const signals = [
+      signal({ refId: 'gestao', pesoEdital: 1.6 }),
+      signal({ refId: 'engenharia', pesoEdital: 0.8 }),
+    ];
+    const scores = scoreConceitos(signals, 'edital');
+    expect(scores[0].score).toBe(1);
+    expect(scores[1].score).toBe(0.5);
+  });
+
+  // Peso não resgata quem está fora do edital: a cobertura continua sendo a condição.
+  it('keeps a concept outside the edital at zero however heavy it is', () => {
+    const signals = [signal({ refId: 'fora', covered: false, pesoEdital: 2 })];
+    expect(scoreConceitos(signals, 'edital')[0].score).toBe(0);
+  });
+
+  it('treats an undeclared weight as the neutral 1 next to declared ones', () => {
+    const signals = [signal({ refId: 'pesado', pesoEdital: 2 }), signal({ refId: 'neutro' })];
+    const scores = scoreConceitos(signals, 'edital');
+    expect(scores[0].score).toBe(1);
+    expect(scores[1].score).toBe(0.5);
+  });
+
+  it('ignores a zero or negative weight instead of erasing the concept', () => {
+    const signals = [
+      signal({ refId: 'zero', pesoEdital: 0 }),
+      signal({ refId: 'neg', pesoEdital: -3 }),
+    ];
+    const scores = scoreConceitos(signals, 'edital');
+    expect(scores.map((s) => s.score)).toEqual([1, 1]);
+  });
+
+  it('does not touch the prova mode, which knows nothing about the edital', () => {
+    const signals = [signal({ refId: 'a', provaFreq: 4, pesoEdital: 1.6 })];
+    expect(scoreConceitos(signals, 'prova')[0].score).toBe(1);
+  });
+
+  it('explains the weight in the motivo so the order is readable', () => {
+    const scores = scoreConceitos([signal({ pesoEdital: 1.6 })], 'edital');
+    expect(scores[0].motivo).toBe('Cobrado pelo edital (peso 1.6)');
+  });
+
+  it('keeps the plain motivo when no weight is declared', () => {
+    const scores = scoreConceitos([signal({})], 'edital');
+    expect(scores[0].motivo).toBe('Cobrado pelo edital');
+  });
+});

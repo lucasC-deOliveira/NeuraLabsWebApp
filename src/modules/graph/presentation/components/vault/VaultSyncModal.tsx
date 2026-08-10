@@ -15,7 +15,9 @@ import {
   pullVault, pushVault, graphVaultDir, compareSyncState, getSyncState, removeOrphans,
   type SyncDiff,
 } from "@/lib/vault-sync";
+import { validateVault, countErrors, type VaultIssue } from "@/lib/vault-validate";
 import { VaultOrphans } from "./VaultOrphans";
+import { VaultIssues } from "./VaultIssues";
 import type { VaultSyncState } from "@/lib/vault-bridge";
 import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 
@@ -59,6 +61,10 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
   const [diff, setDiff] = useState<SyncDiff | null>(null);
   const [diffError, setDiffError] = useState(false);
   const [syncState, setSyncState] = useState<VaultSyncState | null>(null);
+  const [issues, setIssues] = useState<VaultIssue[]>([]);
+  // Um Push com erro de formato só passa no segundo clique, depois de a lista
+  // de problemas ter sido mostrada.
+  const [pushForcado, setPushForcado] = useState(false);
   const [prevOpen, setPrevOpen] = useState(false);
 
   const graphDir = vaultPath ? graphVaultDir(vaultPath, grafoId, grafoNome) : null;
@@ -67,7 +73,10 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
   // Reset during render (react-hooks v7 forbids synchronous setState in the effect body).
   if (open !== prevOpen) {
     setPrevOpen(open);
-    if (open) { setDiff(null); setDiffError(false); setSyncState(null); }
+    if (open) {
+      setDiff(null); setDiffError(false); setSyncState(null);
+      setIssues([]); setPushForcado(false);
+    }
   }
 
   const runCompare = useCallback(async (dir: string): Promise<void> => {
@@ -78,6 +87,10 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
       const [d, s] = await Promise.all([compareSyncState(grafoId, gDir), getSyncState(gDir)]);
       setDiff(d);
       setSyncState(s);
+      // A validação acompanha a comparação: os problemas aparecem junto com o
+      // diff, antes de o usuário decidir por Pull ou Push.
+      setIssues(validateVault(await desktop.vault.read(gDir).catch(() => [])));
+      setPushForcado(false);
     } catch {
       // exibe os botões mesmo se a comparação falhar
       setDiffError(true);
@@ -122,6 +135,13 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
 
   const doPush = async (): Promise<void> => {
     if (!vaultPath) return;
+    // Erro de formato para o Push no primeiro clique. Não é bloqueio definitivo:
+    // o segundo clique envia assim mesmo, porque o dono do vault é o usuário.
+    if (countErrors(issues) > 0 && !pushForcado) {
+      setPushForcado(true);
+      toast.error(`${countErrors(issues)} problema(s) de formato. Revise ou clique em Push de novo.`);
+      return;
+    }
     setBusy("push");
     try {
       const r = await pushVault(grafoId, grafoNome);
@@ -187,6 +207,8 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
           )}
 
           {vaultPath && <VaultActions diff={diff} flags={flags} busy={busy} onPull={doPull} onPush={doPush} />}
+
+          {vaultPath && <VaultIssues issues={issues} pushBloqueado={pushForcado} />}
 
           {vaultPath && diff && (
             <VaultOrphans orphans={diff.orphans} busy={busy !== null} onClean={doCleanOrphans} />

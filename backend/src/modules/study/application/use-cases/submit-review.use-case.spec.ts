@@ -7,6 +7,39 @@ import type { Clock } from '../../domain/ports/clock';
 import type { FlashcardRepository } from '../../domain/ports/flashcard-repository';
 import type { StudySessionRepository } from '../../domain/ports/study-session-repository';
 import type { StudyRepositories, StudyUnitOfWork } from '../../domain/ports/study-unit-of-work';
+import type { StudyPlan, StudyPlanRepository } from '../../domain/ports/study-plan-repository';
+
+// Named fake of the study plan repository. Only listByUser matters here — it is
+// what tells the scheduler whether there is an exam date to squeeze toward.
+class FakeStudyPlanRepository implements StudyPlanRepository {
+  plans: StudyPlan[] = [];
+
+  async loadById(): Promise<StudyPlan | null> {
+    return null;
+  }
+  async save(): Promise<StudyPlan> {
+    throw new Error('not used in these tests');
+  }
+  async listByUser(): Promise<StudyPlan[]> {
+    return this.plans;
+  }
+  async deleteById(): Promise<void> {
+    /* not used in these tests */
+  }
+}
+
+const planWithDeadline = (dataAlvo: Date | null, ativo = true): StudyPlan => ({
+  id: 'plan-1',
+  prioridade: 'prova',
+  metaTipo: 'NOVOS',
+  metaValor: 5,
+  dataAlvo,
+  ativo,
+  grafoIds: [],
+  baralhoIds: [],
+  provaIds: [],
+  conceitosExcluidos: [],
+});
 
 class FakeClock implements Clock {
   constructor(private readonly fixed: Date) {}
@@ -61,15 +94,18 @@ const NOW = new Date('2026-06-22T12:00:00.000Z');
 describe('SubmitReviewUseCase', () => {
   let flashcards: FakeFlashcardRepository;
   let sessions: FakeStudySessionRepository;
+  let plans: FakeStudyPlanRepository;
   let useCase: SubmitReviewUseCase;
 
   beforeEach(() => {
     flashcards = new FakeFlashcardRepository();
     flashcards.cards.set('fc-1', Flashcard.create({ id: 'fc-1', ownerId: 'u1' }));
     sessions = new FakeStudySessionRepository();
+    plans = new FakeStudyPlanRepository();
     useCase = new SubmitReviewUseCase(
       new FakeStudyUnitOfWork(flashcards, sessions),
       new FakeClock(NOW),
+      plans,
     );
   });
 
@@ -157,5 +193,67 @@ describe('SubmitReviewUseCase', () => {
     ).rejects.toBeInstanceOf(CardNotFoundError);
     expect(sessions.saved).toHaveLength(0);
     expect(flashcards.saved).toHaveLength(0);
+  });
+});
+
+// The wiring between the study plan and the scheduler is invisible from the
+// outside: without these, the deadline could stop being read and every SM-2 test
+// would still pass.
+describe('SubmitReviewUseCase with a study plan deadline', () => {
+  const dias = (n: number): Date => new Date(NOW.getTime() + n * 86_400_000);
+
+  let flashcards: FakeFlashcardRepository;
+  let plans: FakeStudyPlanRepository;
+  let useCase: SubmitReviewUseCase;
+
+  // A card already in REVIEW with a long interval — a new card would sit in
+  // LEARN, where the deadline deliberately changes nothing.
+  const matureCard = (): Flashcard =>
+    Flashcard.create({
+      id: 'fc-1',
+      ownerId: 'u1',
+      learningState: {
+        fase: 'REVIEW',
+        learningStep: 0,
+        intervalo: 60,
+        fatorEase: 2.5,
+        dificuldade: 3,
+        proximaRevisao: NOW,
+        ultimaRevisao: NOW,
+      },
+    });
+
+  beforeEach(() => {
+    flashcards = new FakeFlashcardRepository();
+    flashcards.cards.set('fc-1', matureCard());
+    plans = new FakeStudyPlanRepository();
+    useCase = new SubmitReviewUseCase(
+      new FakeStudyUnitOfWork(flashcards, new FakeStudySessionRepository()),
+      new FakeClock(NOW),
+      plans,
+    );
+  });
+
+  it('squeezes the next review to fit before the plan deadline', async () => {
+    plans.plans = [planWithDeadline(dias(30))];
+    const res = await useCase.execute({ userId: 'u1', flashcardId: 'fc-1', grade: 'good' });
+    expect(res.schedule?.intervalo).toBe(10);
+  });
+
+  it('leaves SM-2 alone when the plan has no deadline', async () => {
+    plans.plans = [planWithDeadline(null)];
+    const res = await useCase.execute({ userId: 'u1', flashcardId: 'fc-1', grade: 'good' });
+    expect(res.schedule?.intervalo).toBeGreaterThan(100);
+  });
+
+  it('leaves SM-2 alone when the user has no plan at all', async () => {
+    const res = await useCase.execute({ userId: 'u1', flashcardId: 'fc-1', grade: 'good' });
+    expect(res.schedule?.intervalo).toBeGreaterThan(100);
+  });
+
+  it('schedules against the closest deadline when there are several plans', async () => {
+    plans.plans = [planWithDeadline(dias(90)), { ...planWithDeadline(dias(15)), id: 'plan-2' }];
+    const res = await useCase.execute({ userId: 'u1', flashcardId: 'fc-1', grade: 'good' });
+    expect(res.schedule?.intervalo).toBe(5);
   });
 });

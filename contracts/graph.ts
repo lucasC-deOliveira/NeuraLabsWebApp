@@ -161,6 +161,10 @@ const nodeFields = {
   posicaoX: z.number().nullable().optional(),
   posicaoY: z.number().nullable().optional(),
   nivelDominio: z.number().optional(),
+  // Quanto o nó vale na prova deste grafo. Sem faixa fechada: é uma escala que o
+  // usuário define (hoje 0.8–1.6 na prática), e o roadmap normaliza pelo maior.
+  // `null` apaga o peso; ausente preserva o que já está gravado.
+  pesoEdital: z.number().nullable().optional(),
 };
 
 type NodePayload = { tipoNode: string; titulo?: string; subtipo?: string; tipoNota?: string; texto?: string };

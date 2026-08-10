@@ -105,7 +105,7 @@ entidade, as arestas e o SRS ficam). Reescrita para dizer o que o código faz.
 
 ---
 
-## 4. Fazer o SRS enxergar a `dataAlvo` que já existe
+## 4. SRS enxergando a `dataAlvo` — ✅ FEITO em 10/08/2026
 
 > Era o item 3, e é bem menor do que o levantamento dizia.
 
@@ -120,21 +120,48 @@ e `onTrack`, isto é, quantos cartões por dia para bater a meta. O **SRS não a
 segue indiferente à data da prova, e agenda para outubro um cartão que precisa ser
 revisto antes de 27/09.
 
-**Proposta.** Um modificador no cálculo de intervalo que comprima as revisões conforme
-a `dataAlvo` se aproxima, garantindo N revisões por cartão antes do limite. Não é
-preciso criar campo nenhum — só ligar o que já está no plano ao cálculo.
+**Como ficou.** `capIntervalToTarget` encolhe o intervalo para caberem
+`REVISOES_ANTES_DO_ALVO` (3) revisões antes do prazo. O SM-2 não foi tocado: o teto
+é aplicado depois, e só na fase REVIEW — LEARN e RELEARN contam em minutos e já
+caem muito antes de qualquer prazo.
+
+- Sem `dataAlvo`, ou depois que ela passa, o SM-2 volta a ser o de sempre: o modo
+  prazo não é uma penalidade permanente.
+- `nearestDeadline` escolhe QUAL prazo vale. O usuário pode ter vários planos e um
+  card pode estar em mais de um, então não existe "o plano dono do card" para
+  perguntar. Vence o prazo mais próximo ainda à frente: comprimir na direção da
+  prova mais perto só pode adiantar uma revisão, nunca empurrá-la para depois de
+  uma data que importa. Planos inativos e prazos vencidos são ignorados.
+- O `SubmitReviewUseCase` passou a ler os planos (fora da transação: é leitura de
+  configuração, não faz parte do fato "revisou o card").
 
 ---
 
-## 5. `vault:validate` antes do Push
+## 5. Validação antes do Push — ✅ FEITO em 10/08/2026
 
 **Problema.** Erro de formato no `.md` só aparece como rejeição no backend.
 
-**Proposta.** Um script que cheque: frontmatter parseável, pasta correta por tipo,
-ids duplicados, alvos `[[id]]` inexistentes, pares tipo→tipo não permitidos, peso
-fora de 0.1–2, `FLASHCARD` sem `## Pergunta`/`## Resposta`, `QUESTION` sem
-`## Enunciado`/`## Gabarito`, conceito órfão sem cartão, e linha `---` solta no
-corpo (que quebra o parse do frontmatter).
+**Como ficou.** `validateVault` (`src/lib/vault-validate.ts`) confere frontmatter
+ilegível, ids duplicados, pasta errada por tipo, alvo `[[id]]` inexistente, par
+tipo→tipo não permitido, peso fora de 0.1–2, `FLASHCARD` sem Pergunta/Resposta,
+`QUESTION` sem Enunciado/Gabarito e conceito que nenhum cartão ou questão testa.
+
+Duas decisões que valem registro:
+
+- **Reaproveita o parser de `vault-format`** em vez de reimplementar a leitura. Um
+  validador com parser próprio aprova o que o Push recusa.
+- **`erro` vs `aviso` distingue o que quebra do que some calado.** Erro = o Push
+  recusa ou grava coisa errada. Aviso = o Push passa mas descarta algo sem dizer
+  (aresta inválida, alvo inexistente, peso coagido) — que é justamente o que
+  ninguém percebe sem uma lista.
+
+Roda junto da comparação e aparece no modal de Vault. Com erro, o Push para no
+primeiro clique; o segundo envia assim mesmo — o vault é do usuário.
+
+**Não virou CLI.** A proposta pedia um `vault:validate` de linha de comando, mas
+não há runner de TypeScript instalado (`tsx`/`vite-node`), e as alternativas eram
+adicionar dependência ou duplicar o parser em `.mjs`. Rodar antes do Push dentro
+do app entrega o mesmo valor sem nenhuma das duas.
 
 **Correção do levantamento original.** Ele mandava "portar o `validate.mjs` que
 escrevi (~80 linhas)". Esse arquivo **não existe mais** — não sobrou em `Documents`
@@ -142,7 +169,7 @@ nem no repositório. É reescrever, não portar.
 
 ---
 
-## 6. Campo `pesoEdital` no nó
+## 6. Campo `pesoEdital` no nó — ✅ FEITO em 10/08/2026
 
 **Problema.** Não há como registrar quanto um tópico vale na prova. Hoje o `peso` da
 aresta `PERTENCE_A` é usado como gambiarra (1.6 crítico / 1.2 importante / 0.8
@@ -152,6 +179,27 @@ manutenção).
 retorno na prova. No edital da ABGF, Gestão de TI vale o mesmo que Engenharia de
 Software — o grafo não tem como saber disso.
 
-**Proposta.** Campo numérico opcional `pesoEdital` no frontmatter, consumido pelo
-roadmap. Confirmado em 10/08/2026 que não existe nenhuma ocorrência em `src`,
-`backend`, `contracts` ou no schema Prisma.
+**Como ficou.** Campo `pesoEdital` no frontmatter, ponta a ponta até o roadmap.
+
+**Fica em `grafo_nodes` (a contenção), não em `nodes_conhecimento`.** O peso é do
+edital, não do conceito: o mesmo tópico vale coisas diferentes em dois concursos, e
+o nó é compartilhado entre grafos desde a migração do nó do sistema. Migração
+aditiva e nullable (`20260810120000_add_peso_edital`).
+
+- `containNode` ganhou o parâmetro e é a única exceção à sua idempotência: com peso
+  informado ele **atualiza** a contenção, porque o peso é editado no arquivo e um
+  Push tem de conseguir mudá-lo. `undefined` (campo ausente) preserva o que existe;
+  `null` apaga.
+- No score (`roadmap-score.ts`), estar no edital continua sendo a **condição** e o
+  peso apenas **gradua**: fora do edital é 0 por mais pesado que seja. Normalizado
+  pelo maior peso presente, não por um teto fixo — a escala é do usuário.
+- **Sem pesos declarados, o ranking é bit a bit o de antes** (peso ausente = 1
+  neutro). Quem nunca preencher o campo não vê diferença nenhuma.
+- O peso entra no `motivo` ("cobrado pelo edital (peso 1.6)") para a ordem ficar
+  legível.
+- A leitura **global** de importância não carrega peso: somar pesos de concursos
+  diferentes numa escala só não quer dizer nada. Só a leitura por grafo carrega.
+
+**Não aplicada ao banco.** A migração está escrita e versionada, mas nunca rodou —
+não há Postgres acessível nesta máquina. Precisa de `npm run prisma:deploy` (ou
+`prisma:migrate`) antes de o campo existir de verdade.

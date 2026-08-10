@@ -32,10 +32,19 @@ const structuralFields = (n: VaultNode): { nome: string; descricao: string | nul
   descricao: n.descricao ?? null,
 });
 
-const linkData = (n: VaultNode): { posicaoX: number; posicaoY: number; nivelDominio: number } => ({
+interface LinkData {
+  posicaoX: number;
+  posicaoY: number;
+  nivelDominio: number;
+  // `null` apaga o peso; `undefined` (campo ausente no .md) preserva o que existe.
+  pesoEdital: number | null | undefined;
+}
+
+const linkData = (n: VaultNode): LinkData => ({
   posicaoX: n.posicaoX ?? 0,
   posicaoY: n.posicaoY ?? 0,
   nivelDominio: n.nivelDominio ?? 0,
+  pesoEdital: n.pesoEdital,
 });
 
 const TIPOS_QUESTAO: readonly string[] = ['VERDADEIRO_FALSO', 'MULTIPLA_ESCOLHA'];
@@ -155,7 +164,7 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
       where: { id: nodeId },
       data: { nivelDominio: dados.nivelDominio },
     });
-    await containNode(tx, grafoId, nodeId, dados.posicaoX, dados.posicaoY);
+    await containNode(tx, grafoId, nodeId, dados.posicaoX, dados.posicaoY, dados.pesoEdital);
   }
 
   private async createNodeLink(
@@ -173,6 +182,7 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
       posicaoX: dados.posicaoX,
       posicaoY: dados.posicaoY,
       nivelDominio: dados.nivelDominio,
+      pesoEdital: dados.pesoEdital,
     });
   }
 

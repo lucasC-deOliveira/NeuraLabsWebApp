@@ -1,0 +1,12 @@
+-- Peso de edital por nó. Antes disso não havia onde registrar quanto um tópico
+-- vale na prova, e o `peso` da aresta PERTENCE_A vinha sendo usado como gambiarra
+-- (1.6 crítico / 1.2 importante / 0.8 manutenção) — o que confundia "força da
+-- relação" com "retorno na prova".
+--
+-- Fica em grafo_nodes (a contenção), e não em nodes_conhecimento, porque o peso é
+-- do EDITAL e não do conceito: o mesmo tópico vale coisas diferentes em dois
+-- concursos, e o nó é compartilhado entre grafos desde a migração do nó do sistema.
+--
+-- Aditivo e nullable: nada a fazer nas linhas existentes. null = sem peso
+-- declarado, que o roadmap trata como 1 (neutro).
+ALTER TABLE "grafo_nodes" ADD COLUMN "peso_edital" DOUBLE PRECISION;

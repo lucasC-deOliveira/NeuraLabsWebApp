@@ -37,6 +37,7 @@ class FakeEdges implements GraphEdgesQuery {
 const row = (referenciaId: string): ExportNodeRow => ({
   tipoNode: 'CONCEITO',
   referenciaId,
+  pesoEdital: null,
   posicaoX: 1,
   posicaoY: 2,
   nivelDominio: 0,
@@ -61,7 +62,15 @@ describe('ExportGraphUseCase', () => {
     const useCase = new ExportGraphUseCase(repo, details, new FakeEdges([]));
     const res = await useCase.execute('u1', 'g1');
     expect(res.nodes).toEqual([
-      { ref: 'c1', tipo: 'CONCEITO', posicaoX: 1, posicaoY: 2, nivelDominio: 0, nome: 'Mitose' },
+      {
+        ref: 'c1',
+        tipo: 'CONCEITO',
+        posicaoX: 1,
+        posicaoY: 2,
+        nivelDominio: 0,
+        pesoEdital: null,
+        nome: 'Mitose',
+      },
     ]);
   });
 

@@ -25,13 +25,17 @@ export class PrismaGraphExportRepository implements GraphExportRepository {
         tipoNode: true,
         referenciaId: true,
         nivelDominio: true,
-        contidoEm: { where: { grafoId }, select: { posicaoX: true, posicaoY: true } },
+        contidoEm: {
+          where: { grafoId },
+          select: { posicaoX: true, posicaoY: true, pesoEdital: true },
+        },
       },
     });
     return nodes.map(({ contidoEm, ...n }) => ({
       ...n,
       posicaoX: contidoEm[0]?.posicaoX ?? null,
       posicaoY: contidoEm[0]?.posicaoY ?? null,
+      pesoEdital: contidoEm[0]?.pesoEdital ?? null,
     }));
   }
 }

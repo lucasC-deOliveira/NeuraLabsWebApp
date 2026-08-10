@@ -44,10 +44,12 @@ export class Flashcard {
 
   /**
    * Reviews the card with the given grade, rescheduling it via SM-2 (Anki-style).
+   * `dataAlvo` is the study plan's deadline: when present the interval is squeezed
+   * so reviews still fit before it. Omit it for plain SM-2.
    * @example flashcard.review(Grade.create('good'), new Date())
    */
-  review(grade: Grade, now: Date): void {
-    this.state = scheduleCard(grade.value, this.state, now);
+  review(grade: Grade, now: Date, dataAlvo: Date | null = null): void {
+    this.state = scheduleCard(grade.value, this.state, now, dataAlvo);
   }
 
   /**
@@ -55,9 +57,9 @@ export class Flashcard {
    * when the review predates the last recorded one. Returns whether it rescheduled.
    * @example flashcard.reviewAt(Grade.create('good'), reviewedAt)
    */
-  reviewAt(grade: Grade, reviewedAt: Date): boolean {
+  reviewAt(grade: Grade, reviewedAt: Date, dataAlvo: Date | null = null): boolean {
     if (this.state && reviewedAt < this.state.ultimaRevisao) return false;
-    this.state = scheduleCard(grade.value, this.state, reviewedAt);
+    this.state = scheduleCard(grade.value, this.state, reviewedAt, dataAlvo);
     return true;
   }
 }

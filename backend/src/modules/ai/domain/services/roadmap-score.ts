@@ -15,6 +15,9 @@ export interface ConceitoSignal {
   nome: string;
   provaFreq: number; // number of TESTA edges (past questions) pointing at the concept
   covered: boolean; // covered by some edital (COBRE edge)
+  // How much the concept is worth in THIS exam, as declared on the node. null when
+  // undeclared, which scores the same as the old boolean coverage did.
+  pesoEdital?: number | null;
 }
 
 export interface ScoredConceito {
@@ -25,35 +28,62 @@ export interface ScoredConceito {
   motivo: string;
 }
 
+// Peso de um conceito não declarado. 1 = neutro, o que reproduz exatamente a
+// cobertura booleana de antes — sem pesos no grafo, o ranking não muda.
+const PESO_NEUTRO = 1;
+
+const pesoDe = (s: ConceitoSignal): number =>
+  typeof s.pesoEdital === 'number' && s.pesoEdital > 0 ? s.pesoEdital : PESO_NEUTRO;
+
 /** @example scoreConceitos(signals, 'prova_edital') */
 export function scoreConceitos(
   signals: ConceitoSignal[],
   mode: Exclude<RoadmapMode, 'ai'>,
 ): ScoredConceito[] {
   const maxProva = Math.max(1, ...signals.map((s) => s.provaFreq));
+  // Normalizado pelo maior peso presente, e não por um teto fixo: a escala é do
+  // usuário (hoje 0.8–1.6), e um teto arbitrário achataria tudo.
+  const maxPeso = Math.max(PESO_NEUTRO, ...signals.filter((s) => s.covered).map(pesoDe));
   return signals.map((s) => ({
     refId: s.refId,
     nome: s.nome,
     provaFreq: s.provaFreq,
-    score: scoreOne(s, mode, maxProva),
+    score: scoreOne(s, mode, maxProva, maxPeso),
     motivo: motivoFor(s, mode),
   }));
 }
 
-function scoreOne(s: ConceitoSignal, mode: Exclude<RoadmapMode, 'ai'>, maxProva: number): number {
+function scoreOne(
+  s: ConceitoSignal,
+  mode: Exclude<RoadmapMode, 'ai'>,
+  maxProva: number,
+  maxPeso: number,
+): number {
   const prova = s.provaFreq / maxProva;
-  const edital = s.covered ? 1 : 0;
+  // Estar no edital continua sendo a condição; o peso apenas gradua o quanto
+  // vale. Fora do edital é 0 com ou sem peso declarado.
+  const edital = s.covered ? pesoDe(s) / maxPeso : 0;
   if (mode === 'prova') return round2(prova);
-  if (mode === 'edital') return edital;
+  if (mode === 'edital') return round2(edital);
   return round2(0.5 * prova + 0.5 * edital);
 }
 
 function motivoFor(s: ConceitoSignal, mode: Exclude<RoadmapMode, 'ai'>): string {
   const prova = s.provaFreq > 0 ? `caiu em ${s.provaFreq} questão(ões)` : 'ainda não caiu em prova';
-  const edital = s.covered ? 'cobrado pelo edital' : 'fora do edital';
+  const edital = editalMotivo(s);
   if (mode === 'prova') return capitalize(prova);
   if (mode === 'edital') return capitalize(edital);
   return `${capitalize(prova)} · ${edital}`;
+}
+
+// O peso entra no texto para o usuário entender por que dois tópicos igualmente
+// cobrados pelo edital aparecem em posições diferentes.
+function editalMotivo(s: ConceitoSignal): string {
+  if (!s.covered) return 'fora do edital';
+  const peso = s.pesoEdital;
+  return typeof peso === 'number' && peso > 0
+    ? `cobrado pelo edital (peso ${peso})`
+    : 'cobrado pelo edital';
 }
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;

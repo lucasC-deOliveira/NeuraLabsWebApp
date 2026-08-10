@@ -7,6 +7,8 @@ import type { ImportanceRow } from '../../domain/services/conceito-importance';
 interface ConceitoNode {
   id: string;
   referenciaId: string;
+  // Só existe quando a leitura é de um grafo: o peso é da contenção, não do nó.
+  pesoEdital?: number | null;
 }
 
 // Loads, per CONCEITO node of a graph, its parent topic (by referenciaId) and how
@@ -39,18 +41,31 @@ export class PrismaConceitoImportanceRepository implements ConceitoImportanceSou
       nome: nome.get(n.referenciaId) ?? n.referenciaId,
       topicoId: parentTopico.get(n.id) ?? null,
       provaFreq: provaFreq.get(n.id) ?? 0,
+      pesoEdital: n.pesoEdital ?? null,
     }));
   }
 
-  private conceitoNodes(userId: string, grafoId?: string): Promise<ConceitoNode[]> {
-    return this.prisma.nodeConhecimento.findMany({
+  // O peso de edital vem junto quando há grafo. Na leitura global não vem: o peso
+  // é de um edital específico, e somar pesos de concursos diferentes numa escala
+  // só não quer dizer nada.
+  private async conceitoNodes(userId: string, grafoId?: string): Promise<ConceitoNode[]> {
+    const nodes = await this.prisma.nodeConhecimento.findMany({
       where: {
         usuarioId: userId,
         tipoNode: TipoNode.CONCEITO,
         ...(grafoId ? { contidoEm: { some: { grafoId } } } : {}),
       },
-      select: { id: true, referenciaId: true },
+      select: {
+        id: true,
+        referenciaId: true,
+        ...(grafoId ? { contidoEm: { where: { grafoId }, select: { pesoEdital: true } } } : {}),
+      },
     });
+    return nodes.map((n) => ({
+      id: n.id,
+      referenciaId: n.referenciaId,
+      pesoEdital: 'contidoEm' in n ? (n.contidoEm[0]?.pesoEdital ?? null) : null,
+    }));
   }
 
   // QUESTION node ids of the given exam's questions, to scope the TESTA counts.

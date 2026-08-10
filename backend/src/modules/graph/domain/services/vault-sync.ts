@@ -27,6 +27,7 @@ export interface VaultNode {
   posicaoX?: number | null;
   posicaoY?: number | null;
   nivelDominio?: number;
+  pesoEdital?: number | null;
 }
 export interface VaultEdge {
   origem: string;

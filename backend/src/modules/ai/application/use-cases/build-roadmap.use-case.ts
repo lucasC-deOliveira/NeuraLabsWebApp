@@ -101,6 +101,7 @@ function toSignals(rows: ImportanceRow[], covered: Set<string>): ConceitoSignal[
     nome: r.nome,
     provaFreq: r.provaFreq,
     covered: covered.has(r.conceitoId),
+    pesoEdital: r.pesoEdital ?? null,
   }));
 }
 

@@ -10,6 +10,7 @@ export interface ExportNodeRow {
   posicaoX: number | null;
   posicaoY: number | null;
   nivelDominio: number;
+  pesoEdital: number | null;
 }
 
 // Export contract (mirrors the vault import format): ref = referenciaId.

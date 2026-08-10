@@ -441,3 +441,24 @@ describe("serializeNode/parseNode: PROVA", () => {
     expect(nodeRelPath(prova)).toBe("Projects/trt-24-2017--p-1.md");
   });
 });
+
+// ── pesoEdital ────────────────────────────────────────────────────────────────
+
+describe("serializeNode/parseNode: pesoEdital", () => {
+  it("ida e volta preserva o peso declarado", () => {
+    const n = make({ pesoEdital: 1.6 });
+    expect(parseNode(serializeNode(n))!.pesoEdital).toBe(1.6);
+  });
+
+  // Escrever 1 em todo arquivo seria ruído: ausente já significa neutro.
+  it("não escreve a chave quando não há peso", () => {
+    const md = serializeNode(make({ pesoEdital: null }));
+    expect(md).not.toContain("pesoEdital");
+    expect(parseNode(md)!.pesoEdital).toBeNull();
+  });
+
+  it("um pesoEdital não numérico vira null em vez de sujar o payload", () => {
+    const raw = `---\nid: n1\ntipo: CONCEITO\ngrafo: g1\ntitulo: T\npesoEdital: "muito"\n---\n\nx\n`;
+    expect(parseNode(raw)!.pesoEdital).toBeNull();
+  });
+});
