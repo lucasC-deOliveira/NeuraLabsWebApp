@@ -1,6 +1,10 @@
+import type { Flashcard } from '../../domain/entities/flashcard';
+import type { StudySession } from '../../domain/entities/study-session';
 import { CardNotFoundError, NoActiveSessionError } from '../../domain/errors';
 import type { Clock } from '../../domain/ports/clock';
+import type { StudyPlanRepository } from '../../domain/ports/study-plan-repository';
 import type { StudyRepositories, StudyUnitOfWork } from '../../domain/ports/study-unit-of-work';
+import { nearestDeadline } from '../../domain/services/plan-deadline';
 import type { ScheduleState } from '../../domain/services/spaced-repetition';
 import { Grade } from '../../domain/value-objects/grade';
 
@@ -56,24 +60,29 @@ export class SubmitReviewUseCase {
   constructor(
     private readonly uow: StudyUnitOfWork,
     private readonly clock: Clock,
+    private readonly plans: StudyPlanRepository,
   ) {}
 
   async execute(cmd: SubmitReviewCommand): Promise<SubmitReviewResult> {
     const grade = this.resolveGrade(cmd);
-    const state = await this.uow.execute((repos) => this.review(repos, cmd, grade));
+    const dataAlvo = await this.deadlineFor(cmd.userId);
+    const state = await this.uow.execute((repos) => this.review(repos, cmd, grade, dataAlvo));
     return { success: true, schedule: toReviewSchedule(state) };
+  }
+
+  // Lido fora da transação de propósito: é uma leitura de configuração, não faz
+  // parte do fato "revisou o card", e não deve segurar a transação de escrita.
+  private async deadlineFor(userId: string): Promise<Date | null> {
+    return nearestDeadline(await this.plans.listByUser(userId), this.clock.now());
   }
 
   private async review(
     repos: StudyRepositories,
     cmd: SubmitReviewCommand,
     grade: Grade,
+    dataAlvo: Date | null,
   ): Promise<ScheduleState | null> {
-    const session = await repos.sessions.findActive(cmd.userId, cmd.sessaoId);
-    if (!session) throw new NoActiveSessionError(cmd.userId);
-
-    const flashcard = await repos.flashcards.findOwnedBy(cmd.flashcardId, cmd.userId);
-    if (!flashcard) throw new CardNotFoundError(cmd.flashcardId);
+    const { session, flashcard } = await this.loadAggregates(repos, cmd);
 
     session.recordReview({
       flashcardId: flashcard.id,
@@ -81,11 +90,26 @@ export class SubmitReviewUseCase {
       answer: cmd.respostaUsuario,
       responseTimeMs: cmd.tempoResposta,
     });
-    flashcard.review(grade, this.clock.now());
+    flashcard.review(grade, this.clock.now(), dataAlvo);
 
     await repos.sessions.save(session);
     await repos.flashcards.save(flashcard);
     return flashcard.learningState;
+  }
+
+  // Both aggregates are loaded (and rejected) together so `review` stays about
+  // the review itself.
+  private async loadAggregates(
+    repos: StudyRepositories,
+    cmd: SubmitReviewCommand,
+  ): Promise<{ session: StudySession; flashcard: Flashcard }> {
+    const session = await repos.sessions.findActive(cmd.userId, cmd.sessaoId);
+    if (!session) throw new NoActiveSessionError(cmd.userId);
+
+    const flashcard = await repos.flashcards.findOwnedBy(cmd.flashcardId, cmd.userId);
+    if (!flashcard) throw new CardNotFoundError(cmd.flashcardId);
+
+    return { session, flashcard };
   }
 
   private resolveGrade(cmd: SubmitReviewCommand): Grade {

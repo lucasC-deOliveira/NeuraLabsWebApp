@@ -84,15 +84,50 @@ function reviewState(
   };
 }
 
+// Quantas vezes um card ainda deve ser visto antes da data-alvo. Três é o menor
+// número que ainda forma uma curva de esquecimento útil; acima disso o estudo
+// vira revisão de coisa já sabida e rouba tempo do conteúdo novo.
+export const REVISOES_ANTES_DO_ALVO = 3;
+
+/**
+ * Encolhe um intervalo para que ainda caibam REVISOES_ANTES_DO_ALVO revisões
+ * antes da data-alvo. Sem data, ou depois que ela passa, devolve o intervalo do
+ * SM-2 intacto — o modo prazo não é uma penalidade permanente.
+ * @example capIntervalToTarget(30, hoje, daqui12Dias) // 4
+ */
+export function capIntervalToTarget(intervalo: number, now: Date, dataAlvo: Date | null): number {
+  if (!dataAlvo) return intervalo;
+  const dias = Math.ceil((dataAlvo.getTime() - now.getTime()) / 86_400_000);
+  if (dias <= 0) return intervalo;
+  return Math.min(intervalo, Math.max(1, Math.floor(dias / REVISOES_ANTES_DO_ALVO)));
+}
+
+// O teto vale só para REVIEW: LEARN e RELEARN contam em minutos e já caem muito
+// antes de qualquer prazo — comprimi-los não compraria revisão nenhuma.
+function capToTarget(s: ScheduleState, now: Date, dataAlvo: Date | null): ScheduleState {
+  if (s.fase !== 'REVIEW') return s;
+  const intervalo = capIntervalToTarget(s.intervalo, now, dataAlvo);
+  if (intervalo === s.intervalo) return s;
+  return { ...s, intervalo, proximaRevisao: daysLater(now, intervalo) };
+}
+
 /**
  * Agenda a próxima revisão de um flashcard segundo o SM-2 (estilo Anki).
+ *
+ * `dataAlvo` é o prazo do plano de estudo: com ele, o intervalo é comprimido para
+ * garantir revisões antes da prova. Sem ele (o padrão), o SM-2 é o de sempre.
  * @example scheduleCard('good', null, new Date()) // carta nova → LEARN passo 1
  */
 export function scheduleCard(
   grade: ReviewGrade,
   state: ScheduleState | null,
   now: Date,
+  dataAlvo: Date | null = null,
 ): ScheduleState {
+  return capToTarget(scheduleBySM2(grade, state, now), now, dataAlvo);
+}
+
+function scheduleBySM2(grade: ReviewGrade, state: ScheduleState | null, now: Date): ScheduleState {
   if (!state || state.fase === 'LEARN') return scheduleLearning(grade, state, now);
   if (state.fase === 'RELEARN') return scheduleRelearn(grade, state, now);
   return scheduleReview(grade, state, now);

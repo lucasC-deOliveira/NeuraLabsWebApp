@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   baralhoFlashcardPairs,
   clampPeso,
+  planProvaQuestoes,
   planVaultEdges,
+  provaQuestaoPairs,
   refsToRemove,
   type GraphNodeRef,
   type VaultEdge,
@@ -70,5 +72,68 @@ describe('baralhoFlashcardPairs', () => {
       { origem: 'deck', destino: 'fc2', relacao: 'CONTEM' },
     ];
     expect(baralhoFlashcardPairs(edges, map)).toEqual([{ baralhoRef: 'deck', fcRefs: ['fc'] }]);
+  });
+});
+
+describe('provaQuestaoPairs', () => {
+  const map = byRef(
+    ref('np', 'prova', 'PROVA'),
+    ref('nq', 'q1', 'QUESTION'),
+    ref('nq2', 'q2', 'QUESTION'),
+    ref('nb', 'deck', 'BARALHO'),
+    ref('nf', 'fc', 'FLASHCARD'),
+  );
+
+  it('groups CONTEM edges from an exam to its questions', () => {
+    const edges: VaultEdge[] = [
+      { origem: 'prova', destino: 'q1', relacao: 'CONTEM' },
+      { origem: 'prova', destino: 'q2', relacao: 'CONTEM' },
+    ];
+    expect(provaQuestaoPairs(edges, map)).toEqual([
+      { provaRef: 'prova', questaoRefs: ['q1', 'q2'] },
+    ]);
+  });
+
+  it('ignores deck containment, so the two pairings never cross', () => {
+    const edges: VaultEdge[] = [{ origem: 'deck', destino: 'fc', relacao: 'CONTEM' }];
+    expect(provaQuestaoPairs(edges, map)).toEqual([]);
+    expect(baralhoFlashcardPairs(edges, map)).toEqual([{ baralhoRef: 'deck', fcRefs: ['fc'] }]);
+  });
+});
+
+describe('planProvaQuestoes', () => {
+  it('keeps the position a question already had in the exam', () => {
+    const current = [
+      { questaoId: 'q1', ordem: 0 },
+      { questaoId: 'q2', ordem: 1 },
+    ];
+    expect(planProvaQuestoes(['q2', 'q1'], current)).toEqual([
+      { questaoId: 'q2', ordem: 1 },
+      { questaoId: 'q1', ordem: 0 },
+    ]);
+  });
+
+  it('appends new questions after the highest existing position', () => {
+    const current = [{ questaoId: 'q1', ordem: 7 }];
+    expect(planProvaQuestoes(['q1', 'nova', 'outra'], current)).toEqual([
+      { questaoId: 'q1', ordem: 7 },
+      { questaoId: 'nova', ordem: 8 },
+      { questaoId: 'outra', ordem: 9 },
+    ]);
+  });
+
+  it('numbers from zero when the exam is empty', () => {
+    expect(planProvaQuestoes(['a', 'b'], [])).toEqual([
+      { questaoId: 'a', ordem: 0 },
+      { questaoId: 'b', ordem: 1 },
+    ]);
+  });
+
+  it('drops a question whose file no longer lists it', () => {
+    const current = [
+      { questaoId: 'q1', ordem: 0 },
+      { questaoId: 'q2', ordem: 1 },
+    ];
+    expect(planProvaQuestoes(['q1'], current)).toEqual([{ questaoId: 'q1', ordem: 0 }]);
   });
 });

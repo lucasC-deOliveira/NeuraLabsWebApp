@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { scheduleCard, dbToState, gradeFromLegacy, type ScheduleState } from './spaced-repetition';
+import {
+  scheduleCard,
+  capIntervalToTarget,
+  dbToState,
+  gradeFromLegacy,
+  type ScheduleState,
+} from './spaced-repetition';
 
 // CHARACTERIZATION tests: capture the current SM-2 behavior before the hexagonal
 // refactor. They must not change behavior — only pin it down.
@@ -317,5 +323,70 @@ describe('fuzz (via scheduleCard) — applies spread when interval >= 3 days', (
     };
     const s = scheduleCard('good', review, NOW);
     expect(s.intervalo).toBe(26);
+  });
+});
+
+describe('capIntervalToTarget', () => {
+  const NOW = new Date('2026-08-10T12:00:00.000Z');
+  const dias = (n: number): Date => new Date(NOW.getTime() + n * 86_400_000);
+
+  it('leaves the interval alone when there is no deadline', () => {
+    expect(capIntervalToTarget(30, NOW, null)).toBe(30);
+  });
+
+  it('squeezes a long interval so REVISOES_ANTES_DO_ALVO still fit', () => {
+    // 48 dias / 3 revisões = teto de 16
+    expect(capIntervalToTarget(30, NOW, dias(48))).toBe(16);
+  });
+
+  it('never stretches an interval that already fits', () => {
+    expect(capIntervalToTarget(2, NOW, dias(90))).toBe(2);
+  });
+
+  it('floors at one day instead of scheduling in the past', () => {
+    expect(capIntervalToTarget(10, NOW, dias(1))).toBe(1);
+  });
+
+  // O modo prazo não é penalidade permanente: passada a prova, volta o SM-2.
+  it('stops squeezing once the deadline has passed', () => {
+    expect(capIntervalToTarget(30, NOW, dias(-1))).toBe(30);
+  });
+});
+
+describe('scheduleCard with a deadline', () => {
+  const NOW = new Date('2026-08-10T12:00:00.000Z');
+  const dias = (n: number): Date => new Date(NOW.getTime() + n * 86_400_000);
+
+  const maduro: ScheduleState = {
+    fase: 'REVIEW',
+    learningStep: 0,
+    intervalo: 60,
+    fatorEase: 2.5,
+    dificuldade: 3,
+    proximaRevisao: NOW,
+    ultimaRevisao: NOW,
+  };
+
+  it('pulls a review back so it lands before the exam', () => {
+    const semPrazo = scheduleCard('good', maduro, NOW);
+    const comPrazo = scheduleCard('good', maduro, NOW, dias(30));
+
+    expect(semPrazo.intervalo).toBeGreaterThan(100);
+    expect(comPrazo.intervalo).toBe(10);
+    expect(comPrazo.proximaRevisao.getTime()).toBeLessThan(dias(30).getTime());
+  });
+
+  // LEARN e RELEARN contam em minutos: comprimi-los não compra revisão nenhuma.
+  it('does not touch a card still in LEARN', () => {
+    const semPrazo = scheduleCard('again', null, NOW);
+    const comPrazo = scheduleCard('again', null, NOW, dias(2));
+    expect(comPrazo).toEqual(semPrazo);
+  });
+
+  it('keeps plain SM-2 when no deadline is given', () => {
+    const state: ScheduleState = { ...maduro, intervalo: 4 };
+    expect(scheduleCard('good', state, NOW).intervalo).toBe(
+      scheduleCard('good', state, NOW, null).intervalo,
+    );
   });
 });

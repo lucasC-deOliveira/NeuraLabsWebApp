@@ -43,6 +43,7 @@ export class ExportGraphUseCase {
         posicaoX: r.posicaoX,
         posicaoY: r.posicaoY,
         nivelDominio: r.nivelDominio,
+        pesoEdital: r.pesoEdital,
         ...content,
       });
     }

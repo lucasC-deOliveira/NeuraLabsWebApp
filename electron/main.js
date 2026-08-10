@@ -497,6 +497,36 @@ ipcMain.handle("vault:write-file", async (_e, { dir, relPath, content }) => {
   return { ok: true };
 });
 
+// apaga .md dentro do vault. Usado só pela limpeza de órfãos, e por isso é
+// deliberadamente estreito: recusa qualquer caminho que escape da pasta e
+// qualquer arquivo que não termine em .md, para que um relPath vindo do
+// renderer nunca alcance outra coisa do disco. Devolve o que apagou e o que
+// recusou — a UI mostra os dois.
+ipcMain.handle("vault:delete-files", async (_e, { dir, relPaths }) => {
+  if (!dir || !Array.isArray(relPaths)) throw new Error("Argumentos inválidos");
+  const root = path.resolve(dir);
+  const deleted = [];
+  const skipped = [];
+  for (const relPath of relPaths) {
+    if (typeof relPath !== "string" || !relPath.toLowerCase().endsWith(".md")) {
+      skipped.push(String(relPath));
+      continue;
+    }
+    const full = path.resolve(root, relPath);
+    if (!full.startsWith(root + path.sep)) {
+      skipped.push(relPath);
+      continue;
+    }
+    try {
+      fs.unlinkSync(full);
+      deleted.push(relPath);
+    } catch {
+      skipped.push(relPath);
+    }
+  }
+  return { deleted, skipped };
+});
+
 // lê todos os .md sob as pastas PARA, retornando {relPath, content}.
 ipcMain.handle("vault:read", async (_e, dir) => {
   if (!dir) throw new Error("Pasta não informada");

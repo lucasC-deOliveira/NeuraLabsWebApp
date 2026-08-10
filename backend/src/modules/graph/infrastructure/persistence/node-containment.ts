@@ -21,6 +21,7 @@ export interface ContainedNodeInput {
   posicaoX?: number | null;
   posicaoY?: number | null;
   nivelDominio?: number;
+  pesoEdital?: number | null;
 }
 
 /**
@@ -43,14 +44,18 @@ export async function createContainedNode(db: Db, input: ContainedNodeInput): Pr
     update: {},
     select: { id: true },
   });
-  await containNode(db, input.grafoId, node.id, input.posicaoX, input.posicaoY);
+  await containNode(db, input.grafoId, node.id, input.posicaoX, input.posicaoY, input.pesoEdital);
   return node.id;
 }
 
 /**
  * Faz o grafo conter um nó que já existe. Idempotente: conter duas vezes não é
  * erro, é o mesmo fato dito de novo.
- * @example containNode(tx, grafoId, nodeId, 100, 200)
+ *
+ * `pesoEdital` é a exceção à idempotência: quando vem informado, ele ATUALIZA a
+ * contenção existente. O peso é editado no arquivo do vault, e um Push tem de
+ * conseguir mudá-lo; `undefined` (não informado) preserva o que já está lá.
+ * @example containNode(tx, grafoId, nodeId, 100, 200, 1.6)
  */
 export async function containNode(
   db: Db,
@@ -58,11 +63,12 @@ export async function containNode(
   nodeId: string,
   posicaoX?: number | null,
   posicaoY?: number | null,
+  pesoEdital?: number | null,
 ): Promise<void> {
   await db.grafoNode.upsert({
     where: { grafoId_nodeId: { grafoId, nodeId } },
-    create: { grafoId, nodeId, posicaoX: posicaoX ?? 0, posicaoY: posicaoY ?? 0 },
-    update: {},
+    create: { grafoId, nodeId, posicaoX: posicaoX ?? 0, posicaoY: posicaoY ?? 0, pesoEdital },
+    update: pesoEdital === undefined ? {} : { pesoEdital },
   });
 }
 

@@ -51,11 +51,19 @@ export class PrismaNodeDetailsQuery implements NodeDetailsQuery {
       const b = await this.prisma.baralho.findFirst({ where: { id, usuarioId } });
       return b ? { titulo: b.titulo } : null;
     },
+    // `tipoQuestao`, not `tipo`: the export spreads this projection over the node
+    // (export-graph.use-case), so a `tipo` key here overwrote the NODE's type —
+    // a question left the Pull as `tipo: MULTIPLA_ESCOLHA` instead of `QUESTION`.
     QUESTION: async (usuarioId, id) => {
       const q = await this.prisma.questao.findFirst({ where: { id, usuarioId } });
-      return q
-        ? { enunciado: q.enunciado, tipo: q.tipo, gabarito: q.gabarito, explicacao: q.explicacao }
-        : null;
+      if (!q) return null;
+      return {
+        enunciado: q.enunciado,
+        alternativas: q.alternativas ?? [],
+        tipoQuestao: q.tipo,
+        gabarito: q.gabarito,
+        explicacao: q.explicacao,
+      };
     },
     PROVA: async (usuarioId, id) => {
       const p = await this.prisma.prova.findFirst({

@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { type Prisma, type SubtipoNota, type TipoNode, type TipoRelacao } from '@prisma/client';
+import {
+  type Prisma,
+  type SubtipoNota,
+  type TipoNode,
+  type TipoQuestao,
+  type TipoRelacao,
+} from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import type {
   VaultPayload,
@@ -8,7 +14,9 @@ import type {
 } from '../../domain/ports/vault-sync-repository';
 import {
   baralhoFlashcardPairs,
+  planProvaQuestoes,
   planVaultEdges,
+  provaQuestaoPairs,
   refsToRemove,
   type GraphNodeRef,
   type PlannedEdge,
@@ -24,10 +32,34 @@ const structuralFields = (n: VaultNode): { nome: string; descricao: string | nul
   descricao: n.descricao ?? null,
 });
 
-const linkData = (n: VaultNode): { posicaoX: number; posicaoY: number; nivelDominio: number } => ({
+interface LinkData {
+  posicaoX: number;
+  posicaoY: number;
+  nivelDominio: number;
+  // `null` apaga o peso; `undefined` (campo ausente no .md) preserva o que existe.
+  pesoEdital: number | null | undefined;
+}
+
+const linkData = (n: VaultNode): LinkData => ({
   posicaoX: n.posicaoX ?? 0,
   posicaoY: n.posicaoY ?? 0,
   nivelDominio: n.nivelDominio ?? 0,
+  pesoEdital: n.pesoEdital,
+});
+
+const TIPOS_QUESTAO: readonly string[] = ['VERDADEIRO_FALSO', 'MULTIPLA_ESCOLHA'];
+
+// The column has no default and the .md is hand-edited, so an unknown (or absent)
+// value is coerced to the common case instead of failing the whole Push.
+const questaoTipo = (tipo?: string): TipoQuestao =>
+  tipo && TIPOS_QUESTAO.includes(tipo) ? (tipo as TipoQuestao) : 'MULTIPLA_ESCOLHA';
+
+const questaoFields = (n: VaultNode): Prisma.QuestaoUncheckedUpdateInput => ({
+  enunciado: (n.enunciado ?? '').trim(),
+  alternativas: (n.alternativas ?? []) as unknown as Prisma.InputJsonValue,
+  gabarito: (n.gabarito ?? '').trim(),
+  explicacao: n.explicacao ?? null,
+  tipo: questaoTipo(n.tipoQuestao),
 });
 
 @Injectable()
@@ -55,6 +87,7 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
       const byRef = await this.loadByRef(tx, userId, grafoId);
       const edgeCount = await this.replaceEdges(tx, grafoId, edges, byRef);
       await this.syncDecks(tx, edges, byRef);
+      await this.syncProvas(tx, edges, byRef);
       return { created, updated, edges: edgeCount, removed };
     });
   }
@@ -131,7 +164,7 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
       where: { id: nodeId },
       data: { nivelDominio: dados.nivelDominio },
     });
-    await containNode(tx, grafoId, nodeId, dados.posicaoX, dados.posicaoY);
+    await containNode(tx, grafoId, nodeId, dados.posicaoX, dados.posicaoY, dados.pesoEdital);
   }
 
   private async createNodeLink(
@@ -149,6 +182,7 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
       posicaoX: dados.posicaoX,
       posicaoY: dados.posicaoY,
       nivelDominio: dados.nivelDominio,
+      pesoEdital: dados.pesoEdital,
     });
   }
 
@@ -215,6 +249,30 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     }
   }
 
+  /**
+   * Mirrors syncDecks for exams. provas_questoes is an explicit join table with
+   * an `ordem` the vault does not carry, so the rows are rebuilt from the CONTEM
+   * edges while planProvaQuestoes preserves the order of the questions that were
+   * already there.
+   */
+  private async syncProvas(
+    tx: Tx,
+    edges: VaultPayload['edges'],
+    byRef: Map<string, GraphNodeRef>,
+  ): Promise<void> {
+    for (const { provaRef, questaoRefs } of provaQuestaoPairs(edges, byRef)) {
+      const atuais = await tx.provaQuestao.findMany({
+        where: { provaId: provaRef },
+        select: { questaoId: true, ordem: true },
+      });
+      await tx.provaQuestao.deleteMany({ where: { provaId: provaRef } });
+      const linhas = planProvaQuestoes(questaoRefs, atuais);
+      await tx.provaQuestao.createMany({
+        data: linhas.map((l) => ({ provaId: provaRef, ...l })),
+      });
+    }
+  }
+
   private upsertEntity(tx: Tx, userId: string, n: VaultNode, now: Date): Promise<void> {
     const upsert = this.entityUpserters[n.tipo];
     return upsert ? upsert(tx, userId, n, now) : Promise.resolve();
@@ -267,6 +325,32 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
         where: { id: n.ref },
         create: { id: n.ref, titulo, usuarioId: userId, dataCriacao: now },
         update: { titulo },
+      });
+    },
+    // Upserting by id (= the vault ref) keeps the attempts and answers already
+    // recorded against the question, the way the flashcard one keeps the SRS.
+    QUESTION: async (tx, userId, n, now) => {
+      const data = questaoFields(n);
+      await tx.questao.upsert({
+        where: { id: n.ref },
+        create: {
+          id: n.ref,
+          ...(data as Prisma.QuestaoUncheckedCreateInput),
+          usuarioId: userId,
+          dataCriacao: now,
+        },
+        update: data,
+      });
+    },
+    PROVA: async (tx, userId, n, now) => {
+      const data = {
+        titulo: (n.titulo ?? n.nome ?? '').trim() || 'Prova',
+        descricao: n.descricao ?? null,
+      };
+      await tx.prova.upsert({
+        where: { id: n.ref },
+        create: { id: n.ref, ...data, usuarioId: userId, dataCriacao: now },
+        update: data,
       });
     },
   };

@@ -56,3 +56,20 @@ describe('getInsightTargets', () => {
     expect(getInsightTargets('TEXTO_BRUTO')).toEqual([]);
   });
 });
+
+describe('question relations', () => {
+  it('lets an exam contain questions and a question test a concept', () => {
+    expect(isRelationAllowed('PROVA', 'QUESTION', 'CONTEM')).toBe(true);
+    expect(isRelationAllowed('QUESTION', 'CONCEITO', 'TESTA')).toBe(true);
+    expect(isRelationAllowed('QUESTION', 'CONCEITO', 'HERDA')).toBe(true);
+  });
+
+  it('lets a question hang off a topic when no atomic concept fits', () => {
+    expect(isRelationAllowed('QUESTION', 'TOPICO', 'PERTENCE_A')).toBe(true);
+  });
+
+  it('still rejects a relation that is not on the pair', () => {
+    expect(isRelationAllowed('PROVA', 'QUESTION', 'TESTA')).toBe(false);
+    expect(isRelationAllowed('QUESTION', 'TOPICO', 'CONTEM')).toBe(false);
+  });
+});

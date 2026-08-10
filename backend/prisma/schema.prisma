@@ -509,6 +509,11 @@ model GrafoNode {
   posicaoX Float? @default(0.0) @map("posicao_x")
   posicaoY Float? @default(0.0) @map("posicao_y")
 
+  // Quanto o nó vale NA PROVA deste grafo. Fica na contenção, e não no nó, porque
+  // é do edital, não do conceito: o mesmo tópico pesa diferente em dois concursos.
+  // null = sem peso declarado (o roadmap trata como 1, o neutro).
+  pesoEdital Float? @map("peso_edital")
+
   dataCriacao DateTime @default(now()) @map("data_criacao")
 
   grafo GrafosConhecimento @relation(fields: [grafoId], references: [id], onDelete: Cascade)

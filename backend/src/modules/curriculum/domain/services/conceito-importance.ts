@@ -13,6 +13,8 @@ export interface ImportanceRow {
   nome: string;
   topicoId: string | null;
   provaFreq: number; // number of TESTA edges pointing at the concept
+  // Peso de edital declarado na contencao do grafo. null = nao declarado.
+  pesoEdital?: number | null;
 }
 
 export interface RankedConceito {

@@ -68,6 +68,10 @@ export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }
     b: 'CONCEITO',
     relations: [
       'HERDA',
+      // TESTA is what an exam question does to a concept: the relation that lets
+      // the roadmap read "what has already been asked" about a concept.
+      // FLASHCARD→NOTA uses the same verb with the same meaning.
+      'TESTA',
       'DEFINE',
       'EXPLICA',
       'APROFUNDA',
@@ -77,6 +81,9 @@ export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }
       'ALERTA_ERRO',
     ],
   },
+  // A question can hang straight off a topic when no atomic concept covers what
+  // it asks — the case of the broader exam questions.
+  { a: 'QUESTION', b: 'TOPICO', relations: ['PERTENCE_A'] },
 ];
 
 const RELATION_RULES: Record<string, string[]> = Object.fromEntries(

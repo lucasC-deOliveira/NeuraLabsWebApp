@@ -4,6 +4,7 @@ import { PrismaService } from '../../../../prisma/prisma.service';
 import { PrismaStudyUnitOfWork } from './prisma-study-unit-of-work';
 import { SystemClock } from '../clock/system-clock';
 import { SubmitReviewUseCase } from '../../application/use-cases/submit-review.use-case';
+import { PrismaStudyPlanRepository } from './prisma-study-plan.repository';
 import { NoActiveSessionError } from '../../domain/errors';
 
 // Integration of the Prisma unit of work + aggregate adapters against the real
@@ -28,7 +29,11 @@ describe('PrismaStudyUnitOfWork + SubmitReviewUseCase (integration — neuralabs
     const moduleRef = await Test.createTestingModule({ providers: [PrismaService] }).compile();
     prisma = moduleRef.get(PrismaService);
     await prisma.$connect();
-    useCase = new SubmitReviewUseCase(new PrismaStudyUnitOfWork(prisma), new SystemClock());
+    useCase = new SubmitReviewUseCase(
+      new PrismaStudyUnitOfWork(prisma),
+      new SystemClock(),
+      new PrismaStudyPlanRepository(prisma),
+    );
   });
 
   afterAll(async () => {

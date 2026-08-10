@@ -158,3 +158,18 @@ describe("relation-rules", () => {
     });
   });
 });
+
+// O Push valida as arestas contra a tabela do BACKEND. Se as duas divergirem, a
+// UI deixa criar uma relação que o Push depois descarta em silêncio.
+describe("relações de questão (espelho do backend)", () => {
+  it("prova contém questão, questão testa conceito e pertence a tópico", () => {
+    expect(isRelationAllowed("PROVA", "QUESTION", "CONTEM")).toBe(true);
+    expect(isRelationAllowed("QUESTION", "CONCEITO", "TESTA")).toBe(true);
+    expect(isRelationAllowed("QUESTION", "CONCEITO", "HERDA")).toBe(true);
+    expect(isRelationAllowed("QUESTION", "TOPICO", "PERTENCE_A")).toBe(true);
+  });
+
+  it("direção canônica é PROVA → QUESTION", () => {
+    expect(getCanonicalDirection("QUESTION", "PROVA", "CONTEM")).toEqual(["PROVA", "QUESTION"]);
+  });
+});

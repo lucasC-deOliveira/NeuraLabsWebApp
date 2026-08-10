@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld("neuralabs", {
     checkModified: (dir, since) => ipcRenderer.invoke("vault:check-modified", { dir, since }),
     readFile: (dir, relPath) => ipcRenderer.invoke("vault:read-file", { dir, relPath }),
     writeFile: (dir, relPath, content) => ipcRenderer.invoke("vault:write-file", { dir, relPath, content }),
+    deleteFiles: (dir, relPaths) => ipcRenderer.invoke("vault:delete-files", { dir, relPaths }),
     watch: (dir, watchId) => ipcRenderer.invoke("vault:watch", { dir, watchId }),
     unwatch: (watchId) => ipcRenderer.invoke("vault:unwatch", watchId),
     onChanged: (cb) => {

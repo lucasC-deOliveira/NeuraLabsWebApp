@@ -147,8 +147,9 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
     },
     {
       provide: SubmitReviewUseCase,
-      useFactory: (uow: StudyUnitOfWork, clock: Clock) => new SubmitReviewUseCase(uow, clock),
-      inject: [STUDY_UNIT_OF_WORK, CLOCK],
+      useFactory: (uow: StudyUnitOfWork, clock: Clock, plans: StudyPlanRepository) =>
+        new SubmitReviewUseCase(uow, clock, plans),
+      inject: [STUDY_UNIT_OF_WORK, CLOCK, STUDY_PLAN_REPOSITORY],
     },
     {
       provide: StartSessionUseCase,

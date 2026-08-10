@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { graphVaultDir, getSyncState, getModifiedCount, compareSyncState } from "./vault-sync";
+import { graphVaultDir, getSyncState, getModifiedCount, compareSyncState, fromVaultNode, removeOrphans } from "./vault-sync";
+import { serializeNode, parseNode } from "./vault-format";
+import type { ExportGraphNode } from "./graph-api";
 
 describe("graphVaultDir", () => {
   it("monta <base>/<slug>--<id>", () => {
@@ -39,6 +41,7 @@ vi.mock("./vault-bridge", () => ({
       read: vi.fn(),
       write: vi.fn(),
       openFolder: vi.fn(),
+      deleteFiles: vi.fn(),
     },
   },
   isDesktop: () => false,
@@ -222,5 +225,146 @@ describe("compareSyncState", () => {
 
     const diff = await compareSyncState("grafo-1", "/vault/grafo--id1");
     expect(diff.inSync).toBe(true);
+  });
+});
+
+// ── ida e volta Pull → arquivo → Push ─────────────────────────────────────────
+
+// O caminho real de uma questão tem quatro traduções (export do backend →
+// VaultNode → .md → payload do Push) e cada uma pode perder um campo em silêncio.
+// Este teste percorre as quatro de uma vez.
+describe("fromVaultNode: o Push devolve o que o Pull escreveu", () => {
+  const questaoExportada: ExportGraphNode = {
+    ref: "q-1",
+    tipo: "QUESTION",
+    enunciado: "Segundo o ITIL 4, o que é um SLA?",
+    alternativas: [
+      { letra: "A", texto: "Acordo entre provedor e cliente" },
+      { letra: "B", texto: "Acordo entre times internos" },
+    ],
+    gabarito: "A",
+    explicacao: "OLA é o acordo interno.",
+    tipoQuestao: "MULTIPLA_ESCOLHA",
+    nivelDominio: 2,
+  };
+
+  it("preserva o conteúdo da questão nas quatro traduções", () => {
+    const emDisco = serializeNode({
+      ...questaoExportada,
+      id: questaoExportada.ref,
+      tipo: "QUESTION",
+      grafoId: "g1",
+      relacoes: [{ rel: "TESTA", alvo: "c-9", peso: 1 }],
+    });
+    const doPush = fromVaultNode(parseNode(emDisco)!);
+
+    expect(doPush.tipo).toBe("QUESTION");
+    expect(doPush.enunciado).toBe(questaoExportada.enunciado);
+    expect(doPush.alternativas).toEqual(questaoExportada.alternativas);
+    expect(doPush.gabarito).toBe("A");
+    expect(doPush.explicacao).toBe(questaoExportada.explicacao);
+    expect(doPush.tipoQuestao).toBe("MULTIPLA_ESCOLHA");
+  });
+
+  it("a aresta TESTA sai do frontmatter para o payload de arestas", () => {
+    const emDisco = serializeNode({
+      id: "q-1",
+      tipo: "QUESTION",
+      grafoId: "g1",
+      enunciado: "E",
+      gabarito: "A",
+      relacoes: [{ rel: "TESTA", alvo: "c-9", peso: 1 }],
+    });
+    expect(parseNode(emDisco)!.relacoes).toEqual([{ rel: "TESTA", alvo: "c-9", peso: 1 }]);
+  });
+});
+
+// ── órfãos ────────────────────────────────────────────────────────────────────
+
+// O caso real: renomear um conceito muda o id (derivado do título) e portanto o
+// nome do arquivo. O gerador escreve o novo e o antigo fica para trás.
+describe("compareSyncState: identificação de órfãos", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("aponta qual arquivo é o órfão, não só quantos", async () => {
+    vi.mocked(desktop.vault.read).mockResolvedValueOnce([
+      { relPath: "Resources/sla--novo.md", content: makeConceptMd("novo", "SLA") },
+      { relPath: "Resources/sla-antigo--velho.md", content: makeConceptMd("velho", "SLA antigo") },
+    ]);
+    vi.mocked(exportGraph).mockResolvedValueOnce({
+      grafo: { id: "grafo-1", nome: "G" },
+      nodes: [{ ref: "novo", tipo: "CONCEITO", nome: "SLA" }],
+      edges: [],
+    });
+
+    const diff = await compareSyncState("grafo-1", "/vault/g--1");
+
+    expect(diff.vaultOnly).toBe(1);
+    expect(diff.orphans).toEqual([
+      { id: "velho", titulo: "SLA antigo", relPath: "Resources/sla-antigo--velho.md" },
+    ]);
+  });
+
+  it("não considera órfão o que existe dos dois lados", async () => {
+    vi.mocked(desktop.vault.read).mockResolvedValueOnce([
+      { relPath: "Resources/sla--n1.md", content: makeConceptMd("n1", "SLA") },
+    ]);
+    vi.mocked(exportGraph).mockResolvedValueOnce({
+      grafo: { id: "grafo-1", nome: "G" },
+      nodes: [{ ref: "n1", tipo: "CONCEITO", nome: "SLA" }],
+      edges: [],
+    });
+
+    const diff = await compareSyncState("grafo-1", "/vault/g--1");
+    expect(diff.orphans).toEqual([]);
+    expect(diff.inSync).toBe(true);
+  });
+
+  it("vault vazio não produz órfãos", async () => {
+    vi.mocked(desktop.vault.read).mockResolvedValueOnce([]);
+    vi.mocked(exportGraph).mockResolvedValueOnce({
+      grafo: { id: "grafo-1", nome: "G" },
+      nodes: [{ ref: "n1", tipo: "CONCEITO", nome: "SLA" }],
+      edges: [],
+    });
+
+    const diff = await compareSyncState("grafo-1", "/vault/g--1");
+    expect(diff.vaultEmpty).toBe(true);
+    expect(diff.orphans).toEqual([]);
+  });
+});
+
+describe("removeOrphans", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const orfao = { id: "velho", titulo: "SLA antigo", relPath: "Resources/sla-antigo--velho.md" };
+
+  it("manda apagar só os caminhos dos órfãos recebidos", async () => {
+    vi.mocked(desktop.vault.deleteFiles).mockResolvedValueOnce({
+      deleted: [orfao.relPath],
+      skipped: [],
+    });
+
+    const res = await removeOrphans("/vault/g--1", [orfao]);
+
+    expect(desktop.vault.deleteFiles).toHaveBeenCalledWith("/vault/g--1", [orfao.relPath]);
+    expect(res).toEqual({ deleted: 1, skipped: [] });
+  });
+
+  // Sem a saída antecipada, uma lista vazia viraria uma chamada de exclusão sem
+  // alvo — barato de evitar e uma ida ao processo main a menos.
+  it("não chama a ponte quando não há órfão", async () => {
+    const res = await removeOrphans("/vault/g--1", []);
+    expect(desktop.vault.deleteFiles).not.toHaveBeenCalled();
+    expect(res).toEqual({ deleted: 0, skipped: [] });
+  });
+
+  it("repassa o que o processo main recusou apagar", async () => {
+    vi.mocked(desktop.vault.deleteFiles).mockResolvedValueOnce({
+      deleted: [],
+      skipped: ["Resources/travado--x.md"],
+    });
+    const res = await removeOrphans("/vault/g--1", [orfao]);
+    expect(res).toEqual({ deleted: 0, skipped: ["Resources/travado--x.md"] });
   });
 });

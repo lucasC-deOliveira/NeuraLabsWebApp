@@ -43,6 +43,13 @@ export const RELATION_PAIRS: Array<{ a: string; b: string; relations: string[] }
   { a: "FLASHCARD", b: "CONCEITO", relations: ["HERDA", ...NOTA_CONCEITO_RELATIONS] },
   // Baralho contém flashcards
   { a: "BARALHO", b: "FLASHCARD", relations: ["CONTEM"] },
+  // Questões de prova espelham baralho/flashcard: prova CONTEM questão, e a
+  // questão TESTA o conceito que ela cobra (HERDA quando vem de um conceito).
+  // Espelho do mesmo par no backend (graph/domain/services/relation-rules.ts) —
+  // as duas tabelas precisam concordar, senão o Push rejeita o que a UI deixou criar.
+  { a: "PROVA", b: "QUESTION", relations: ["CONTEM"] },
+  { a: "QUESTION", b: "CONCEITO", relations: ["HERDA", "TESTA", ...NOTA_CONCEITO_RELATIONS] },
+  { a: "QUESTION", b: "TOPICO", relations: ["PERTENCE_A"] },
 ];
 
 const RELATION_RULES: Record<string, string[]> = Object.fromEntries(
