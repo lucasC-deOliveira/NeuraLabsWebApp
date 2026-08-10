@@ -48,8 +48,17 @@ describe('Graph export (integration — neuralabs_test)', () => {
     const rows = await repo.listNodes(grafoId, userId);
     // posicaoY is unset on insert, so it falls back to the schema @default(0.0),
     // matching the convention asserted in the sibling position int specs.
+    // pesoEdital has no default: unset means null, which the roadmap reads as the
+    // neutral weight.
     expect(rows).toEqual([
-      { tipoNode: 'CONCEITO', referenciaId: 'c1', posicaoX: 5, posicaoY: 0, nivelDominio: 0 },
+      {
+        tipoNode: 'CONCEITO',
+        referenciaId: 'c1',
+        posicaoX: 5,
+        posicaoY: 0,
+        nivelDominio: 0,
+        pesoEdital: null,
+      },
     ]);
   });
 
