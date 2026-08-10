@@ -1,10 +1,12 @@
+import { ZodBody } from '../common/zod-body.decorator';
+import { createQuestaoContract, updateQuestaoContract } from '../../../contracts/estudo-e-anexos';
+import type { CreateQuestaoBody, UpdateQuestaoBody } from '../../../contracts/estudo-e-anexos';
 import {
   Controller,
   Get,
   Post,
   Patch,
   Delete,
-  Body,
   Param,
   UseFilters,
   UseGuards,
@@ -17,8 +19,6 @@ import { GetQuestaoUseCase } from '../modules/questions/application/use-cases/ge
 import { UpdateQuestaoUseCase } from '../modules/questions/application/use-cases/update-questao.use-case';
 import { RemoveQuestaoUseCase } from '../modules/questions/application/use-cases/remove-questao.use-case';
 import { QuestionsExceptionFilter } from '../modules/questions/interface/questions-exception.filter';
-import type { CreateQuestaoInput } from '../modules/questions/domain/questao';
-import type { UpdateQuestaoPatch } from '../modules/questions/domain/ports/questao-repository';
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard)
@@ -33,7 +33,7 @@ export class QuestionsController {
   ) {}
 
   @Post()
-  create(@CurrentUser() userId: string, @Body() dto: CreateQuestaoInput) {
+  create(@CurrentUser() userId: string, @ZodBody(createQuestaoContract) dto: CreateQuestaoBody) {
     return this.createQuestao.execute(userId, dto);
   }
 
@@ -48,7 +48,7 @@ export class QuestionsController {
   }
 
   @Patch(':id')
-  update(@CurrentUser() userId: string, @Param('id') id: string, @Body() dto: UpdateQuestaoPatch) {
+  update(@CurrentUser() userId: string, @Param('id') id: string, @ZodBody(updateQuestaoContract) dto: UpdateQuestaoBody) {
     return this.updateQuestao.execute(userId, id, dto);
   }
 

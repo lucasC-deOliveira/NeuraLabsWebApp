@@ -1,5 +1,7 @@
+import { ZodBody } from '../common/zod-body.decorator';
+import { savePlanContract, submitReviewContract, syncVaultLogContract } from '../../../contracts/estudo-e-anexos';
+import type { SavePlanBody, SubmitReviewBody, SyncVaultLogBody } from '../../../contracts/estudo-e-anexos';
 import {
-  Body,
   Controller,
   Delete,
   Get,
@@ -29,10 +31,7 @@ import {
   PLAN_SCOPE_QUERY,
   type PlanScopeQuery,
 } from '../modules/study/domain/ports/plan-scope-query';
-import {
-  SubmitReviewUseCase,
-  type SubmitReviewCommand,
-} from '../modules/study/application/use-cases/submit-review.use-case';
+import { SubmitReviewUseCase } from '../modules/study/application/use-cases/submit-review.use-case';
 import { StartSessionUseCase } from '../modules/study/application/use-cases/start-session.use-case';
 import { DiagnoseConceptErrorsUseCase } from '../modules/curriculum/application/use-cases/diagnose-concept-errors.use-case';
 import { EndSessionUseCase } from '../modules/study/application/use-cases/end-session.use-case';
@@ -40,10 +39,7 @@ import { FinalizeSessionUseCase } from '../modules/study/application/use-cases/f
 import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-cases/get-flashcard-for-study.use-case';
 import { StartSingleCardStudyUseCase } from '../modules/study/application/use-cases/start-single-card-study.use-case';
 import { StartDeckStudyUseCase } from '../modules/study/application/use-cases/start-deck-study.use-case';
-import {
-  SyncVaultLogUseCase,
-  type VaultSessionInput,
-} from '../modules/study/application/use-cases/sync-vault-log.use-case';
+import { SyncVaultLogUseCase } from '../modules/study/application/use-cases/sync-vault-log.use-case';
 import { StudyDomainExceptionFilter } from '../modules/study/interface/study-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -88,7 +84,7 @@ export class StudyController {
   @Post('review')
   review(
     @CurrentUser() userId: string,
-    @Body() body: Omit<SubmitReviewCommand, 'userId'>,
+    @ZodBody(submitReviewContract) body: SubmitReviewBody,
   ): Promise<{ success: boolean }> {
     return this.submitReview.execute({ ...body, userId });
   }
@@ -114,7 +110,7 @@ export class StudyController {
   }
 
   @Post('sync-vault-log')
-  sync(@CurrentUser() userId: string, @Body() body: { sessions?: VaultSessionInput[] }) {
+  sync(@CurrentUser() userId: string, @ZodBody(syncVaultLogContract) body: SyncVaultLogBody) {
     return this.syncVaultLog.execute(userId, body.sessions ?? []);
   }
 
@@ -161,7 +157,7 @@ export class StudyController {
 
   // Cria (sem id) ou atualiza (com id) a config do plano.
   @Post('plan')
-  savePlan(@CurrentUser() userId: string, @Body() body: PlanBody) {
+  savePlan(@CurrentUser() userId: string, @ZodBody(savePlanContract) body: SavePlanBody) {
     return this.saveStudyPlan.execute(userId, {
       id: body.id,
       prioridade: (body.prioridade ?? '').trim(),
@@ -174,16 +170,4 @@ export class StudyController {
       conceitosExcluidos: body.conceitosExcluidos ?? [],
     });
   }
-}
-
-interface PlanBody {
-  id?: string;
-  prioridade?: string;
-  metaTipo?: string;
-  metaValor?: number;
-  dataAlvo?: string | null;
-  grafoIds?: string[];
-  baralhoIds?: string[];
-  provaIds?: string[];
-  conceitosExcluidos?: string[];
 }

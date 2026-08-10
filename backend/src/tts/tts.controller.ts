@@ -1,5 +1,7 @@
+import { ZodBody } from '../common/zod-body.decorator';
+import { synthesizeContract } from '../../../contracts/estudo-e-anexos';
+import type { SynthesizeBody } from '../../../contracts/estudo-e-anexos';
 import {
-  Body,
   Controller,
   Header,
   Post,
@@ -11,12 +13,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SynthesizeSpeechUseCase } from '../modules/tts/application/use-cases/synthesize-speech.use-case';
 import { TtsDomainExceptionFilter } from '../modules/tts/interface/tts-domain-exception.filter';
 
-interface SynthesizeBody {
-  text: string;
-  voice?: string;
-  rate?: number;
-}
-
 @UseGuards(JwtAuthGuard)
 @UseFilters(TtsDomainExceptionFilter)
 @Controller('tts')
@@ -26,7 +22,7 @@ export class TtsController {
   @Post('synthesize')
   @Header('Content-Type', 'audio/wav')
   @Header('Cache-Control', 'no-store')
-  async synthesize(@Body() body: SynthesizeBody): Promise<StreamableFile> {
+  async synthesize(@ZodBody(synthesizeContract) body: SynthesizeBody): Promise<StreamableFile> {
     const audio = await this.synthesizeSpeech.execute(body);
     return new StreamableFile(Buffer.from(audio));
   }

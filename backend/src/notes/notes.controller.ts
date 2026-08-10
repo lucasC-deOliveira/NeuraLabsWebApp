@@ -1,3 +1,6 @@
+import { ZodBody } from '../common/zod-body.decorator';
+import { createNotaContract } from '../../../contracts/estudo-e-anexos';
+import type { CreateNotaBody } from '../../../contracts/estudo-e-anexos';
 import { Body, Controller, Delete, Get, Param, Post, UseFilters, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -36,7 +39,7 @@ export class NotesController {
   }
 
   @Post()
-  create(@CurrentUser() userId: string, @Body() body: CreateNotaInput) {
+  create(@CurrentUser() userId: string, @ZodBody(createNotaContract) body: CreateNotaBody) {
     return this.createNota.execute(userId, body);
   }
 
