@@ -33,11 +33,13 @@ Cada **nó** é um arquivo \`.md\` numa dessas pastas, conforme o tipo:
 | Tipo (\`tipo\`) | Pasta | O que é |
 | --- | --- | --- |
 | \`BARALHO\` | \`Projects/\` | Baralho de flashcards (estudo) |
+| \`PROVA\` | \`Projects/\` | Prova/simulado (coleção de questões) |
 | \`ASSUNTO\` | \`Areas/\` | Matéria/área de estudo |
 | \`TOPICO\` | \`Resources/\` | Tópico dentro de um assunto |
 | \`CONCEITO\` | \`Resources/\` | Conceito |
 | \`NOTA\` | \`Resources/\` | Nota (Zettelkasten) |
 | \`FLASHCARD\` | \`Resources/\` | Flashcard (pergunta/resposta) |
+| \`QUESTION\` | \`Resources/\` | Questão de prova (enunciado/alternativas/gabarito) |
 | \`TEXTO_BRUTO\` | \`Resources/\` | Texto original/fonte |
 
 Nome do arquivo: \`<slug-do-titulo>--<id>.md\`. O **\`id\`** (no frontmatter) é a
@@ -71,6 +73,44 @@ Corpo livre em Markdown (ver por tipo abaixo).
 - **FLASHCARD**: duas seções \`## Pergunta\` e \`## Resposta\`.
 - **TEXTO_BRUTO**: o texto original.
 - **BARALHO**: corpo vazio.
+- **PROVA**: descrição da prova (opcional). As questões entram por \`CONTEM\`.
+- **QUESTION**: seções \`## Enunciado\`, \`## Alternativas\`, \`## Gabarito\` e
+  \`## Explicação\` (as duas últimas seções são opcionais para verdadeiro/falso).
+
+\`\`\`markdown
+---
+id: <id-unico>
+tipo: QUESTION
+grafo: <id-do-grafo>
+titulo: "Um trecho do enunciado"   # gerado a partir do enunciado
+tipoQuestao: MULTIPLA_ESCOLHA      # ou VERDADEIRO_FALSO
+relacoes:
+  - rel: TESTA
+    alvo: "[[<id-do-conceito>]]"
+    peso: 1
+---
+
+## Enunciado
+
+Texto do enunciado.
+
+## Alternativas
+
+- (A) primeira
+- (B) segunda
+- (C) terceira
+
+## Gabarito
+
+C
+
+## Explicação
+
+Por que a C está certa.
+\`\`\`
+
+A ordem das questões dentro de uma \`PROVA\` **não** fica no arquivo: quem já está
+na prova mantém a posição, e questões novas entram no fim.
 
 ## Relações (arestas)
 

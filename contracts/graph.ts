@@ -209,7 +209,32 @@ export const importGraphContract = z.object({
 });
 export type ImportGraphBody = z.infer<typeof importGraphContract>;
 
-const vaultNode = z.object({ ref: z.string().min(1), tipo: z.string().min(1), ...nodeFields });
+// Conteúdo de QUESTION. Só o vault carrega questão, então os campos ficam neste
+// contrato e não em `nodeFields` — createNode/updateNode não os aceitam.
+//
+// Aqui o contrato PODE ser estrito: o campo é novo, não há caminho legado que já
+// mande outra forma. `alternativas` vira Json no banco, e sem esta checagem
+// qualquer lixo entraria na coluna sem ninguém reclamar.
+const questionFields = {
+  enunciado: z.string().optional(),
+  alternativas: z
+    .array(z.object({ letra: z.string(), texto: z.string() }), {
+      invalid_type_error: "As alternativas devem ser uma lista de { letra, texto }",
+    })
+    .optional(),
+  gabarito: z.string().optional(),
+  explicacao: z.string().nullable().optional(),
+  // Sem faixa fechada de propósito: o upsert do vault coage o desconhecido para
+  // MULTIPLA_ESCOLHA em vez de recusar o arquivo (o .md é editado à mão).
+  tipoQuestao: z.string().optional(),
+};
+
+const vaultNode = z.object({
+  ref: z.string().min(1),
+  tipo: z.string().min(1),
+  ...nodeFields,
+  ...questionFields,
+});
 
 // O peso NÃO tem faixa aqui: o vault-sync usa clampPeso, que coage para 1 fora de
 // (0, 2] em vez de recusar. Rejeitar quebraria o Push de arquivo editado à mão.

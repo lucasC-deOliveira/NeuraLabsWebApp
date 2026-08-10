@@ -351,3 +351,93 @@ describe("PARA_FOLDERS", () => {
     expect(new Set(PARA_FOLDERS).size).toBe(PARA_FOLDERS.length);
   });
 });
+
+// ── QUESTION e PROVA ──────────────────────────────────────────────────────────
+
+const QUESTAO: VaultNode = {
+  id: "q-1",
+  tipo: "QUESTION",
+  grafoId: "grafo-1",
+  enunciado: "Segundo o ITIL 4, o que é um SLA?",
+  alternativas: [
+    { letra: "A", texto: "Acordo entre provedor e cliente" },
+    { letra: "B", texto: "Acordo entre times internos" },
+  ],
+  gabarito: "A",
+  explicacao: "OLA é o acordo interno; SLA é com o cliente.",
+  tipoQuestao: "MULTIPLA_ESCOLHA",
+  relacoes: [],
+};
+
+describe("paraFolder: questões e provas", () => {
+  it("QUESTION vai para Resources e PROVA para Projects", () => {
+    expect(paraFolder("QUESTION")).toBe("Resources");
+    expect(paraFolder("PROVA")).toBe("Projects");
+  });
+});
+
+describe("vaultNodeLabel: QUESTION", () => {
+  it("usa o enunciado, truncado em 60 caracteres", () => {
+    expect(vaultNodeLabel(QUESTAO)).toBe("Segundo o ITIL 4, o que é um SLA?");
+    const longa = make({ ...QUESTAO, enunciado: "a".repeat(80) });
+    expect(vaultNodeLabel(longa)).toBe(`${"a".repeat(60)}…`);
+  });
+
+  it("cai no id quando não há enunciado", () => {
+    expect(vaultNodeLabel(make({ ...QUESTAO, enunciado: undefined }))).toBe("q-1");
+  });
+});
+
+describe("serializeNode/parseNode: QUESTION", () => {
+  it("ida e volta preserva enunciado, alternativas, gabarito e explicação", () => {
+    const parsed = parseNode(serializeNode(QUESTAO));
+    expect(parsed!.tipo).toBe("QUESTION");
+    expect(parsed!.enunciado).toBe(QUESTAO.enunciado);
+    expect(parsed!.alternativas).toEqual(QUESTAO.alternativas);
+    expect(parsed!.gabarito).toBe("A");
+    expect(parsed!.explicacao).toBe(QUESTAO.explicacao);
+    expect(parsed!.tipoQuestao).toBe("MULTIPLA_ESCOLHA");
+  });
+
+  it("omite as seções vazias em vez de escrever cabeçalho solto", () => {
+    const vf = make({ ...QUESTAO, alternativas: [], explicacao: null });
+    const md = serializeNode(vf);
+    expect(md).not.toContain("## Alternativas");
+    expect(md).not.toContain("## Explicação");
+    expect(md).toContain("## Gabarito");
+  });
+
+  it("o arquivo cai em Resources com o slug do enunciado", () => {
+    expect(nodeRelPath(QUESTAO)).toBe("Resources/segundo-o-itil-4-o-que-e-um-sla--q-1.md");
+  });
+
+  it("aceita `## Explicacao` sem acento (arquivo editado à mão)", () => {
+    const raw = `---\nid: q9\ntipo: QUESTION\ngrafo: g1\ntitulo: T\n---\n\n## Enunciado\n\nE\n\n## Gabarito\n\nB\n\n## Explicacao\n\nPorque sim\n`;
+    expect(parseNode(raw)!.explicacao).toBe("Porque sim");
+  });
+
+  it("sem `## Enunciado`, o corpo inteiro vira o enunciado em vez de sumir", () => {
+    const raw = `---\nid: q9\ntipo: QUESTION\ngrafo: g1\ntitulo: T\n---\n\nTexto solto da questão\n`;
+    const parsed = parseNode(raw)!;
+    expect(parsed.enunciado).toBe("Texto solto da questão");
+    expect(parsed.gabarito).toBe("");
+  });
+
+  it("ignora linhas de alternativa fora do formato `- (X) texto`", () => {
+    const raw = `---\nid: q9\ntipo: QUESTION\ngrafo: g1\ntitulo: T\n---\n\n## Alternativas\n\n- (A) vale\nlixo solto\n* (B) asterisco também vale\n`;
+    expect(parseNode(raw)!.alternativas).toEqual([
+      { letra: "A", texto: "vale" },
+      { letra: "B", texto: "asterisco também vale" },
+    ]);
+  });
+});
+
+describe("serializeNode/parseNode: PROVA", () => {
+  it("ida e volta preserva título e descrição", () => {
+    const prova = make({ id: "p-1", tipo: "PROVA", titulo: "TRT-24 2017", descricao: "Prova FCC" });
+    const parsed = parseNode(serializeNode(prova));
+    expect(parsed!.titulo).toBe("TRT-24 2017");
+    expect(parsed!.descricao).toBe("Prova FCC");
+    expect(nodeRelPath(prova)).toBe("Projects/trt-24-2017--p-1.md");
+  });
+});

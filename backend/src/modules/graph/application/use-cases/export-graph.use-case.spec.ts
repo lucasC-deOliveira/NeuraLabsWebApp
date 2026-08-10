@@ -65,6 +65,21 @@ describe('ExportGraphUseCase', () => {
     ]);
   });
 
+  // Regression: the projection is spread over the node, so a `tipo` key in the
+  // content overwrote the node's own type — a QUESTION was exported as
+  // `tipo: 'MULTIPLA_ESCOLHA'` and came back from the vault as an unknown type.
+  // The question projector now names that field `tipoQuestao`.
+  it('keeps the node type when the content carries its own type field', async () => {
+    repo.rows = [{ ...row('q1'), tipoNode: 'QUESTION' }];
+    const details = new FakeDetails({
+      q1: { enunciado: 'O que é um SLA?', tipoQuestao: 'MULTIPLA_ESCOLHA', gabarito: 'A' },
+    });
+    const useCase = new ExportGraphUseCase(repo, details, new FakeEdges([]));
+    const res = await useCase.execute('u1', 'g1');
+    expect(res.nodes[0].tipo).toBe('QUESTION');
+    expect(res.nodes[0]).toMatchObject({ tipoQuestao: 'MULTIPLA_ESCOLHA' });
+  });
+
   it('maps edges to the vault format', async () => {
     const edges = new FakeEdges([
       {

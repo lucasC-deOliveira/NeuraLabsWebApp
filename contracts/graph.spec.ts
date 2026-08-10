@@ -180,6 +180,35 @@ describe("vaultSyncContract", () => {
   it("exige ref e tipo em cada nó", () => {
     expect(vaultSyncContract.safeParse({ nodes: [{ ref: "n1" }], edges: [] }).success).toBe(false);
   });
+
+  // O z.object faz strip do que não está no schema: sem estes campos no contrato,
+  // a questão chegaria ao backend sem enunciado, alternativas nem gabarito — e o
+  // Push gravaria uma questão vazia sem nenhum erro.
+  it("preserva o conteúdo da questão em vez de descartá-lo no strip", () => {
+    const questao = {
+      ref: "q1",
+      tipo: "QUESTION",
+      enunciado: "O que é um SLA?",
+      alternativas: [{ letra: "A", texto: "Acordo com o cliente" }],
+      gabarito: "A",
+      explicacao: "OLA é interno.",
+      tipoQuestao: "MULTIPLA_ESCOLHA",
+    };
+    const parsed = vaultSyncContract.parse({ nodes: [questao], edges: [] });
+    expect(parsed.nodes[0]).toMatchObject(questao);
+  });
+
+  it("recusa alternativas fora da forma { letra, texto }, que iriam cruas para o Json", () => {
+    const nodes = [{ ref: "q1", tipo: "QUESTION", alternativas: ["A", "B"] }];
+    expect(vaultSyncContract.safeParse({ nodes, edges: [] }).success).toBe(false);
+  });
+
+  // O .md é editado à mão; um tipo de questão desconhecido é coagido no upsert
+  // (questaoTipo → MULTIPLA_ESCOLHA), então o contrato não pode recusar.
+  it("não recusa um tipoQuestao desconhecido, porque o upsert coage", () => {
+    const nodes = [{ ref: "q1", tipo: "QUESTION", tipoQuestao: "DISSERTATIVA" }];
+    expect(vaultSyncContract.safeParse({ nodes, edges: [] }).success).toBe(true);
+  });
 });
 
 describe("importGraphContract", () => {

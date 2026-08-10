@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { graphVaultDir, getSyncState, getModifiedCount, compareSyncState } from "./vault-sync";
+import { graphVaultDir, getSyncState, getModifiedCount, compareSyncState, fromVaultNode } from "./vault-sync";
+import { serializeNode, parseNode } from "./vault-format";
+import type { ExportGraphNode } from "./graph-api";
 
 describe("graphVaultDir", () => {
   it("monta <base>/<slug>--<id>", () => {
@@ -222,5 +224,56 @@ describe("compareSyncState", () => {
 
     const diff = await compareSyncState("grafo-1", "/vault/grafo--id1");
     expect(diff.inSync).toBe(true);
+  });
+});
+
+// ── ida e volta Pull → arquivo → Push ─────────────────────────────────────────
+
+// O caminho real de uma questão tem quatro traduções (export do backend →
+// VaultNode → .md → payload do Push) e cada uma pode perder um campo em silêncio.
+// Este teste percorre as quatro de uma vez.
+describe("fromVaultNode: o Push devolve o que o Pull escreveu", () => {
+  const questaoExportada: ExportGraphNode = {
+    ref: "q-1",
+    tipo: "QUESTION",
+    enunciado: "Segundo o ITIL 4, o que é um SLA?",
+    alternativas: [
+      { letra: "A", texto: "Acordo entre provedor e cliente" },
+      { letra: "B", texto: "Acordo entre times internos" },
+    ],
+    gabarito: "A",
+    explicacao: "OLA é o acordo interno.",
+    tipoQuestao: "MULTIPLA_ESCOLHA",
+    nivelDominio: 2,
+  };
+
+  it("preserva o conteúdo da questão nas quatro traduções", () => {
+    const emDisco = serializeNode({
+      ...questaoExportada,
+      id: questaoExportada.ref,
+      tipo: "QUESTION",
+      grafoId: "g1",
+      relacoes: [{ rel: "TESTA", alvo: "c-9", peso: 1 }],
+    });
+    const doPush = fromVaultNode(parseNode(emDisco)!);
+
+    expect(doPush.tipo).toBe("QUESTION");
+    expect(doPush.enunciado).toBe(questaoExportada.enunciado);
+    expect(doPush.alternativas).toEqual(questaoExportada.alternativas);
+    expect(doPush.gabarito).toBe("A");
+    expect(doPush.explicacao).toBe(questaoExportada.explicacao);
+    expect(doPush.tipoQuestao).toBe("MULTIPLA_ESCOLHA");
+  });
+
+  it("a aresta TESTA sai do frontmatter para o payload de arestas", () => {
+    const emDisco = serializeNode({
+      id: "q-1",
+      tipo: "QUESTION",
+      grafoId: "g1",
+      enunciado: "E",
+      gabarito: "A",
+      relacoes: [{ rel: "TESTA", alvo: "c-9", peso: 1 }],
+    });
+    expect(parseNode(emDisco)!.relacoes).toEqual([{ rel: "TESTA", alvo: "c-9", peso: 1 }]);
   });
 });
