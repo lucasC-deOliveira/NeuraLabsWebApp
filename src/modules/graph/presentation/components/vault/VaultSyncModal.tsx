@@ -12,13 +12,14 @@ import {
 import { toast } from "sonner";
 import { desktop } from "@/lib/vault-bridge";
 import {
-  pullVault, pushVault, graphVaultDir, compareSyncState, getSyncState,
+  pullVault, pushVault, graphVaultDir, compareSyncState, getSyncState, removeOrphans,
   type SyncDiff,
 } from "@/lib/vault-sync";
+import { VaultOrphans } from "./VaultOrphans";
 import type { VaultSyncState } from "@/lib/vault-bridge";
 import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 
-type BusyState = "pull" | "push" | "compare" | null;
+type BusyState = "pull" | "push" | "compare" | "clean" | null;
 
 interface DiffFlags {
   isConflict: boolean;
@@ -133,6 +134,25 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
     }
   };
 
+  // Só é alcançável depois de a lista de órfãos ser exibida e confirmada — a
+  // remoção nunca acontece como efeito colateral de Pull ou Push.
+  const doCleanOrphans = async (): Promise<void> => {
+    if (!vaultPath || !graphDir || !diff?.orphans.length) return;
+    setBusy("clean");
+    try {
+      const { deleted, skipped } = await removeOrphans(graphDir, diff.orphans);
+      if (skipped.length > 0) {
+        toast.warning(`${deleted} arquivo(s) removido(s); ${skipped.length} recusado(s).`);
+      } else {
+        toast.success(`${deleted} arquivo(s) órfão(s) removido(s) do vault.`);
+      }
+      await runCompare(vaultPath);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao remover os órfãos.");
+      setBusy(null);
+    }
+  };
+
   const openVaultFolder = async (): Promise<void> => {
     if (!graphDir) return;
     try {
@@ -167,6 +187,10 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
           )}
 
           {vaultPath && <VaultActions diff={diff} flags={flags} busy={busy} onPull={doPull} onPush={doPush} />}
+
+          {vaultPath && diff && (
+            <VaultOrphans orphans={diff.orphans} busy={busy !== null} onClean={doCleanOrphans} />
+          )}
 
           <VaultTimestamps syncState={syncState} />
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { graphVaultDir, getSyncState, getModifiedCount, compareSyncState, fromVaultNode } from "./vault-sync";
+import { graphVaultDir, getSyncState, getModifiedCount, compareSyncState, fromVaultNode, removeOrphans } from "./vault-sync";
 import { serializeNode, parseNode } from "./vault-format";
 import type { ExportGraphNode } from "./graph-api";
 
@@ -41,6 +41,7 @@ vi.mock("./vault-bridge", () => ({
       read: vi.fn(),
       write: vi.fn(),
       openFolder: vi.fn(),
+      deleteFiles: vi.fn(),
     },
   },
   isDesktop: () => false,
@@ -275,5 +276,95 @@ describe("fromVaultNode: o Push devolve o que o Pull escreveu", () => {
       relacoes: [{ rel: "TESTA", alvo: "c-9", peso: 1 }],
     });
     expect(parseNode(emDisco)!.relacoes).toEqual([{ rel: "TESTA", alvo: "c-9", peso: 1 }]);
+  });
+});
+
+// ── órfãos ────────────────────────────────────────────────────────────────────
+
+// O caso real: renomear um conceito muda o id (derivado do título) e portanto o
+// nome do arquivo. O gerador escreve o novo e o antigo fica para trás.
+describe("compareSyncState: identificação de órfãos", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("aponta qual arquivo é o órfão, não só quantos", async () => {
+    vi.mocked(desktop.vault.read).mockResolvedValueOnce([
+      { relPath: "Resources/sla--novo.md", content: makeConceptMd("novo", "SLA") },
+      { relPath: "Resources/sla-antigo--velho.md", content: makeConceptMd("velho", "SLA antigo") },
+    ]);
+    vi.mocked(exportGraph).mockResolvedValueOnce({
+      grafo: { id: "grafo-1", nome: "G" },
+      nodes: [{ ref: "novo", tipo: "CONCEITO", nome: "SLA" }],
+      edges: [],
+    });
+
+    const diff = await compareSyncState("grafo-1", "/vault/g--1");
+
+    expect(diff.vaultOnly).toBe(1);
+    expect(diff.orphans).toEqual([
+      { id: "velho", titulo: "SLA antigo", relPath: "Resources/sla-antigo--velho.md" },
+    ]);
+  });
+
+  it("não considera órfão o que existe dos dois lados", async () => {
+    vi.mocked(desktop.vault.read).mockResolvedValueOnce([
+      { relPath: "Resources/sla--n1.md", content: makeConceptMd("n1", "SLA") },
+    ]);
+    vi.mocked(exportGraph).mockResolvedValueOnce({
+      grafo: { id: "grafo-1", nome: "G" },
+      nodes: [{ ref: "n1", tipo: "CONCEITO", nome: "SLA" }],
+      edges: [],
+    });
+
+    const diff = await compareSyncState("grafo-1", "/vault/g--1");
+    expect(diff.orphans).toEqual([]);
+    expect(diff.inSync).toBe(true);
+  });
+
+  it("vault vazio não produz órfãos", async () => {
+    vi.mocked(desktop.vault.read).mockResolvedValueOnce([]);
+    vi.mocked(exportGraph).mockResolvedValueOnce({
+      grafo: { id: "grafo-1", nome: "G" },
+      nodes: [{ ref: "n1", tipo: "CONCEITO", nome: "SLA" }],
+      edges: [],
+    });
+
+    const diff = await compareSyncState("grafo-1", "/vault/g--1");
+    expect(diff.vaultEmpty).toBe(true);
+    expect(diff.orphans).toEqual([]);
+  });
+});
+
+describe("removeOrphans", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const orfao = { id: "velho", titulo: "SLA antigo", relPath: "Resources/sla-antigo--velho.md" };
+
+  it("manda apagar só os caminhos dos órfãos recebidos", async () => {
+    vi.mocked(desktop.vault.deleteFiles).mockResolvedValueOnce({
+      deleted: [orfao.relPath],
+      skipped: [],
+    });
+
+    const res = await removeOrphans("/vault/g--1", [orfao]);
+
+    expect(desktop.vault.deleteFiles).toHaveBeenCalledWith("/vault/g--1", [orfao.relPath]);
+    expect(res).toEqual({ deleted: 1, skipped: [] });
+  });
+
+  // Sem a saída antecipada, uma lista vazia viraria uma chamada de exclusão sem
+  // alvo — barato de evitar e uma ida ao processo main a menos.
+  it("não chama a ponte quando não há órfão", async () => {
+    const res = await removeOrphans("/vault/g--1", []);
+    expect(desktop.vault.deleteFiles).not.toHaveBeenCalled();
+    expect(res).toEqual({ deleted: 0, skipped: [] });
+  });
+
+  it("repassa o que o processo main recusou apagar", async () => {
+    vi.mocked(desktop.vault.deleteFiles).mockResolvedValueOnce({
+      deleted: [],
+      skipped: ["Resources/travado--x.md"],
+    });
+    const res = await removeOrphans("/vault/g--1", [orfao]);
+    expect(res).toEqual({ deleted: 0, skipped: ["Resources/travado--x.md"] });
   });
 });

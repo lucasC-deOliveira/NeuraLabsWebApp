@@ -46,10 +46,15 @@ Pull/Push de verdade com as 196 questões ainda é o teste que falta.
 
 ---
 
-## 2. Ligar o `compareSyncState` na UI (limpeza de órfãos)
+## 2. Limpeza de órfãos no vault — ✅ FEITO em 10/08/2026
 
-> Era o item 5. Subiu para o topo: é o de melhor esforço/retorno, porque a parte
-> difícil já está pronta e morta no repositório.
+> Era o item 5.
+>
+> **Correção de uma afirmação errada minha.** Numa revisão anterior deste arquivo
+> eu disse que `compareSyncState` era "código morto, chamado só pelo próprio spec".
+> **É falso** — ela sempre esteve ligada em `VaultSyncModal.tsx` (`runCompare`).
+> A conclusão veio de um `grep | head` truncado, que cortou antes do match no
+> `.tsx`. Fica o registro porque o erro quase mandou refazer o que existia.
 
 **Problema real, encontrado na prática.** Renomear um conceito muda o `id` (derivado
 por hash do título) e portanto o nome do arquivo. O gerador só escreve — o arquivo
@@ -57,18 +62,24 @@ antigo **fica no vault**. Durante o projeto do ABGF isso deixou **19 arquivos ó
 com conteúdo *errado* convivendo com a versão corrigida, incluindo um conceito que
 afirmava que OLA e UC existem no ITIL 4.
 
-**Correção do levantamento original.** Não é preciso escrever a detecção: ela existe.
-`compareSyncState` (`src/lib/vault-sync.ts`) já calcula `backendOnly`, `vaultOnly`,
-`different` e `inSync`, e tem 10 testes. **Só que ninguém a chama** — o único
-consumidor em todo o repositório é o próprio spec. Está implementada, testada e
-inalcançável em produção.
+**O que realmente faltava.** A detecção existia e já aparecia na UI, mas só como
+**contagem** — "Só no vault: 19". Não dizia *quais* arquivos, e não havia como
+removê-los: era preciso caçá-los na mão no explorador.
 
-**Proposta.** Expor o resultado na UI de Vault (um aviso antes do Push/Pull) e dar a
-ação de remoção — nunca automática, nunca tocando em arquivo que não seja `.md`.
+**Como ficou.**
+
+- `compareSyncState` passou a devolver `orphans: VaultOrphan[]` (`id`, `titulo`,
+  `relPath`), não só o número. O nó é pareado com o arquivo de onde veio.
+- Componente `VaultOrphans` lista os caminhos (teto de 8 + "e mais N") e oferece a
+  remoção atrás de uma **confirmação em dois cliques** — apagar não tem volta.
+- IPC novo `vault:delete-files`, deliberadamente estreito: recusa qualquer caminho
+  que escape da pasta do vault e qualquer arquivo que não termine em `.md`, e
+  devolve o que apagou **e** o que recusou. A UI mostra os dois.
+- A remoção nunca acontece como efeito colateral de Pull ou Push.
 
 ---
 
-## 3. Corrigir a documentação contraditória sobre Push/Pull
+## 3. Documentação contraditória sobre Push/Pull — ✅ FEITO em 10/08/2026
 
 **Resolvido qual dos dois está certo** (era a dúvida do levantamento original).
 
@@ -81,7 +92,16 @@ O `C:\Users\LucasC\Documents\CLAUDE.md` está **errado**: *"clique em Vault → 
 para sincronizar de volta"* deveria dizer **Push**. Um agente que siga essa linha
 sobrescreve o próprio trabalho com o estado do backend.
 
-**Proposta.** Uma linha, num arquivo fora deste repositório.
+**Como ficou.** `Documents/CLAUDE.md` corrigido em quatro pontos (o cabeçalho, o
+passo de criar nó, o fluxo resumido e a lista "Não faça"), com um aviso explícito
+de que **Pull descarta o que ainda não foi enviado**. Aproveitado para documentar
+`QUESTION`/`PROVA`, que o item 1 acabara de tornar sincronizáveis e que faltavam
+na tabela de tipos e na de relações.
+
+Um erro extra encontrado ali: a linha *"Não remova arquivos — o Pull ignora
+arquivos ausentes"* estava errada **duas vezes**. É o Push que reage a arquivo
+ausente, e ele **não ignora**: `removeMissing` solta o nó daquele grafo (a
+entidade, as arestas e o SRS ficam). Reescrita para dizer o que o código faz.
 
 ---
 

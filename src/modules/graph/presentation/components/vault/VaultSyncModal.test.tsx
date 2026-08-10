@@ -18,6 +18,7 @@ vi.mock("@/lib/vault-sync", () => ({
   graphVaultDir: vi.fn(() => "/vault/graph"),
   compareSyncState: vi.fn(() => Promise.reject(new Error("no state"))),
   getSyncState: vi.fn(() => Promise.resolve(null)),
+  removeOrphans: vi.fn(),
 }));
 vi.mock("@/lib/vault-guide", () => ({ buildVaultGuide: () => "guide", VAULT_GUIDE_FILENAME: "AGENTS.md" }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));

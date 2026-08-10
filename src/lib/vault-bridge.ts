@@ -45,6 +45,7 @@ interface NeuralabsBridge {
     checkModified: (dir: string, since: string) => Promise<{ count: number; files: string[] }>;
     readFile: (dir: string, relPath: string) => Promise<string | null>;
     writeFile: (dir: string, relPath: string, content: string) => Promise<{ ok: boolean }>;
+    deleteFiles: (dir: string, relPaths: string[]) => Promise<{ deleted: string[]; skipped: string[] }>;
     watch: (dir: string, watchId: string) => Promise<{ ok: boolean }>;
     unwatch: (watchId: string) => Promise<{ ok: boolean }>;
     onChanged: (cb: (data: { watchId: string; files: VaultFile[] }) => void) => () => void;
@@ -85,6 +86,7 @@ export const desktop = {
     checkModified: (dir: string, since: string) => required().vault.checkModified(dir, since),
     readFile: (dir: string, relPath: string) => required().vault.readFile(dir, relPath),
     writeFile: (dir: string, relPath: string, content: string) => required().vault.writeFile(dir, relPath, content),
+    deleteFiles: (dir: string, relPaths: string[]) => required().vault.deleteFiles(dir, relPaths),
     watch: (dir: string, watchId: string) => required().vault.watch(dir, watchId),
     unwatch: (watchId: string) => required().vault.unwatch(watchId),
     onChanged: (cb: (data: { watchId: string; files: VaultFile[] }) => void) => required().vault.onChanged(cb),

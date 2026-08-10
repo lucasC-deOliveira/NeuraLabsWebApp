@@ -116,11 +116,21 @@ export async function pushVault(grafoId: string, grafoNome: string): Promise<{ c
   return result;
 }
 
+// Um .md que descreve um nó que o grafo não tem mais. O caso comum é renomear um
+// conceito: o id deriva do título, então muda o id e muda o nome do arquivo — o
+// gerador escreve o novo e o antigo FICA, com conteúdo desatualizado.
+export interface VaultOrphan {
+  id: string;
+  titulo: string;
+  relPath: string;
+}
+
 // Compara estado atual do backend com o vault para detectar divergências.
 export interface SyncDiff {
   backendOnly: number;  // nós que existem só no backend
   vaultOnly: number;    // nós que existem só no vault
   different: number;    // nós em ambos com conteúdo diferente
+  orphans: VaultOrphan[]; // os `vaultOnly`, identificados (para listar e remover)
   inSync: boolean;
   vaultEmpty: boolean;  // vault não tem nenhum .md ainda
 }
@@ -137,15 +147,26 @@ export async function compareSyncState(grafoId: string, graphDir: string): Promi
 
   if (mdFiles.length === 0) {
     const backendOnly = backendPayload.nodes.length;
-    return { backendOnly, vaultOnly: 0, different: 0, inSync: backendOnly === 0, vaultEmpty: true };
+    return {
+      backendOnly, vaultOnly: 0, different: 0, orphans: [],
+      inSync: backendOnly === 0, vaultEmpty: true,
+    };
   }
 
-  const vaultNodes = mdFiles.map((f) => parseNode(f.content)).filter(Boolean) as VaultNode[];
+  // O nó é pareado com o arquivo de onde veio para que o órfão possa ser apagado
+  // depois — sem isso sobra a contagem, e o usuário tem de caçar os arquivos na mão.
+  const parsed = mdFiles
+    .map((f) => ({ node: parseNode(f.content), relPath: f.relPath }))
+    .filter((p): p is { node: VaultNode; relPath: string } => p.node !== null);
+  const vaultNodes = parsed.map((p) => p.node);
   const backendById = new Map(backendPayload.nodes.map((n) => [n.ref, n]));
   const vaultById = new Map(vaultNodes.map((n) => [n.id, n]));
 
   const backendOnly = backendPayload.nodes.filter((n) => !vaultById.has(n.ref)).length;
-  const vaultOnly = vaultNodes.filter((n) => !backendById.has(n.id)).length;
+  const orphans: VaultOrphan[] = parsed
+    .filter((p) => !backendById.has(p.node.id))
+    .map((p) => ({ id: p.node.id, titulo: vaultNodeLabel(p.node), relPath: p.relPath }));
+  const vaultOnly = orphans.length;
 
   let different = 0;
   for (const vn of vaultNodes) {
@@ -164,9 +185,29 @@ export async function compareSyncState(grafoId: string, graphDir: string): Promi
     backendOnly,
     vaultOnly,
     different,
+    orphans,
     inSync: backendOnly === 0 && vaultOnly === 0 && different === 0,
     vaultEmpty: false,
   };
+}
+
+/**
+ * Apaga os `.md` órfãos da pasta do grafo. Nunca é chamada sozinha — a UI pede
+ * confirmação e lista o que vai sumir. Só toca os caminhos que vieram do
+ * `compareSyncState`, e o processo main recusa qualquer coisa que não seja um
+ * `.md` dentro da pasta.
+ * @example removeOrphans('/vault/bio--g1', [{ id, titulo, relPath }])
+ */
+export async function removeOrphans(
+  graphDir: string,
+  orphans: VaultOrphan[],
+): Promise<{ deleted: number; skipped: string[] }> {
+  if (orphans.length === 0) return { deleted: 0, skipped: [] };
+  const { deleted, skipped } = await desktop.vault.deleteFiles(
+    graphDir,
+    orphans.map((o) => o.relPath),
+  );
+  return { deleted: deleted.length, skipped };
 }
 
 // Lê o estado de sincronização da subpasta do grafo.
