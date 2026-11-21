@@ -38,6 +38,10 @@ export function PlanTodayCard() {
   }, []);
 
   if (!ready || !today) return null;
+  return <PlanTodaySummary today={today} />;
+}
+
+export function PlanTodaySummary({ today }: { today: TodayPlan }) {
   const { target } = today;
   const total = target.reviews + target.feynman + target.novos;
 

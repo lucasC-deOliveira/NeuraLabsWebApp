@@ -1,6 +1,10 @@
 "use client";
 
 import { PageContainer } from "@/components/page-container";
+import { Link } from "@/components/link";
+import { isDesktop } from "@/lib/vault-bridge";
+import { StudyStorageFilter } from "@/components/study-storage-filter";
+import { recordsInStorage, type StorageFilter } from "@/lib/study-storage-filter";
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header/PageHeader";
@@ -72,10 +76,15 @@ export function BaralhosListPage() {
   const [feynmanBaralho, setFeynmanBaralho] = useState<BaralhoItem | null>(null);
   const [criteria, setCriteria] = useState<BaralhoCriteria>(DEFAULT_BARALHO_CRITERIA);
   const [page, setPage] = useState(1);
+  const [storageFilter, setStorageFilter] = useState<StorageFilter>("all");
+  const desktop = isDesktop();
   const fileInput = useRef<HTMLInputElement>(null);
 
   const origins = useMemo(() => originOptions(baralhos), [baralhos]);
-  const visible = useMemo(() => filterAndSortBaralhos(baralhos, criteria), [baralhos, criteria]);
+  const visible = useMemo(
+    () => filterAndSortBaralhos(recordsInStorage(baralhos, storageFilter), criteria),
+    [baralhos, criteria, storageFilter],
+  );
   const paged = useMemo(() => paginate(visible, page, PAGE_SIZE), [visible, page]);
 
   // Toda mudança de filtro/busca/ordenação volta para a página 1.
@@ -151,6 +160,7 @@ export function BaralhosListPage() {
         }
         actions={
           <>
+            {!desktop && <Link href="/baralhos/offline" className="text-sm text-primary underline">Biblioteca offline</Link>}
             <Button variant="outline" className="h-9" disabled={baralhos.length === 0} onClick={handleExport}>
               <DownloadIcon className="size-3.5 mr-1" />
               Exportar
@@ -174,6 +184,7 @@ export function BaralhosListPage() {
         }
       />
 
+      {desktop && <StudyStorageFilter value={storageFilter} onChange={(value) => { setStorageFilter(value); setPage(1); }} />}
       {baralhos.length > 0 && (
         <BaralhosFilters
           criteria={criteria}
@@ -203,6 +214,7 @@ export function BaralhosListPage() {
               <BaralhoCard
                 key={baralho.id}
                 baralho={baralho}
+                showStorage={desktop}
                 onStudy={() => setStudyId(baralho.id)}
                 onDelete={() => setDeleteTarget(baralho)}
                 onAnalytics={() => setAnalyticsId(baralho.id)}
@@ -228,7 +240,7 @@ export function BaralhosListPage() {
       />
       <StudyDeckModal
         open={studyId !== null}
-        onOpenChange={(open) => { if (!open) { setStudyId(null); void reload(); } }}
+        onOpenChange={(open) => { if (!open) { setStudyId(null); void reload().catch(() => {}); } }}
         baralhoId={studyId}
       />
       <DeckAnalyticsModal

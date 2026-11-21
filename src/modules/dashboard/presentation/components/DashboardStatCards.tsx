@@ -18,21 +18,26 @@ function StatCard({ title, value, description, accent = "" }: {
   );
 }
 
-export function DashboardStatCards({ loading, dueCardCount, accuracy, streak }: {
-  loading: boolean; dueCardCount: number; accuracy: number | null; streak: number;
+export function DashboardStatCards({ loading, dueCardCount, accuracy, streak, examAttempts }: {
+  loading: boolean; dueCardCount: number; accuracy: number | null; streak: number; examAttempts?: number;
 }) {
   return (
-    <section className="mb-6 sm:mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <section className={`mb-6 sm:mb-8 grid gap-3 sm:grid-cols-2 ${examAttempts === undefined ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
       <StatCard
         title="Cartões para revisar hoje"
         value={loading ? "..." : String(dueCardCount)}
         description="Próximas revisões pendentes"
         accent="text-amber-600 dark:text-amber-400"
       />
+      {examAttempts !== undefined && <StatCard
+        title="Tentativas de prova"
+        value={loading ? "..." : String(examAttempts)}
+        description="Provas concluídas no vault"
+      />}
       <StatCard
         title="Taxa de acerto"
         value={loading ? "..." : accuracy !== null ? `${accuracy}%` : "N/A"}
-        description={accuracy !== null ? "Nas últimas sessões" : "Estude para ver suas estatísticas"}
+        description={accuracy !== null ? (examAttempts === undefined ? "Nas últimas sessões" : "Nas revisões de flashcards do vault") : "Estude para ver suas estatísticas"}
         accent="text-emerald-600 dark:text-emerald-400"
       />
       <StatCard

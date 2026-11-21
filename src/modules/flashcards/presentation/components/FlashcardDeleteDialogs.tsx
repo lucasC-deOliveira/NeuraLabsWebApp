@@ -14,13 +14,14 @@ interface FlashcardDeleteDialogsProps {
   onConfirmDelete: () => void;
   showDeleteAll: boolean;
   totalCount: number;
+  vaultLocal?: boolean;
   onCancelDeleteAll: () => void;
   onConfirmDeleteAll: () => void;
 }
 
 export function FlashcardDeleteDialogs({
   deleteTargetPergunta, submitting, onCancelDelete, onConfirmDelete,
-  showDeleteAll, totalCount, onCancelDeleteAll, onConfirmDeleteAll,
+  showDeleteAll, totalCount, onCancelDeleteAll, onConfirmDeleteAll, vaultLocal = false,
 }: FlashcardDeleteDialogsProps) {
   return (
     <>
@@ -45,7 +46,7 @@ export function FlashcardDeleteDialogs({
       <Dialog open={showDeleteAll} onOpenChange={(open) => !open && onCancelDeleteAll()}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Remover todos os flashcards</DialogTitle>
+            <DialogTitle>{vaultLocal ? "Remover todos os flashcards do vault" : "Remover todos os flashcards"}</DialogTitle>
             <DialogDescription>
               Esta ação remove permanentemente todos os {totalCount} flashcard(s). Essa ação não pode ser desfeita.
             </DialogDescription>

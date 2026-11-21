@@ -10,11 +10,15 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, EyeIcon, CheckCircle2Icon, ClockIcon } from "lucide-react";
 import { toast } from "sonner";
 import { nowMs } from "@/lib/clock";
+import { openVaultStudyDialog } from "@/lib/vault-study-events";
+import { getToken } from "@/lib/api";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { StudyCard } from "@/modules/graph/application/ports/study.port";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
 import { GradeGrid } from "./GradeGrid";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
+import { configuredStudyVault } from "@/modules/study/infra/electron-vault-study";
+import { catalogVaultCards } from "@/modules/study/infra/vault-card-catalog";
 import { findVaultNode, graphVaultDir } from "@/lib/vault-sync";
 import {
   readSrsLog,
@@ -93,9 +97,28 @@ async function loadCardFromApi(flashcardId: string): Promise<CardOutcome> {
   return { phase: "notdue", card: res.card, srsDir: null, proximaRevisao: res.proximaRevisao };
 }
 
+async function loadConfiguredVaultCard(flashcardId: string): Promise<CardOutcome> {
+  const store = await configuredStudyVault();
+  if (!store) return loadCardFromApi(flashcardId);
+  const [library, srs] = await Promise.all([store.read(), readSrsLog(store.folder)]);
+  const entry = catalogVaultCards(library).find((candidate) => candidate.id === flashcardId);
+  if (!entry) return getToken() ? loadCardFromApi(flashcardId) : { phase: "error" };
+  const schedule = srs.schedule[entry.id] ?? entry.schedule;
+  const card: StudyCard = {
+    id: entry.id, pergunta: entry.question, resposta: entry.answer,
+    conceito: null, importancia: null, schedule,
+  };
+  if (schedule && !isDue(schedule)) {
+    return { phase: "notdue", card, srsDir: store.folder, proximaRevisao: schedule.proximaRevisao };
+  }
+  const sessionId = await startLocalSession(store.folder, null, entry.schedule ? { [entry.id]: entry.schedule } : {});
+  return { phase: "question", card, srsDir: store.folder, sessionId };
+}
+
 // Not `async` so the API call is issued synchronously in the non-desktop path.
 function loadCard(flashcardId: string, grafoId?: string, grafoNome?: string): Promise<CardOutcome> {
   if (isDesktop() && grafoId && grafoNome) return loadCardFromVault(flashcardId, grafoId, grafoNome);
+  if (isDesktop()) return loadConfiguredVaultCard(flashcardId);
   return loadCardFromApi(flashcardId);
 }
 
@@ -177,6 +200,7 @@ function StudyBody({
 }
 
 export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, grafoNome }: StudyFlashcardModalProps) {
+  useEffect(() => open ? openVaultStudyDialog() : undefined, [open]);
   const [phase, setPhase] = useState<Phase>("loading");
   const [card, setCard] = useState<StudyCard | null>(null);
   const [proximaRevisao, setProximaRevisao] = useState<string | null>(null);
@@ -271,7 +295,7 @@ export function StudyFlashcardModal({ open, onOpenChange, flashcardId, grafoId, 
             phase={phase}
             card={card}
             proximaRevisao={proximaRevisao}
-            onClose={() => onOpenChange(false)}
+            onClose={() => handleOpenChange(false)}
             onReveal={() => setPhase("answer")}
             onGrade={handleGrade}
           />

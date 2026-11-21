@@ -31,6 +31,14 @@ function input(overrides: Partial<AddExistingItemsInput>): AddExistingItemsInput
 }
 
 describe("addExistingItems", () => {
+  it("links a concept by its existing identity only once", async () => {
+    const port = new FakeNodeCreationPort();
+    await addExistingItems(port, input({
+      type: "CONCEITO", conceitos: [{ id: "c1" }], itemIds: ["c1", "c1", "unknown"],
+    }));
+    expect(port.added).toEqual([["CONCEITO", { entityId: "c1" }]]);
+    expect(port.edges).toEqual([]);
+  });
   it("links existing flashcards to their conceito relations using the returned node id", async () => {
     const port = new FakeNodeCreationPort();
     const result = await addExistingItems(

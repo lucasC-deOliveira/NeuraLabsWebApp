@@ -3,6 +3,7 @@ import { type TipoNode } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import type { GraphNodeRepository } from '../../domain/ports/graph-node-repository';
 import { createContainedNode } from './node-containment';
+import { NodeNotInGraphError } from '../../domain/errors';
 
 @Injectable()
 export class PrismaGraphNodeRepository implements GraphNodeRepository {
@@ -22,6 +23,13 @@ export class PrismaGraphNodeRepository implements GraphNodeRepository {
     tipoNode: string,
     entityId: string,
   ): Promise<void> {
+    if (tipoNode === 'CONCEITO') {
+      const concept = await this.prisma.conceito.findFirst({
+        where: { id: entityId, usuarioId: userId },
+        select: { id: true },
+      });
+      if (!concept) throw new NodeNotInGraphError();
+    }
     await createContainedNode(this.prisma, {
       usuarioId: userId,
       grafoId,

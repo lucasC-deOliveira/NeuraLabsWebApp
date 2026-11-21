@@ -4,9 +4,11 @@ import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { BarChart3Icon, LayersIcon, NetworkIcon, PlayIcon, Trash2Icon, Share2Icon, LightbulbIcon } from "lucide-react";
 import type { BaralhoItem } from "../../domain/baralho.types";
+import { StudyStorageLabel } from "@/components/study-storage-filter";
 
 interface BaralhoCardProps {
   baralho: BaralhoItem;
+  showStorage?: boolean;
   onStudy: () => void;
   onDelete: () => void;
   onAnalytics?: () => void;
@@ -35,7 +37,7 @@ function DeckStat({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function BaralhoCard({ baralho, onStudy, onDelete, onAnalytics, onGraph, onFeynman }: BaralhoCardProps) {
+export function BaralhoCard({ baralho, showStorage, onStudy, onDelete, onAnalytics, onGraph, onFeynman }: BaralhoCardProps) {
   const empty = baralho.totalCards === 0;
   // preventDefault: os botões vivem dentro do link do cartão.
   const stop = (e: React.MouseEvent, fn: () => void): void => {
@@ -51,6 +53,7 @@ export function BaralhoCard({ baralho, onStudy, onDelete, onAnalytics, onGraph, 
           <div className={INNER_FRAME}>
             <Link href={`/baralhos/${baralho.id}`} className="flex flex-1 flex-col">
               <div className="flex items-start justify-between gap-2">
+                {showStorage && <StudyStorageLabel storage={baralho.storage} availableOnServer={baralho.availableOnServer} />}
                 {baralho.origens.length > 0 && (
                   <span className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
                     <NetworkIcon className="size-2.5 shrink-0" />

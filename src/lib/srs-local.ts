@@ -7,6 +7,7 @@
 // sabe quando você esquece. `readSrsLog` funde o log antigo da pasta na primeira
 // leitura, para as agendas já existentes não se perderem.
 import { desktop } from "./vault-bridge";
+import { announceVaultStudyChange } from "./vault-study-events";
 
 export const SRS_LOG_FILENAME = "_srs.json";
 
@@ -30,6 +31,7 @@ export interface LocalRevisao {
   grade: ReviewGrade;
   tempoResposta: number;
   revisadoEm: string; // ISO
+  serverConfirmed?: boolean;
 }
 
 export interface LocalSession {
@@ -39,6 +41,7 @@ export interface LocalSession {
   baralhoId: string | null;
   revisoes: LocalRevisao[];
   syncedAt?: string;
+  catalog?: boolean;
 }
 
 export interface LocalSrsLog {
@@ -285,12 +288,41 @@ function scheduleRelearn(grade: ReviewGrade, s: LocalSchedule, now: Date): Local
 
 // ---- gerenciamento de sessão ----
 
-export async function startLocalSession(graphDir: string, baralhoId: string | null = null): Promise<string> {
-  const log = await readSrsLog(graphDir);
-  const id = crypto.randomUUID();
-  log.sessions.push({ id, startedAt: new Date().toISOString(), endedAt: null, baralhoId, revisoes: [] });
-  await writeSrsLog(graphDir, log);
-  return id;
+const pendingSrsWrites = new Map<string, Promise<void>>();
+
+export function updateSrsLog<Result>(
+  dir: string,
+  change: (log: LocalSrsLog) => Result,
+  shouldWrite: (result: Result) => boolean = () => true,
+): Promise<Result> {
+  const next = (pendingSrsWrites.get(dir) ?? Promise.resolve()).then(async () => {
+    const log = await readSrsLog(dir);
+    const result = change(log);
+    if (shouldWrite(result)) await writeSrsLog(dir, log);
+    return result;
+  });
+  const settled = next.then(() => {}, () => {});
+  pendingSrsWrites.set(dir, settled);
+  void settled.then(() => {
+    if (pendingSrsWrites.get(dir) === settled) pendingSrsWrites.delete(dir);
+  });
+  return next;
+}
+
+export async function startLocalSession(
+  graphDir: string,
+  baralhoId: string | null = null,
+  initialSchedules?: Record<string, LocalSchedule>,
+): Promise<string> {
+  return updateSrsLog(graphDir, (log) => {
+    const id = crypto.randomUUID();
+    log.schedule = { ...initialSchedules, ...log.schedule };
+    log.sessions.push({
+      id, startedAt: new Date().toISOString(), endedAt: null, baralhoId, revisoes: [],
+      ...(initialSchedules ? { catalog: true } : {}),
+    });
+    return id;
+  });
 }
 
 export async function submitLocalReview(
@@ -298,26 +330,28 @@ export async function submitLocalReview(
   sessionId: string,
   review: { flashcardId: string; grade: ReviewGrade; tempoResposta: number },
 ): Promise<LocalSchedule> {
-  const log = await readSrsLog(graphDir);
-  const session = log.sessions.find((s) => s.id === sessionId);
-  if (!session) throw new Error("Sessão local não encontrada");
-
-  const now = new Date();
-  session.revisoes.push({ ...review, revisadoEm: now.toISOString() });
-  const newSchedule = scheduleCard(review.grade, log.schedule[review.flashcardId], now);
-  log.schedule[review.flashcardId] = newSchedule;
-  await writeSrsLog(graphDir, log);
-  return newSchedule;
+  return updateSrsLog(graphDir, (log) => {
+    const session = log.sessions.find((s) => s.id === sessionId);
+    if (!session) throw new Error("Sessão local não encontrada");
+    const now = new Date();
+    session.revisoes.push({ ...review, revisadoEm: now.toISOString() });
+    const newSchedule = scheduleCard(review.grade, log.schedule[review.flashcardId], now);
+    log.schedule[review.flashcardId] = newSchedule;
+    return newSchedule;
+  });
 }
 
 export async function finalizeLocalSession(graphDir: string, sessionId: string): Promise<void> {
-  const log = await readSrsLog(graphDir);
-  const session = log.sessions.find((s) => s.id === sessionId);
-  if (!session) return;
-  if (session.revisoes.length === 0) {
-    log.sessions = log.sessions.filter((s) => s.id !== sessionId);
-  } else if (!session.endedAt) {
-    session.endedAt = new Date().toISOString();
-  }
-  await writeSrsLog(graphDir, log);
+  const result = await updateSrsLog(graphDir, (log) => {
+    const session = log.sessions.find((s) => s.id === sessionId);
+    if (!session) return "missing";
+    if (session.revisoes.length === 0) {
+      log.sessions = log.sessions.filter((s) => s.id !== sessionId);
+      return "discarded";
+    }
+    const completed = !session.endedAt;
+    if (completed) session.endedAt = new Date().toISOString();
+    return completed ? "completed" : "closed";
+  }, (status) => status !== "missing");
+  if (result === "completed") announceVaultStudyChange("review");
 }

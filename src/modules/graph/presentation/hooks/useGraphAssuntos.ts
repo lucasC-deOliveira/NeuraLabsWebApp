@@ -3,9 +3,11 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { graphHttp } from "../../infra/http";
 import type { GraphAssunto } from "../../domain/types/graph.types";
+import { canReadServerGraphs } from "../../infra/vault/graph-vault-reader";
 
 function fetchAssuntos(setAssuntos: Dispatch<SetStateAction<GraphAssunto[]>>): () => void {
   let alive = true;
+  if (!canReadServerGraphs()) return (): void => { alive = false; };
   void (async (): Promise<void> => {
     try {
       const list = await graphHttp.listGraphAssuntos();

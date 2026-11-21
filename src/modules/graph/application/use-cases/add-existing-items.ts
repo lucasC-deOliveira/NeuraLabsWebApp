@@ -17,6 +17,7 @@ export interface AddExistingItemsInput {
   itemIds: string[];
   flashcards: Array<{ id: string; conceitoId?: string | null }>;
   notas: Array<{ id: string }>;
+  conceitos?: Array<{ id: string }>;
   flashcardConceitos: WeightedConceitoLink[];
   notaConceitos: WeightedConceitoLink[];
   notaTextoBrutoId: string;
@@ -87,6 +88,12 @@ async function linkNotas(
 }
 
 export async function addExistingItems(port: NodeCreationPort, input: AddExistingItemsInput): Promise<{ createdEdges: number }> {
+  if (input.type === "CONCEITO") {
+    const available = new Set(input.conceitos?.map(({ id }) => id));
+    const selected = [...new Set(input.itemIds)].filter((id) => available.has(id));
+    for (const entityId of selected) await port.addNodeToGraph(input.grafoId, "CONCEITO", { entityId });
+    return { createdEdges: 0 };
+  }
   const { flashcardIds, notaIds } = await addItems(port, input);
   if (input.type === "FLASHCARD") {
     return { createdEdges: await linkFlashcards(port, input.grafoId, flashcardIds, input.flashcardConceitos) };

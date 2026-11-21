@@ -24,6 +24,7 @@ import { addExistingItems } from "@/modules/graph/application/use-cases/add-exis
 import { mergeImprovedQuestoes, toImproveBatchInput } from "@/modules/graph/domain/services/merge-improved-questoes";
 import { useProvaAiConfig } from "@/modules/graph/presentation/hooks/useProvaAiConfig";
 import { graphHttp } from "@/modules/graph/infra/http";
+import type { VaultGraphNodeCreation } from "@/modules/graph/infra/vault/create-vault-graph-node";
 import { CreateNodeDialog, type CreateNodeVm } from "./CreateNodeDialog";
 import { useRouter } from "@/lib/navigation";
 
@@ -49,6 +50,11 @@ interface NamedRef {
   nome: string;
 }
 interface CreateNodeModalProps {
+  localCreation?: {
+    port: VaultGraphNodeCreation;
+    flashcards: Array<{ id: string; pergunta: string; conceito: string | null }>;
+    listConcepts: (graphId: string) => Promise<AvailableItem[]>;
+  };
   open: boolean;
   onOpenChange: (open: boolean) => void;
   grafoId: string;
@@ -66,7 +72,7 @@ interface CreateNodeModalProps {
 
 const NO_PARENTS = { assuntos: [], topicos: [], conceitos: [], textosBrutos: [], flashcards: [] };
 
-export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PARENTS, provas = [], onSuccess }: CreateNodeModalProps) {
+export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PARENTS, provas = [], onSuccess, localCreation }: CreateNodeModalProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"create" | "existing">("create");
   const [selectedType, setSelectedType] = useState<string>("");
@@ -75,7 +81,8 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     flashcards: AvailableItem[];
     notas: AvailableItem[];
     provas: AvailableItem[];
-  }>({ flashcards: [], notas: [], provas: [] });
+    conceitos: AvailableItem[];
+  }>({ flashcards: [], notas: [], provas: [], conceitos: [] });
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [aiSuggestions, setAiSuggestions] = useState<Array<NotaRelationSuggestion & { accepted: boolean }>>([]);
   const [aiLoading, setAiLoading] = useState(false);
@@ -118,29 +125,32 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     // O que já foi digitado permanece, mas os erros do tipo anterior não valem
     // para os campos que o novo tipo passa a exigir.
     form.clearErrors();
-    if (type && type !== "FLASHCARD" && type !== "NOTA") setActiveTab("create");
+    setSelectedItems(new Set());
+    if (type && !["FLASHCARD", "NOTA", "CONCEITO"].includes(type)) setActiveTab("create");
   };
 
   // Carrega os itens disponíveis ao abrir na aba de existentes ou em PROVA.
   useEffect(() => {
     if (!open || !(activeTab === "existing" || selectedType === "PROVA")) return;
     let ignore = false;
-    graphHttp
-      .getAvailableItems(grafoId)
+    const items = localCreation && selectedType === "CONCEITO"
+      ? localCreation.listConcepts(grafoId).then((conceitos) => ({ conceitos, flashcards: [], notas: [], provas: [] }))
+      : graphHttp.getAvailableItems(grafoId);
+    items
       .then((data): void => {
-        if (!ignore) setAvailableItems({ flashcards: data.flashcards ?? [], notas: data.notas ?? [], provas: data.provas ?? [] });
+        if (!ignore) setAvailableItems({ flashcards: data.flashcards ?? [], notas: data.notas ?? [], provas: data.provas ?? [], conceitos: data.conceitos ?? [] });
       })
       .catch((e): void => {
         if (!ignore) toast.error(`Erro ao carregar itens disponíveis: ${e instanceof Error ? e.message : "Erro desconhecido"}`);
       });
     return (): void => { ignore = true; };
-  }, [open, activeTab, selectedType, grafoId]);
+  }, [open, activeTab, selectedType, grafoId, localCreation]);
 
   // Carrega os flashcards ao criar um BARALHO (só os já no grafo). deckLoading é DERIVADO.
   const deckKey = open && selectedType === "BARALHO" ? parentIds.flashcards.map((f) => f.id).join(",") : "";
   const [deckLoadedKey, setDeckLoadedKey] = useState<string | null>(null);
   useEffect(() => {
-    if (open === false || selectedType !== "BARALHO") return;
+    if (localCreation || open === false || selectedType !== "BARALHO") return;
     let ignore = false;
     const noGrafo = new Set(parentIds.flashcards.map((f) => f.id));
     graphHttp
@@ -151,8 +161,8 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
       .catch((): void => { if (!ignore) toast.error("Erro ao carregar flashcards"); })
       .finally((): void => { if (!ignore) setDeckLoadedKey(deckKey); });
     return (): void => { ignore = true; };
-  }, [open, selectedType, parentIds.flashcards, deckKey]);
-  const deckLoading = deckKey !== "" && deckLoadedKey !== deckKey;
+  }, [open, selectedType, parentIds.flashcards, deckKey, localCreation]);
+  const deckLoading = !localCreation && deckKey !== "" && deckLoadedKey !== deckKey;
 
   const filteredFlashcards = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -217,7 +227,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   const submitBaralho = async ({ nome }: CreateNodeFormValues): Promise<void> => {
     setLoading(true);
     try {
-      await createDeck(graphHttp, grafoId, nome, Array.from(deckSelected));
+      await createDeck(localCreation?.port ?? graphHttp, grafoId, nome, Array.from(deckSelected));
       toast.success(deckSelected.size > 0 ? `Baralho criado com ${deckSelected.size} flashcard(s)!` : "Baralho criado (vazio)!");
       finishSubmit();
     } catch (e) {
@@ -371,7 +381,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
   const submitCreateNode = async (values: CreateNodeFormValues): Promise<void> => {
     setLoading(true);
     try {
-      const { createdEdges } = await createGraphNode(graphHttp, {
+      const { createdEdges } = await createGraphNode(localCreation?.port ?? graphHttp, {
         grafoId,
         type: selectedType,
         form: values,
@@ -396,12 +406,14 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     if (itemIds.length === 0) return void toast.error("Selecione pelo menos um item para adicionar");
     setLoading(true);
     try {
-      const { createdEdges } = await addExistingItems(graphHttp, {
+      const port = selectedType === "CONCEITO" && localCreation ? localCreation.port : graphHttp;
+      const { createdEdges } = await addExistingItems(port, {
         grafoId,
         type: selectedType,
         itemIds,
         flashcards: availableItems.flashcards,
         notas: availableItems.notas,
+        conceitos: availableItems.conceitos,
         flashcardConceitos,
         notaConceitos,
         notaTextoBrutoId,
@@ -455,7 +467,7 @@ export function CreateNodeModal({ open, onOpenChange, grafoId, parentIds = NO_PA
     setAiSuggestions,
     aiLoading,
     suggest: handleSuggestRelations,
-    deckFlashcards,
+    deckFlashcards: localCreation?.flashcards ?? deckFlashcards,
     deckLoading,
     deckSelected,
     toggleDeck: (id) => setDeckSelected((prev) => toggleSet(prev, id)),

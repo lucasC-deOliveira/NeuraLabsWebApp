@@ -21,6 +21,10 @@ class FakeExportRepo implements GraphExportRepository {
 }
 
 class FakeDetails implements NodeDetailsQuery {
+  async findConceptGraphs(): Promise<[]> {
+    return [];
+  }
+
   constructor(private readonly map: Record<string, NodeDetails | null>) {}
   async findDetails(_u: string, _t: string, refId: string): Promise<NodeDetails | null> {
     return this.map[refId] ?? null;

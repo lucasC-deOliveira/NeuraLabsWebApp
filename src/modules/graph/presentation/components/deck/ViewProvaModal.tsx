@@ -8,12 +8,13 @@ import { Loader2Icon, CheckCircle2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { graphHttp } from "@/modules/graph/infra/http";
 import { ProvaFigura } from "./ProvaFigura";
-import type { ProvaDetailView, ProvaQuestaoView } from "@/modules/graph/application/ports/graph-prova.port";
+import type { GraphExamStudyPort, ProvaDetailView, ProvaQuestaoView } from "@/modules/graph/application/ports/graph-prova.port";
 
 interface ViewProvaModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   provaId: string | null;
+  studyPort?: GraphExamStudyPort;
 }
 
 function VerdadeiroFalso({ gabarito }: { gabarito: string }) {
@@ -85,7 +86,7 @@ function ProvaQuestaoCard({ questao, numero }: { questao: ProvaQuestaoView; nume
   );
 }
 
-export function ViewProvaModal({ open, onOpenChange, provaId }: ViewProvaModalProps) {
+export function ViewProvaModal({ open, onOpenChange, provaId, studyPort }: ViewProvaModalProps) {
   const [loading, setLoading] = useState(false);
   const [prova, setProva] = useState<ProvaDetailView | null>(null);
   const [prevKey, setPrevKey] = useState("");
@@ -100,18 +101,22 @@ export function ViewProvaModal({ open, onOpenChange, provaId }: ViewProvaModalPr
   useEffect(() => {
     if (!open || !provaId) return;
     let ignore = false;
-    graphHttp.getProva(provaId)
+    (studyPort ?? graphHttp).getProva(provaId)
       .then((found): void => {
         if (ignore) return;
         if (found) { setProva(found); return; }
         toast.error("Prova não encontrada");
         onOpenChange(false);
       })
-      .catch((): void => { if (!ignore) toast.error("Erro ao carregar a prova"); })
+      .catch((error: unknown): void => {
+        if (ignore) return;
+        toast.error(studyPort && error instanceof Error ? error.message : "Erro ao carregar a prova");
+        onOpenChange(false);
+      })
       .finally((): void => { if (!ignore) setLoading(false); });
     return (): void => { ignore = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, provaId]);
+  }, [open, provaId, studyPort]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

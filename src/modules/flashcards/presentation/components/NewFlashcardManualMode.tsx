@@ -16,6 +16,7 @@ import {
 } from "@/modules/content";
 import { NewConceptCard } from "@/modules/content/ui";
 import { contentHttp, flashcardsHttp } from "../../infra/http";
+import { configuredStudyVault } from "@/modules/study/infra/electron-vault-study";
 import { buildManualCard, type ManualCardType } from "../../domain/manual-card";
 import {
   MANUAL_CARD_SCHEMAS, EMPTY_MANUAL_FORM_VALUES, toManualCardFields,
@@ -42,6 +43,7 @@ export function NewFlashcardManualMode({ router }: { router: ReturnType<typeof u
 
   const [arvore, setArvore] = useState<ConceitoArvore[]>([]);
   const [loadingConcepts, setLoadingConcepts] = useState(true);
+  const [vaultLocal, setVaultLocal] = useState(false);
   const [flatConcepts, setFlatConcepts] = useState<FlatConcept[]>([]);
 
   const [selectedConceptId, setSelectedConceptId] = useState("");
@@ -50,8 +52,12 @@ export function NewFlashcardManualMode({ router }: { router: ReturnType<typeof u
   const [pendingConcepts, setPendingConcepts] = useState<PendingConcept[]>([]);
 
   useEffect(() => {
-    contentHttp
-      .getHierarquiaConceitos()
+    configuredStudyVault()
+      .then((vault) => {
+        if (!vault) return contentHttp.getHierarquiaConceitos();
+        setVaultLocal(true);
+        return [];
+      })
       .then((tree) => { setArvore(tree); setFlatConcepts(flattenConceptTree(tree).flat); })
       .catch(() => { /* keep empty tree */ })
       .finally(() => setLoadingConcepts(false));
@@ -62,7 +68,7 @@ export function NewFlashcardManualMode({ router }: { router: ReturnType<typeof u
   const draft = useWatch({ control: form.control });
   const card = buildManualCard(tipo, toManualCardFields(draft));
   const hasContent = !!card.pergunta.trim();
-  const hasSelectedConcept = !!selectedConceptId;
+  const canSaveCard = vaultLocal || !!selectedConceptId;
 
   // Trocar de tipo mantém o que já foi digitado, mas os erros do tipo anterior
   // não valem mais para os campos que passam a ser exigidos.
@@ -90,7 +96,7 @@ export function NewFlashcardManualMode({ router }: { router: ReturnType<typeof u
   };
 
   const handleSave = async (values: ManualCardFormValues): Promise<void> => {
-    if (!hasSelectedConcept) { toast.error("Selecione ou adicione um conceito."); return; }
+    if (!canSaveCard) { toast.error("Selecione ou adicione um conceito."); return; }
     setSaving(true);
     try {
       await saveManualFlashcard(
@@ -112,21 +118,21 @@ export function NewFlashcardManualMode({ router }: { router: ReturnType<typeof u
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSave)} className="space-y-5">
-        <ConceptSinglePicker
+        {!vaultLocal && <ConceptSinglePicker
           arvore={arvore}
           flatConcepts={flatConcepts}
           loadingConcepts={loadingConcepts}
           selectedConceptId={selectedConceptId}
           selectedDisplay={selectedDisplay}
           onSelect={(id) => setSelectedConceptId(id)}
-        />
+        />}
 
-        <NewConceptCard
+        {!vaultLocal && <NewConceptCard
           arvore={arvore}
           pendingAssuntos={pendingAssuntos}
           onAddConcept={addConcept}
           onAddAssunto={(a) => setPendingAssuntos((prev) => [...prev, a])}
-        />
+        />}
 
         <ManualTypeSelector tipo={tipo} onSelect={selectType} />
 
@@ -159,14 +165,14 @@ export function NewFlashcardManualMode({ router }: { router: ReturnType<typeof u
           </Card>
         )}
 
-        {!hasSelectedConcept && hasContent && (
+        {!canSaveCard && hasContent && (
           <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
             <AlertCircleIcon className="size-4 flex-shrink-0" />
             Selecione ou crie um conceito para habilitar o salvamento.
           </div>
         )}
 
-        <Button type="submit" disabled={saving || !hasSelectedConcept} size="lg" className="w-full">
+        <Button type="submit" disabled={saving || !canSaveCard} size="lg" className="w-full">
           {saving ? (<><Loader2Icon className="size-4 mr-1 animate-spin" /> Salvando...</>) : (<><CheckCircle2Icon className="size-4 mr-1" /> Criar flashcard</>)}
         </Button>
       </form>

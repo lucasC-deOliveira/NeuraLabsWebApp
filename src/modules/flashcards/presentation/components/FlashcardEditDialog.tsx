@@ -17,6 +17,7 @@ export interface FlashcardForm {
 }
 
 interface FlashcardEditDialogProps {
+  vaultLocal?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editing: boolean;
@@ -28,7 +29,7 @@ interface FlashcardEditDialogProps {
 }
 
 export function FlashcardEditDialog({
-  open, onOpenChange, editing, form, concepts, submitting, onChange, onSubmit,
+  open, onOpenChange, editing, form, concepts, submitting, onChange, onSubmit, vaultLocal = false,
 }: FlashcardEditDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,7 +42,7 @@ export function FlashcardEditDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
+          {!vaultLocal && <div className="space-y-2">
             <Label>Conceito</Label>
             <Select value={form.conceitoId} onValueChange={(v) => onChange({ conceitoId: v ?? "" })}>
               <SelectTrigger><SelectValue placeholder="Selecione um conceito" /></SelectTrigger>
@@ -51,7 +52,7 @@ export function FlashcardEditDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </div>}
 
           <div className="space-y-2">
             <Label>Pergunta</Label>

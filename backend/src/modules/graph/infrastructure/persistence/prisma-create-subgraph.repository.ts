@@ -7,6 +7,20 @@ import type {
 } from '../../domain/ports/create-subgraph-repository';
 import { createContainedNode } from './node-containment';
 
+function childGraphFields(
+  userId: string,
+  parentGrafoId: string,
+  input: CreateSubgraphInput,
+): Prisma.GrafosConhecimentoUncheckedCreateInput {
+  return {
+    usuarioId: userId,
+    nome: input.nome.trim() || 'Novo subgrafo',
+    descricao: input.descricao ?? null,
+    parentGrafoId,
+    tipoRelacaoPai: input.tipoRelacao,
+  };
+}
+
 @Injectable()
 export class PrismaCreateSubgraphRepository implements CreateSubgraphRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -44,14 +58,12 @@ export class PrismaCreateSubgraphRepository implements CreateSubgraphRepository 
     parentGrafoId: string,
     input: CreateSubgraphInput,
   ): Promise<{ id: string }> {
-    return tx.grafosConhecimento.create({
-      data: {
-        usuarioId: userId,
-        nome: input.nome.trim() || 'Novo subgrafo',
-        descricao: input.descricao ?? null,
-        parentGrafoId,
-        tipoRelacaoPai: input.tipoRelacao,
-      },
+    const data = childGraphFields(userId, parentGrafoId, input);
+    if (!input.localId) return tx.grafosConhecimento.create({ data, select: { id: true } });
+    return tx.grafosConhecimento.upsert({
+      where: { id: input.localId, usuarioId: userId, parentGrafoId },
+      create: { ...data, id: input.localId },
+      update: {},
       select: { id: true },
     });
   }

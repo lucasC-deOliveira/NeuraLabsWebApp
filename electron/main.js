@@ -8,6 +8,8 @@ const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const { spawn, exec, execSync } = require("child_process");
+const { readVaultStudy, writeVaultStudy, replaceVaultFile } = require("./vault-study-store");
+const { listVaultGraphFolders } = require("./vault-graph-folders");
 
 const isDev = !app.isPackaged;
 const DEV_URL = process.env.ELECTRON_DEV_URL || "https://localhost:5173";
@@ -445,6 +447,76 @@ ipcMain.handle("neuralabs:set-claude-code-enabled", (_e, { enabled, savedConfig 
 // IPC: vault (sistema de arquivos)
 // ---------------------------------------------------------------------------
 ipcMain.handle("vault:get-path", () => readConfig().vaultPath || null);
+ipcMain.handle("vault:list-graph-folders", () => listVaultGraphFolders(readConfig().vaultPath));
+ipcMain.handle("vault:list-exam-attempts", (_event, dir) => {
+  const vaultPath = readConfig().vaultPath;
+  if (!vaultPath || !dir || path.dirname(path.resolve(dir)) !== path.resolve(vaultPath)) {
+    throw new Error("Invalid exam directory. Expected a graph in the configured vault.");
+  }
+  const folder = path.join(dir, ".neuralabs-exam-attempts");
+  try {
+    if (!fs.lstatSync(dir).isDirectory() || !fs.lstatSync(folder).isDirectory()) return [];
+    return fs.readdirSync(folder, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /^[a-zA-Z0-9_-]+\.json$/.test(entry.name))
+      .map((entry) => `.neuralabs-exam-attempts/${entry.name}`);
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+});
+
+function graphMarkdownTarget(folders, { dir, relPath, expected, next }) {
+  if (![dir, relPath, expected, next].every((value) => typeof value === "string")) return null;
+  if (!folders.has(dir)) return null;
+  const target = path.resolve(dir, relPath);
+  const relative = path.relative(dir, target);
+  if (!PARA_FOLDERS.includes(relative.split(path.sep)[0]) || path.extname(target) !== ".md") return null;
+  try {
+    const resolved = path.join(fs.realpathSync(dir), relative);
+    if (!fs.lstatSync(target).isFile() || fs.realpathSync(target) !== resolved) return null;
+    return fs.readFileSync(target, "utf8") === expected ? target : null;
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function replaceGraphMarkdownFiles(writes) {
+  if (!Array.isArray(writes) || !writes.length || writes.some((write) => !write || typeof write !== "object")) return false;
+  const folders = new Set(listVaultGraphFolders(readConfig().vaultPath).map((folder) => folder.directory));
+  const targets = writes.map((write) => graphMarkdownTarget(folders, write));
+  if (targets.includes(null) || new Set(targets).size !== targets.length) return false;
+  const committed = [];
+  try {
+    for (const [index, write] of writes.entries()) {
+      const target = graphMarkdownTarget(folders, write);
+      if (target !== targets[index]) throw new Error("Graph Markdown changed during the write.");
+      if (write.expected === write.next) continue;
+      replaceVaultFile(target, write.next);
+      committed.push({ target, dir: write.dir, relPath: write.relPath, expected: write.expected, next: write.next });
+    }
+    return true;
+  } catch (error) {
+    const unrestored = committed.reverse().filter((write) => !restoreGraphMarkdown(folders, write));
+    if (unrestored.length) throw new AggregateError([error], "Some graph Markdown files could not be restored.");
+    throw error;
+  }
+}
+
+function restoreGraphMarkdown(folders, { target, dir, relPath, expected, next }) {
+  try {
+    if (graphMarkdownTarget(folders, { dir, relPath, expected: next, next: expected }) !== target) return false;
+    replaceVaultFile(target, expected);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+ipcMain.handle("vault:replace-graph-markdown", (_event, write) => replaceGraphMarkdownFiles([write]));
+ipcMain.handle("vault:replace-graph-markdown-batch", (_event, writes) => replaceGraphMarkdownFiles(writes));
+ipcMain.handle("vault:study-read", (_event, folder) => readVaultStudy(readConfig().vaultPath, folder));
+ipcMain.handle("vault:study-write", (_event, update) => writeVaultStudy(readConfig().vaultPath, update));
 
 ipcMain.handle("vault:pick-folder", async () => {
   const res = await dialog.showOpenDialog(mainWindow, {
@@ -493,7 +565,11 @@ ipcMain.handle("vault:write-file", async (_e, { dir, relPath, content }) => {
   const full = path.resolve(root, relPath);
   if (!full.startsWith(root + path.sep) && full !== root) throw new Error("Caminho inválido");
   fs.mkdirSync(path.dirname(full), { recursive: true });
-  fs.writeFileSync(full, String(content ?? ""), "utf8");
+  const folder = path.basename(path.dirname(full));
+  const examRecord = path.extname(full) === ".json" &&
+    [".neuralabs-exam-progress", ".neuralabs-exam-attempts"].includes(folder);
+  if (path.basename(full) === "_srs.json" || examRecord) replaceVaultFile(full, String(content ?? ""));
+  else fs.writeFileSync(full, String(content ?? ""), "utf8");
   return { ok: true };
 });
 

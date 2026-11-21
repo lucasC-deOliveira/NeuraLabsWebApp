@@ -76,14 +76,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      # started, não healthy: o TEI baixa o modelo no primeiro boot e a API não
-      # precisa dele para subir — só as features de vetor esperam.
-      embeddings:
-        condition: service_started
-      # started: o Piper baixa nada em runtime (vozes vêm no build); a API não
-      # depende dele para subir — só a leitura em voz alta espera.
-      piper:
-        condition: service_started
+      # Embeddings can download their model on first boot, and Piper supplies
+      # speech only. Neither service should gate startup of the core API.
 
   frontend:
     build:

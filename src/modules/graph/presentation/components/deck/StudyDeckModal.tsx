@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, EyeIcon, CheckCircle2Icon, ClockIcon, InfoIcon } from "lucide-react";
 import { toast } from "sonner";
 import { nowMs } from "@/lib/clock";
+import { openVaultStudyDialog } from "@/lib/vault-study-events";
+import { getToken } from "@/lib/api";
 import { graphHttp } from "@/modules/graph/infra/http";
 import type { StudyCard, CardReviewInput } from "@/modules/graph/application/ports/study.port";
 import { FlashcardFace } from "@/components/flashcard/FlashcardFace";
@@ -17,6 +19,7 @@ import { useSpeech } from "@/components/speech/useSpeech";
 import { useAutoRead } from "@/components/speech/useAutoRead";
 import { loadSpeechSettings } from "@/components/speech/speech-settings";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
+import { configuredStudyVault } from "@/modules/study/infra/electron-vault-study";
 import { readAllVaultNodes, graphVaultDir } from "@/lib/vault-sync";
 import type { VaultNode } from "@/lib/vault-format";
 import {
@@ -117,9 +120,12 @@ async function readVaultDir(grafoId: string, grafoNome: string): Promise<{ dir: 
   return { dir: vaultDir, nodeById: new Map(vaultNodes.map((n) => [n.id, n])), srsLog };
 }
 
-async function startQueue(dir: string, sessionKey: string | null, titulo: string, totalNoDeck: number, dueCards: QueueCard[]): Promise<DeckOutcome> {
+async function startQueue(
+  dir: string, sessionKey: string | null, titulo: string, totalNoDeck: number, dueCards: QueueCard[],
+  initialSchedules?: Record<string, LocalSchedule>,
+): Promise<DeckOutcome> {
   if (dueCards.length === 0) return { phase: "complete", titulo, totalNoDeck, srsDir: dir, sessionId: null };
-  const sessionId = await startLocalSession(dir, sessionKey);
+  const sessionId = await startLocalSession(dir, sessionKey, initialSchedules);
   return { phase: "question", titulo, totalNoDeck, srsDir: dir, sessionId, queue: dueCards };
 }
 
@@ -156,6 +162,20 @@ async function loadDeckFromApi(baralhoId: string): Promise<DeckOutcome> {
   return { phase: "question", titulo: deck.titulo, totalNoDeck: deck.totalNoDeck, srsDir: null, sessionId: deck.sessionId, queue };
 }
 
+async function loadConfiguredVaultDeck(baralhoId: string): Promise<DeckOutcome> {
+  const store = await configuredStudyVault();
+  if (!store) return loadDeckFromApi(baralhoId);
+  const [library, srs] = await Promise.all([store.read(), readSrsLog(store.folder)]);
+  const deck = library.decks.find((candidate) => candidate.id === baralhoId);
+  if (!deck) return getToken() ? loadDeckFromApi(baralhoId) : { phase: "error" };
+  const queue = deck.cards.map((card): QueueCard => ({
+    id: card.id, pergunta: card.question, resposta: card.answer,
+    conceito: null, importancia: null, schedule: srs.schedule[card.id] ?? card.schedule,
+  })).filter((card) => isDue(card.schedule ?? undefined));
+  const initialSchedules = Object.fromEntries(deck.cards.flatMap((card) => card.schedule ? [[card.id, card.schedule] as const] : []));
+  return startQueue(store.folder, baralhoId, deck.title, deck.cards.length, queue, initialSchedules);
+}
+
 // Not `async` so the API call is issued synchronously in the non-desktop path.
 function loadDeck(props: StudyDeckModalProps): Promise<DeckOutcome> {
   const { baralhoId, grafoId, grafoNome, customFlashcardIds, customTitulo } = props;
@@ -166,6 +186,7 @@ function loadDeck(props: StudyDeckModalProps): Promise<DeckOutcome> {
   if (isDesktop() && grafoId && grafoNome) {
     return loadDeckFromVault(baralhoId, grafoId, grafoNome).then((r) => r ?? loadDeckFromApi(baralhoId));
   }
+  if (isDesktop()) return loadConfiguredVaultDeck(baralhoId);
   return loadDeckFromApi(baralhoId);
 }
 
@@ -375,6 +396,7 @@ function DeckBody({
 
 export function StudyDeckModal(props: StudyDeckModalProps) {
   const { open, onOpenChange, baralhoId, customFlashcardIds } = props;
+  useEffect(() => open ? openVaultStudyDialog() : undefined, [open]);
   const [phase, setPhase] = useState<Phase>("loading");
   const [titulo, setTitulo] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -503,7 +525,7 @@ export function StudyDeckModal(props: StudyDeckModalProps) {
             reviewed={reviewed}
             waitingUntil={waitingUntil}
             semPesos={semPesos}
-            onClose={() => onOpenChange(false)}
+            onClose={() => handleOpenChange(false)}
             onReveal={() => setPhase("answer")}
             onGrade={handleGrade}
           />

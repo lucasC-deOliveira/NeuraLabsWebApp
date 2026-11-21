@@ -166,3 +166,24 @@ export interface ProvaAttemptDraft {
   tempoTotalMs: number;
   respostas: AnswerDraft[];
 }
+
+export interface ExamProgress {
+  attemptId: string;
+  questionKey: string;
+  index: number;
+  selected: string | null;
+  revealed: boolean;
+  totalSeconds: number;
+  questionSeconds: number;
+  answers: AnswerDraft[];
+}
+
+export interface ExamProgressPort {
+  read(examId: string): Promise<ExamProgress | null>;
+  save(examId: string, progress: ExamProgress): Promise<void>;
+  finish(examId: string, attemptId: string, attempt: ProvaAttemptDraft): Promise<{ id: string }>;
+}
+
+export type GraphExamStudyPort = Pick<GraphProvaPort, "getProva" | "getQuestao" | "recordProvaAttempt"> & {
+  progress?: ExamProgressPort;
+};

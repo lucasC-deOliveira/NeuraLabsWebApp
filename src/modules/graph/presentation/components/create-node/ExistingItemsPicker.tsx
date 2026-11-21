@@ -2,19 +2,22 @@ import { SearchIcon } from "lucide-react";
 import type { AvailableItem } from "@/modules/graph/application/ports/graph-data.port";
 
 interface ExistingItemsPickerProps {
-  type: "FLASHCARD" | "NOTA";
+  type: "FLASHCARD" | "NOTA" | "CONCEITO";
   searchQuery: string;
   onSearch: (query: string) => void;
   flashcards: AvailableItem[];
   filteredFlashcards: AvailableItem[];
   notas: AvailableItem[];
+  concepts: AvailableItem[];
   selectedItems: Set<string>;
   onToggle: (id: string) => void;
 }
 
 export function ExistingItemsPicker(props: ExistingItemsPickerProps) {
-  const placeholder =
-    props.type === "NOTA" ? "Buscar notas..." : "Buscar flashcards (pergunta, conceito, tópico...)";
+  const placeholder = {
+    NOTA: "Buscar notas...", CONCEITO: "Buscar conceitos...",
+    FLASHCARD: "Buscar flashcards (pergunta, conceito, tópico...)",
+  }[props.type];
   return (
     <>
       <div className="relative mb-3">
@@ -30,9 +33,20 @@ export function ExistingItemsPicker(props: ExistingItemsPickerProps) {
       <div className="space-y-2 max-h-80 overflow-y-auto">
         {props.type === "FLASHCARD" && <FlashcardList {...props} />}
         {props.type === "NOTA" && <NotaList {...props} />}
+        {props.type === "CONCEITO" && <ConceptList {...props} />}
       </div>
     </>
   );
+}
+
+function ConceptList({ concepts, searchQuery, selectedItems, onToggle }: ExistingItemsPickerProps) {
+  if (!concepts.length) return <EmptyItems message="Nenhum conceito disponível" />;
+  const query = searchQuery.trim().toLocaleLowerCase();
+  const visible = concepts.filter((concept) =>
+    [concept.label, concept.fullText].some((field) => field.toLocaleLowerCase().includes(query)),
+  );
+  if (!visible.length) return <EmptyItems message="Nenhum conceito corresponde à busca" />;
+  return visible.map((item) => <ItemRow key={item.id} item={item} selected={selectedItems.has(item.id)} onToggle={onToggle} />);
 }
 
 function FlashcardList({ flashcards, filteredFlashcards, selectedItems, onToggle }: ExistingItemsPickerProps) {

@@ -6,22 +6,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Loader2Icon, FolderTreeIcon, DownloadIcon, UploadIcon,
+  FolderTreeIcon, DownloadIcon, UploadIcon,
   FolderOpenIcon, CheckCircleIcon, AlertTriangleIcon, RefreshCwIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { desktop } from "@/lib/vault-bridge";
+import { existingVaultGraphDirectory } from "@/lib/vault-graph-manifest";
+import { readPendingVaultGraph } from "@/lib/vault-graph-publication";
 import {
   pullVault, pushVault, graphVaultDir, compareSyncState, getSyncState, removeOrphans,
-  type SyncDiff,
+  type SyncDiff, type VaultTransferProgress,
 } from "@/lib/vault-sync";
 import { validateVault, countErrors, type VaultIssue } from "@/lib/vault-validate";
 import { VaultOrphans } from "./VaultOrphans";
 import { VaultIssues } from "./VaultIssues";
+import { VaultTransferStatus, type VaultTransferFeedback } from "./VaultTransferStatus";
+import { VaultRelationChoices } from "./VaultRelationChoices";
+import { VaultExamAttemptSync } from "./VaultExamAttemptSync";
+import { resolveSharedVaultRelation, SharedVaultRelationError } from "@/lib/vault-relation-conflicts";
 import type { VaultSyncState } from "@/lib/vault-bridge";
 import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 
-type BusyState = "pull" | "push" | "compare" | "clean" | null;
+type BusyState = "pull" | "push" | "compare" | "clean" | "resolve" | null;
 
 interface DiffFlags {
   isConflict: boolean;
@@ -53,13 +59,18 @@ interface VaultSyncModalProps {
   grafoId: string;
   grafoNome: string;
   onSynced?: () => void;
+  onPulled?: () => void;
 }
 
-export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynced }: VaultSyncModalProps) {
+export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynced, onPulled }: VaultSyncModalProps) {
   const [vaultPath, setVaultPath] = useState<string | null>(null);
+  const [resolvedGraphDir, setResolvedGraphDir] = useState<string | null>(null);
   const [busy, setBusy] = useState<BusyState>(null);
+  const [transfer, setTransfer] = useState<VaultTransferFeedback | null>(null);
+  const [relationIssue, setRelationIssue] = useState<SharedVaultRelationError | null>(null);
   const [diff, setDiff] = useState<SyncDiff | null>(null);
   const [diffError, setDiffError] = useState(false);
+  const [pendingPublication, setPendingPublication] = useState(false);
   const [syncState, setSyncState] = useState<VaultSyncState | null>(null);
   const [issues, setIssues] = useState<VaultIssue[]>([]);
   // Um Push com erro de formato só passa no segundo clique, depois de a lista
@@ -67,24 +78,31 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
   const [pushForcado, setPushForcado] = useState(false);
   const [prevOpen, setPrevOpen] = useState(false);
 
-  const graphDir = vaultPath ? graphVaultDir(vaultPath, grafoId, grafoNome) : null;
+  const graphDir = resolvedGraphDir ?? (vaultPath ? graphVaultDir(vaultPath, grafoId, grafoNome) : null);
   const flags = deriveDiffFlags(diff);
 
   // Reset during render (react-hooks v7 forbids synchronous setState in the effect body).
   if (open !== prevOpen) {
     setPrevOpen(open);
     if (open) {
+      setResolvedGraphDir(null);
       setDiff(null); setDiffError(false); setSyncState(null);
+      setPendingPublication(false);
+      setTransfer(null);
+      setRelationIssue(null);
       setIssues([]); setPushForcado(false);
     }
   }
 
   const runCompare = useCallback(async (dir: string): Promise<void> => {
-    const gDir = graphVaultDir(dir, grafoId, grafoNome);
     setBusy("compare");
     setDiffError(false);
     try {
-      const [d, s] = await Promise.all([compareSyncState(grafoId, gDir), getSyncState(gDir)]);
+      const gDir = await existingVaultGraphDirectory(grafoId) ?? graphVaultDir(dir, grafoId, grafoNome);
+      setResolvedGraphDir(gDir);
+      const pending = Boolean(await readPendingVaultGraph(gDir, grafoId));
+      setPendingPublication(pending);
+      const [d, s] = await Promise.all([pending ? Promise.resolve(null) : compareSyncState(grafoId, gDir), getSyncState(gDir)]);
       setDiff(d);
       setSyncState(s);
       // A validação acompanha a comparação: os problemas aparecem junto com o
@@ -121,14 +139,19 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
   };
 
   const doPull = async (): Promise<void> => {
-    if (!vaultPath) return;
+    if (!vaultPath || pendingPublication) return;
     setBusy("pull");
+    let progress: VaultTransferProgress = { phase: "downloading" };
     try {
-      const { files } = await pullVault(grafoId, vaultPath, grafoNome);
-      toast.success(`Pull concluído: ${files} arquivo(s) gravado(s) no vault.`);
+      const { files } = await pullVault(grafoId, vaultPath, grafoNome, (next) => {
+        progress = next;
+        setTransfer({ kind: "running", progress: next });
+      });
+      setTransfer({ kind: "done", message: `Download concluído. ${files} arquivo(s) gravado(s) no vault.` });
+      onPulled?.();
       await runCompare(vaultPath);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro no Pull.");
+      setTransfer({ kind: "error", progress, message: e instanceof Error ? e.message : "Erro ao baixar o grafo." });
       setBusy(null);
     }
   };
@@ -143,13 +166,43 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
       return;
     }
     setBusy("push");
+    setRelationIssue(null);
+    let progress: VaultTransferProgress = { phase: "reading-vault" };
     try {
-      const r = await pushVault(grafoId, grafoNome);
-      toast.success(`Push concluído: ${r.created} criado(s), ${r.updated} atualizado(s), ${r.removed} removido(s).`);
+      const r = await pushVault(grafoId, grafoNome, (next) => {
+        progress = next;
+        setTransfer({ kind: "running", progress: next });
+      });
+      setTransfer({ kind: "done", message: pendingPublication
+        ? `Grafo publicado em Meu Conhecimento. ${r.created} nó(s) criado(s) e ${r.updated} atualizado(s).`
+        : `Envio concluído. ${r.created} nó(s) criado(s), ${r.updated} atualizado(s) e ${r.removed} desvinculado(s).` });
       onSynced?.();
       await runCompare(vaultPath);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro no Push.");
+      if (e instanceof SharedVaultRelationError) {
+        setRelationIssue(e);
+        setTransfer(null);
+      } else {
+        setTransfer({ kind: "error", progress, message: e instanceof Error ? e.message : "Erro ao enviar o grafo." });
+      }
+      setBusy(null);
+    }
+  };
+
+  const doResolveRelation = async (directory: string): Promise<void> => {
+    if (!relationIssue || busy) return;
+    setBusy("resolve");
+    try {
+      await resolveSharedVaultRelation(desktop.vault, relationIssue, directory);
+      setTransfer({ kind: "done", message: "Relação atualizada no vault. Você já pode tentar enviar novamente." });
+      onSynced?.();
+    } catch (e) {
+      setTransfer({
+        kind: "error", progress: { phase: "checking-relations" },
+        message: e instanceof Error ? e.message : "Erro ao atualizar a relação no vault.",
+      });
+    } finally {
+      setRelationIssue(null);
       setBusy(null);
     }
   };
@@ -201,12 +254,16 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
           <VaultFolderPicker vaultPath={vaultPath} graphDir={graphDir} busy={busy} onPick={pick} onOpenFolder={openVaultFolder} />
 
           {vaultPath && (
-            <div className="rounded-md border p-3 space-y-2 min-h-[60px]">
-              <VaultDiffStatus busy={busy} diff={diff} diffError={diffError} flags={flags} onRecompare={() => runCompare(vaultPath)} />
-            </div>
+            <VaultSyncOverview transfer={transfer} pendingPublication={pendingPublication}
+              busy={busy} diff={diff} diffError={diffError} flags={flags} onRecompare={() => runCompare(vaultPath)}
+              relationIssue={relationIssue} onResolve={doResolveRelation} onCancelResolution={() => setRelationIssue(null)} />
           )}
 
-          {vaultPath && <VaultActions diff={diff} flags={flags} busy={busy} onPull={doPull} onPush={doPush} />}
+          {vaultPath && <VaultActions diff={diff} flags={flags} busy={busy} pendingPublication={pendingPublication}
+            resolvingConflict={Boolean(relationIssue)} onPull={doPull} onPush={doPush} />}
+
+          {graphDir && <VaultExamAttemptSync key={graphDir} directory={graphDir} graphId={grafoId}
+            disabled={busy !== null || pendingPublication} />}
 
           {vaultPath && <VaultIssues issues={issues} pushBloqueado={pushForcado} />}
 
@@ -223,6 +280,27 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function VaultSyncOverview({
+  transfer, pendingPublication, relationIssue, onResolve, onCancelResolution, ...comparison
+}: React.ComponentProps<typeof VaultDiffStatus> & {
+  transfer: VaultTransferFeedback | null;
+  pendingPublication: boolean;
+  relationIssue: SharedVaultRelationError | null;
+  onResolve: (directory: string) => void;
+  onCancelResolution: () => void;
+}) {
+  return (
+    <div className="rounded-md border p-3 space-y-2 min-h-[60px]">
+      {relationIssue && <VaultRelationChoices issue={relationIssue} resolving={comparison.busy === "resolve"}
+        onChoose={onResolve} onCancel={onCancelResolution} />}
+      {transfer && <VaultTransferStatus feedback={transfer} />}
+      {!relationIssue && transfer?.kind !== "running" && (pendingPublication
+        ? <p className="text-sm">Este grafo existe no vault. Ao publicar, ele será adicionado a Meu Conhecimento no servidor.</p>
+        : <VaultDiffStatus {...comparison} />)}
+    </div>
   );
 }
 
@@ -279,7 +357,7 @@ function VaultDiffStatus({
   if (busy === "compare") {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2Icon className="size-4 animate-spin" /> Verificando...
+        Conferindo diferenças entre o vault e o servidor…
       </div>
     );
   }
@@ -349,17 +427,23 @@ function VaultActions({
   diff,
   flags,
   busy,
+  pendingPublication,
+  resolvingConflict,
   onPull,
   onPush,
 }: {
   diff: SyncDiff | null;
   flags: DiffFlags;
   busy: BusyState;
+  pendingPublication: boolean;
+  resolvingConflict: boolean;
   onPull: () => void;
   onPush: () => void;
 }) {
   const pullPrimary = flags.isConflict || flags.backendAhead || pullSuggestedForEmpty(diff);
-  const pushPrimary = flags.isConflict || flags.vaultAhead;
+  const pushPrimary = pendingPublication || flags.isConflict || flags.vaultAhead;
+  const actionsDisabled = busy !== null || resolvingConflict;
+  const labels = flags.isConflict ? { pull: "Confiar no servidor", push: "Confiar no vault" } : { pull: "Pull", push: "Push" };
   return (
     <div className="space-y-2">
       {flags.isConflict && (
@@ -369,12 +453,12 @@ function VaultActions({
       )}
       <div className="grid grid-cols-2 gap-2">
         <SyncButton
-          onClick={onPull} primary={pullPrimary} loading={busy === "pull"} disabled={busy !== null}
-          icon={<DownloadIcon className="size-4" />} label={flags.isConflict ? "Confiar no servidor" : "Pull"}
+          onClick={onPull} primary={pullPrimary} disabled={actionsDisabled || pendingPublication}
+          icon={<DownloadIcon className="size-4" />} label={busy === "pull" ? "Baixando grafo" : labels.pull}
         />
         <SyncButton
-          onClick={onPush} primary={pushPrimary} loading={busy === "push"} disabled={busy !== null}
-          icon={<UploadIcon className="size-4" />} label={flags.isConflict ? "Confiar no vault" : "Push"}
+          onClick={onPush} primary={pushPrimary} disabled={actionsDisabled}
+          icon={<UploadIcon className="size-4" />} label={busy === "push" ? "Enviando grafo" : pendingPublication ? "Publicar no servidor" : labels.push}
         />
       </div>
     </div>
@@ -384,21 +468,19 @@ function VaultActions({
 function SyncButton({
   onClick,
   primary,
-  loading,
   disabled,
   icon,
   label,
 }: {
   onClick: () => void;
   primary: boolean;
-  loading: boolean;
   disabled: boolean;
   icon: ReactNode;
   label: string;
 }) {
   return (
     <Button onClick={onClick} disabled={disabled} variant={primary ? "default" : "outline"} className="gap-1.5">
-      {loading ? <Loader2Icon className="size-4 animate-spin" /> : icon}
+      {icon}
       {label}
     </Button>
   );

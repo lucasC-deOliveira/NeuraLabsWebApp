@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { isDesktop } from "@/lib/vault-bridge";
 import { flashcardsHttp } from "../../infra/http";
 import { flattenConceptOptions } from "../../domain/services/concept-options";
 import {
@@ -10,11 +11,11 @@ import {
 const EMPTY: FlashcardsSnapshot = { cards: [], filterData: [], concepts: [] };
 
 async function fetchSnapshot(): Promise<FlashcardsSnapshot> {
-  const [cards, filterData] = await Promise.all([
+  const [cards, filterData, subjects] = await Promise.all([
     flashcardsHttp.getFlashcards(),
     flashcardsHttp.getFilterData(),
+    flashcardsHttp.getConceptHierarchy(),
   ]);
-  const subjects = await flashcardsHttp.getConceptHierarchy();
   return { cards, filterData, concepts: flattenConceptOptions(subjects) };
 }
 
@@ -30,14 +31,14 @@ export interface FlashcardsData {
  * @example const { snapshot, loading, reload } = useFlashcardsData();
  */
 export function useFlashcardsData(): FlashcardsData {
-  const [cached] = useState(loadCachedFlashcards);
+  const [cached] = useState(() => isDesktop() ? null : loadCachedFlashcards());
   const [snapshot, setSnapshot] = useState<FlashcardsSnapshot>(cached ?? EMPTY);
   const [loading, setLoading] = useState(cached === null);
 
   const apply = useCallback((d: FlashcardsSnapshot): void => {
     setSnapshot(d);
     setLoading(false);
-    saveCachedFlashcards(d);
+    if (!isDesktop()) saveCachedFlashcards(d);
   }, []);
 
   // Dispara o fetch de forma síncrona; o estado assenta no callback da promise para

@@ -61,7 +61,7 @@ export interface CreateNodeVm {
   selectedType: string;
   changeType: (type: string) => void;
   control: CreateNodeControl;
-  availableItems: { flashcards: AvailableItem[]; notas: AvailableItem[]; provas: AvailableItem[] };
+  availableItems: { flashcards: AvailableItem[]; notas: AvailableItem[]; provas: AvailableItem[]; conceitos: AvailableItem[] };
   filteredFlashcards: AvailableItem[];
   selectedItems: Set<string>;
   toggleItem: (id: string) => void;
@@ -137,7 +137,7 @@ const TAB_IDLE = "text-muted-foreground hover:text-foreground";
 const NOOP = (): void => {};
 
 function TabBar({ vm }: { vm: CreateNodeVm }) {
-  const showExisting = vm.selectedType === "FLASHCARD" || vm.selectedType === "NOTA";
+  const showExisting = ["FLASHCARD", "NOTA", "CONCEITO"].includes(vm.selectedType);
   if (!showExisting) return null;
   return (
     <div className="mt-4 inline-flex shrink-0 gap-1 rounded-lg bg-muted p-1">
@@ -271,15 +271,21 @@ function ExistingTabBody({ vm, parents }: { vm: CreateNodeVm; parents: CreateNod
   return (
     <>
       <ExistingItemsPicker
-        type={vm.selectedType as "FLASHCARD" | "NOTA"}
+        type={vm.selectedType as "FLASHCARD" | "NOTA" | "CONCEITO"}
         searchQuery={vm.searchQuery}
         onSearch={vm.setSearchQuery}
         flashcards={vm.availableItems.flashcards}
         filteredFlashcards={vm.filteredFlashcards}
         notas={vm.availableItems.notas}
+        concepts={vm.availableItems.conceitos}
         selectedItems={vm.selectedItems}
         onToggle={vm.toggleItem}
       />
+      {vm.selectedType === "CONCEITO" && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          O mesmo conceito será vinculado a este grafo. Editar o nome ou a descrição afeta os grafos que o usam.
+        </p>
+      )}
       {vm.selectedType === "FLASHCARD" && (
         <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
           <LinkEditorView editor={vm.flashcardConceitos} title="Conceitos relacionados (opcional)" emptyMessage="Nenhum conceito no grafo para relacionar." addLabel="Adicionar conceito" />

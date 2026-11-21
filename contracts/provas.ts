@@ -92,6 +92,27 @@ export const provaAttemptContract = z.object({
 });
 export type ProvaAttemptBody = z.infer<typeof provaAttemptContract>;
 
+export const vaultProvaAttemptContract = provaAttemptContract.extend({
+  localAttemptId: z.string().uuid(),
+  completedAt: z.string().datetime(),
+  tempoTotalMs: z.number().int().nonnegative().max(2_147_483_647),
+});
+export type VaultProvaAttemptBody = z.infer<typeof vaultProvaAttemptContract>;
+export const vaultProvaAttemptResponse = z.object({ id: z.string().min(1), alreadyRecorded: z.literal(true).optional() });
+export const vaultServerAttempt = provaAttemptContract.extend({
+  id: z.string().regex(/^[a-zA-Z0-9_-]+$/),
+  provaId: z.string().min(1),
+  completedAt: z.string().datetime(),
+});
+export const vaultExamHistoryPage = z.object({
+  accountId: z.string().min(1),
+  attempts: z.array(vaultServerAttempt),
+  nextCursor: vaultServerAttempt.shape.id.nullable(),
+});
+export type VaultExamHistoryPage = z.infer<typeof vaultExamHistoryPage>;
+export type VaultServerAttempt = z.infer<typeof vaultServerAttempt>;
+export const VAULT_EXAM_HISTORY_PAGE_SIZE = 100;
+
 export const createEditalContract = z.object({
   titulo,
   programa: z.string(),

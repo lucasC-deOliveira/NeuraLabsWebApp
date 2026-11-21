@@ -27,7 +27,7 @@ export interface UseEdgeManager extends EdgeActions {
 
 export function useEdgeManager(props: EdgeManagerProps): UseEdgeManager {
   const [editor, setEditor] = useState(LIST_STATE);
-  const [nodes, setNodes] = useState<EdgeNode[]>([]);
+  const [serverNodes, setNodes] = useState<EdgeNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [prevOpen, setPrevOpen] = useState(false);
 
@@ -38,7 +38,8 @@ export function useEdgeManager(props: EdgeManagerProps): UseEdgeManager {
     if (props.open) setEditor(initialEditorState(props));
   }
 
-  useFetchNodes(props.open, props.grafoId, setNodes);
+  useFetchNodes(props.open && !props.localNodes, props.grafoId, setNodes);
+  const nodes = props.localNodes ?? serverNodes;
 
   const nodeMap = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const allowedRelations = relationsForForm(editor.form, nodeMap);

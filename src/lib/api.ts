@@ -13,16 +13,51 @@ export function resolveApiUrl(): string {
   return "/api"; // relativo: usa o mesmo host — no dev o Vite proxy redireciona para localhost:3001
 }
 const TOKEN_KEY = "neuralabs_token";
+const OFFLINE_ACCOUNT_KEY = "neuralabs_offline_account";
+
+function offlineServerPrefix(): string {
+  return `${encodeURIComponent(resolveApiUrl())}:`;
+}
+
+/** Identifies the last verified account on the configured server.
+ * @example const scope = getOfflineAccountScope()
+ */
+export function getOfflineAccountScope(): string | null {
+  if (!getToken()) return null;
+  const scope = window.localStorage.getItem(OFFLINE_ACCOUNT_KEY);
+  return scope?.startsWith(offlineServerPrefix()) ? scope : null;
+}
+
+/** Returns the locally verified account for the current server without contacting it.
+ * @example const accountId = getOfflineAccountId()
+ */
+export function getOfflineAccountId(): string | null {
+  const scope = getOfflineAccountScope();
+  if (!scope) return null;
+  try {
+    return decodeURIComponent(scope.slice(offlineServerPrefix().length)) || null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberOfflineAccount(user: AuthUser, serverPrefix: string): void {
+  if (user?.id) window.localStorage.setItem(OFFLINE_ACCOUNT_KEY, serverPrefix + encodeURIComponent(user.id));
+}
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(TOKEN_KEY);
 }
 export function setToken(token: string): void {
-  if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, token);
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(OFFLINE_ACCOUNT_KEY);
+  window.localStorage.setItem(TOKEN_KEY, token);
 }
 export function clearToken(): void {
-  if (typeof window !== "undefined") window.localStorage.removeItem(TOKEN_KEY);
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(OFFLINE_ACCOUNT_KEY);
 }
 
 /** Um erro de validação do backend, já associado ao campo que o causou. */
@@ -100,7 +135,7 @@ export async function apiFetch<T = unknown>(
     const text = await res.text();
     const data = text ? JSON.parse(text) : null;
     if (!res.ok) {
-      if (res.status === 401) clearToken();
+      if (res.status === 401 && token === getToken()) clearToken();
       const message = (data && (data.message || data.error)) || `Erro ${res.status}`;
       throw new ApiError(
         res.status,
@@ -130,26 +165,40 @@ interface AuthResult {
   user: AuthUser;
 }
 
+async function authenticate(path: string, input: object): Promise<AuthUser> {
+  const serverPrefix = offlineServerPrefix();
+  const result = await apiFetch<AuthResult>(path, { method: "POST", body: JSON.stringify(input) });
+  setToken(result.token);
+  if (serverPrefix === offlineServerPrefix()) rememberOfflineAccount(result.user, serverPrefix);
+  return result.user;
+}
+
 export const authApi = {
   async register(input: { nome: string; email: string; senha: string }): Promise<AuthUser> {
-    const r = await apiFetch<AuthResult>("/auth/register", { method: "POST", body: JSON.stringify(input) });
-    setToken(r.token);
-    return r.user;
+    return authenticate("/auth/register", input);
   },
   async login(input: { email: string; senha: string }): Promise<AuthUser> {
-    const r = await apiFetch<AuthResult>("/auth/login", { method: "POST", body: JSON.stringify(input) });
-    setToken(r.token);
-    return r.user;
+    return authenticate("/auth/login", input);
   },
   async logout(): Promise<void> {
     clearToken();
   },
+  /** Checks the current session and lets callers retry service failures.
+   * @example const user = await authApi.me()
+   */
   async me(): Promise<AuthUser | null> {
-    if (!getToken()) return null;
+    const token = getToken();
+    if (!token) return null;
+    const serverPrefix = offlineServerPrefix();
     try {
-      return await apiFetch<AuthUser>("/auth/me");
-    } catch {
-      return null;
+      const user = await apiFetch<AuthUser>("/auth/me", { timeoutMs: 5_000 });
+      if (token === getToken() && serverPrefix === offlineServerPrefix()) {
+        rememberOfflineAccount(user, serverPrefix);
+      }
+      return user;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) return null;
+      throw error;
     }
   },
 };

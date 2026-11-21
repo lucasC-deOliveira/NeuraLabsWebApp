@@ -5,6 +5,7 @@ import {
   createEdgeContract,
   createGraphBaralhoContract,
   createGraphContract,
+  registerVaultGraphContract,
   createNodeContract,
   importGraphContract,
   updateNodeContract,
@@ -23,6 +24,7 @@ import type {
   CreateEdgeBody,
   CreateGraphBaralhoBody,
   CreateGraphBody,
+  RegisterVaultGraphBody,
   CreateNodeBody,
   ImportGraphBody,
   UpdateNodeBody,
@@ -199,6 +201,14 @@ export class GraphController {
     return this.createGraphUseCase.execute(userId, body.nome, body.descricao);
   }
 
+  @Post('graphs/register-vault')
+  registerVaultGraph(
+    @CurrentUser() userId: string,
+    @ZodBody(registerVaultGraphContract) body: RegisterVaultGraphBody,
+  ) {
+    return this.createGraphUseCase.execute(userId, body.nome, body.descricao, body.localId);
+  }
+
   @Delete('graphs/:id')
   // Apaga a VISTA, não o conteúdo. O `keep` (tipos a preservar) saiu com o nó do
   // sistema: nada é apagado, então não havia mais o que escolher.
@@ -372,6 +382,11 @@ export class GraphController {
     @Query('tipoNode') tipoNode: TipoNode,
   ) {
     return this.getNodeDetailsUseCase.execute(userId, tipoNode, refId);
+  }
+
+  @Get('concepts/:refId/graphs')
+  conceptGraphs(@CurrentUser() userId: string, @Param('refId') refId: string) {
+    return this.getNodeDetailsUseCase.listConceptGraphs(userId, refId);
   }
 
   // ---- Arestas ----

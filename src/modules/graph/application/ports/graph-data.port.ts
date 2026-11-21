@@ -24,6 +24,7 @@ export interface AvailableItem {
 }
 
 export interface AvailableItems {
+  conceitos?: AvailableItem[];
   flashcards: AvailableItem[];
   notas: AvailableItem[];
   questoes?: AvailableItem[];

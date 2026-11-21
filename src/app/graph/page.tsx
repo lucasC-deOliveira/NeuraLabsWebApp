@@ -21,6 +21,27 @@ import { useMasterGraph } from "@/modules/graph/presentation/hooks/useMasterGrap
 import { useGraphAssuntos } from "@/modules/graph/presentation/hooks/useGraphAssuntos";
 import { GraphListFilters } from "@/modules/graph/presentation/components/GraphListFilters";
 import { GraphListPagination } from "@/modules/graph/presentation/components/GraphListPagination";
+import { VaultGraphLinks } from "@/modules/graph/presentation/components/vault/VaultGraphLinks";
+import { canReadServerGraphs } from "@/modules/graph/infra/vault/graph-vault-reader";
+import { createVaultGraph } from "@/modules/graph/infra/vault/create-vault-graph";
+
+async function prepareServerGraphFolder(id: string, name: string): Promise<void> {
+  try {
+    const vaultPath = await desktop.vault.getPath();
+    if (!vaultPath) return;
+    const graphDir = graphVaultDir(vaultPath, id, name);
+    await desktop.vault.write(graphDir, [{ relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() }]);
+    await desktop.vault.writeSyncState(graphDir, { dir: graphDir, lastPull: new Date().toISOString() });
+  } catch {
+    // Server creation remains complete independently of the optional vault guide.
+  }
+}
+
+async function saveLocalGraph(name: string): Promise<{ id: string }> {
+  const vaultPath = await desktop.vault.getPath();
+  if (!vaultPath) throw new Error("Selecione uma pasta do vault em Configurações.");
+  return createVaultGraph(desktop.vault, vaultPath, name);
+}
 
 export default function GraphListPage() {
   const router = useRouter();
@@ -32,6 +53,10 @@ export default function GraphListPage() {
   // A lista de baixo mostra os SUBGRAFOS; o master já está fixo acima.
   const subgrafos = result.items.filter((g) => g.parentGrafoId != null);
   const assuntos = useGraphAssuntos();
+  const canReadServer = canReadServerGraphs();
+  const desktopApp = isDesktop();
+  const [useServer, setUseServer] = useState(false);
+  const createLocally = desktopApp && (!canReadServer || !useServer);
   const [creatingGrafo, setCreatingGrafo] = useState(false);
   const [newGrafoName, setNewGrafoName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
@@ -46,35 +71,19 @@ export default function GraphListPage() {
     !!params.assuntoIds?.length;
 
   const handleCreateGrafo = async () => {
-    if (!newGrafoName.trim()) return;
+    const name = newGrafoName.trim();
+    if (creatingGrafo || !name) return;
     setCreatingGrafo(true);
     try {
-      const { id } = await graphHttp.createGrafo(newGrafoName.trim());
-      invalidateGraphList(); // ao voltar para "Meus Grafos", o novo grafo já aparece
-
-      if (isDesktop()) {
-        try {
-          const vaultPath = await desktop.vault.getPath();
-          if (vaultPath) {
-            const graphDir = graphVaultDir(vaultPath, id, newGrafoName.trim());
-            await desktop.vault.write(graphDir, [
-              { relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() },
-            ]);
-            await desktop.vault.writeSyncState(graphDir, {
-              dir: graphDir,
-              lastPull: new Date().toISOString(),
-            });
-          }
-        } catch {
-          // não-fatal: vault pode não estar configurado ainda
-        }
-      }
-
-      toast.success("Grafo criado");
+      const { id } = createLocally ? await saveLocalGraph(name) : await graphHttp.createGrafo(name);
+      if (!createLocally) invalidateGraphList(); // ao voltar para "Meus Grafos", o novo grafo já aparece
+      if (!createLocally && desktopApp) await prepareServerGraphFolder(id, name);
+      toast.success(createLocally ? "Grafo criado no vault" : "Grafo criado");
       router.push(`/graph/${id}`);
     } catch (e) {
       console.error("Erro ao criar grafo:", e);
       toast.error("Erro ao criar grafo: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
       setCreatingGrafo(false);
     }
   };
@@ -103,6 +112,7 @@ export default function GraphListPage() {
       {/* Content */}
       <PageContainer className="flex-1">
         <PageHeader title="Meus Grafos" />
+        {isDesktop() && <VaultGraphLinks query={params.q} reloadKey={masterRefresh} showEmpty={!canReadServer} />}
 
         {/* Master fixo no topo: o app tem UM grafo de conhecimento; tudo o mais é
             subgrafo dele. Abre o grafo completo, com todos os subgrafos como tiles. */}
@@ -132,15 +142,32 @@ export default function GraphListPage() {
         )}
 
         {/* Create section */}
-        <Card className="mb-8 bg-card border-border">
+        {(canReadServer || desktopApp) && <Card className="mb-8 bg-card border-border">
           <CardContent className="pt-6">
-            <h2 className="text-sm font-medium mb-2">Novo subgrafo</h2>
+            <h2 className="text-sm font-medium mb-2">{createLocally ? "Novo grafo" : "Novo subgrafo"}</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Um recorte do seu conhecimento (uma matéria, um tema). Nasce dentro do seu grafo.
+              {createLocally
+                ? "O grafo será salvo na pasta do vault definida nas configurações."
+                : "Um recorte do seu conhecimento (uma matéria, um tema). Nasce dentro do seu grafo."}
             </p>
+            {desktopApp && canReadServer && (
+              <label className="mb-4 flex items-center gap-2 text-sm">
+                Salvar em
+                <select
+                  className="rounded-md border border-input bg-background px-2 py-1"
+                  value={useServer ? "server" : "vault"}
+                  onChange={(event) => setUseServer(event.currentTarget.value === "server")}
+                  disabled={creatingGrafo}
+                >
+                  <option value="vault">Vault</option>
+                  <option value="server">Servidor</option>
+                </select>
+              </label>
+            )}
             <div className="flex gap-2 max-w-md">
               <input
                 type="text"
+                aria-label="Nome do grafo"
                 placeholder="Nome do grafo (ex: Direito Constitucional)"
                 value={newGrafoName}
                 onChange={(e) => setNewGrafoName(e.target.value)}
@@ -157,13 +184,13 @@ export default function GraphListPage() {
               </Button>
             </div>
           </CardContent>
-        </Card>
+        </Card>}
 
         {/* Filtros avançados */}
-        <GraphListFilters params={params} assuntos={assuntos} onFilter={setFilter} />
+        {canReadServer && <GraphListFilters params={params} assuntos={assuntos} onFilter={setFilter} />}
 
         {/* Graph list */}
-        {loading ? (
+        {canReadServer && (loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
           </div>
@@ -246,9 +273,9 @@ export default function GraphListPage() {
               </Card>
             ))}
           </div>
-        )}
+        ))}
 
-        {!loading && (
+        {canReadServer && !loading && (
           <GraphListPagination
             page={result.page}
             pageSize={result.pageSize}

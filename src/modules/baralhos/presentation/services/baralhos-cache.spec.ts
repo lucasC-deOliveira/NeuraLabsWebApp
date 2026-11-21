@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { loadCachedBaralhos, saveCachedBaralhos, invalidateBaralhosList } from "./baralhos-cache";
 import type { BaralhoItem } from "../../domain/baralho.types";
 
-// API Storage completa (incl. length/key) porque invalidateBaralhosList varre as
-// chaves do namespace por tag.
+vi.mock("../../infra/offline-deck-library", () => ({ getOfflineAccountScope: () => "test-scope" }));
+
+// API Storage completa (incl. length/key) para o CacheStore unificado.
 class FakeLocalStorage {
   private store = new Map<string, string>();
   getItem(key: string): string | null {
@@ -44,6 +45,12 @@ beforeEach(() => {
 });
 
 describe("baralhos-cache", () => {
+  it("does not share the online cache with another account or server", () => {
+    saveCachedBaralhos([baralho()], "server-a:account-a");
+    expect(loadCachedBaralhos("server-a:account-a")).toHaveLength(1);
+    expect(loadCachedBaralhos("server-a:account-b")).toBeNull();
+    expect(loadCachedBaralhos("server-b:account-a")).toBeNull();
+  });
   it("returns null when nothing is cached", () => {
     expect(loadCachedBaralhos()).toBeNull();
   });

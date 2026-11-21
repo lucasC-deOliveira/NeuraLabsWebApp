@@ -17,12 +17,21 @@ export interface SubjectSummary {
 
 export interface StudySessionEntry {
   id: string;
+  examTitle?: string;
   dataInicio: Date;
   dataFim: Date | null;
   totalReviews: number;
   correctCount: number;
   incorrectCount: number;
   avgConfidence: number;
+}
+
+export interface VaultDashboardMetrics {
+  sessions: StudySessionEntry[];
+  dueCardCount: number;
+  accuracy: number | null;
+  streak: number;
+  examAttempts: number;
 }
 
 // The dashboard only needs each card's next-review date to count what's due.

@@ -9,7 +9,7 @@ import { ProgressCard } from "@/components/gamification/ProgressCard";
 import { BuilderCard } from "@/components/gamification/BuilderCard";
 import { BuilderCelebration } from "@/components/gamification/BuilderCelebration";
 import { PageHeader } from "@/components/page-header/PageHeader";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCachedResource } from "@/modules/cache/presentation/useCachedResource";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,12 @@ import { SubjectsGrid } from "./components/SubjectsGrid";
 import { RecentActivity } from "./components/RecentActivity";
 import { AnalyticsSummaryCard } from "@/modules/analytics/presentation/components/AnalyticsSummaryCard";
 import { PlanTodayCard } from "@/components/study-plan/PlanTodayCard";
+import { LoadingState } from "@/components/loading-state";
+import { getToken } from "@/lib/api";
+import { isDesktop } from "@/lib/vault-bridge";
+import { configuredStudyVault, type ElectronVaultStudyStore } from "@/modules/study/infra/electron-vault-study";
+import { loadVaultDashboard, type VaultDashboardSnapshot } from "../infra/vault-dashboard";
+import { VaultDashboardOverview } from "./components/VaultDashboardOverview";
 
 function QuickActions() {
   return (
@@ -73,6 +79,56 @@ function reviveDashboard(d: DashboardData): DashboardData {
 }
 
 export function DashboardPage() {
+  return isDesktop() ? <DesktopDashboard /> : <ServerDashboard />;
+}
+
+function DesktopDashboard() {
+  const [storage, setStorage] = useState<ElectronVaultStudyStore | "unavailable" | null | undefined>(undefined);
+  const [server, setServer] = useState(false);
+  const signedIn = Boolean(getToken());
+  useEffect(() => {
+    let active = true;
+    configuredStudyVault().then((store) => { if (active) setStorage(store); })
+      .catch(() => { if (active) setStorage("unavailable"); });
+    return () => { active = false; };
+  }, []);
+  const load = useCallback((): Promise<VaultDashboardSnapshot> => {
+    if (!storage || storage === "unavailable") return Promise.reject(new Error("Missing configured dashboard vault."));
+    return loadVaultDashboard(storage);
+  }, [storage]);
+  if (storage === undefined) return <LoadingState message="Abrindo Dashboard…" />;
+  const showServer = signedIn && (server || storage === null);
+  const sources = (
+    <div role="group" aria-label="Origem dos dados do Dashboard" className="mb-6 flex flex-wrap gap-2">
+      <Button size="sm" variant={showServer ? "outline" : "default"} aria-pressed={!showServer}
+        disabled={storage === null} onClick={() => setServer(false)}>Vault</Button>
+      {signedIn ? <Button size="sm" variant={showServer ? "default" : "outline"} aria-pressed={showServer}
+        onClick={() => setServer(true)}>Servidor</Button>
+        : <Button size="sm" variant="outline" render={<Link href="/login" />}>Entrar no servidor</Button>}
+    </div>
+  );
+  if (showServer) return <ServerDashboard sources={sources} />;
+  return (
+    <PageContainer>
+      <PageHeader title="NeuraLabs" subtitle="Seu estudo no vault" />
+      {sources}
+      {storage && storage !== "unavailable" ? <VaultDashboardOverview load={load} actions={<QuickActions />} />
+        : <VaultDashboardSetup unavailable={storage === "unavailable"} />}
+    </PageContainer>
+  );
+}
+
+function VaultDashboardSetup({ unavailable }: { unavailable: boolean }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">{unavailable ? "Não foi possível abrir a pasta do vault."
+        : "Escolha uma pasta do vault para ver sua atividade offline."}</p>
+      <Button variant="outline" render={<Link href="/settings/desktop" />}>Configurar vault</Button>
+    </div>
+  );
+}
+
+function ServerDashboard({ sources }: { sources?: React.ReactNode }) {
   const { data, loading } = useCachedResource(
     { key: "dashboard.home", version: 2, tags: ["dashboard"], revive: reviveDashboard },
     loadDashboard,
@@ -89,6 +145,7 @@ export function DashboardPage() {
       <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50">
         <PageContainer>
           <PageHeader title="NeuraLabs" subtitle="Flashcards Inteligentes com IA" />
+          {sources}
 
           <DashboardStatCards loading={loading} dueCardCount={dueCardCount} accuracy={accuracy} streak={streak} />
           <div className="mb-6 space-y-3 sm:mb-8">

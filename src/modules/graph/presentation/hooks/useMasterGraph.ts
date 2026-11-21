@@ -5,11 +5,13 @@
 import { useEffect, useState } from "react";
 import { graphHttp } from "../../infra/http";
 import type { GrafoInfo } from "../../domain/types/graph.types";
+import { canReadServerGraphs } from "../../infra/vault/graph-vault-reader";
 
 export function useMasterGraph(reloadKey: number): GrafoInfo | null {
   const [master, setMaster] = useState<GrafoInfo | null>(null);
 
   useEffect(() => {
+    if (!canReadServerGraphs()) return;
     let alive = true;
     // tipo=raiz devolve só o master (há exatamente um por usuário).
     graphHttp

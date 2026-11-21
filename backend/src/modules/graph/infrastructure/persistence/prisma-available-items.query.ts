@@ -18,6 +18,7 @@ type FlashcardRow = {
   conceito: FlashcardConcept | null;
 };
 type NotaRow = { id: string; conteudo: string };
+type ConceptRow = { id: string; nome: string; descricao: string | null };
 type QuestaoRow = {
   id: string;
   enunciado: string;
@@ -37,18 +38,28 @@ export class PrismaAvailableItemsQuery implements AvailableItemsQuery {
 
   async listForGraph(userId: string, grafoId: string): Promise<AvailableItemsView> {
     const inGraph = await this.refsInGraph(userId, grafoId);
-    const [flashcards, notas, questoes, provas] = await Promise.all([
+    const [flashcards, notas, questoes, provas, concepts] = await Promise.all([
       this.fetchFlashcards(userId, inGraph.FLASHCARD ?? []),
       this.fetchNotas(userId, inGraph.NOTA ?? []),
       this.fetchQuestoes(userId, inGraph.QUESTION ?? []),
       this.fetchProvas(userId, inGraph.PROVA ?? []),
+      this.fetchConcepts(userId, inGraph.CONCEITO ?? []),
     ]);
     return {
       flashcards: flashcards.map(toFlashcardItem),
+      conceitos: concepts.map(toConceptItem),
       notas: notas.map(toNotaItem),
       questoes: questoes.map(toQuestaoItem),
       provas: provas.map(toProvaItem),
     };
+  }
+
+  private fetchConcepts(userId: string, exclude: string[]): Promise<ConceptRow[]> {
+    return this.prisma.conceito.findMany({
+      where: { usuarioId: userId, id: { notIn: exclude } },
+      select: { id: true, nome: true, descricao: true },
+      orderBy: [{ nome: 'asc' }, { id: 'asc' }],
+    });
   }
 
   // Map of tipoNode -> referenciaIds already linked into the graph (to exclude).
@@ -113,6 +124,14 @@ const toNotaItem = (n: NotaRow): AvailableItem => ({
   fullText: n.conteudo,
   tipo: 'NOTA',
   hierarquia: 'Nota direta',
+});
+
+const toConceptItem = (concept: ConceptRow): AvailableItem => ({
+  id: concept.id,
+  label: concept.nome,
+  fullText: concept.descricao ?? '',
+  tipo: 'CONCEITO',
+  hierarquia: 'Conceito',
 });
 
 const toQuestaoItem = (q: QuestaoRow): AvailableItem => ({

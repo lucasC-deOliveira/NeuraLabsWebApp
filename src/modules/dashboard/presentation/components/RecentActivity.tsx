@@ -13,7 +13,9 @@ function SessionRow({ session }: { session: StudySessionEntry }) {
     <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-col">
         <span className="text-xs sm:text-sm font-medium">{formatRelativeDate(session.dataInicio)}</span>
-        <span className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400">{session.totalReviews} cartas revisadas</span>
+        <span className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400">
+          {session.examTitle ? `${session.examTitle} · ${session.correctCount} de ${session.totalReviews} corretas` : `${session.totalReviews} cartas revisadas`}
+        </span>
       </div>
       <div className="flex items-center gap-3 sm:w-48">
         <Progress value={pct} className="h-2" />

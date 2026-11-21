@@ -3,6 +3,7 @@
 import { PageContainer } from "@/components/page-container";
 import { useMemo, useState } from "react";
 import { useParams } from "@/lib/navigation";
+import { isDesktop } from "@/lib/vault-bridge";
 import { paginate } from "@/lib/paginate";
 import { Pagination } from "@/components/pagination";
 import { Link } from "@/components/link";
@@ -29,11 +30,26 @@ import { useBaralhoDetail } from "./hooks/useBaralhoDetail";
 import { AddCardsDialog } from "./components/AddCardsDialog";
 import { BaralhoCardsFilters } from "./components/BaralhoCardsFilters";
 import { BaralhoCardRow } from "./components/BaralhoCardRow";
+import { DownloadOfflineDeckButton } from "./components/DownloadOfflineDeckButton";
+import { saveBaralhoForOffline } from "../infra/offline-deck-library";
+import { downloadDeckToVault } from "../infra/download-deck-to-vault";
+import { useVaultPath } from "@/modules/settings/presentation/hooks/useDesktopSettings";
 import { StudyDeckModal } from "@/modules/graph/presentation/components/deck/StudyDeckModal";
 import type { BaralhoCardOption } from "../domain/baralho.types";
 
 // 10 cartões por página: são linhas altas (pergunta + resposta + tags).
 const PAGE_SIZE = 10;
+
+function DeckVaultAction({ deckId, reload }: { deckId: string; reload: () => Promise<void> }) {
+  const { vaultPath } = useVaultPath();
+  if (!vaultPath) {
+    return <Link href="/settings/desktop" className="text-sm text-primary underline">Configurar vault</Link>;
+  }
+  return <DownloadOfflineDeckButton vault downloadDeck={async () => {
+    await downloadDeckToVault(deckId);
+    await reload().catch(() => {});
+  }} />;
+}
 
 export function BaralhoDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -81,7 +97,7 @@ export function BaralhoDetailPage() {
     setAdding(true);
     setLoadingOptions(true);
     try {
-      setOptions(await baralhosHttp.listAvailableCards());
+      setOptions(await baralhosHttp.listAvailableCards(baralhoId));
     } catch {
       toast.error("Erro ao carregar seus flashcards.");
     } finally {
@@ -183,6 +199,8 @@ export function BaralhoDetailPage() {
           }
           actions={
             <>
+              {!isDesktop() && <DownloadOfflineDeckButton downloadDeck={() => saveBaralhoForOffline(baralhoId)} />}
+              {isDesktop() && baralho.storage !== "vault" && <DeckVaultAction deckId={baralhoId} reload={reload} />}
               <Button variant="outline" className="h-9" onClick={openAdd}>
                 <PlusIcon className="size-4 mr-1" />
                 Adicionar cartões
@@ -241,7 +259,7 @@ export function BaralhoDetailPage() {
       />
       <StudyDeckModal
         open={studying}
-        onOpenChange={(open) => { if (!open) { setStudying(false); void reload(); } }}
+        onOpenChange={(open) => { if (!open) { setStudying(false); void reload().catch(() => {}); } }}
         baralhoId={baralhoId}
       />
     </PageContainer>

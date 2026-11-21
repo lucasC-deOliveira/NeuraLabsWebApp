@@ -13,8 +13,27 @@ import { countDeckStats, type DeckCardSchedule } from '../../domain/services/dec
 import type { ConceptTag } from '../../../curriculum/domain/curriculum-views';
 import { PrismaConnectedConceptsQuery } from '../../../curriculum/infrastructure/persistence/prisma-connected-concepts.query';
 
-const CARD_INCLUDE = { conceito: true } satisfies Prisma.FlashcardInclude;
-type CardRow = Prisma.FlashcardGetPayload<{ include: typeof CARD_INCLUDE }>;
+const DETAIL_CARD_SELECT = {
+  id: true,
+  pergunta: true,
+  resposta: true,
+  tipo: true,
+  conceito: { select: { nome: true } },
+} satisfies Prisma.FlashcardSelect;
+
+const DETAIL_SCHEDULE_SELECT = {
+  fase: true,
+  learningStep: true,
+  dificuldade: true,
+  intervalo: true,
+  fatorEase: true,
+  proximaRevisao: true,
+  ultimaRevisao: true,
+} satisfies Prisma.AprendizadoFlashcardSelect;
+
+type CardRow = Prisma.FlashcardGetPayload<{
+  select: typeof DETAIL_CARD_SELECT & { aprendizado: { select: typeof DETAIL_SCHEDULE_SELECT } };
+}>;
 
 // Só o agendamento mais recente de cada cartão alimenta os contadores da listagem.
 const CARD_SRS_SELECT = {
@@ -57,10 +76,25 @@ export class PrismaBaralhoQuery implements BaralhoQuery {
   async getBaralho(userId: string, baralhoId: string): Promise<BaralhoDetail | null> {
     const row = await this.prisma.baralho.findFirst({
       where: { id: baralhoId, usuarioId: userId },
-      include: { flashcards: { include: CARD_INCLUDE, orderBy: { dataCriacao: 'desc' } } },
+      include: {
+        flashcards: {
+          orderBy: { dataCriacao: 'desc' },
+          select: {
+            ...DETAIL_CARD_SELECT,
+            aprendizado: { where: { usuarioId: userId }, select: DETAIL_SCHEDULE_SELECT },
+          },
+        },
+      },
     });
     if (!row) return null;
-    const origens = await this.origins(userId, [baralhoId]);
+    return this.toDetail(userId, row);
+  }
+
+  private async toDetail(
+    userId: string,
+    row: { id: string; titulo: string; dataCriacao: Date; flashcards: CardRow[] },
+  ): Promise<BaralhoDetail> {
+    const origens = await this.origins(userId, [row.id]);
     // As tags vêm do grafo, como na listagem de flashcards — mesmo leitor.
     const connected = await this.connected.forFlashcards(
       userId,
@@ -134,5 +168,6 @@ function toCard(fc: CardRow, conceitosConectados: ConceptTag[]): BaralhoCard {
     tipo: fc.tipo ?? null,
     conceito: fc.conceito?.nome ?? '',
     conceitosConectados,
+    schedule: fc.aprendizado[0] ?? null,
   };
 }

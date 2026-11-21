@@ -10,6 +10,8 @@ export interface BaralhoOrigin {
 
 export interface BaralhoItem {
   id: string;
+  storage?: "vault";
+  availableOnServer?: boolean;
   titulo: string;
   totalCards: number;
   // Contadores do cartão, por estado de estudo (calculados no backend).
@@ -37,10 +39,22 @@ export interface BaralhoCard {
   tipo: string | null;
   conceito: string;
   conceitosConectados: BaralhoConceptTag[];
+  schedule?: BaralhoCardSchedule | null;
+}
+
+export interface BaralhoCardSchedule {
+  fase: string;
+  learningStep: number;
+  dificuldade: number;
+  intervalo: number;
+  fatorEase: number;
+  proximaRevisao: string;
+  ultimaRevisao: string;
 }
 
 export interface BaralhoDetail {
   id: string;
+  storage?: "vault";
   titulo: string;
   dataCriacao: Date;
   origens: BaralhoOrigin[];

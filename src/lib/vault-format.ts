@@ -41,6 +41,7 @@ export interface VaultNode {
   gabarito?: string;
   explicacao?: string | null;
   tipoQuestao?: string;
+  questaoIds?: string[];
   nivelDominio?: number;
   pesoEdital?: number | null;
   posicaoX?: number | null;
@@ -147,6 +148,7 @@ export function serializeNode(n: VaultNode): string {
   // O banco exige o tipo da questão e não tem default; sai no frontmatter para o
   // arquivo poder voltar sem perder essa informação.
   if (n.tipoQuestao) fm.tipoQuestao = n.tipoQuestao;
+  if (n.tipo === "PROVA" && n.questaoIds) fm.questaoIds = n.questaoIds;
   if (typeof n.nivelDominio === "number") fm.nivelDominio = n.nivelDominio;
   // Quanto o nó vale na prova deste grafo. Ausente = sem peso declarado, que o
   // roadmap trata como 1 — escrever 1 explicitamente seria ruído no arquivo.
@@ -157,6 +159,38 @@ export function serializeNode(n: VaultNode): string {
   }
   const front = yaml.dump(fm, { lineWidth: -1, quotingType: '"' }).trimEnd();
   return `---\n${front}\n---\n\n${nodeBody(n)}`;
+}
+
+/** Replaces the outbound links while retaining the Markdown body and custom metadata.
+ * @example replaceVaultRelations(markdown, [{ rel: "CONTEM", alvo: "b", peso: 1 }])
+ */
+export function replaceVaultRelations(raw: string, relations: VaultRelacao[]): string {
+  const header = /^---\n([\s\S]*?)\n---(?=\n|$)/.exec(raw);
+  if (!header) throw new Error("Invalid node Markdown. Expected a YAML frontmatter block.");
+  const { fm } = splitFrontmatter(raw);
+  if (relations.length) {
+    fm.relacoes = relations.map((r) => ({ rel: r.rel, alvo: `[[${r.alvo}]]`, peso: r.peso }));
+  } else {
+    delete fm.relacoes;
+  }
+  const front = yaml.dump(fm, { lineWidth: -1, quotingType: '"' }).trimEnd();
+  return `---\n${front}\n---${raw.slice(header[0].length)}`;
+}
+
+/** Replaces fields owned by the node editor while preserving vault metadata.
+ * @example replaceVaultNodeContent(markdown, { ...node, nome: "New title" })
+ */
+export function replaceVaultNodeContent(raw: string, node: VaultNode): string {
+  const { fm } = splitFrontmatter(raw);
+  fm.titulo = vaultNodeLabel(node);
+  if (node.tipo === "NOTA") {
+    for (const key of ["tipoNota", "subtipo", "fonte"] as const) {
+      if (node[key]) fm[key] = node[key];
+      else delete fm[key];
+    }
+  }
+  const front = yaml.dump(fm, { lineWidth: -1, quotingType: '"' }).trimEnd();
+  return `---\n${front}\n---\n\n${nodeBody(node)}`;
 }
 
 // ---- Parse ----
@@ -278,6 +312,9 @@ export function parseNode(raw: string): VaultNode | null {
     case "PROVA":
       node.titulo = titulo;
       node.descricao = body.trim() || null;
+      if (Array.isArray(fm.questaoIds)) {
+        node.questaoIds = fm.questaoIds.filter((id): id is string => typeof id === "string" && id.length > 0);
+      }
       break;
     case "QUESTION":
       Object.assign(node, parseQuestionBody(body));

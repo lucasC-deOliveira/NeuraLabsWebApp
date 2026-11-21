@@ -11,6 +11,10 @@ import { PlusIcon, Trash2Icon, SearchIcon, XIcon, LayersIcon } from "lucide-reac
 import { LoadingState } from "@/components/loading-state";
 import { toast } from "sonner";
 import { flashcardsHttp } from "../infra/http";
+import { useVaultPath } from "@/modules/settings/presentation/hooks/useDesktopSettings";
+import { isDesktop } from "@/lib/vault-bridge";
+import { StudyStorageFilter } from "@/components/study-storage-filter";
+import { recordsInStorage, type StorageFilter } from "@/lib/study-storage-filter";
 import type { FlashcardItem } from "../domain/flashcard.types";
 import {
   filterAndSortFlashcards, computeFlashcardStats, countActiveFilters,
@@ -64,13 +68,21 @@ function FlashcardMiniGraph({ card, onClose }: { card: FlashcardItem | null; onC
   );
 }
 
+function flashcardBulkAction(cards: FlashcardItem[], vaultPath: string | null) {
+  if (vaultPath) return { label: "Todos do vault", count: cards.filter((card) => card.storage === "vault").length };
+  return { label: "Todos", count: cards.length };
+}
+
 export function FlashcardsListPage() {
+  const { vaultPath } = useVaultPath();
   const { snapshot, loading, reload } = useFlashcardsData();
   const { cards: flashcards, filterData, concepts } = snapshot;
   const [submitting, setSubmitting] = useState(false);
 
   const [criteria, setCriteria] = useState<FlashcardCriteria>(DEFAULT_CRITERIA);
   const [page, setPage] = useState(1);
+  const [storageFilter, setStorageFilter] = useState<StorageFilter>("all");
+  const desktop = isDesktop();
   const [showFilterDialog, setShowFilterDialog] = useState(false);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -96,9 +108,13 @@ export function FlashcardsListPage() {
     () => (criteria.assuntoFilter ? filterData.find((a) => a.id === criteria.assuntoFilter)?.topicos ?? [] : []),
     [criteria.assuntoFilter, filterData],
   );
-  const filtered = useMemo(() => filterAndSortFlashcards(flashcards, criteria), [flashcards, criteria]);
+  const filtered = useMemo(
+    () => filterAndSortFlashcards(recordsInStorage(flashcards, storageFilter), criteria),
+    [flashcards, criteria, storageFilter],
+  );
   const paged = useMemo(() => paginate(filtered, page, PAGE_SIZE), [filtered, page]);
   const stats = useMemo(() => computeFlashcardStats(flashcards), [flashcards]);
+  const bulkDelete = flashcardBulkAction(flashcards, vaultPath);
   const activeFilterCount = countActiveFilters(criteria);
 
   const clearFilters = (): void => { setCriteria(DEFAULT_CRITERIA); setPage(1); };
@@ -110,7 +126,8 @@ export function FlashcardsListPage() {
   };
 
   const handleSubmit = async (): Promise<void> => {
-    if (!form.pergunta.trim() || !form.resposta.trim() || !form.conceitoId) {
+    const requiresConcept = !vaultPath && !editingCard;
+    if (!form.pergunta.trim() || !form.resposta.trim() || (requiresConcept && !form.conceitoId)) {
       toast.error("Preencha todos os campos antes de salvar.");
       return;
     }
@@ -166,10 +183,10 @@ export function FlashcardsListPage() {
         subtitle={`${stats.total} flashcard${stats.total !== 1 ? "s" : ""} no total`}
         actions={
           <>
-            {stats.total > 0 && (
+            {bulkDelete.count > 0 && (
               <Button variant="outline" className="text-red-500 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/30 h-9" onClick={() => setShowDeleteAllDialog(true)}>
                 <Trash2Icon className="size-3.5 mr-1" />
-                Todos
+                {bulkDelete.label}
               </Button>
             )}
             <Link href="/flashcards/new">
@@ -185,6 +202,7 @@ export function FlashcardsListPage() {
       <FlashcardsStatsBar stats={stats} />
       <Separator />
 
+      {desktop && <StudyStorageFilter value={storageFilter} onChange={(value) => { setStorageFilter(value); setPage(1); }} />}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <div className="relative flex-1">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -246,6 +264,7 @@ export function FlashcardsListPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {paged.items.map((fc) => (
               <FlashcardCard
+                showStorage={desktop}
                 key={fc.id}
                 fc={fc}
                 onDetail={() => setDetailCard(fc)}
@@ -275,12 +294,13 @@ export function FlashcardsListPage() {
       />
       <StudyFlashcardModal
         open={!!studyCardId}
-        onOpenChange={(open) => { if (!open) { setStudyCardId(null); void reload(); } }}
+        onOpenChange={(open) => { if (!open) { setStudyCardId(null); void reload().catch(() => {}); } }}
         flashcardId={studyCardId}
       />
       <FlashcardMiniGraph card={graphCard} onClose={() => setGraphCard(null)} />
       <FlashcardFeynman card={feynmanCard} onClose={() => setFeynmanCard(null)} />
       <FlashcardEditDialog
+        vaultLocal={Boolean(vaultPath)}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         editing={!!editingCard}
@@ -296,7 +316,8 @@ export function FlashcardsListPage() {
         onCancelDelete={() => setDeleteTarget(null)}
         onConfirmDelete={confirmDelete}
         showDeleteAll={showDeleteAllDialog}
-        totalCount={stats.total}
+        totalCount={bulkDelete.count}
+        vaultLocal={Boolean(vaultPath)}
         onCancelDeleteAll={() => setShowDeleteAllDialog(false)}
         onConfirmDeleteAll={handleDeleteAll}
       />

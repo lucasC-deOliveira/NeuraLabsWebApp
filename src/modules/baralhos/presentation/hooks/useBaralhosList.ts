@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { isDesktop } from "@/lib/vault-bridge";
 import { baralhosHttp } from "../../infra/http";
+import { getOfflineAccountScope } from "../../infra/offline-deck-library";
 import type { BaralhoItem } from "../../domain/baralho.types";
 import { loadCachedBaralhos, saveCachedBaralhos } from "../services/baralhos-cache";
 
@@ -29,15 +31,16 @@ function revalidate(
  * @example const { baralhos, loading, reload } = useBaralhosList();
  */
 export function useBaralhosList(): BaralhosList {
-  const [cached] = useState(loadCachedBaralhos);
+  const [cached] = useState(() => isDesktop() ? null : loadCachedBaralhos());
   const [baralhos, setBaralhos] = useState<BaralhoItem[]>(cached ?? []);
   const [loading, setLoading] = useState(cached === null);
+  const scope = getOfflineAccountScope();
 
   const apply = useCallback((items: BaralhoItem[]): void => {
     setBaralhos(items);
     setLoading(false);
-    saveCachedBaralhos(items);
-  }, []);
+    if (!isDesktop()) saveCachedBaralhos(items, scope);
+  }, [scope]);
 
   const stopLoading = useCallback((): void => setLoading(false), []);
   useEffect(() => revalidate(apply, stopLoading), [apply, stopLoading]);

@@ -17,6 +17,12 @@ describe("validateNewEdge", () => {
   it("accepts a valid distinct pair", () => {
     expect(validateNewEdge(base)).toBeNull();
   });
+
+  it("rejects zero and accepts the upper bound, matching the server", () => {
+    expect(validateNewEdge({ ...base, peso: 0 })).toBe("edge-invalid-weight");
+    expect(validateEditEdge({ ...base, peso: 0 }, true)).toBe("edge-invalid-weight");
+    expect(validateNewEdge({ ...base, peso: 2 })).toBeNull();
+  });
 });
 
 describe("validateEditEdge", () => {

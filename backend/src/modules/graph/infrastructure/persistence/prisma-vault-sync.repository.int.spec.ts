@@ -67,6 +67,66 @@ describe('Vault sync (integration — neuralabs_test)', () => {
     ).toBe(1);
   });
 
+  it('preserves server relations missing from a graph being published', async () => {
+    const { userId, grafoId } = await seedGraph();
+    const target = await prisma.grafosConhecimento.create({
+      data: { usuarioId: userId, nome: 'Published' },
+    });
+    const nodes = [
+      { ref: 'c1', tipo: 'CONCEITO', nome: 'A' },
+      { ref: 'c2', tipo: 'CONCEITO', nome: 'B' },
+    ];
+    await syncVault.execute(userId, grafoId, {
+      nodes,
+      edges: [{ origem: 'c1', destino: 'c2', relacao: 'PREREQUISITO' }],
+    });
+    await syncVault.execute(userId, target.id, {
+      nodes,
+      edges: [],
+      preserveExistingRelations: true,
+    });
+    expect(await prisma.conhecimentoAresta.count()).toBe(1);
+    expect(await prisma.grafoNode.count({ where: { grafoId: target.id } })).toBe(2);
+  });
+
+  it('imports legacy notes without a subtype and normalizes labeled subtypes', async () => {
+    const { userId, grafoId } = await seedGraph();
+    await syncVault.execute(userId, grafoId, {
+      nodes: [
+        { ref: 'legacy-note', tipo: 'NOTA', titulo: 'Legacy', conteudo: 'Legacy content' },
+        { ref: 'labeled-note', tipo: 'NOTA', titulo: 'Labeled', subtipo: 'Explicação' },
+      ],
+      edges: [],
+    });
+    expect(await prisma.nota.findUnique({ where: { id: 'legacy-note' } })).toMatchObject({
+      subtipo: null,
+      conteudo: 'Legacy content',
+    });
+    expect(await prisma.nota.findUnique({ where: { id: 'labeled-note' } })).toMatchObject({
+      subtipo: 'EXPLICACAO',
+    });
+  });
+
+  it('reuses node links when a vault snapshot with many nodes is retried', async () => {
+    const { userId, grafoId } = await seedGraph();
+    const nodes = Array.from({ length: 100 }, (_, index) => ({
+      ref: `concept-${index}`,
+      tipo: 'CONCEITO',
+      nome: `Concept ${index}`,
+    }));
+    const payload = {
+      nodes,
+      edges: [{ origem: 'concept-0', destino: 'concept-99', relacao: 'PREREQUISITO' }],
+      preserveExistingRelations: true,
+    };
+    expect(await syncVault.execute(userId, grafoId, payload)).toMatchObject({ created: 100 });
+    expect(await syncVault.execute(userId, grafoId, payload)).toMatchObject({
+      created: 0,
+      updated: 100,
+    });
+    expect(await prisma.conhecimentoAresta.count()).toBe(1);
+  });
+
   // Sumir da pasta = "não está mais NESTE grafo", nunca "deixou de existir". Antes
   // isto apagava a linha do nó; com o nó do sistema, apagar um .md de uma pasta
   // destruiria o card em todos os outros grafos.

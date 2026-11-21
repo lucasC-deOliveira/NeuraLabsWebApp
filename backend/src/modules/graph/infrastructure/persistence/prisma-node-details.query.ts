@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
-import type { NodeDetails, NodeDetailsQuery } from '../../domain/ports/node-details-query';
+import type {
+  ConceptGraphMembership,
+  NodeDetails,
+  NodeDetailsQuery,
+} from '../../domain/ports/node-details-query';
 
 type NodeDetailsProjector = (userId: string, refId: string) => Promise<NodeDetails | null>;
 
@@ -11,6 +15,21 @@ export class PrismaNodeDetailsQuery implements NodeDetailsQuery {
   findDetails(userId: string, tipoNode: string, refId: string): Promise<NodeDetails | null> {
     const project = this.projectors[tipoNode];
     return project ? project(userId, refId) : Promise.resolve(null);
+  }
+
+  /** Lists the owned graph views that contain the same concept.
+   * @example query.findConceptGraphs('user-id', 'concept-id')
+   */
+  async findConceptGraphs(userId: string, refId: string): Promise<ConceptGraphMembership[]> {
+    const links = await this.prisma.grafoNode.findMany({
+      where: {
+        node: { usuarioId: userId, tipoNode: 'CONCEITO', referenciaId: refId },
+        grafo: { usuarioId: userId },
+      },
+      select: { grafo: { select: { id: true, nome: true } } },
+      orderBy: [{ grafo: { nome: 'asc' } }, { grafoId: 'asc' }],
+    });
+    return links.map(({ grafo }) => ({ id: grafo.id, name: grafo.nome }));
   }
 
   // Per-type content projection; each returns null when the entity is missing or
@@ -68,10 +87,21 @@ export class PrismaNodeDetailsQuery implements NodeDetailsQuery {
     PROVA: async (usuarioId, id) => {
       const p = await this.prisma.prova.findFirst({
         where: { id, usuarioId },
-        include: { _count: { select: { questoes: true } } },
+        include: {
+          questoes: {
+            where: { questao: { usuarioId } },
+            select: { questaoId: true },
+            orderBy: [{ ordem: 'asc' }, { questaoId: 'asc' }],
+          },
+        },
       });
       return p
-        ? { titulo: p.titulo, descricao: p.descricao, totalQuestoes: p._count.questoes }
+        ? {
+            titulo: p.titulo,
+            descricao: p.descricao,
+            totalQuestoes: p.questoes.length,
+            questaoIds: p.questoes.map(({ questaoId }) => questaoId),
+          }
         : null;
     },
   };

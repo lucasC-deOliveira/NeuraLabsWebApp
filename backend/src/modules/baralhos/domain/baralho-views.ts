@@ -28,6 +28,17 @@ export interface BaralhoCard {
   // Conceitos aos quais o cartão está conectado no grafo (+ tópicos/assuntos pais),
   // a mesma origem das tags da listagem de flashcards. Vazio fora de grafos.
   conceitosConectados: ConceptTag[];
+  schedule?: BaralhoCardSchedule | null;
+}
+
+export interface BaralhoCardSchedule {
+  fase: string;
+  learningStep: number;
+  dificuldade: number;
+  intervalo: number;
+  fatorEase: number;
+  proximaRevisao: Date;
+  ultimaRevisao: Date;
 }
 
 export interface BaralhoDetail {

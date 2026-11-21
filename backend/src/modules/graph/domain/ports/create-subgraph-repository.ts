@@ -1,5 +1,6 @@
 // Input for creating a subgraph under a parent graph.
 export interface CreateSubgraphInput {
+  localId?: string;
   nome: string;
   descricao?: string;
   tipoRelacao: string;

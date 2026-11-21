@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
+import { announceVaultStudyChange } from "@/lib/vault-study-events";
 import { settingsHttp } from "../../infra/http";
 import type { AiConfig } from "../../domain/ai-config";
 
@@ -20,6 +21,7 @@ async function pickVault(setVaultPath: (path: string) => void): Promise<void> {
     const dir = await desktop.vault.pickFolder();
     if (dir) {
       setVaultPath(dir);
+      announceVaultStudyChange("settings");
       toast.success("Pasta do vault definida.");
     }
   } catch (e) {

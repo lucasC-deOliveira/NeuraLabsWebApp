@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { authApi } from "@/lib/api";
 import { Sidebar } from "./sidebar";
 
 vi.mock("@/lib/navigation", () => ({
@@ -13,6 +14,18 @@ vi.mock("@/components/link", () => ({
 vi.mock("./theme-toggle", () => ({ ThemeToggle: () => null }));
 
 describe("Sidebar (smoke)", () => {
+  it("offers to retry an unavailable session check and restores the account after recovery", async () => {
+    vi.mocked(authApi.me)
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce({ id: "u1", nome: "Ada", email: "ada@example.com" });
+
+    render(<Sidebar />);
+    const retry = await screen.findByRole("button", { name: "Tentar verificar a sessão novamente" });
+    expect(screen.queryByText("Fazer login")).not.toBeInTheDocument();
+    fireEvent.click(retry);
+    expect(await screen.findByText("Ada")).toBeInTheDocument();
+  });
+
   it("renders the navigation links", () => {
     render(<Sidebar collapsed={false} onToggleCollapse={vi.fn()} />);
     expect(screen.getAllByRole("link").length).toBeGreaterThan(0);

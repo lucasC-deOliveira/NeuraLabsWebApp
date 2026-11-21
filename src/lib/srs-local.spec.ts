@@ -213,6 +213,39 @@ describe("readSrsLog", () => {
 describe("startLocalSession", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("preserves both sessions when two starts share the same vault", async () => {
+    class InMemorySrsLog {
+      serialized = JSON.stringify(makeLog());
+      readonly read = async (): Promise<string> => this.serialized;
+      readonly write = async (_dir: string, _file: string, content: string): Promise<{ ok: boolean }> => {
+        this.serialized = content;
+        return { ok: true };
+      };
+    }
+    const disk = new InMemorySrsLog();
+    const read = vi.mocked(desktop.vault.readFile);
+    const write = vi.mocked(desktop.vault.writeFile);
+    const originalRead = read.getMockImplementation();
+    const originalWrite = write.getMockImplementation();
+    read.mockImplementation(disk.read);
+    write.mockImplementation(disk.write);
+    try {
+      await Promise.all([startLocalSession(GRAPH_DIR, "deck-a"), startLocalSession(GRAPH_DIR, "deck-b")]);
+      expect(lastWrittenLog().sessions.map((session) => session.baralhoId)).toEqual(["deck-a", "deck-b"]);
+    } finally {
+      read.mockReset().mockImplementation(originalRead ?? disk.read);
+      write.mockReset().mockImplementation(originalWrite ?? disk.write);
+    }
+  });
+
+  it("keeps current study schedules and seeds cards only missing from the log", async () => {
+    const existing = reviewSchedule({ dificuldade: 3 });
+    const previousVault = reviewSchedule({ dificuldade: 8 });
+    setMockLog(makeLog({ schedule: { existing } }));
+    await startLocalSession(GRAPH_DIR, "deck", { existing: previousVault, missing: previousVault });
+    expect(lastWrittenLog().schedule).toEqual({ existing, missing: previousVault });
+  });
+
   it("adiciona uma nova sessão ao log", async () => {
     setMockLog(makeLog());
     await startLocalSession(GRAPH_DIR, "deck-abc");

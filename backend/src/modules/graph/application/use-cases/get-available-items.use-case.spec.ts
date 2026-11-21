@@ -6,6 +6,7 @@ import type {
 } from '../../domain/ports/available-items-query';
 
 const view: AvailableItemsView = {
+  conceitos: [],
   flashcards: [
     { id: 'f1', label: 'Q', fullText: 'Q', tipo: 'FLASHCARD', hierarquia: 'Sem conceito' },
   ],

@@ -55,6 +55,20 @@ export class EmptyAttemptError extends Error {
   }
 }
 
+export class InvalidVaultAttemptQuestionError extends Error {
+  constructor(questionId: string) {
+    super(`Invalid vault attempt question "${questionId}". Expected: a question in the exam.`);
+    this.name = 'InvalidVaultAttemptQuestionError';
+  }
+}
+
+export class VaultAttemptExamMismatchError extends Error {
+  constructor(examId: string) {
+    super(`Invalid exam "${examId}" for the vault attempt. Expected: the original exam.`);
+    this.name = 'VaultAttemptExamMismatchError';
+  }
+}
+
 // Asserts the loaded prova exists and belongs to the user, else throws.
 export function assertOwner<T extends { usuarioId: string }>(
   prova: T | null,

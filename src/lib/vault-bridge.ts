@@ -17,10 +17,30 @@ export interface VaultFile {
   content: string;
 }
 
+export interface VaultGraphMarkdownWrite {
+  dir: string;
+  relPath: string;
+  expected: string;
+  next: string;
+}
+
+export interface VaultGraphFolder {
+  id: string;
+  label: string;
+  directory: string;
+  modifiedAt: string;
+}
+
 export interface VaultSyncState {
   lastPull?: string; // ISO 8601
   lastPush?: string; // ISO 8601
   dir?: string;      // caminho absoluto da pasta do vault deste grafo
+}
+
+export interface VaultStudyWrite {
+  folder: string;
+  expected: string | null;
+  next: string;
 }
 
 interface NeuralabsBridge {
@@ -36,7 +56,11 @@ interface NeuralabsBridge {
   };
   vault: {
     getPath: () => Promise<string | null>;
+    listGraphFolders: () => Promise<VaultGraphFolder[]>;
+    listExamAttempts?: (dir: string) => Promise<string[]>;
     pickFolder: () => Promise<string | null>;
+    readStudy: (folder: string) => Promise<string | null>;
+    writeStudy: (update: VaultStudyWrite) => Promise<boolean>;
     read: (dir: string) => Promise<VaultFile[]>;
     write: (dir: string, files: VaultFile[]) => Promise<{ written: number }>;
     openFolder: (dir: string) => Promise<void>;
@@ -45,6 +69,8 @@ interface NeuralabsBridge {
     checkModified: (dir: string, since: string) => Promise<{ count: number; files: string[] }>;
     readFile: (dir: string, relPath: string) => Promise<string | null>;
     writeFile: (dir: string, relPath: string, content: string) => Promise<{ ok: boolean }>;
+    replaceGraphMarkdown: (dir: string, relPath: string, expected: string, next: string) => Promise<boolean>;
+    replaceGraphMarkdownBatch: (writes: VaultGraphMarkdownWrite[]) => Promise<boolean>;
     deleteFiles: (dir: string, relPaths: string[]) => Promise<{ deleted: string[]; skipped: string[] }>;
     watch: (dir: string, watchId: string) => Promise<{ ok: boolean }>;
     unwatch: (watchId: string) => Promise<{ ok: boolean }>;
@@ -77,7 +103,11 @@ export const desktop = {
   },
   vault: {
     getPath: () => required().vault.getPath(),
+    listGraphFolders: () => required().vault.listGraphFolders(),
+    listExamAttempts: (dir: string) => required().vault.listExamAttempts?.(dir) ?? null,
     pickFolder: () => required().vault.pickFolder(),
+    readStudy: (folder: string) => required().vault.readStudy(folder),
+    writeStudy: (update: VaultStudyWrite) => required().vault.writeStudy(update),
     read: (dir: string) => required().vault.read(dir),
     write: (dir: string, files: VaultFile[]) => required().vault.write(dir, files),
     openFolder: (dir: string) => required().vault.openFolder(dir),
@@ -86,6 +116,10 @@ export const desktop = {
     checkModified: (dir: string, since: string) => required().vault.checkModified(dir, since),
     readFile: (dir: string, relPath: string) => required().vault.readFile(dir, relPath),
     writeFile: (dir: string, relPath: string, content: string) => required().vault.writeFile(dir, relPath, content),
+    replaceGraphMarkdown: (dir: string, relPath: string, expected: string, next: string) =>
+      required().vault.replaceGraphMarkdown(dir, relPath, expected, next),
+    replaceGraphMarkdownBatch: (writes: VaultGraphMarkdownWrite[]) =>
+      required().vault.replaceGraphMarkdownBatch(writes),
     deleteFiles: (dir: string, relPaths: string[]) => required().vault.deleteFiles(dir, relPaths),
     watch: (dir: string, watchId: string) => required().vault.watch(dir, watchId),
     unwatch: (watchId: string) => required().vault.unwatch(watchId),

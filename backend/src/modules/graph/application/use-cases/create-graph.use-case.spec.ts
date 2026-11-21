@@ -55,7 +55,7 @@ class FakeSubgraphRepository implements CreateSubgraphRepository {
     input: CreateSubgraphInput,
   ): Promise<{ grafoId: string; grafoRefNodeId: string }> {
     this.subgraphs.push({ parent: parentGrafoId, input });
-    const id = `sub-${this.subgraphs.length}`;
+    const id = input.localId ?? `sub-${this.subgraphs.length}`;
     return { grafoId: id, grafoRefNodeId: id };
   }
 }
@@ -73,6 +73,18 @@ describe('CreateGraphUseCase', () => {
     subgraphs = new FakeSubgraphRepository();
     cache = new FakeCache();
     useCase = new CreateGraphUseCase(graphs, subgraphs, cache);
+  });
+
+  it('passes the locally assigned id when publishing a graph under the master', async () => {
+    graphs.rootId = 'master';
+    const localId = 'a20e47ff-3fe9-4e32-aad2-5ff22c23626c';
+    await expect(useCase.execute('u1', 'Biology', undefined, localId)).resolves.toEqual({
+      id: localId,
+    });
+    expect(subgraphs.subgraphs[0]).toMatchObject({
+      parent: 'master',
+      input: { localId, tipoRelacao: 'RELACIONADO' },
+    });
   });
 
   // Primeiro grafo do usuário: o master ainda não existe, então é criado antes.
