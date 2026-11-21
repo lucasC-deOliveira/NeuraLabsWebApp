@@ -15,6 +15,7 @@ import { SpeechSection } from "./components/SpeechSection";
 import { DailyGoalSection } from "./components/DailyGoalSection";
 import { IaSectionBody } from "./components/IaSectionBody";
 import { DesktopSectionBody } from "./components/DesktopSectionBody";
+import { AccountStorageSection } from "./components/AccountStorageSection";
 
 // A seção "Estudo" reúne o que rege a sessão: a meta diária, a ordem dos cards e a
 // leitura em voz alta. Preferências independentes, uma tela.
@@ -35,6 +36,7 @@ const SECTION_BODIES: Record<SettingsSectionId, () => React.ReactElement> = {
   estudo: EstudoSection,
   ia: IaSectionBody,
   desktop: DesktopSectionBody,
+  armazenamento: AccountStorageSection,
 };
 
 function SectionNotFound() {

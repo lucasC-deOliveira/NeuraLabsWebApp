@@ -33,6 +33,7 @@ import { DuplicatesModal } from "@/modules/graph/presentation/components/ai/Dupl
 import { CommunitySummaryModal } from "@/modules/graph/presentation/components/ai/CommunitySummaryModal";
 import { MissingPrereqsModal } from "@/modules/graph/presentation/components/ai/MissingPrereqsModal";
 import { GraphChatModal } from "@/modules/graph/presentation/components/ai/GraphChatModal";
+import { makeVaultChat } from "@/modules/graph/infra/vault/vault-chat";
 import { CompletenessModal } from "@/modules/graph/presentation/components/ai/CompletenessModal";
 import type { Community, StructuralGap } from "@/lib/graph-communities";
 import { graphHttp } from "@/modules/graph/infra/http";
@@ -126,6 +127,10 @@ export default function GraphPage() {
 
   const controller = useGraphController(graphId);
   const undo = useUndoStack();
+  const nodeStats = useMemo(
+    () => countNodesByType(controller.state.rawNodes),
+    [controller.state.rawNodes],
+  );
 
   // busca com filtros poderosos (texto, tipo, domínio, prioridade, conexões)
   const search = useGraphSearch(
@@ -225,6 +230,7 @@ export default function GraphPage() {
   const [serverRelations, setServerRelations] = useState<{ graphId: string; edges: EdgeView[] } | null>(null);
   const vaultBacked = controller.state.vaultBacked;
   const vaultSource = controller.state.vaultSource;
+  const vaultChat = useMemo(() => vaultSource ? makeVaultChat(graphId, vaultSource) : undefined, [graphId, vaultSource]);
   const localExamStudy = useMemo(() => vaultSource ? makeVaultExamStudy(graphId, vaultSource, desktop.vault) : undefined, [graphId, vaultSource]);
   const vaultEdges = useMemo(() => makeVaultGraphEdges(desktop.vault), []);
   const vaultNodeCreation = useMemo(() => makeVaultGraphNodeCreation(desktop.vault), []);
@@ -300,17 +306,19 @@ export default function GraphPage() {
   }, [graphId]);
 
   // Chegou de "Ver no grafo" com ?focus=<referenciaId>: seleciona e centraliza o
-  // nó assim que a view carregar. Só uma vez — depois o usuário navega livre.
+  // nó assim que a view carregar. Uma vez por destino — depois o usuário navega livre.
   const focusId = searchParams.get("focus");
-  const focusedRef = useRef(false);
+  const focusedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!focusId || focusedRef.current) return;
+    if (!focusId) { focusedRef.current = null; return; }
+    const destination = `${graphId}:${focusId}`;
+    if (focusedRef.current === destination) return;
     const node = controller.state.filteredNodes.find((n: any) => n.id === focusId);
     if (!node) return;
-    focusedRef.current = true;
+    focusedRef.current = destination;
     controller.actions.setSelectedNodeIds(new Set([focusId]));
     controller.interactions.focusNode(node);
-  }, [focusId, controller.state.filteredNodes, controller.actions, controller.interactions]);
+  }, [graphId, focusId, controller.state.filteredNodes, controller.actions, controller.interactions]);
 
   const closeToolbarModals = () => {
     setIsCreateModalOpen(false);
@@ -798,8 +806,6 @@ export default function GraphPage() {
   if (controller.state.loading || controller.state.preparing) {
     return <GraphLoadingScreen phase={controller.state.loading ? "loading" : "preparing"} />;
   }
-  // contagem de nós por tipo (painel de camadas/filtro)
-  const nodeStats = countNodesByType(controller.state.layout);
   // contagem de arestas por tipo de relação (camadas de relações)
   const relationStats = getRelationStats(controller.state.edges);
 
@@ -1832,9 +1838,11 @@ export default function GraphPage() {
         nodeIds={communitySummary?.nodeIds ?? []}
       />
       <GraphChatModal
+        key={`chat-${graphId}`}
         open={chatOpen}
         onOpenChange={setChatOpen}
         grafoId={graphId}
+        vault={vaultChat}
       />
       <CompletenessModal
         open={completenessOpen}

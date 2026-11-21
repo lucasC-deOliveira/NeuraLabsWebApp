@@ -12,6 +12,16 @@ describe("autoReadTarget", () => {
     expect(autoReadTarget("answer", card)).toEqual({ id: "resposta", text: "Divisão celular" });
   });
 
+  it("excludes bibliography from automatic playback on either side", () => {
+    const cited = {
+      ...card,
+      pergunta: card.pergunta + "\n\n> **Fonte:** Study guide",
+      resposta: card.resposta + "\n\n## Referências\n\n- Study guide",
+    };
+    expect(autoReadTarget("question", cited)?.text).toBe(card.pergunta);
+    expect(autoReadTarget("answer", cited)?.text).toBe(card.resposta);
+  });
+
   it("reads nothing in other phases (loading, finished, ...)", () => {
     expect(autoReadTarget("loading", card)).toBeNull();
     expect(autoReadTarget("waiting", card)).toBeNull();

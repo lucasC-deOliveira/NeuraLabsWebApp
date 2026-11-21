@@ -1,7 +1,7 @@
 // Sincronização vault ↔ backend (desktop). Manual: Pull (backend → .md) e
 // Push (.md → backend). Usa o formato em vault-format + a ponte de fs (Electron).
 import { exportGraph, getGrafoInfo, loadGraphVisualState, syncGraphFromVault, type ExportGraphNode, type GraphNodeType, type GraphEdgeType } from "./graph-api";
-import { existingVaultGraphDirectory, VAULT_GRAPH_MANIFEST, type VaultGraphManifest } from "./vault-graph-manifest";
+import { existingVaultGraphDirectory, isSharedVaultGraph, sharedGraphMetadataDir, VAULT_GRAPH_MANIFEST, type VaultGraphManifest } from "./vault-graph-manifest";
 import { syncVaultSessions } from "./study-api";
 import { readSrsLog, writeSrsLog } from "./srs-local";
 import { desktop, type VaultFile, type VaultSyncState } from "./vault-bridge";
@@ -15,7 +15,7 @@ import {
   type VaultRelacao,
   type TipoNode,
 } from "./vault-format";
-import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "./vault-guide";
+import { buildSharedVaultGuide, buildVaultGuide, VAULT_GUIDE_FILENAME } from "./vault-guide";
 import { completeVaultGraphPublication, readPendingVaultGraph, registerLocalVaultGraph } from "./vault-graph-publication";
 import { guardSharedVaultRelations, parseVaultUploadNodes } from "./vault-relation-conflicts";
 
@@ -59,9 +59,10 @@ export async function findVaultNode(
 }
 
 // Pull: baixa o grafo do backend e grava os .md na subpasta do grafo.
-export async function pullVault(grafoId: string, dir: string, grafoNome: string, report?: ReportVaultProgress): Promise<{ files: number }> {
+export async function pullVault(grafoId: string, dir: string, report?: ReportVaultProgress): Promise<{ files: number }> {
   report?.({ phase: "downloading" });
-  const graphDir = await existingVaultGraphDirectory(grafoId) ?? graphVaultDir(dir, grafoId, grafoNome);
+  const existingDir = await existingVaultGraphDirectory(grafoId);
+  const graphDir = existingDir ?? sharedGraphMetadataDir(dir, grafoId);
   const payload = await exportGraph(grafoId);
 
   // arestas de saída por nó (ref de origem → relações)
@@ -76,8 +77,10 @@ export async function pullVault(grafoId: string, dir: string, grafoNome: string,
     const vn = toVaultNode(payload.grafo.id, n, outByRef.get(n.ref) ?? []);
     return { relPath: nodeRelPath(vn), content: serializeNode(vn) };
   });
-  files.push({ relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() });
+  const shared = !existingDir || await isSharedVaultGraph(existingDir, grafoId);
+  files.push({ relPath: VAULT_GUIDE_FILENAME, content: shared ? buildSharedVaultGuide() : buildVaultGuide() });
   const manifest = await buildGraphManifest(grafoId, payload.grafo.nome);
+  if (shared) manifest.layout = "shared-para";
   files.push({ relPath: VAULT_GRAPH_MANIFEST, content: JSON.stringify(manifest, null, 2) + "\n" });
 
   report?.({ phase: "writing-vault", files: files.length });
@@ -109,7 +112,8 @@ export async function pushVault(grafoId: string, grafoNome: string, report?: Rep
   await guardSharedVaultRelations(desktop.vault, graphDir, grafoNome, localNodes);
 
   const nodes = localNodes.map(fromVaultNode);
-  const edges = localNodes.flatMap((node) => node.relacoes.map((link) => ({
+  const localIds = new Set(localNodes.map(({ id }) => id));
+  const edges = localNodes.flatMap((node) => node.relacoes.filter(({ alvo }) => localIds.has(alvo)).map((link) => ({
     origem: node.id, destino: link.alvo, relacao: link.rel, peso: link.peso,
   })));
 

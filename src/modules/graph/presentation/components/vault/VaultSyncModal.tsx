@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { desktop } from "@/lib/vault-bridge";
-import { existingVaultGraphDirectory } from "@/lib/vault-graph-manifest";
+import { existingVaultGraphDirectory, isSharedVaultGraph } from "@/lib/vault-graph-manifest";
 import { readPendingVaultGraph } from "@/lib/vault-graph-publication";
 import {
   pullVault, pushVault, graphVaultDir, compareSyncState, getSyncState, removeOrphans,
@@ -71,6 +71,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
   const [diff, setDiff] = useState<SyncDiff | null>(null);
   const [diffError, setDiffError] = useState(false);
   const [pendingPublication, setPendingPublication] = useState(false);
+  const [sharedLayout, setSharedLayout] = useState(false);
   const [syncState, setSyncState] = useState<VaultSyncState | null>(null);
   const [issues, setIssues] = useState<VaultIssue[]>([]);
   // Um Push com erro de formato só passa no segundo clique, depois de a lista
@@ -88,6 +89,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
       setResolvedGraphDir(null);
       setDiff(null); setDiffError(false); setSyncState(null);
       setPendingPublication(false);
+      setSharedLayout(false);
       setTransfer(null);
       setRelationIssue(null);
       setIssues([]); setPushForcado(false);
@@ -100,6 +102,8 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
     try {
       const gDir = await existingVaultGraphDirectory(grafoId) ?? graphVaultDir(dir, grafoId, grafoNome);
       setResolvedGraphDir(gDir);
+      const shared = await isSharedVaultGraph(gDir, grafoId);
+      setSharedLayout(shared);
       const pending = Boolean(await readPendingVaultGraph(gDir, grafoId));
       setPendingPublication(pending);
       const [d, s] = await Promise.all([pending ? Promise.resolve(null) : compareSyncState(grafoId, gDir), getSyncState(gDir)]);
@@ -143,7 +147,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
     setBusy("pull");
     let progress: VaultTransferProgress = { phase: "downloading" };
     try {
-      const { files } = await pullVault(grafoId, vaultPath, grafoNome, (next) => {
+      const { files } = await pullVault(grafoId, vaultPath, (next) => {
         progress = next;
         setTransfer({ kind: "running", progress: next });
       });
@@ -217,7 +221,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
       if (skipped.length > 0) {
         toast.warning(`${deleted} arquivo(s) removido(s); ${skipped.length} recusado(s).`);
       } else {
-        toast.success(`${deleted} arquivo(s) órfão(s) removido(s) do vault.`);
+        toast.success(sharedLayout ? `${deleted} item(ns) desvinculado(s) do grafo.` : `${deleted} arquivo(s) órfão(s) removido(s) do vault.`);
       }
       await runCompare(vaultPath);
     } catch (e) {
@@ -229,9 +233,12 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
   const openVaultFolder = async (): Promise<void> => {
     if (!graphDir) return;
     try {
-      // Garante que a pasta, subpastas PARA e guia existam antes de abrir
-      await desktop.vault.write(graphDir, [{ relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() }]);
-      await desktop.vault.openFolder(graphDir);
+      // Garante que a pasta, subpastas PARA e guia existam antes de abrir o formato legado.
+      const existing = await existingVaultGraphDirectory(grafoId);
+      if (existing && !sharedLayout) {
+        await desktop.vault.write(existing, [{ relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() }]);
+      }
+      await desktop.vault.openFolder(existing ?? vaultPath ?? graphDir);
     } catch (e) {
       toast.error("Não foi possível abrir a pasta: " + (e instanceof Error ? e.message : String(e)));
     }
@@ -251,7 +258,7 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
         </DialogHeader>
 
         <div className="space-y-4 min-w-0">
-          <VaultFolderPicker vaultPath={vaultPath} graphDir={graphDir} busy={busy} onPick={pick} onOpenFolder={openVaultFolder} />
+          <VaultFolderPicker vaultPath={vaultPath} graphDir={graphDir} shared={sharedLayout} busy={busy} onPick={pick} onOpenFolder={openVaultFolder} />
 
           {vaultPath && (
             <VaultSyncOverview transfer={transfer} pendingPublication={pendingPublication}
@@ -268,18 +275,29 @@ export function VaultSyncModal({ open, onOpenChange, grafoId, grafoNome, onSynce
           {vaultPath && <VaultIssues issues={issues} pushBloqueado={pushForcado} />}
 
           {vaultPath && diff && (
-            <VaultOrphans orphans={diff.orphans} busy={busy !== null} onClean={doCleanOrphans} />
+            <VaultOrphans orphans={diff.orphans} busy={busy !== null} onClean={doCleanOrphans} shared={sharedLayout} />
           )}
 
           <VaultTimestamps syncState={syncState} />
 
-          <p className="text-[11px] text-muted-foreground">
-            <strong>Pull</strong> — sobrescreve o vault com o estado do servidor.{" "}
-            <strong>Push</strong> — sobrescreve o servidor com o estado do vault.
-          </p>
+          <VaultSyncDirection shared={sharedLayout} />
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function VaultSyncDirection({ shared }: { shared: boolean }) {
+  return shared ? (
+    <p className="text-[11px] text-muted-foreground">
+      <strong>Pull</strong> baixa o grafo e sinaliza divergências nos arquivos compartilhados.{" "}
+      <strong>Push</strong> envia a vista do grafo ao servidor.
+    </p>
+  ) : (
+    <p className="text-[11px] text-muted-foreground">
+      <strong>Pull</strong> baixa o grafo do servidor.{" "}
+      <strong>Push</strong> envia os dados do vault ao servidor.
+    </p>
   );
 }
 
@@ -307,12 +325,14 @@ function VaultSyncOverview({
 function VaultFolderPicker({
   vaultPath,
   graphDir,
+  shared,
   busy,
   onPick,
   onOpenFolder,
 }: {
   vaultPath: string | null;
   graphDir: string | null;
+  shared: boolean;
   busy: BusyState;
   onPick: () => void;
   onOpenFolder: () => void;
@@ -328,7 +348,7 @@ function VaultFolderPicker({
       </div>
       {graphDir && (
         <div className="flex items-center gap-1 min-w-0">
-          <p className="text-[11px] text-muted-foreground font-mono truncate flex-1 min-w-0">📁 {graphDir}</p>
+          <p className="text-[11px] text-muted-foreground font-mono truncate flex-1 min-w-0">📁 {shared ? vaultPath : graphDir}</p>
           <Button
             type="button" variant="ghost" size="sm" onClick={onOpenFolder}
             className="h-6 px-2 gap-1 text-[11px] text-muted-foreground shrink-0"

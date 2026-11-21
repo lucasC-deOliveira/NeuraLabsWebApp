@@ -21,6 +21,7 @@ import { loadSpeechSettings } from "@/components/speech/speech-settings";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { configuredStudyVault } from "@/modules/study/infra/electron-vault-study";
 import { readAllVaultNodes, graphVaultDir } from "@/lib/vault-sync";
+import { existingVaultGraphDirectory } from "@/lib/vault-graph-manifest";
 import type { VaultNode } from "@/lib/vault-format";
 import {
   readSrsLog,
@@ -112,7 +113,7 @@ function dueCardsFrom(candidates: Array<VaultNode | undefined>, srsLog: SrsLog):
 async function readVaultDir(grafoId: string, grafoNome: string): Promise<{ dir: string; nodeById: Map<string, VaultNode>; srsLog: SrsLog } | null> {
   const vaultDir = await desktop.vault.getPath().catch(() => null);
   if (!vaultDir) return null;
-  const graphDir = graphVaultDir(vaultDir, grafoId, grafoNome);
+  const graphDir = await existingVaultGraphDirectory(grafoId) ?? graphVaultDir(vaultDir, grafoId, grafoNome);
   const [vaultNodes, srsLog] = await Promise.all([
     readAllVaultNodes(grafoId, grafoNome),
     readSrsLog(vaultDir, graphDir),
@@ -391,7 +392,7 @@ function DeckBody({
     return <CompleteView queue={queue} totalNoDeck={totalNoDeck} reviewed={reviewed} onClose={onClose} />;
   }
   if (!card) return null;
-  return <DeckCardView card={card} phase={phase} semPesos={semPesos} onReveal={onReveal} onGrade={onGrade} />;
+  return <DeckCardView key={card.id} card={card} phase={phase} semPesos={semPesos} onReveal={onReveal} onGrade={onGrade} />;
 }
 
 export function StudyDeckModal(props: StudyDeckModalProps) {

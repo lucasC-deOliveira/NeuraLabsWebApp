@@ -11,9 +11,17 @@ vi.mock("@/lib/api", () => ({ authApi: { me: vi.fn(() => Promise.resolve(null)),
 vi.mock("@/components/link", () => ({
   Link: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }));
-vi.mock("./theme-toggle", () => ({ ThemeToggle: () => null }));
 
 describe("Sidebar (smoke)", () => {
+  it("keeps the legacy light and dark switch out of the desktop and mobile menu", async () => {
+    vi.mocked(authApi.me).mockResolvedValueOnce(null);
+    render(<Sidebar />);
+    await screen.findByText("Fazer login");
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
+    expect(screen.getByRole("button", { name: "Fechar menu" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ativar tema (claro|escuro)/ })).not.toBeInTheDocument();
+  });
+
   it("offers to retry an unavailable session check and restores the account after recovery", async () => {
     vi.mocked(authApi.me)
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))

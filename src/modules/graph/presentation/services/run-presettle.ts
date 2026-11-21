@@ -15,23 +15,45 @@ function spawnWorker(): Worker | null {
 }
 
 function inWorker(
-  worker: Worker,
-  nodes: SimNode[],
-  edges: PhysicsEdge[],
-  options: PhysicsOptions,
-  maxIters: number,
+  worker: Worker, nodes: SimNode[], edges: PhysicsEdge[], options: PhysicsOptions, maxIters: number,
+  execution?: PresettleExecution,
 ): Promise<SimNode[]> {
   return new Promise((resolve) => {
-    const fallback = (): void => {
+    const cleanup = (): void => {
+      execution?.signal.removeEventListener("abort", abort);
       worker.terminate();
-      resolve(presettleLayout(nodes, edges, options, maxIters));
     };
-    worker.onmessage = (event: MessageEvent<SimNode[]>): void => {
-      worker.terminate();
-      resolve(event.data);
-    };
+    const abort = (): void => { cleanup(); resolve(nodes); };
+    const fallback = (): void => { cleanup(); resolve(runFallback(nodes, edges, options, maxIters, execution)); };
+    worker.onmessage = (event: MessageEvent<SimNode[]>): void => { cleanup(); resolve(event.data); };
     worker.onerror = fallback; // worker quebrou (ex.: file:// bloqueou o módulo)
-    worker.postMessage({ nodes, edges, options, maxIters });
+    execution?.signal.addEventListener("abort", abort, { once: true });
+    try { worker.postMessage({ nodes, edges, options, maxIters }); }
+    catch { fallback(); }
+  });
+}
+
+interface PresettleExecution {
+  signal: AbortSignal;
+}
+
+function runFallback(
+  nodes: SimNode[], edges: PhysicsEdge[], options: PhysicsOptions, maxIters: number,
+  execution?: PresettleExecution,
+): Promise<SimNode[]> {
+  if (!execution) return Promise.resolve(presettleLayout(nodes, edges, options, maxIters));
+  return new Promise((resolve) => {
+    let layout = nodes;
+    let remaining = maxIters;
+    const step = (): void => {
+      if (execution.signal.aborted || remaining <= 0) return resolve(layout);
+      const next = presettleLayout(layout, edges, options, 1);
+      if (next === layout) return resolve(layout);
+      layout = next;
+      remaining -= 1;
+      setTimeout(step, 0);
+    };
+    setTimeout(step, 0);
   });
 }
 
@@ -44,8 +66,10 @@ export function runPresettle(
   edges: PhysicsEdge[],
   options: PhysicsOptions,
   maxIters: number,
+  execution?: PresettleExecution,
 ): Promise<SimNode[]> {
+  if (execution?.signal.aborted) return Promise.resolve(nodes);
   const worker = typeof Worker === "undefined" ? null : spawnWorker();
-  if (!worker) return Promise.resolve(presettleLayout(nodes, edges, options, maxIters));
-  return inWorker(worker, nodes, edges, options, maxIters);
+  if (!worker) return runFallback(nodes, edges, options, maxIters, execution);
+  return inWorker(worker, nodes, edges, options, maxIters, execution);
 }

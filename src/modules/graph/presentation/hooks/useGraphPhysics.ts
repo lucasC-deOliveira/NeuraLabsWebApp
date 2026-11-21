@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { createGraphMotionBudget } from "../services/graph-motion-budget";
+import { relaxGraphMotion } from "../services/relax-graph-motion";
 import {
   physicsStep,
   DEFAULT_CLUSTER_OPTIONS,
@@ -17,6 +19,11 @@ type Props<T extends PhysicsNode> = {
   options?: PhysicsOptions;
   /** Incrementar para reiniciar a física (ex.: vault-watch trouxe novos nós) */
   restartKey?: number;
+  /** Minimum time between simulation steps when rendering large graphs. */
+  frameIntervalMs?: number;
+  settleSteps?: number;
+  shouldWakeOnPointerUp?: () => boolean;
+  onSettled?: () => void;
   /** ids de nós ocultos nas camadas: ficam parados e não exercem/recebem força */
   hiddenIds?: Set<string>;
 };
@@ -56,51 +63,66 @@ export function stepVisible<T extends PhysicsNode>(
 }
 
 // Um passo no loop; marca `settled` quando nada se move (mesma ref devolvida).
-function stepInto<T extends PhysicsNode>(
-  prev: T[],
-  edgesRef: MutableRefObject<PhysicsEdge[]>,
-  optionsRef: MutableRefObject<PhysicsOptions>,
-  settled: { current: boolean },
-  hiddenRef: MutableRefObject<Set<string>>,
-): T[] {
-  const next = stepVisible(prev, edgesRef.current, optionsRef.current, hiddenRef.current);
-  settled.current = next === prev;
-  return next;
-}
+type PhysicsTick = (settled: { current: boolean }, gain: number) => void;
+type PhysicsPacing = Pick<Props<PhysicsNode>, "frameIntervalMs" | "settleSteps" | "shouldWakeOnPointerUp" | "onSettled">;
 
 // Loop de animação da física ambiente. Para quando o grafo estabiliza e reinicia
 // num pointerup (usuário soltou um nó arrastado).
-function runPhysicsLoop<T extends PhysicsNode>(setLayout: Dispatch<SetStateAction<T[]>>, edgesRef: MutableRefObject<PhysicsEdge[]>, optionsRef: MutableRefObject<PhysicsOptions>, pointerDown: MutableRefObject<boolean>, hiddenRef: MutableRefObject<Set<string>>): () => void {
+function runPhysicsLoop(step: PhysicsTick, pointerDown: MutableRefObject<boolean>, pacing: PhysicsPacing): () => void {
+  const budget = createGraphMotionBudget(pacing.settleSteps);
   const settled = { current: false };
   let raf = 0;
-  const schedule = (): void => { raf = requestAnimationFrame(tick); };
-  const tick = (): void => {
+  let lastStep = -Infinity;
+  const tick = (now: number): void => {
     raf = 0;
-    if (!pointerDown.current) setLayout((prev) => stepInto(prev, edgesRef, optionsRef, settled, hiddenRef));
-    if (!settled.current) schedule();
+    if (!pointerDown.current && now - lastStep >= (pacing.frameIntervalMs ?? 0)) {
+      lastStep = now;
+      const gain = budget.nextGain();
+      if (gain === undefined) return pacing.onSettled?.();
+      step(settled, gain);
+    }
+    if (settled.current) pacing.onSettled?.();
+    else raf = requestAnimationFrame(tick);
   };
-  const onPointerUp = (): void => { settled.current = false; if (raf === 0) schedule(); };
+  const wake = (): void => { budget.reheat(); settled.current = false; lastStep = -Infinity; raf ||= requestAnimationFrame(tick); };
+  raf = requestAnimationFrame(tick);
+  return listenForPhysicsWake(() => cancelAnimationFrame(raf), wake, pacing.shouldWakeOnPointerUp);
+}
+
+function listenForPhysicsWake(cancel: () => void, wake: () => void, shouldWake?: () => boolean): () => void {
+  const onPointerUp = (): void => { if (!shouldWake || shouldWake()) wake(); };
   window.addEventListener("pointerup", onPointerUp);
-  schedule();
   return (): void => {
-    cancelAnimationFrame(raf);
+    cancel();
     window.removeEventListener("pointerup", onPointerUp);
   };
 }
 
-export function useGraphPhysics<T extends PhysicsNode>(props: Props<T>): void {
-  const { enabled, setLayout, edges, restartKey = 0, hiddenIds = EMPTY_IDS } = props;
+function usePhysicsTick<T extends PhysicsNode>(props: Props<T>): PhysicsTick {
+  const { setLayout, edges, hiddenIds = EMPTY_IDS } = props;
   const options = props.options ?? DEFAULT_CLUSTER_OPTIONS;
-  const pointerDown = useRef(false);
   const edgesRef = useRef(edges);
   const optionsRef = useRef(options);
   const hiddenRef = useRef(hiddenIds);
   useEffect(() => { edgesRef.current = edges; }, [edges]);
   useEffect(() => { optionsRef.current = options; }, [options]);
   useEffect(() => { hiddenRef.current = hiddenIds; }, [hiddenIds]);
+  return useCallback<PhysicsTick>((settled, gain): void => {
+    setLayout((prev) => {
+      const next = stepVisible(prev, edgesRef.current, optionsRef.current, hiddenRef.current);
+      settled.current = next === prev;
+      return relaxGraphMotion(prev, next, gain);
+    });
+  }, [setLayout]);
+}
+
+export function useGraphPhysics<T extends PhysicsNode>(props: Props<T>): void {
+  const { enabled, options, restartKey, frameIntervalMs, settleSteps, shouldWakeOnPointerUp, onSettled } = props;
+  const pointerDown = useRef(false);
+  const step = usePhysicsTick(props);
   useEffect(() => trackPointerDown(pointerDown), []);
   useEffect(() => {
     if (!enabled) return;
-    return runPhysicsLoop(setLayout, edgesRef, optionsRef, pointerDown, hiddenRef);
-  }, [enabled, setLayout, restartKey]);
+    return runPhysicsLoop(step, pointerDown, { frameIntervalMs, settleSteps, shouldWakeOnPointerUp, onSettled });
+  }, [enabled, step, restartKey, options, frameIntervalMs, settleSteps, shouldWakeOnPointerUp, onSettled]);
 }

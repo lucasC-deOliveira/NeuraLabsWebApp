@@ -6,7 +6,9 @@ build
 # como contexto (docker-compose.yml). Só o que é pesado e regenerável fica de fora.
 backend/node_modules
 backend/dist
-electron
+# The frontend imports only the shared Markdown guide from Electron.
+electron/*
+!electron/vault-guide.md
 .git
 .github
 *.db

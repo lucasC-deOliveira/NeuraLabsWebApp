@@ -6,6 +6,8 @@ import { useGraphInteractions } from "../hooks/useGraphInteractions";
 import { useGraphPhysics } from "../hooks/useGraphPhysics";
 import { DEFAULT_CLUSTER_OPTIONS, type PhysicsOptions } from "../services/graph-physics.service";
 import { runPresettle } from "../services/run-presettle";
+import { seedLargeLayout } from "../services/large-layout-seed";
+import { separateGraphNodes } from "../services/separate-graph-nodes";
 import { isFirstOpenOfGraph } from "./big-bang-guard";
 import { getFilteredNodes, getVisibleEdges } from "../../domain/selectors/graph.selectors";
 import { useVaultWatch } from "../hooks/useVaultWatch";
@@ -27,9 +29,12 @@ const BIG_BANG_PRESETTLE_ITERS = 1200;
 // antes. O cálculo em si roda off-thread (runPresettle) quando há Web Worker.
 const BIG_BANG_PREPARE_DELAY = 32; // ms
 
-// Grafos com muitos nós pulam a animação de entrada e desligam a física:
-// physicsStep é O(n²) e o big bang copia n objetos por frame — inviável acima deste limiar.
+// Large graphs publish fewer intro and physics frames to protect interaction.
 const LARGE_GRAPH_THRESHOLD = 2000;
+const LARGE_GRAPH_SETTLE_ITERS = 90;
+const LARGE_GRAPH_INTRO_FRAME_MS = 50;
+const LARGE_GRAPH_PHYSICS_FRAME_MS = 100;
+const LARGE_GRAPH_SETTLING_STEPS = 60;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 // Reaplica os nós preservando a posição atual dos já existentes (não embaralha ao
@@ -197,15 +202,31 @@ export function useGraphController(graphId: string) {
 
   // Para grafos grandes, passa o ref inteiro às interações (drag de nós funciona)
   // e fornece um setter que atualiza o ref + dispara re-render barato.
-  const largeSetLayout = useCallback((updater: any) => {
+  const largeSetLayout = useCallback((updater: React.SetStateAction<SimNode[]>): void => {
     const next = typeof updater === "function" ? updater(largeLayoutRef.current) : updater;
+    if (next === largeLayoutRef.current) return;
     largeLayoutRef.current = next;
     setLargeLayoutVer((v) => v + 1);
   }, []);
+  const draggedLargeNode = useRef(false);
+  const updateDraggedLayout = useCallback((updater: React.SetStateAction<SimNode[]>): void => {
+    draggedLargeNode.current = true;
+    largeSetLayout(updater);
+  }, [largeSetLayout]);
+  const consumeLargeDrag = useCallback((): boolean => {
+    const dragged = draggedLargeNode.current;
+    draggedLargeNode.current = false;
+    return dragged;
+  }, []);
+  const largePhysicsOptions = useMemo(() => ({ ...physicsOptions, normalizeSpringDegree: true }), [physicsOptions]);
+  const largeNodeGap = Math.max(4, physicsOptions.minGap ?? 10);
+  const settleLargeLayout = useCallback((): void => {
+    largeSetLayout((current) => separateGraphNodes(current, largeNodeGap));
+  }, [largeSetLayout, largeNodeGap]);
 
   const interactions = useGraphInteractions({
     layout:    isLargeRef.current ? largeLayoutRef.current : layout,
-    setLayout: isLargeRef.current ? largeSetLayout : setLayout,
+    setLayout: isLargeRef.current ? updateDraggedLayout : setLayout,
     zoom,
     setZoom,
     pan,
@@ -239,9 +260,13 @@ export function useGraphController(graphId: string) {
   // física ambiente: nós se movem devagar e orbitam o centro do grafo
   useGraphPhysics({
     enabled: physicsEnabled && !introActive,
-    setLayout,
+    setLayout: isLargeRef.current ? largeSetLayout : setLayout,
+    frameIntervalMs: isLargeRef.current ? LARGE_GRAPH_PHYSICS_FRAME_MS : 0,
+    settleSteps: isLargeRef.current ? LARGE_GRAPH_SETTLING_STEPS : undefined,
+    shouldWakeOnPointerUp: isLargeRef.current ? consumeLargeDrag : undefined,
+    onSettled: isLargeRef.current ? settleLargeLayout : undefined,
     edges: physicsEdges,
-    options: physicsOptions,
+    options: isLargeRef.current ? largePhysicsOptions : physicsOptions,
     restartKey: physicsRestartKey,
     hiddenIds: hiddenNodeIds,
   });
@@ -259,27 +284,12 @@ export function useGraphController(graphId: string) {
     if (isFirstOpenOfGraph(bigBangedGraphRef.current, graphId)) {
       bigBangedGraphRef.current = graphId;
 
-      // Grafo grande: armazena no ref em vez do estado React.
-      // startTransition com 14k itens levava 2-3s de reconciliação de fibers,
-      // travando o pan. Com ref, o commit é O(1) (uma só atribuição).
-      if (LARGE_GRAPH_REF_MODE && nodes.length > LARGE_GRAPH_THRESHOLD) {
-        setPhysicsEnabled(false);
-        isLargeRef.current = true;
-        largeLayoutRef.current = nodes.map((n) => ({ ...n, vx: 0, vy: 0 }));
-        setLargeLayoutVer((v) => v + 1); // um único re-render barato
-        // Ao sair deste grafo grande (graphId muda → nodes mudam → effect
-        // re-roda), a limpeza reseta os flags para que o próximo grafo
-        // (possivelmente pequeno) possa rodar o bigbang e a física. O guard do
-        // big-bang é keyed por graphId, então o grafo novo reanima sozinho.
-        return () => {
-          isLargeRef.current = false;
-          largeLayoutRef.current = [];
-          setPhysicsEnabled(true);
-        };
-      }
-
-      // Grafo pequeno: garante física ligada caso o usuário venha de um grande.
+      const large = LARGE_GRAPH_REF_MODE && nodes.length > LARGE_GRAPH_THRESHOLD;
+      draggedLargeNode.current = false;
+      isLargeRef.current = large;
+      largeLayoutRef.current = [];
       setPhysicsEnabled(true);
+      const publish = large ? largeSetLayout : setLayout;
 
       if (nodes.length > 1) {
         // Pausa a física ambiente e mostra o feedback ANTES do cálculo pesado.
@@ -287,6 +297,8 @@ export function useGraphController(graphId: string) {
         setPreparing(true);
 
         let cancelled = false;
+        const largeExecution = large ? new AbortController() : undefined;
+        let largeTargets: SimNode[] | undefined;
 
         // Anima o "big bang" (colapso → expansão) até os alvos assentados e, no fim,
         // persiste as posições recém-simuladas. Extraída para manter o build enxuto.
@@ -310,17 +322,26 @@ export function useGraphController(graphId: string) {
             }));
 
           setPreparing(false);
-          setLayout(collapse(BIG_BANG_MIN_SCALE));
+          publish(collapse(BIG_BANG_MIN_SCALE));
 
           const start =
             typeof performance !== "undefined" ? performance.now() : Date.now();
+          let lastFrame = start;
+          let needsFit = large;
           const step = (): void => {
             if (cancelled) return;
+            if (needsFit && svgRef.current) {
+              interactions.fitToNodes(targets);
+              needsFit = false;
+            }
             const now =
               typeof performance !== "undefined" ? performance.now() : Date.now();
             const t = Math.min(1, (now - start) / BIG_BANG_DURATION);
             const scale = BIG_BANG_MIN_SCALE + (1 - BIG_BANG_MIN_SCALE) * easeOutCubic(t);
-            setLayout(t >= 1 ? targets : collapse(scale));
+            if (!large || t >= 1 || now - lastFrame >= LARGE_GRAPH_INTRO_FRAME_MS) {
+              publish(t >= 1 ? targets : collapse(scale));
+              lastFrame = now;
+            }
             if (t < 1) {
               introRafRef.current = requestAnimationFrame(step);
             } else {
@@ -337,7 +358,10 @@ export function useGraphController(graphId: string) {
         const build = (): void => {
           if (cancelled) return;
           const allPinned = nodes.every((n) => n.pinned);
-          const seed = allPinned
+          const seed = large
+            ? runPresettle(seedLargeLayout(nodes), edges, largePhysicsOptions, LARGE_GRAPH_SETTLE_ITERS,
+                { signal: largeExecution!.signal })
+            : allPinned
             ? Promise.resolve(nodes.map((n) => ({ ...n, vx: 0, vy: 0 })))
             : runPresettle(
                 nodes.map((n) => ({ ...n, fixed: n.pinned })),
@@ -347,7 +371,9 @@ export function useGraphController(graphId: string) {
               );
           seed.then((settled) => {
             if (cancelled) return;
-            animateBigBang(settled.map((n) => ({ ...n, fixed: false, vx: 0, vy: 0 })));
+            const targets = settled.map((n) => ({ ...n, fixed: false, vx: 0, vy: 0 }));
+            if (large) largeTargets = separateGraphNodes(targets, largeNodeGap);
+            animateBigBang(largeTargets ?? targets);
           });
         };
 
@@ -357,6 +383,9 @@ export function useGraphController(graphId: string) {
         // não re-animar (ver bigBangedGraphRef). Trocar de grafo reanima pelo graphId.
         return () => {
           cancelled = true;
+          largeExecution?.abort();
+          if (large && !largeTargets) bigBangedGraphRef.current = null;
+          if (largeTargets) layoutRefForSelect.current = largeTargets;
           clearTimeout(prepTimer);
           cancelAnimationFrame(introRafRef.current);
           setIntroActive(false);
@@ -369,24 +398,21 @@ export function useGraphController(graphId: string) {
     }
 
     // Cargas seguintes: se o grafo cresceu além do limiar (ex.: importou um edital),
-    // muda para o modo ref e desliga a física — senão a física O(n²) + reconciliar
-    // centenas de fibers no estado React a cada frame travam a UI (mesmo motivo do
-    // modo grande na primeira carga).
+    // muda para o modo ref com menor frequência de atualização.
     if (LARGE_GRAPH_REF_MODE && nodes.length > LARGE_GRAPH_THRESHOLD) {
       isLargeRef.current = true;
       largeLayoutRef.current = mergePositions(nodes, layoutRefForSelect.current);
-      setPhysicsEnabled(false);
       setLayout([]);
       setLargeLayoutVer((v) => v + 1);
       return;
     }
     // Encolheu abaixo do limiar: volta ao modo pequeno (física ligada).
-    if (isLargeRef.current) {
+    const previousLargeLayout = isLargeRef.current ? layoutRefForSelect.current : null;
+    if (previousLargeLayout) {
       isLargeRef.current = false;
       largeLayoutRef.current = [];
-      setPhysicsEnabled(true);
     }
-    setLayout((prev) => mergePositions(nodes, prev));
+    setLayout((prev) => mergePositions(nodes, previousLargeLayout ?? prev));
     // Reinicia a física para que novos nós (sem posição salva) se posicionem.
     // Para nós existentes (vx=0, vy=0 no equilíbrio) a física para em 1-2 frames.
     setPhysicsRestartKey((k) => k + 1);

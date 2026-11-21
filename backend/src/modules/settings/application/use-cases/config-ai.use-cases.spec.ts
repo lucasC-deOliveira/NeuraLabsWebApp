@@ -14,6 +14,9 @@ class FakeConfigAiRepository implements ConfigAiRepository {
     this.saved.push({ userId, data });
     this.stored = data;
   }
+  async remove(): Promise<void> {
+    this.stored = null;
+  }
 }
 
 const cfg: ConfigAi = { apiKey: 'k', baseUrl: 'https://x', modelo: 'm' };

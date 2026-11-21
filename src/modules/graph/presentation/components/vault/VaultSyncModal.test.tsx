@@ -12,6 +12,8 @@ vi.mock("@/lib/vault-bridge", () => ({
       pickFolder: vi.fn(),
       openFolder: vi.fn(),
       read: vi.fn(async () => []),
+      readFile: vi.fn(async () => null),
+      listGraphFolders: vi.fn(async () => []),
     },
   },
 }));

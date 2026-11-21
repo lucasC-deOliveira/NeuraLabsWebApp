@@ -30,7 +30,7 @@ function markdownNode(base: Pick<VaultNode, "id" | "grafoId" | "relacoes">, type
     case "NOTA":
       return {
         ...base, tipo: type, titulo: text("titulo"), conteudo: text("conteudo"),
-        tipoNota: text("tipoNota"), subtipo: text("subtipo"), fonte: text("fonte") || null,
+        tipoNota: text("tipoNota") || "PERMANENTE", subtipo: text("subtipo"), fonte: text("fonte") || null,
       };
     default:
       throw new Error("Este tipo de nó precisa ser criado no servidor.");

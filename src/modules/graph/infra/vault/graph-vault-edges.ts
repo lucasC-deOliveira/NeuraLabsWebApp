@@ -130,7 +130,8 @@ async function writeEdge(files: VaultEdgeFiles, graphId: string, mutation: EdgeM
     : { source: mutation.create.sourceNodeId, target: mutation.create.targetNodeId, relation: undefined };
   const primary = await edgeFiles(files, folder, key);
   const change = planChange(primary, key.relation, mutation);
-  const peers = await Promise.all(folders.filter(({ directory }) => directory !== primary.dir)
+  const peers = await Promise.all(folders.filter(({ directory, layout }) =>
+    directory !== primary.dir && folder.layout !== "shared-para" && layout !== "shared-para")
     .map((entry) => edgeFiles(files, entry, key)));
   const writes = [primary, ...peers].flatMap((view) => planViewWrites(view, change));
   if (!(await files.replaceGraphMarkdownBatch(writes))) {

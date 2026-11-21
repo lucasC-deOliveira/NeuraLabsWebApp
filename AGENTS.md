@@ -23,6 +23,17 @@ de servidor — essa lógica vive no `backend/` (NestJS).
 
 ---
 
+# Vault, PARA e Zettelkasten
+
+- O vault é uma interface de acesso para agentes externos. Garanta que a descoberta, a leitura e a citação do acervo funcionem diretamente na pasta compartilhada, independentemente do Electron, do backend e do chat interno.
+- Grafos novos e grafos baixados pela primeira vez usam um único PARA na raiz do vault. Use `Projects/`, `Areas/`, `Resources/` e `Archives/` compartilhados. Guarde os novos metadados em `.neuralabs/graphs/<id>/` e os novos registros de estudo em `.neuralabs/study/`. Preserve a leitura das pastas `<slug>--<id>/` e dos registros existentes durante a transição.
+- Cada entidade tem um único Markdown canônico por ID estável, incluindo notas, conceitos, flashcards, baralhos, questões e provas. Preserve o nome `<id>.md` ao alterar o título. Use `[[id|Título]]` para links navegáveis no Obsidian.
+- Preserve os papéis Zettelkasten `PASSAGEIRA`, `LITERATURA`, `PERMANENTE` e `ESTRUTURA`, independentes do subtipo de conteúdo. Uma nota permanente desenvolve uma ideia e pode vincular ideias relacionadas e fontes.
+- O índice em `Projects/` lista os membros do grafo. Preserve o texto escrito pelo usuário ao atualizar o trecho gerenciado pelo app. O conteúdo canônico é compartilhado. Pertencimento e relações da vista ficam nos metadados do grafo. Desvincular um item preserva o arquivo canônico e seus outros vínculos.
+- Mantenha o formato legado legível. Uma migração deve preservar os arquivos originais e apresentar divergências entre cópias para resolução antes de unificá-las. Ao mudar o formato, atualize também `docs/graph.md` e o guia local gerado por `src/lib/vault-guide.ts`.
+
+---
+
 # Regras de engenharia (obrigatórias)
 
 Valem para humanos E agentes. Violá-las = PR rejeitado. Onde há ferramenta, o CI

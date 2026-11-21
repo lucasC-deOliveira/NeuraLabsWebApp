@@ -16,6 +16,7 @@
 // (mesma referência) para não disparar re-render. Função pura.
 
 import { barnesHutRepulsion, resolveMinGapGrid } from "./barnes-hut";
+import { countIncidentSprings } from "./large-graph-springs";
 
 export type PhysicsNode = {
   id: string;
@@ -78,6 +79,8 @@ export type PhysicsOptions = {
    *  "hierarchy" = agrupa por clusterId (a raiz ASSUNTO da árvore) — separa
    *                assuntos distintos e puxa cada nó para o seu ASSUNTO. */
   clusterBy?: "group" | "hierarchy";
+  /** Scales springs around high-degree nodes in the large-graph simulation. */
+  normalizeSpringDegree?: boolean;
 };
 
 // Modo padrão = hierárquico: cada ASSUNTO é o centro de gravidade de uma árvore
@@ -254,6 +257,7 @@ export function physicsStep<T extends PhysicsNode>(
   }
 
   // ── Molas nas arestas (atração para o comprimento ideal)
+  const springDegrees = options.normalizeSpringDegree ? countIncidentSprings(edges, idx) : null;
   for (const e of edges) {
     const i = idx.get(e.source);
     const j = idx.get(e.target);
@@ -265,7 +269,8 @@ export function physicsStep<T extends PhysicsNode>(
     let dist = Math.sqrt(dx * dx + dy * dy);
     if (dist < 1e-4) dist = 1e-4;
     const peso = e.peso && e.peso > 0 ? e.peso : 1;
-    const k = springConstant * (0.5 + 0.5 * peso);
+    const degree = springDegrees ? Math.max(1, springDegrees[i], springDegrees[j]) : 1;
+    const k = springConstant * (0.5 + 0.5 * peso) / Math.sqrt(degree);
     const force = k * (dist - effectiveSpringLength);
     const ux = dx / dist;
     const uy = dy / dist;

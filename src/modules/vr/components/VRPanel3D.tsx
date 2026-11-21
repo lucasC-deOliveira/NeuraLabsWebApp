@@ -10,6 +10,7 @@ import { graphHttp } from "@/modules/graph/infra/http";
 import type { EdgeView } from "@/modules/graph/domain/types/graph.types";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { readAllVaultNodes, graphVaultDir } from "@/lib/vault-sync";
+import { existingVaultGraphDirectory } from "@/lib/vault-graph-manifest";
 import { readSrsLog } from "@/lib/srs-local";
 import type { SimNode, SimEdge } from "@/modules/graph/infra/layout/force-layout.engine";
 import {
@@ -118,7 +119,8 @@ export function VRPanel3D({
         if (isDesktop()) {
           const vaultDir = await desktop.vault.getPath().catch(() => null);
           if (vaultDir) {
-            const srsLog = await readSrsLog(vaultDir, graphVaultDir(vaultDir, grafoId, grafoNome));
+            const graphDir = await existingVaultGraphDirectory(grafoId) ?? graphVaultDir(vaultDir, grafoId, grafoNome);
+            const srsLog = await readSrsLog(vaultDir, graphDir);
             const now = new Date();
             novos = 0;
             for (const id of fcIds) {

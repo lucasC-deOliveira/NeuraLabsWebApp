@@ -62,9 +62,12 @@ export async function attachVaultConcept(files: VaultConceptFiles, graphId: stri
   const source = sharedConcept(await readConceptSources(files, folders, graphId), conceptId);
   const node: VaultNode = {
     id: source.id, grafoId: graphId, tipo: "CONCEITO", nome: source.nome, descricao: source.descricao,
-    nivelDominio: source.nivelDominio, relacoes: source.relacoes,
+    nivelDominio: source.nivelDominio, relacoes: destination.layout === "shared-para" ? [] : source.relacoes,
   };
-  const { written } = await files.write(destination.directory, [{ relPath: nodeRelPath(node), content: serializeNode(node) }]);
+  const { written } = await files.write(destination.directory, [{
+    relPath: nodeRelPath(node), content: serializeNode(node),
+    ...(destination.layout === "shared-para" ? { preserveSharedContent: true } : {}),
+  }]);
   if (written !== 1) throw new Error("Não foi possível adicionar o conceito ao grafo do vault.");
   return { success: true, nodeId: conceptId };
 }

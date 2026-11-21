@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld("neuralabs", {
     setEnabled: (enabled, savedConfig) =>
       ipcRenderer.invoke("neuralabs:set-claude-code-enabled", { enabled, savedConfig }),
   },
+  codexProxy: {
+    getConfig: () => ipcRenderer.invoke("neuralabs:get-codex-proxy"),
+    start: (previous) => ipcRenderer.invoke("neuralabs:start-codex-proxy", previous),
+    stop: () => ipcRenderer.invoke("neuralabs:stop-codex-proxy"),
+  },
   vault: {
     getPath: () => ipcRenderer.invoke("vault:get-path"),
     listGraphFolders: () => ipcRenderer.invoke("vault:list-graph-folders"),

@@ -20,4 +20,8 @@ export class PrismaConfigAiRepository implements ConfigAiRepository {
       update: data,
     });
   }
+
+  async remove(userId: string): Promise<void> {
+    await this.prisma.configAI.deleteMany({ where: { usuarioId: userId } });
+  }
 }

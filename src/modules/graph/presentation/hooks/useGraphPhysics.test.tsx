@@ -47,4 +47,43 @@ describe("useGraphPhysics", () => {
     expect(rafCb).toBeNull();
     expect(physicsStep).not.toHaveBeenCalled();
   });
+
+  it("limits large graph updates and resumes immediately after a drag", () => {
+    vi.mocked(physicsStep).mockImplementation((nodes) => [...nodes]);
+    const setLayout = invokingSetLayout();
+    const { unmount } = renderHook(() => useGraphPhysics({ enabled: true, setLayout, edges: [], frameIntervalMs: 100 }));
+    rafCb?.(0);
+    rafCb?.(50);
+    expect(physicsStep).toHaveBeenCalledTimes(1);
+    rafCb?.(100);
+    window.dispatchEvent(new Event("pointerdown"));
+    rafCb?.(200);
+    expect(physicsStep).toHaveBeenCalledTimes(2);
+    window.dispatchEvent(new Event("pointerup"));
+    rafCb?.(201);
+    expect(physicsStep).toHaveBeenCalledTimes(3);
+    unmount();
+    vi.mocked(physicsStep).mockImplementation((nodes) => nodes);
+  });
+
+  it("sleeps after settling and ignores pointer releases without node movement", () => {
+    vi.mocked(physicsStep).mockImplementation((nodes) => [...nodes]);
+    let dragged = false;
+    const setLayout = invokingSetLayout();
+    const { unmount } = renderHook(() => useGraphPhysics({
+      enabled: true, setLayout, edges: [], settleSteps: 2, shouldWakeOnPointerUp: () => dragged,
+    }));
+    rafCb?.(0);
+    rafCb?.(1);
+    rafCb?.(2);
+    rafCb = null;
+    window.dispatchEvent(new Event("pointerup"));
+    expect(rafCb).toBeNull();
+    expect(physicsStep).toHaveBeenCalledTimes(2);
+    dragged = true;
+    window.dispatchEvent(new Event("pointerup"));
+    expect(rafCb).toBeTypeOf("function");
+    unmount();
+    vi.mocked(physicsStep).mockImplementation((nodes) => nodes);
+  });
 });

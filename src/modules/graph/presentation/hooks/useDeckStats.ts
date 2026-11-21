@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { readAllVaultNodes, graphVaultDir } from "@/lib/vault-sync";
+import { existingVaultGraphDirectory } from "@/lib/vault-graph-manifest";
 import { readSrsLog, isDue } from "@/lib/srs-local";
 import type { VaultNode } from "@/lib/vault-format";
 import type { PropertiesNode, DeckStats } from "../components/properties/properties-panel.types";
@@ -36,7 +37,8 @@ async function reviewCounts(
   if (!isDesktop()) return { novos: fcIds.length, paraRevisar: 0 };
   const vaultDir = await desktop.vault.getPath().catch(() => null);
   if (!vaultDir) return { novos: fcIds.length, paraRevisar: 0 };
-  const srsLog = await readSrsLog(vaultDir, graphVaultDir(vaultDir, grafoId, grafoNome));
+  const graphDir = await existingVaultGraphDirectory(grafoId) ?? graphVaultDir(vaultDir, grafoId, grafoNome);
+  const srsLog = await readSrsLog(vaultDir, graphDir);
   return countDeckSrs(fcIds, srsLog.schedule);
 }
 

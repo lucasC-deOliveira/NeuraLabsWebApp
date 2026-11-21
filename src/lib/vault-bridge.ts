@@ -7,12 +7,15 @@ export interface SavedApiConfig {
   modelo: string;
 }
 
+export type CodexProxyState = { enabled: false } | { enabled: true; previous: SavedApiConfig | null; proxy: SavedApiConfig };
+
 export interface ClaudeCodeConfigResult {
   enabled: boolean;
   savedApiConfig: SavedApiConfig | null;
 }
 
 export interface VaultFile {
+  preserveSharedContent?: boolean;
   relPath: string; // ex.: "Resources/conceito--id.md"
   content: string;
 }
@@ -25,6 +28,7 @@ export interface VaultGraphMarkdownWrite {
 }
 
 export interface VaultGraphFolder {
+  layout?: "shared-para";
   id: string;
   label: string;
   directory: string;
@@ -53,6 +57,11 @@ interface NeuralabsBridge {
       enabled: boolean,
       savedConfig?: SavedApiConfig
     ) => Promise<{ ok: boolean; savedApiConfig?: SavedApiConfig | null }>;
+  };
+  codexProxy: {
+    getConfig: () => Promise<CodexProxyState>;
+    start: (previous: SavedApiConfig | null) => Promise<SavedApiConfig>;
+    stop: () => Promise<void>;
   };
   vault: {
     getPath: () => Promise<string | null>;
@@ -100,6 +109,11 @@ export const desktop = {
     getConfig: () => required().claudeCode.getConfig(),
     setEnabled: (enabled: boolean, savedConfig?: SavedApiConfig) =>
       required().claudeCode.setEnabled(enabled, savedConfig),
+  },
+  codexProxy: {
+    getConfig: () => required().codexProxy.getConfig(),
+    start: (previous: SavedApiConfig | null) => required().codexProxy.start(previous),
+    stop: () => required().codexProxy.stop(),
   },
   vault: {
     getPath: () => required().vault.getPath(),

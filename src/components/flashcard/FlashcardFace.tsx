@@ -3,6 +3,7 @@
 import { useSpeech, type SpeechControls } from "@/components/speech/useSpeech";
 import { SpeakButton } from "@/components/speech/SpeakButton";
 import { SpokenText } from "@/components/speech/SpokenText";
+import { splitFlashcardBibliography } from "./flashcard-bibliography";
 
 // Face do flashcard compartilhada entre estudar/ver. As classes .fc-* são os
 // pontos de customização (presets ou CSS personalizado em CardStyleProvider);
@@ -27,24 +28,28 @@ export function FlashcardFace({
 }) {
   const ownSpeech = useSpeech();
   const speech = sharedSpeech ?? ownSpeech;
+  const question = splitFlashcardBibliography(pergunta);
+  const answer = showAnswer ? splitFlashcardBibliography(resposta) : null;
 
   return (
     <div className="fc-scope">
       <div className="fc-card flex flex-col gap-4">
         <div className="fc-pergunta rounded-xl border bg-card p-4">
-          <FaceLabel label="Pergunta" id="pergunta" text={pergunta} speech={speech} tone="text-muted-foreground" />
-          <SpokenText id="pergunta" text={pergunta} speech={speech} className="fc-pergunta-body mt-1 text-base font-medium" />
+          <FaceLabel label="Pergunta" id="pergunta" text={question.body} speech={speech} tone="text-muted-foreground" />
+          <SpokenText id="pergunta" text={question.body} speech={speech} className="fc-pergunta-body mt-1 text-base font-medium" />
+          <Bibliography speech={speech} id="pergunta-bibliografia" text={question.bibliography} />
         </div>
 
-        {showAnswer && (
+        {answer && (
           <div className="fc-resposta rounded-xl border border-primary/30 bg-muted/40 p-4">
-            <FaceLabel label="Resposta" id="resposta" text={resposta} speech={speech} tone="text-primary" />
-            <SpokenText id="resposta" text={resposta} speech={speech} className="fc-resposta-body mt-1 text-sm" />
+            <FaceLabel label="Resposta" id="resposta" text={answer.body} speech={speech} tone="text-primary" />
+            <SpokenText id="resposta" text={answer.body} speech={speech} className="fc-resposta-body mt-1 text-sm" />
             {conceito && (
               <p className="fc-conceito mt-2 text-xs font-medium text-muted-foreground">
                 Conceito: {conceito}
               </p>
             )}
+            <Bibliography speech={speech} id="resposta-bibliografia" text={answer.bibliography} />
           </div>
         )}
       </div>
@@ -57,7 +62,20 @@ function FaceLabel({ label, id, text, speech, tone }: { label: string; id: strin
   return (
     <div className="flex items-center justify-between gap-2">
       <span className={`fc-label text-[10px] font-semibold uppercase tracking-wider ${tone}`}>{label}</span>
-      <SpeakButton speech={speech} id={id} text={text} label={`a ${label.toLowerCase()}`} />
+      {text && <SpeakButton speech={speech} id={id} text={text} label={`a ${label.toLowerCase()}`} />}
+    </div>
+  );
+}
+
+function Bibliography({ speech, id, text }: { speech: SpeechControls; id: string; text: string }) {
+  if (!text) return null;
+  return (
+    <div className="mt-3 flex items-start gap-2 border-t pt-2 text-xs text-muted-foreground">
+      <details className="min-w-0 flex-1">
+        <summary className="cursor-pointer py-1 font-medium">Bibliografia</summary>
+        <SpokenText id={id} text={text} speech={speech} clickToSpeak={false} />
+      </details>
+      <SpeakButton speech={speech} id={id} text={text} label="a bibliografia" />
     </div>
   );
 }

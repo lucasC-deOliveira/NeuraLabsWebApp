@@ -46,10 +46,10 @@ export function splitGraphEntities(nodes: GraphNodeLike[]): GraphEntities {
   return result;
 }
 
-/** Counts nodes per group (layers/filter panel). */
-export function countNodesByType(nodes: GraphNodeLike[]): Record<string, number> {
+/** Counts graph nodes before layout and visibility filters, e.g. countNodesByType([{ type: "CONCEITO" }]). */
+export function countNodesByType(nodes: readonly { type: string }[]): Record<string, number> {
   const stats: Record<string, number> = {};
-  for (const n of nodes) stats[n.group] = (stats[n.group] ?? 0) + 1;
+  for (const { type } of nodes) stats[type] = (stats[type] ?? 0) + 1;
   return stats;
 }
 

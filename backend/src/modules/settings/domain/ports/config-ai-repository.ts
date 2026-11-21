@@ -9,6 +9,7 @@ export interface ConfigAi {
 export interface ConfigAiRepository {
   load(userId: string): Promise<ConfigAi | null>;
   save(userId: string, data: ConfigAi): Promise<void>;
+  remove(userId: string): Promise<void>;
 }
 
 export const CONFIG_AI_REPOSITORY = Symbol('CONFIG_AI_REPOSITORY');

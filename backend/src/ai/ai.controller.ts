@@ -33,6 +33,13 @@ import { AddInsightsToGraphUseCase } from '../modules/ai/application/use-cases/a
 import { DetectMissingPrerequisitesUseCase } from '../modules/ai/application/use-cases/detect-missing-prerequisites.use-case';
 import { GenerateCommunitySummaryUseCase } from '../modules/ai/application/use-cases/generate-community-summary.use-case';
 import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
+import { ChatWithVaultUseCase } from '../modules/ai/application/use-cases/chat-with-vault.use-case';
+import { ZodBody } from '../common/zod-body.decorator';
+import {
+  vaultChatRequest,
+  type VaultChatRequest,
+  type VaultChatResponse,
+} from '../../../contracts/vault-chat';
 import { ListBaralhosInGrafoUseCase } from '../modules/ai/application/use-cases/list-baralhos-in-grafo.use-case';
 import { ExpandNodeUseCase } from '../modules/ai/application/use-cases/expand-node.use-case';
 import { ClassifyFlashcardUseCase } from '../modules/ai/application/use-cases/classify-flashcard.use-case';
@@ -87,6 +94,7 @@ export class AiController {
     private readonly detectMissingPrerequisitesUseCase: DetectMissingPrerequisitesUseCase,
     private readonly generateCommunitySummaryUseCase: GenerateCommunitySummaryUseCase,
     private readonly chatWithGraphUseCase: ChatWithGraphUseCase,
+    private readonly chatWithVaultUseCase: ChatWithVaultUseCase,
     private readonly listBaralhosInGrafoUseCase: ListBaralhosInGrafoUseCase,
     private readonly expandNodeUseCase: ExpandNodeUseCase,
     private readonly classifyFlashcardUseCase: ClassifyFlashcardUseCase,
@@ -431,6 +439,14 @@ export class AiController {
       body.question ?? '',
       body.history ?? [],
     );
+  }
+
+  @Post('vault/chat')
+  chatWithVault(
+    @CurrentUser() userId: string,
+    @ZodBody(vaultChatRequest) request: VaultChatRequest,
+  ): Promise<VaultChatResponse> {
+    return this.chatWithVaultUseCase.execute(userId, request);
   }
 
   @Post('graphs/:grafoId/assess-completeness')

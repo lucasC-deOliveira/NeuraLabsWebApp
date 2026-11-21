@@ -12,6 +12,7 @@ describe("visibleSections", () => {
       "flashcards",
       "estudo",
       "ia",
+      "armazenamento",
     ]);
   });
 

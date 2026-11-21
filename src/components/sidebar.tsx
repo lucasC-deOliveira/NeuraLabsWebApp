@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Link } from "@/components/link";
 import { usePathname, useRouter } from "@/lib/navigation";
 import { BrainIcon, LayersIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon, LogOutIcon, UserIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, HelpCircleIcon, ClipboardListIcon, LibraryIcon, BarChart3Icon, CalendarCheckIcon } from "lucide-react";
-import { ThemeToggle } from "./theme-toggle";
 import { authApi } from "@/lib/api";
 import {
   Tooltip,
@@ -193,10 +192,10 @@ export function Sidebar({
   return (
     <>
       {/* Mobile hamburger + brand bar */}
-      <header className="app-sidebar-top fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background px-4 md:hidden">
+      <header className="app-sidebar-top fixed inset-x-0 top-0 z-50 grid h-14 grid-cols-[1fr_auto_1fr] items-center border-b border-border bg-background px-4 md:hidden">
         <button
           onClick={() => setMobileOpen(true)}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="justify-self-start rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-label="Abrir menu"
         >
           <MenuIcon className="size-5" />
@@ -206,8 +205,6 @@ export function Sidebar({
           <BrainIcon className="size-5" />
           NeuraLabs
         </Link>
-
-        <ThemeToggle />
       </header>
 
       {/* Mobile overlay + drawer */}
@@ -255,10 +252,6 @@ export function Sidebar({
                 </Link>
               </div>
             )}
-
-            <div className="mt-2">
-              <ThemeToggle />
-            </div>
           </aside>
         </div>
       )}
@@ -317,9 +310,6 @@ export function Sidebar({
                 Fazer login
               </Link>
             )}
-            <div className={collapsed ? "" : "mt-2"}>
-              <ThemeToggle />
-            </div>
           </div>
         )}
       </aside>

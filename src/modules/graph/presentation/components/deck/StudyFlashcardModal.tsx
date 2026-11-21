@@ -20,6 +20,7 @@ import { isDesktop, desktop } from "@/lib/vault-bridge";
 import { configuredStudyVault } from "@/modules/study/infra/electron-vault-study";
 import { catalogVaultCards } from "@/modules/study/infra/vault-card-catalog";
 import { findVaultNode, graphVaultDir } from "@/lib/vault-sync";
+import { existingVaultGraphDirectory } from "@/lib/vault-graph-manifest";
 import {
   readSrsLog,
   startLocalSession,
@@ -69,7 +70,7 @@ async function loadCardFromVault(flashcardId: string, grafoId: string, grafoNome
   if (!vaultDir) return { phase: "error" };
   // A agenda vive na raiz do vault (é do card, não da vista); a pasta do grafo só
   // entra para o log antigo dela ser absorvido.
-  const graphDir = graphVaultDir(vaultDir, grafoId, grafoNome);
+  const graphDir = await existingVaultGraphDirectory(grafoId) ?? graphVaultDir(vaultDir, grafoId, grafoNome);
   const [vn, srsLog] = await Promise.all([
     findVaultNode(grafoId, grafoNome, flashcardId, "FLASHCARD"),
     readSrsLog(vaultDir, graphDir),

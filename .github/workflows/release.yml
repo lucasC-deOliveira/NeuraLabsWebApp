@@ -25,6 +25,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
         env:
@@ -35,7 +36,7 @@ jobs:
       # thin client: build estático do Vite (dist/). Sem banco nem segredos —
       # os dados vêm do backend via JWT em runtime.
       - name: Build desktop bundle (Vite)
-        run: npm run desktop:build
+        run: bun run desktop:build
 
       - name: Build and publish installers
         run: npx electron-builder --publish always

@@ -9,11 +9,14 @@ import { PrismaConfigAiRepository } from '../modules/settings/infrastructure/per
 import { GetConfigAiUseCase } from '../modules/settings/application/use-cases/get-config-ai.use-case';
 import { SaveConfigAiUseCase } from '../modules/settings/application/use-cases/save-config-ai.use-case';
 import { ResolveAiConfigUseCase } from '../modules/settings/application/use-cases/resolve-ai-config.use-case';
+import { ACCOUNT_STORAGE_QUERY } from '../modules/settings/domain/ports/account-storage-query';
+import { PrismaAccountStorageQuery } from '../modules/settings/infrastructure/persistence/prisma-account-storage.query';
 
 @Module({
   imports: [AuthModule],
   controllers: [SettingsController],
   providers: [
+    { provide: ACCOUNT_STORAGE_QUERY, useClass: PrismaAccountStorageQuery },
     { provide: CONFIG_AI_REPOSITORY, useClass: PrismaConfigAiRepository },
     {
       provide: GetConfigAiUseCase,

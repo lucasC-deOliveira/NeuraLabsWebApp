@@ -584,6 +584,11 @@ Identifica nós semanticamente equivalentes.
 
 Interface de chat onde a IA responde usando o conteúdo do grafo como única fonte.
 
+Quando o grafo está aberto pelo vault no Electron, a busca é local. Você pode
+consultar o grafo atual ou todo o vault e filtrar pelo tipo da entidade ou pelo
+papel Zettelkasten da nota. O chat envia à IA até seis trechos encontrados e
+mostra as fontes citadas. Sem acesso à IA, o chat exibe os trechos locais.
+
 1. Digite uma pergunta e pressione Enter
 2. A IA recebe o conteúdo completo do grafo como contexto e responde em Markdown
 3. Cada resposta exibe chips com os nós referenciados (ex: "🔗 Conceito: Regra da Cadeia")
@@ -661,7 +666,15 @@ Disponível apenas no **app desktop** (Electron).
 
 **Como acessar:** cabeçalho → botão "Vault" (ícone de pasta 🗂)
 
-O vault é uma pasta local de arquivos `.md` compatível com Obsidian. Cada grafo tem sua própria subpasta no formato `<slug>--<id>/`.
+O vault é uma pasta local de arquivos `.md` compatível com Obsidian. Cada entidade tem um Markdown com ID estável, e o índice do grafo em `Projects/` usa wikilinks para esses arquivos. Metadados de grafos novos ficam em `.neuralabs/graphs/<id>/`. Novos registros de estudo ficam em `.neuralabs/study/`.
+
+Pastas `<slug>--<id>/` e registros de estudo já existentes na raiz continuam acessíveis durante a transição. Desvincular um item de um grafo no PARA compartilhado preserva o Markdown da entidade.
+
+### Propostas de agentes externos
+
+O fluxo da skill `neuralabs-graph` usa o índice Markdown, o acervo local e uma proposta JSON. Ao selecionar um vault ou abrir o Electron com um vault configurado, o app instala as skills e os comandos locais que estiverem faltando em `.neuralabs/skills/` e `.neuralabs/tools/` e acrescenta os links ao `AGENTS.md` da raiz. Os arquivos personalizados são preservados. O build desktop empacota as skills do repositório e os comandos gerados por `bun run build:vault-tools`.
+
+O agente usa `inspect` para obter a revisão, `preview` para validar a proposta e `apply` com a confirmação da prévia aprovada. O comando funciona com Node.js e usa as regras de relação e de armazenamento do NeuraLabs.
 
 ### Push (grafo → vault)
 

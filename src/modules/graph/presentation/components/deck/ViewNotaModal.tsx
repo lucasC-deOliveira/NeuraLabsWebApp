@@ -16,10 +16,8 @@ import type { NodeDetails } from "@/modules/graph/application/ports/graph-nodes.
 import { useSpeech, type SpeechControls } from "@/components/speech/useSpeech";
 import { SpeakButton } from "@/components/speech/SpeakButton";
 import { SpokenText } from "@/components/speech/SpokenText";
-import { isDesktop, desktop } from "@/lib/vault-bridge";
-import { graphVaultDir } from "@/lib/vault-sync";
-import { parseNode } from "@/lib/vault-format";
-import { VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
+import { isDesktop } from "@/lib/vault-bridge";
+import { findVaultNode } from "@/lib/vault-sync";
 
 const TIPO_LABELS: Record<string, string> = {
   LITERATURA: "Nota de referência",
@@ -51,30 +49,15 @@ async function fetchNotaFromVault(
   grafoId: string,
   grafoNome: string,
 ): Promise<NodeDetails | null> {
-  try {
-    const vaultDir = await desktop.vault.getPath();
-    if (!vaultDir) return null;
-    const graphDir = graphVaultDir(vaultDir, grafoId, grafoNome);
-    const files = await desktop.vault.read(graphDir);
-    const mdFiles = files.filter(
-      (f) => !f.relPath.replace(/\\/g, "/").endsWith(VAULT_GUIDE_FILENAME),
-    );
-    for (const f of mdFiles) {
-      const parsed = parseNode(f.content);
-      if (parsed?.id === notaId && parsed.tipo === "NOTA") {
-        return {
-          titulo: parsed.titulo ?? "",
-          conteudo: parsed.conteudo ?? "",
-          tipoNota: parsed.tipoNota ?? "PERMANENTE",
-          subtipo: parsed.subtipo ?? null,
-          fonte: parsed.fonte ?? null,
-        };
-      }
-    }
-  } catch {
-    // vault indisponível
-  }
-  return null;
+  const nota = await findVaultNode(grafoId, grafoNome, notaId, "NOTA");
+  if (!nota) return null;
+  return {
+    titulo: nota.titulo ?? "",
+    conteudo: nota.conteudo ?? "",
+    tipoNota: nota.tipoNota ?? "PERMANENTE",
+    subtipo: nota.subtipo ?? null,
+    fonte: nota.fonte ?? null,
+  };
 }
 
 async function loadNota(notaId: string, grafoId?: string, grafoNome?: string): Promise<NodeDetails | null> {
