@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { splitFlashcardBibliography } from "@/components/flashcard/flashcard-bibliography";
 import type { SpeechControls } from "./useSpeech";
 
 export interface AutoReadCard {
@@ -13,9 +14,10 @@ export function autoReadTarget(
   phase: string,
   card: AutoReadCard,
 ): { id: string; text: string } | null {
-  if (phase === "question") return { id: "pergunta", text: card.pergunta };
-  if (phase === "answer") return { id: "resposta", text: card.resposta };
-  return null;
+  const id = phase === "question" ? "pergunta" : phase === "answer" ? "resposta" : null;
+  if (!id) return null;
+  const { body } = splitFlashcardBibliography(card[id]);
+  return body ? { id, text: body } : null;
 }
 
 // Leitura automática na sessão de estudo (ver ajustes → autoRead). Ao entrar num

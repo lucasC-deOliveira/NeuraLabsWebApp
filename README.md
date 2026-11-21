@@ -90,6 +90,12 @@ Na tela de **Configurações** dentro do app, informe:
 
 As chamadas de IA são feitas pelo backend — a chave nunca chega ao frontend.
 
+No Electron, **Configurações → Desktop → ChatGPT via Codex CLI** também permite
+usar o Codex instalado na máquina com a sessão aberta por `codex login`. O backend
+Docker acessa o proxy autenticado em `host.docker.internal:11436`. Ao desativar o
+Codex, o app restaura o provedor anterior. Se o Claude Code estiver ativo,
+desative-o antes de selecionar o Codex.
+
 ## Como funciona
 
 ### Repetição espaçada (SM-2)

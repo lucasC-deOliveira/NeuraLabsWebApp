@@ -14,7 +14,7 @@ interface AiConfigSectionProps {
   onToggleShowKey: () => void;
   saving: boolean;
   saved: boolean;
-  claudeCodeEnabled: boolean;
+  localProvider: "Claude Code" | "Codex" | null;
   onSave: () => void;
 }
 
@@ -25,7 +25,7 @@ function SaveButtonLabel({ saving, saved }: { saving: boolean; saved: boolean })
 }
 
 export function AiConfigSection({
-  config, onChange, showKey, onToggleShowKey, saving, saved, claudeCodeEnabled, onSave,
+  config, onChange, showKey, onToggleShowKey, saving, saved, localProvider, onSave,
 }: AiConfigSectionProps) {
   return (
     <Card>
@@ -39,12 +39,12 @@ export function AiConfigSection({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 px-3 sm:px-6">
-        {claudeCodeEnabled && (
+        {localProvider && (
           <div className="rounded-lg border border-violet-500/30 bg-violet-500/8 px-3 py-2.5 flex items-center gap-2">
             <SparklesIcon className="size-4 text-violet-500 shrink-0" />
             <p className="text-xs text-violet-700 dark:text-violet-300">
-              <span className="font-semibold">Claude Code ativo.</span>{" "}
-              Desative-o abaixo para editar a configuração de API.
+              <span className="font-semibold">{localProvider} ativo.</span>{" "}
+              Altere o provedor em Configurações do Desktop.
             </p>
           </div>
         )}
@@ -59,13 +59,13 @@ export function AiConfigSection({
               value={config.apiKey}
               onChange={(e) => onChange({ apiKey: e.target.value })}
               className="pr-10"
-              disabled={claudeCodeEnabled}
+              disabled={Boolean(localProvider)}
             />
             <button
               type="button"
               onClick={onToggleShowKey}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 disabled:pointer-events-none"
-              disabled={claudeCodeEnabled}
+              disabled={Boolean(localProvider)}
             >
               {showKey ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
             </button>
@@ -83,7 +83,7 @@ export function AiConfigSection({
             placeholder="https://openrouter.ai/api/v1"
             value={config.baseUrl}
             onChange={(e) => onChange({ baseUrl: e.target.value })}
-            disabled={claudeCodeEnabled}
+            disabled={Boolean(localProvider)}
           />
           <p className="text-[10px] text-muted-foreground">
             URL base da API. Para OpenRouter: {"https://openrouter.ai/api/v1"}
@@ -98,14 +98,14 @@ export function AiConfigSection({
             placeholder="qwen/qwen3.6-plus:free"
             value={config.modelo}
             onChange={(e) => onChange({ modelo: e.target.value })}
-            disabled={claudeCodeEnabled}
+            disabled={Boolean(localProvider)}
           />
           <p className="text-[10px] text-muted-foreground">
             ID do modelo. Ex: {"gpt-4o-mini"}, {"qwen/qwen3.6-plus:free"}, etc.
           </p>
         </div>
 
-        <Button onClick={onSave} disabled={saving || claudeCodeEnabled} size="lg" className="w-full">
+        <Button onClick={onSave} disabled={saving || Boolean(localProvider)} size="lg" className="w-full">
           <SaveButtonLabel saving={saving} saved={saved} />
         </Button>
       </CardContent>

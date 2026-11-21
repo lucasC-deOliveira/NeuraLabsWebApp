@@ -19,10 +19,10 @@ describe("createVaultGraph", () => {
     const files = new FakeVaultGraphCreationFiles();
     const result = await createVaultGraph(files, "C:/vault", "  Direito Constitucional  ", () => "local-id");
     expect(result).toEqual({ id: "local-id" });
-    expect(files.directory).toBe("C:/vault/direito-constitucional--local-id");
+    expect(files.directory).toBe("C:/vault/.neuralabs/graphs/local-id");
     const manifest = files.files.find((file) => file.relPath === VAULT_GRAPH_MANIFEST);
     expect(decodeVaultGraphManifest(manifest?.content ?? null, result.id)).toEqual({
-      version: 1, id: "local-id", name: "Direito Constitucional", publication: "pending",
+      version: 1, id: "local-id", name: "Direito Constitucional", publication: "pending", layout: "shared-para",
     });
   });
 });

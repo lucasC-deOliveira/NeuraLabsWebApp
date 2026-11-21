@@ -33,8 +33,14 @@ describe("splitGraphEntities", () => {
 });
 
 describe("countNodesByType", () => {
-  it("counts nodes per group", () => {
-    expect(countNodesByType(nodes)).toEqual({ ASSUNTO: 1, TOPICO: 1, CONCEITO: 1, FLASHCARD: 3 });
+  it("counts nodes before positions are available", () => {
+    const rawNodes = nodes.map(({ id, group }) => ({ id, type: group }));
+    expect(countNodesByType(rawNodes)).toEqual({ ASSUNTO: 1, TOPICO: 1, CONCEITO: 1, FLASHCARD: 3 });
+  });
+
+  it("counts types in a graph above the canvas ref threshold", () => {
+    const flashcards = Array.from({ length: 2100 }, () => ({ type: "FLASHCARD" }));
+    expect(countNodesByType([{ type: "CONCEITO" }, ...flashcards])).toEqual({ CONCEITO: 1, FLASHCARD: 2100 });
   });
 });
 

@@ -56,7 +56,7 @@ describe("GraphListPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Criar" }));
     expect(createGrafo).not.toHaveBeenCalled();
     expect(desktop.vault.write).toHaveBeenCalledWith(
-      expect.stringMatching(/^C:\/vault\/biologia--/),
+      expect.stringMatching(/^C:\/vault\/\.neuralabs\/graphs\//),
       expect.arrayContaining([expect.objectContaining({ relPath: VAULT_GRAPH_MANIFEST })]),
     );
   });

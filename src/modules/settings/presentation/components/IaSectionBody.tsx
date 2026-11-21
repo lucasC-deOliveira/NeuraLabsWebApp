@@ -4,6 +4,7 @@ import { Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { useAiConfig } from "../hooks/useAiConfig";
 import { useClaudeCode } from "../hooks/useDesktopSettings";
+import { useCodexProxy } from "../hooks/useCodexProxy";
 import { AiConfigSection } from "./AiConfigSection";
 
 // A seção de IA precisa saber se o Claude Code está ligado (ele sequestra a config
@@ -11,6 +12,7 @@ import { AiConfigSection } from "./AiConfigSection";
 export function IaSectionBody() {
   const ai = useAiConfig();
   const { enabled: claudeCodeEnabled } = useClaudeCode(ai.config, ai.replace);
+  const { enabled: codexEnabled } = useCodexProxy(ai.replace);
   const [showKey, setShowKey] = useState(false);
 
   if (ai.loading) {
@@ -29,7 +31,7 @@ export function IaSectionBody() {
       onToggleShowKey={() => setShowKey((v) => !v)}
       saving={ai.saving}
       saved={ai.saved}
-      claudeCodeEnabled={claudeCodeEnabled}
+      localProvider={codexEnabled ? "Codex" : claudeCodeEnabled ? "Claude Code" : null}
       onSave={ai.save}
     />
   );

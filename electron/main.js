@@ -7,9 +7,17 @@ const { app, BrowserWindow, shell, dialog, ipcMain, Menu } = require("electron")
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
+const { randomBytes } = require("node:crypto");
+const { CODEX_PROXY_PORT, makeCodexProxy } = require("./codex-proxy");
 const { spawn, exec, execSync } = require("child_process");
 const { readVaultStudy, writeVaultStudy, replaceVaultFile } = require("./vault-study-store");
+const { installVaultAgentSkills } = require("./vault-agent-skills");
 const { listVaultGraphFolders } = require("./vault-graph-folders");
+const { vaultGraphLocation, vaultStudyFile, examRecordDirectory } = require("./vault-paths");
+const {
+  readSharedManifest, sharedGraph, readSharedGraphFiles, writeSharedGraphFiles,
+  planSharedReplacement, unlinkSharedNotes, commitVaultWrites,
+} = require("./vault-shared-para");
 
 const isDev = !app.isPackaged;
 const DEV_URL = process.env.ELECTRON_DEV_URL || "https://localhost:5173";
@@ -22,6 +30,33 @@ const DEFAULT_API_URL = process.env.NEURALABS_API_URL || "http://127.0.0.1:3001/
 const PARA_FOLDERS = ["Projects", "Areas", "Resources", "Archives"];
 
 let mainWindow = null;
+let codexProxy = null;
+let codexStarting = false;
+
+async function startCodexProxy(token) {
+  if (codexProxy?.listening) return;
+  const server = makeCodexProxy(token);
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(CODEX_PROXY_PORT, "0.0.0.0", () => {
+      server.off("error", reject);
+      server.on("error", (error) => console.error("Codex proxy error:", error.code));
+      resolve();
+    });
+  });
+  codexProxy = server;
+}
+
+function stopCodexProxy() {
+  if (!codexProxy) return;
+  codexProxy.close();
+  codexProxy.closeAllConnections();
+  codexProxy = null;
+}
+
+function codexProxyConfig(token) {
+  return { apiKey: token, baseUrl: `http://host.docker.internal:${CODEX_PROXY_PORT}/v1`, modelo: "codex" };
+}
 
 // ---------------------------------------------------------------------------
 // Config persistente (userData/config.json): { apiUrl, vaultPath }
@@ -236,7 +271,10 @@ function createWindow() {
 async function boot() {
   try {
     createWindow();
+    initializeConfiguredVault();
     if (readConfig().claudeCodeEnabled) startClaudeProxy();
+    const codex = readConfig().codexProxy;
+    if (codex?.token) void startCodexProxy(codex.token).catch((error) => console.error("Codex proxy startup error:", error.code));
     if (isDev) {
       // Se USE_LOCAL_DIST=1, carrega o build estático local (sem dev server).
       const localDist = path.join(__dirname, "../dist/index.html");
@@ -277,13 +315,32 @@ ipcMain.handle("neuralabs:set-api-url", (_e, url) => {
 function initVault(dir) {
   const root = path.resolve(dir);
   fs.mkdirSync(root, { recursive: true });
+  const resources = app.isPackaged ? process.resourcesPath : path.join(__dirname, "..");
+  installVaultAgentSkills(root, {
+    guide: path.join(__dirname, "vault-guide.md"),
+    skills: path.join(resources, "skills"),
+    tools: app.isPackaged ? path.join(resources, "vault-tools") : path.join(resources, "dist-electron", "vault-tools"),
+  });
   const claudeMd = path.join(root, "CLAUDE.md");
   if (!fs.existsSync(claudeMd)) {
     fs.writeFileSync(claudeMd, VAULT_CLAUDE_MD, "utf8");
   }
 }
 
+function initializeConfiguredVault() {
+  const vault = readConfig().vaultPath;
+  if (!vault || !fs.existsSync(vault)) return;
+  try {
+    initVault(vault);
+  } catch (error) {
+    console.error(JSON.stringify({ event: "vault_agent_initialization_failed", message: error.message }));
+  }
+}
+
 const VAULT_CLAUDE_MD = `# NeuraLabs Vault — instruções para o Claude
+
+Se houver um \`AGENTS.md\` na raiz, comece por ele. Ele descreve o PARA compartilhado
+e como consultar os índices sem abrir o NeuraLabs. O formato por pasta abaixo é legado.
 
 Este vault contém o grafo de conhecimento do NeuraLabs exportado como arquivos Markdown.
 Cada arquivo \`.md\` representa **um nó** do grafo. Após editar arquivos aqui, abra o
@@ -432,6 +489,7 @@ ipcMain.handle("neuralabs:get-claude-code-config", () => {
 
 ipcMain.handle("neuralabs:set-claude-code-enabled", (_e, { enabled, savedConfig }) => {
   if (enabled) {
+    if (readConfig().codexProxy) throw new Error("Desative o Codex antes de ativar o Claude Code.");
     writeConfig({ claudeCodeEnabled: true, savedApiConfig: savedConfig ?? null });
     startClaudeProxy();
     return { ok: true };
@@ -443,19 +501,50 @@ ipcMain.handle("neuralabs:set-claude-code-enabled", (_e, { enabled, savedConfig 
   }
 });
 
+ipcMain.handle("neuralabs:get-codex-proxy", () => {
+  const state = readConfig().codexProxy;
+  return state ? { enabled: true, previous: state.previous, proxy: codexProxyConfig(state.token) } : { enabled: false };
+});
+
+ipcMain.handle("neuralabs:start-codex-proxy", async (_event, previous) => {
+  const config = readConfig();
+  if (config.claudeCodeEnabled) throw new Error("Desative o Claude Code antes de ativar o Codex.");
+  if (codexStarting) throw new Error("O proxy do Codex está iniciando.");
+  if (previous !== null && !["apiKey", "baseUrl", "modelo"].every((key) => typeof previous?.[key] === "string")) {
+    throw new Error("Configuração anterior de IA inválida.");
+  }
+  const state = config.codexProxy ?? { token: randomBytes(32).toString("hex"), previous };
+  codexStarting = true;
+  try {
+    await startCodexProxy(state.token);
+    writeConfig({ codexProxy: state });
+    return codexProxyConfig(state.token);
+  } catch (error) {
+    stopCodexProxy();
+    throw error;
+  } finally {
+    codexStarting = false;
+  }
+});
+
+ipcMain.handle("neuralabs:stop-codex-proxy", () => {
+  writeConfig({ codexProxy: null });
+  stopCodexProxy();
+});
+
 // ---------------------------------------------------------------------------
 // IPC: vault (sistema de arquivos)
 // ---------------------------------------------------------------------------
 ipcMain.handle("vault:get-path", () => readConfig().vaultPath || null);
 ipcMain.handle("vault:list-graph-folders", () => listVaultGraphFolders(readConfig().vaultPath));
 ipcMain.handle("vault:list-exam-attempts", (_event, dir) => {
-  const vaultPath = readConfig().vaultPath;
-  if (!vaultPath || !dir || path.dirname(path.resolve(dir)) !== path.resolve(vaultPath)) {
+  const location = vaultGraphLocation(readConfig().vaultPath, dir);
+  if (!location) {
     throw new Error("Invalid exam directory. Expected a graph in the configured vault.");
   }
-  const folder = path.join(dir, ".neuralabs-exam-attempts");
+  const folder = examRecordDirectory(location, ".neuralabs-exam-attempts");
   try {
-    if (!fs.lstatSync(dir).isDirectory() || !fs.lstatSync(folder).isDirectory()) return [];
+    if (!fs.lstatSync(folder).isDirectory()) return [];
     return fs.readdirSync(folder, { withFileTypes: true })
       .filter((entry) => entry.isFile() && /^[a-zA-Z0-9_-]+\.json$/.test(entry.name))
       .map((entry) => `.neuralabs-exam-attempts/${entry.name}`);
@@ -484,33 +573,20 @@ function graphMarkdownTarget(folders, { dir, relPath, expected, next }) {
 function replaceGraphMarkdownFiles(writes) {
   if (!Array.isArray(writes) || !writes.length || writes.some((write) => !write || typeof write !== "object")) return false;
   const folders = new Set(listVaultGraphFolders(readConfig().vaultPath).map((folder) => folder.directory));
-  const targets = writes.map((write) => graphMarkdownTarget(folders, write));
-  if (targets.includes(null) || new Set(targets).size !== targets.length) return false;
-  const committed = [];
-  try {
-    for (const [index, write] of writes.entries()) {
+  const planned = [];
+  for (const dir of new Set(writes.map((write) => write.dir))) {
+    if (!folders.has(dir)) return false;
+    const updates = writes.filter((write) => write.dir === dir);
+    if (new Set(updates.map((write) => write.relPath)).size !== updates.length) return false;
+    const shared = activeSharedGraph(dir);
+    const files = shared ? planSharedReplacement(shared, updates) : updates.map((write) => {
       const target = graphMarkdownTarget(folders, write);
-      if (target !== targets[index]) throw new Error("Graph Markdown changed during the write.");
-      if (write.expected === write.next) continue;
-      replaceVaultFile(target, write.next);
-      committed.push({ target, dir: write.dir, relPath: write.relPath, expected: write.expected, next: write.next });
-    }
-    return true;
-  } catch (error) {
-    const unrestored = committed.reverse().filter((write) => !restoreGraphMarkdown(folders, write));
-    if (unrestored.length) throw new AggregateError([error], "Some graph Markdown files could not be restored.");
-    throw error;
+      return target ? { target, expected: write.expected, next: write.next } : null;
+    });
+    if (!files || files.includes(null)) return false;
+    planned.push(...files);
   }
-}
-
-function restoreGraphMarkdown(folders, { target, dir, relPath, expected, next }) {
-  try {
-    if (graphMarkdownTarget(folders, { dir, relPath, expected: next, next: expected }) !== target) return false;
-    replaceVaultFile(target, expected);
-    return true;
-  } catch {
-    return false;
-  }
+  return commitVaultWrites(planned);
 }
 
 ipcMain.handle("vault:replace-graph-markdown", (_event, write) => replaceGraphMarkdownFiles([write]));
@@ -525,14 +601,35 @@ ipcMain.handle("vault:pick-folder", async () => {
   });
   if (res.canceled || !res.filePaths[0]) return null;
   const dir = res.filePaths[0];
-  writeConfig({ vaultPath: dir });
   initVault(dir);
+  writeConfig({ vaultPath: dir });
   return dir;
 });
+
+function activeSharedGraph(dir, files) {
+  const root = readConfig().vaultPath;
+  const location = vaultGraphLocation(root, dir);
+  if (!location) return null;
+  const manifestFile = files?.find((file) => file?.relPath === ".neuralabs-graph.json");
+  const current = readSharedManifest(dir);
+  const proposed = manifestFile ? JSON.parse(manifestFile.content) : null;
+  if (!current && (!proposed || proposed.layout !== "shared-para" ||
+    listVaultGraphFolders(root).some((folder) => folder.id === location.id))) return null;
+  const manifest = current && proposed ? { ...proposed, id: current.id, layout: current.layout } : current ?? proposed;
+  if (manifestFile && current && manifestFile.content !== JSON.stringify(manifest, null, 2) + "\n") {
+    manifestFile.content = JSON.stringify(manifest, null, 2) + "\n";
+  }
+  return sharedGraph(root, dir, manifest);
+}
 
 // grava a lista de arquivos {relPath, content} dentro de dir (cria pastas).
 ipcMain.handle("vault:write", async (_e, { dir, files }) => {
   if (!dir || !Array.isArray(files)) throw new Error("Argumentos inválidos");
+  const shared = activeSharedGraph(dir, files);
+  if (shared) return writeSharedGraphFiles(shared, files);
+  if (vaultGraphLocation(readConfig().vaultPath, dir)?.central) {
+    throw new Error("O diretório de metadados precisa de um manifesto de grafo compartilhado válido.");
+  }
   const root = path.resolve(dir);
   for (const folder of PARA_FOLDERS) fs.mkdirSync(path.join(root, folder), { recursive: true });
   let written = 0;
@@ -548,12 +645,25 @@ ipcMain.handle("vault:write", async (_e, { dir, files }) => {
   return { written };
 });
 
+function resolveVaultRecord(dir, relPath) {
+  const configured = readConfig().vaultPath;
+  const root = path.resolve(dir);
+  if (configured && root === path.resolve(configured) && relPath === "_srs.json") {
+    return vaultStudyFile(root, relPath);
+  }
+  const exam = /^(\.neuralabs-exam-(?:progress|attempts))[/\\]([a-zA-Z0-9_-]+\.json)$/.exec(relPath);
+  const location = exam ? vaultGraphLocation(configured, dir) : null;
+  if (location) return path.join(examRecordDirectory(location, exam[1]), exam[2]);
+  const full = path.resolve(root, relPath);
+  return full.startsWith(root + path.sep) ? full : null;
+}
+
 // lê um arquivo arbitrário dentro do vault (qualquer extensão).
 ipcMain.handle("vault:read-file", async (_e, { dir, relPath }) => {
   if (!dir || !relPath) return null;
   try {
-    const full = path.resolve(dir, relPath);
-    if (!full.startsWith(path.resolve(dir) + path.sep) && full !== path.resolve(dir)) return null;
+    const full = resolveVaultRecord(dir, relPath);
+    if (!full || !fs.lstatSync(full).isFile()) return null;
     return fs.readFileSync(full, "utf8");
   } catch { return null; }
 });
@@ -561,9 +671,8 @@ ipcMain.handle("vault:read-file", async (_e, { dir, relPath }) => {
 // grava um arquivo arbitrário dentro do vault (qualquer extensão).
 ipcMain.handle("vault:write-file", async (_e, { dir, relPath, content }) => {
   if (!dir || !relPath) throw new Error("Argumentos inválidos");
-  const root = path.resolve(dir);
-  const full = path.resolve(root, relPath);
-  if (!full.startsWith(root + path.sep) && full !== root) throw new Error("Caminho inválido");
+  const full = resolveVaultRecord(dir, relPath);
+  if (!full || (fs.existsSync(full) && !fs.lstatSync(full).isFile())) throw new Error("Caminho inválido");
   fs.mkdirSync(path.dirname(full), { recursive: true });
   const folder = path.basename(path.dirname(full));
   const examRecord = path.extname(full) === ".json" &&
@@ -580,6 +689,8 @@ ipcMain.handle("vault:write-file", async (_e, { dir, relPath, content }) => {
 // recusou — a UI mostra os dois.
 ipcMain.handle("vault:delete-files", async (_e, { dir, relPaths }) => {
   if (!dir || !Array.isArray(relPaths)) throw new Error("Argumentos inválidos");
+  const shared = activeSharedGraph(dir);
+  if (shared) return unlinkSharedNotes(shared, relPaths);
   const root = path.resolve(dir);
   const deleted = [];
   const skipped = [];
@@ -606,6 +717,8 @@ ipcMain.handle("vault:delete-files", async (_e, { dir, relPaths }) => {
 // lê todos os .md sob as pastas PARA, retornando {relPath, content}.
 ipcMain.handle("vault:read", async (_e, dir) => {
   if (!dir) throw new Error("Pasta não informada");
+  const shared = activeSharedGraph(dir);
+  if (shared) return readSharedGraphFiles(shared);
   const root = path.resolve(dir);
   const out = [];
   const walk = (abs) => {
@@ -625,6 +738,8 @@ ipcMain.handle("vault:read", async (_e, dir) => {
 
 ipcMain.handle("vault:open-folder", async (_e, dir) => {
   if (!dir) return;
+  const shared = activeSharedGraph(dir);
+  if (shared) { await shell.openPath(shared.root); return; }
   const abs = path.resolve(dir);
   fs.mkdirSync(abs, { recursive: true });
   for (const folder of PARA_FOLDERS) fs.mkdirSync(path.join(abs, folder), { recursive: true });
@@ -661,6 +776,11 @@ ipcMain.handle("vault:check-modified", async (_e, { dir, since }) => {
   if (!dir) return { count: 0, files: [] };
   const root = path.resolve(dir);
   const sinceMs = since ? new Date(since).getTime() : 0;
+  const shared = activeSharedGraph(dir);
+  if (shared) {
+    const files = readSharedGraphFiles(shared, sinceMs).map(({ relPath }) => relPath);
+    return { count: files.length, files };
+  }
   const modified = [];
   const walk = (abs) => {
     let entries = [];
@@ -707,15 +827,19 @@ ipcMain.handle("vault:watch", async (_e, { dir, watchId }) => {
 
   const root = path.resolve(dir);
   const entry = { watcher: null, timer: null };
+  const shared = activeSharedGraph(dir);
 
   const flush = () => {
-    const files = readGraphDir(root);
-    mainWindow?.webContents.send("vault:changed", { watchId, files });
+    try {
+      const current = shared ? activeSharedGraph(dir) : null;
+      const files = current ? readSharedGraphFiles(current) : readGraphDir(root);
+      mainWindow?.webContents.send("vault:changed", { watchId, files });
+    } catch (error) { console.error("Could not read changed vault files:", error.message); }
   };
 
   try {
-    entry.watcher = fs.watch(root, { recursive: true }, (_, filename) => {
-      if (!filename?.toLowerCase().endsWith(".md")) return;
+    entry.watcher = fs.watch(shared?.root ?? root, { recursive: true }, (_, filename) => {
+      if (!filename?.toLowerCase().endsWith(".md") && !(shared && filename?.endsWith(".neuralabs-members.json"))) return;
       clearTimeout(entry.timer);
       entry.timer = setTimeout(flush, 80);
     });
@@ -736,3 +860,4 @@ ipcMain.handle("vault:unwatch", (_e, watchId) => {
 app.whenReady().then(() => { Menu.setApplicationMenu(null); boot(); });
 app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) boot(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
+app.on("before-quit", stopCodexProxy);

@@ -113,6 +113,7 @@ import {
 } from '../modules/ai/domain/ports/chat-nodes-repository';
 import { PrismaChatNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-chat-nodes.repository';
 import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
+import { ChatWithVaultUseCase } from '../modules/ai/application/use-cases/chat-with-vault.use-case';
 import {
   GRAPH_DECKS_QUERY,
   type GraphDecksQuery,
@@ -536,6 +537,11 @@ const graphRelationRules: RelationRulesPort = {
       provide: ChatWithGraphUseCase,
       useFactory: (repo: ChatNodesRepository, llm: LlmPort) => new ChatWithGraphUseCase(repo, llm),
       inject: [CHAT_NODES_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: ChatWithVaultUseCase,
+      useFactory: (llm: LlmPort) => new ChatWithVaultUseCase(llm),
+      inject: [LLM_PORT],
     },
     {
       provide: ListBaralhosInGrafoUseCase,

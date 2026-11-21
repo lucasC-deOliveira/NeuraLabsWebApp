@@ -11,6 +11,7 @@ interface VaultOrphansProps {
   orphans: VaultOrphan[];
   busy: boolean;
   onClean: () => void;
+  shared?: boolean;
 }
 
 /**
@@ -19,7 +20,7 @@ interface VaultOrphansProps {
  * A remoção é irreversível e fica atrás de uma confirmação explícita: o primeiro
  * clique só troca o rótulo do botão. Nunca acontece junto de um Pull ou Push.
  */
-export function VaultOrphans({ orphans, busy, onClean }: VaultOrphansProps) {
+export function VaultOrphans({ orphans, busy, onClean, shared = false }: VaultOrphansProps) {
   const [confirmando, setConfirmando] = useState(false);
 
   if (orphans.length === 0) return null;
@@ -30,13 +31,13 @@ export function VaultOrphans({ orphans, busy, onClean }: VaultOrphansProps) {
     <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
       <div className="flex items-center gap-1.5 text-sm font-medium text-amber-600 dark:text-amber-400">
         <FileWarningIcon className="size-4 shrink-0" />
-        {orphans.length} arquivo(s) órfão(s) no vault
+        {orphans.length} {shared ? "vínculo(s) disponível(is) só no grafo local" : "arquivo(s) órfão(s) no vault"}
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      {shared ? <p className="text-[11px] text-muted-foreground">Desvincular mantém os arquivos no PARA para uso em outros grafos.</p> : <p className="text-[11px] text-muted-foreground">
         Descrevem nós que o grafo não tem mais — normalmente sobras de um conceito
         renomeado, com conteúdo desatualizado. O Push os ignora, mas eles continuam
         sendo lidos por qualquer agente que abrir a pasta.
-      </p>
+      </p>}
 
       <ul className="space-y-0.5 max-h-40 overflow-y-auto">
         {orphans.slice(0, VISIVEIS).map((o) => (
@@ -57,7 +58,7 @@ export function VaultOrphans({ orphans, busy, onClean }: VaultOrphansProps) {
             className="gap-1.5 h-7 text-xs"
           >
             {busy ? <Loader2Icon className="size-3 animate-spin" /> : <Trash2Icon className="size-3" />}
-            Apagar {orphans.length} arquivo(s)
+            {shared ? `Desvincular ${orphans.length} item(ns)` : `Apagar ${orphans.length} arquivo(s)`}
           </Button>
           <Button
             type="button" variant="ghost" size="sm" disabled={busy}
@@ -71,7 +72,7 @@ export function VaultOrphans({ orphans, busy, onClean }: VaultOrphansProps) {
           type="button" variant="outline" size="sm" disabled={busy}
           onClick={() => setConfirmando(true)} className="gap-1.5 h-7 text-xs"
         >
-          <Trash2Icon className="size-3" /> Remover órfãos
+          <Trash2Icon className="size-3" /> {shared ? "Desvincular do grafo" : "Remover órfãos"}
         </Button>
       )}
     </div>

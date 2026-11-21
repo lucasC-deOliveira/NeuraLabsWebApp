@@ -5,6 +5,7 @@ export const VAULT_GRAPH_MANIFEST = ".neuralabs-graph.json";
 
 const manifestSchema = z.object({
   version: z.literal(1), id: z.string(), name: z.string().min(1),
+  layout: z.literal("shared-para").optional(),
   publication: z.enum(["pending", "published"]).optional(),
   description: z.string().optional(),
   parentId: z.string().nullable().optional(), parentName: z.string().nullable().optional(),
@@ -13,6 +14,13 @@ const manifestSchema = z.object({
 });
 
 export type VaultGraphManifest = z.infer<typeof manifestSchema>;
+
+/** Initial metadata path for a shared graph, stable across title changes.
+ * @example const directory = sharedGraphMetadataDir(vaultPath, graphId)
+ */
+export function sharedGraphMetadataDir(vaultPath: string, graphId: string): string {
+  return `${vaultPath}/.neuralabs/graphs/${graphId}`;
+}
 
 /** Reads a graph manifest when available, allowing legacy folders to open without it.
  * @example const manifest = decodeVaultGraphManifest(raw, graphId)
@@ -44,4 +52,12 @@ export async function existingVaultGraphDirectory(graphId: string): Promise<stri
   } catch {
     return undefined;
   }
+}
+
+/** Checks whether a graph's membership lives in the shared PARA.
+ * @example const shared = await isSharedVaultGraph(directory, graphId)
+ */
+export async function isSharedVaultGraph(directory: string, graphId: string): Promise<boolean> {
+  const raw = await desktop.vault.readFile(directory, VAULT_GRAPH_MANIFEST);
+  return decodeVaultGraphManifest(raw, graphId)?.layout === "shared-para";
 }

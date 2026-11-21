@@ -1,11 +1,18 @@
-// Conteúdo do AGENTS.md escrito na raiz do vault. AGENTS.md é lido
-// automaticamente pelo Claude Code, então ele entra com as regras do grafo ao
-// abrir a pasta. Apenas monta a string — a escrita no disco é via IPC (Electron).
+// Conteúdo do AGENTS.md para agentes que abrem a pasta do vault diretamente.
+// Apenas monta a string — a escrita no disco é via IPC (Electron).
+import sharedVaultGuide from "../../electron/vault-guide.md?raw";
 import { RELATION_PAIRS } from "@/modules/graph/domain/services/relation-rules";
 import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { PARA_FOLDERS } from "./vault-format";
 
 export const VAULT_GUIDE_FILENAME = "AGENTS.md";
+
+/** Describes the shared vault layout for users editing it outside NeuraLabs.
+ * @example const guide = buildSharedVaultGuide()
+ */
+export function buildSharedVaultGuide(): string {
+  return sharedVaultGuide;
+}
 
 function relationsSection(): string {
   return RELATION_PAIRS.map((p) => {

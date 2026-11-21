@@ -6,6 +6,7 @@ import {
   ListOrderedIcon,
   SparklesIcon,
   MonitorIcon,
+  DatabaseIcon,
   type LucideIcon,
 } from "lucide-react";
 import type { SettingsIcon } from "../../domain/settings-sections";
@@ -16,4 +17,5 @@ export const SECTION_ICONS: Record<SettingsIcon, LucideIcon> = {
   estudo: ListOrderedIcon,
   ia: SparklesIcon,
   desktop: MonitorIcon,
+  armazenamento: DatabaseIcon,
 };

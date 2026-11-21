@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
+const { vaultStudyFile } = require("./vault-paths");
 
 const STUDY_FILE = "NeuraLabs.study.json";
 
@@ -11,7 +12,7 @@ function studyFilePath(currentFolder, expectedFolder) {
   if (!fs.statSync(currentFolder).isDirectory()) {
     throw new Error(`Invalid vault folder "${currentFolder}". Expected: an existing directory`);
   }
-  return path.join(fs.realpathSync(currentFolder), STUDY_FILE);
+  return vaultStudyFile(fs.realpathSync(currentFolder), STUDY_FILE);
 }
 
 function readStudyFile(file) {
@@ -40,6 +41,7 @@ function writeVaultStudy(currentFolder, { folder, expected, next }) {
   const file = studyFilePath(currentFolder, folder);
   if (readStudyFile(file) !== expected) return false;
   if (typeof next !== "string") throw new Error(`Invalid snapshot "${typeof next}". Expected: serialized study data`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
   replaceVaultFile(file, next);
   return true;
 }

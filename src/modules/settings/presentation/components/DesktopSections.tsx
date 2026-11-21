@@ -17,6 +17,9 @@ interface DesktopSectionsProps {
   claudeCodeEnabled: boolean;
   claudeCodeLoading: boolean;
   onToggleClaudeCode: () => void;
+  codexEnabled: boolean;
+  codexLoading: boolean;
+  onToggleCodex: () => void;
 }
 
 function VaultCard({ vaultPath, onPickVault }: { vaultPath: string | null; onPickVault: () => void }) {
@@ -121,6 +124,7 @@ function ClaudeCodeCard({
 
 export function DesktopSections({
   vaultPath, onPickVault, claudeCodeEnabled, claudeCodeLoading, onToggleClaudeCode,
+  codexEnabled, codexLoading, onToggleCodex,
 }: DesktopSectionsProps) {
   return (
     <>
@@ -128,6 +132,27 @@ export function DesktopSections({
       <VaultCard vaultPath={vaultPath} onPickVault={onPickVault} />
       <Separator />
       <ClaudeCodeCard enabled={claudeCodeEnabled} loading={claudeCodeLoading} onToggle={onToggleClaudeCode} />
+      <CodexProxyCard enabled={codexEnabled} loading={codexLoading} claudeActive={claudeCodeEnabled} onToggle={onToggleCodex} />
     </>
+  );
+}
+
+function CodexProxyCard({ enabled, loading, claudeActive, onToggle }: {
+  enabled: boolean; loading: boolean; claudeActive: boolean; onToggle: () => void;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><TerminalIcon className="size-5" /> ChatGPT via Codex CLI</CardTitle>
+        <CardDescription>Usa o Codex instalado neste computador como provedor de IA do NeuraLabs.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">{claudeActive ? "Desative o Claude Code para selecionar o Codex."
+          : "Entre no Codex CLI com sua conta do ChatGPT usando codex login antes de ativar."}</p>
+        <Button type="button" variant="outline" disabled={loading || claudeActive} onClick={onToggle}>
+          {loading ? "Atualizando provedor…" : enabled ? "Desativar Codex" : "Ativar Codex"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

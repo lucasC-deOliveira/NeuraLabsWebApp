@@ -16,8 +16,10 @@
     "test:watch": "vitest",
     "test:visual": "vitest run --config vitest.visual.config.ts",
     "test:mutation": "stryker run",
+    "build:vault-tools": "bun build scripts/neuralabs-graph.ts --target=node --format=cjs --outfile dist-electron/vault-tools/neuralabs-graph.cjs && bun build scripts/neuralabs-flashcards.ts --target=node --format=cjs --outfile dist-electron/vault-tools/neuralabs-flashcards.cjs",
+    "preelectron:dev": "npm run build:vault-tools",
     "electron:dev": "electron .",
-    "desktop:build": "vite build",
+    "desktop:build": "npm run build:vault-tools && vite build",
     "desktop:dist": "npm run desktop:build && electron-builder",
     "desktop:publish": "npm run desktop:build && electron-builder --publish always"
   },

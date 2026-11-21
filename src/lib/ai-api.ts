@@ -1,5 +1,6 @@
 // Features de IA do grafo → API NestJS.
 import { apiFetch, getToken } from "./api";
+import { vaultChatResponse, type VaultChatRequest, type VaultChatResponse } from "@contracts/vault-chat";
 
 export interface NotaRelationSuggestion {
   nodeId: string;
@@ -375,6 +376,13 @@ export function chatWithGraph(
   history: ChatHistoryItem[],
 ): Promise<{ answer: string; referencedNodes: ChatReferencedNode[] }> {
   return apiFetch(`/ai/graph/graphs/${grafoId}/chat`, { method: "POST", body: JSON.stringify({ question, history }) });
+}
+
+/** Sends only selected local excerpts to the configured AI backend.
+ * @example const answer = await chatWithVaultSources(request)
+ */
+export function chatWithVaultSources(request: VaultChatRequest): Promise<VaultChatResponse> {
+  return apiFetch("/ai/graph/vault/chat", { method: "POST", body: JSON.stringify(request), schema: vaultChatResponse });
 }
 
 // ── Avaliação de completude ────────────────────────────────────────────────

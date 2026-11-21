@@ -1,5 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const { readSharedManifest } = require("./vault-shared-para");
+const { graphsDirectory, vaultGraphLocation } = require("./vault-paths");
 
 function hasGraphMarkdown(directory) {
   const entries = fs.readdirSync(directory, { withFileTypes: true });
@@ -22,14 +24,29 @@ function isGraphFolder(directory) {
 function listVaultGraphFolders(selectedFolder) {
   if (!selectedFolder) return [];
   const root = path.resolve(selectedFolder);
-  return fs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+  const central = listGraphFoldersIn(root, graphsDirectory(root), true);
+  const known = new Set(central.map(({ id }) => id));
+  return [...central, ...listGraphFoldersIn(root, root, false).filter(({ id }) => !known.has(id))];
+}
+
+function listGraphFoldersIn(root, parent, central) {
+  try {
+    if (!fs.lstatSync(parent).isDirectory()) return [];
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+  return fs.readdirSync(parent, { withFileTypes: true }).flatMap((entry) => {
     if (!entry.isDirectory()) return [];
-    const name = /^(.+)--([a-zA-Z0-9][a-zA-Z0-9_-]*)$/.exec(entry.name);
-    if (!name) return [];
-    const directory = path.join(root, entry.name);
     try {
+      const directory = path.join(parent, entry.name);
+      const location = vaultGraphLocation(root, directory);
+      if (!location || location.central !== central) return [];
       if (!isGraphFolder(directory)) return [];
-      return [{ id: name[2], label: name[1], directory, modifiedAt: fs.statSync(directory).mtime.toISOString() }];
+      const shared = readSharedManifest(directory);
+      if (central && shared?.id !== location.id) return [];
+      return [{ id: location.id, label: shared?.name ?? location.label, directory, modifiedAt: fs.statSync(directory).mtime.toISOString(),
+        ...(shared ? { layout: shared.layout } : {}) }];
     } catch (error) {
       if (error.code === "ENOENT" || error.code === "EACCES") return [];
       throw error;

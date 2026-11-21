@@ -18,6 +18,14 @@ files:
 extraResources:
   - from: dist
     to: dist
+  - from: skills
+    to: skills
+    filter:
+      - "neuralabs-*/**/*.md"
+  - from: dist-electron/vault-tools
+    to: vault-tools
+    filter:
+      - "neuralabs-*.cjs"
 
 asar: true
 npmRebuild: false

@@ -14,18 +14,21 @@ export function SpokenText({
   id,
   text,
   className = "",
+  clickToSpeak = true,
 }: {
   speech: SpeechControls;
   id: string;
   text: string;
   className?: string;
+  clickToSpeak?: boolean;
 }) {
   const reading = speech.speakingId === id;
+  const canToggle = speech.supported && clickToSpeak;
   if (!reading) {
     return (
       <div
-        className={`${className} ${speech.supported ? "cursor-pointer" : ""}`}
-        onClick={() => speech.supported && speech.toggle(id, text)}
+        className={`${className} ${canToggle ? "cursor-pointer" : ""}`}
+        onClick={canToggle ? () => speech.toggle(id, text) : undefined}
       >
         <MarkdownContent>{text}</MarkdownContent>
       </div>
@@ -33,7 +36,7 @@ export function SpokenText({
   }
   const sentences = splitSentences(stripMarkdown(text));
   return (
-    <div className={`${className} cursor-pointer`} onClick={() => speech.toggle(id, text)}>
+    <div className={`${className} ${canToggle ? "cursor-pointer" : ""}`} onClick={canToggle ? () => speech.toggle(id, text) : undefined}>
       {sentences.map((sentence, i) => (
         <span
           key={i}

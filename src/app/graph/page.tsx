@@ -13,8 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { PlusIcon, Trash2Icon, Loader2Icon, FolderIcon, SearchXIcon, TagIcon, NetworkIcon, ChevronRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import { isDesktop, desktop } from "@/lib/vault-bridge";
-import { graphVaultDir } from "@/lib/vault-sync";
-import { buildVaultGuide, VAULT_GUIDE_FILENAME } from "@/lib/vault-guide";
 import { DeleteGraphModal } from "@/modules/graph/presentation/components/vault/DeleteGraphModal";
 import { useGraphList } from "@/modules/graph/presentation/hooks/useGraphList";
 import { useMasterGraph } from "@/modules/graph/presentation/hooks/useMasterGraph";
@@ -24,18 +22,6 @@ import { GraphListPagination } from "@/modules/graph/presentation/components/Gra
 import { VaultGraphLinks } from "@/modules/graph/presentation/components/vault/VaultGraphLinks";
 import { canReadServerGraphs } from "@/modules/graph/infra/vault/graph-vault-reader";
 import { createVaultGraph } from "@/modules/graph/infra/vault/create-vault-graph";
-
-async function prepareServerGraphFolder(id: string, name: string): Promise<void> {
-  try {
-    const vaultPath = await desktop.vault.getPath();
-    if (!vaultPath) return;
-    const graphDir = graphVaultDir(vaultPath, id, name);
-    await desktop.vault.write(graphDir, [{ relPath: VAULT_GUIDE_FILENAME, content: buildVaultGuide() }]);
-    await desktop.vault.writeSyncState(graphDir, { dir: graphDir, lastPull: new Date().toISOString() });
-  } catch {
-    // Server creation remains complete independently of the optional vault guide.
-  }
-}
 
 async function saveLocalGraph(name: string): Promise<{ id: string }> {
   const vaultPath = await desktop.vault.getPath();
@@ -77,7 +63,6 @@ export default function GraphListPage() {
     try {
       const { id } = createLocally ? await saveLocalGraph(name) : await graphHttp.createGrafo(name);
       if (!createLocally) invalidateGraphList(); // ao voltar para "Meus Grafos", o novo grafo já aparece
-      if (!createLocally && desktopApp) await prepareServerGraphFolder(id, name);
       toast.success(createLocally ? "Grafo criado no vault" : "Grafo criado");
       router.push(`/graph/${id}`);
     } catch (e) {
@@ -100,7 +85,7 @@ export default function GraphListPage() {
       setDeleteTarget(null);
       reload();
       setMasterRefresh((n) => n + 1);
-    } catch (e) {
+    } catch {
       toast.error("Erro ao remover grafo");
     } finally {
       setDeletingGrafo(false);

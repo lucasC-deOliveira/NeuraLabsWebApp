@@ -74,6 +74,8 @@ export function useGraphLayout(rawNodes: GraphNodeType[], rawEdges: GraphEdgeTyp
     const timeout = setTimeout(() => {
       const result = runForceLayout(rawNodes, rawEdges, 3000, 2000, 0);
       startTransition(() => {
+        nodesRef.current = [];
+        edgesRef.current = [];
         setSmallNodes(result.nodes);
         setSmallEdges(result.edges);
       });

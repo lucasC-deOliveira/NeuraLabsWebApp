@@ -70,4 +70,18 @@ describe("FlashcardFace text-to-speech", () => {
     rerender(<FlashcardFace pergunta="P" resposta="R" showAnswer />);
     expect(screen.getByRole("button", { name: /Ouvir a resposta/ })).toBeInTheDocument();
   });
+
+  it("plays a cited source only through the bibliography button", async () => {
+    render(<FlashcardFace pergunta="O que é mitose?" resposta={"Divisão celular.\n\n> **Fonte:** Manual de biologia."} showAnswer />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Ouvir a resposta" }));
+    expect(spoken.map(({ text }) => text)).toEqual(["Divisão celular."]);
+
+    await userEvent.click(screen.getByText("Bibliografia"));
+    await userEvent.click(screen.getByText(/Manual de biologia/));
+    expect(spoken).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "Ouvir a bibliografia" }));
+    expect(spoken.map(({ text }) => text)).toEqual(["Divisão celular.", "Fonte: Manual de biologia."]);
+  });
 });
