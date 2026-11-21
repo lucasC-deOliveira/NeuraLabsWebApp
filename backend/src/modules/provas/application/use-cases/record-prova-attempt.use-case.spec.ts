@@ -4,10 +4,16 @@ import { EmptyAttemptError } from '../../domain/errors';
 import type {
   ProvaAttemptInput,
   ProvaAttemptRepository,
+  ServerExamAttempt,
 } from '../../domain/ports/prova-attempt-repository';
 
 class FakeProvaAttemptRepository implements ProvaAttemptRepository {
   saved: { userId: string; attempt: ProvaAttemptInput }[] = [];
+  history: ServerExamAttempt[] = [];
+
+  async listForGraph(): Promise<ServerExamAttempt[]> {
+    return this.history;
+  }
   async save(userId: string, attempt: ProvaAttemptInput): Promise<{ id: string }> {
     this.saved.push({ userId, attempt });
     return { id: 'tent-1' };
@@ -29,6 +35,14 @@ describe('RecordProvaAttemptUseCase', () => {
   beforeEach(() => {
     repo = new FakeProvaAttemptRepository();
     useCase = new RecordProvaAttemptUseCase(repo);
+  });
+
+  it('returns no cursor for a final page and identifies the signed-in account', async () => {
+    await expect(useCase.listVaultHistory('u1', 'g1')).resolves.toEqual({
+      accountId: 'u1',
+      attempts: [],
+      nextCursor: null,
+    });
   });
 
   it('saves the attempt for the user and returns its id', async () => {

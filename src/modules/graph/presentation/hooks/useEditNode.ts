@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { graphHttp } from "../../infra/http";
 import { updateNode, NodeValidationError } from "../../application/use-cases/update-node";
+import type { GraphNodeEditorPort, NodeDetails } from "../../application/ports/graph-nodes.port";
 import type { NodeEditError, NodeEditFields } from "../../domain/services/node-edit-validation";
 
 export interface EditableNode {
@@ -22,6 +23,8 @@ const VALIDATION_MESSAGES: Record<NodeEditError, string> = {
 };
 
 interface UseEditNodeArgs {
+  editor?: GraphNodeEditorPort;
+  initialDetails?: NodeDetails;
   open: boolean;
   node: EditableNode | null;
   grafoId: string;
@@ -33,17 +36,18 @@ export interface UseEditNode {
   loading: boolean;
   saving: boolean;
   fields: NodeEditFields;
-  setField: (key: string, value: string) => void;
-  save: () => Promise<void>;
+  save: (draft: NodeEditFields) => Promise<void>;
 }
 
 const toFields = (details: Record<string, string | null>): NodeEditFields =>
   Object.fromEntries(Object.entries(details).map(([k, v]) => [k, v ?? ""]));
 
+const NODE_DETAILS_TIMEOUT_MS = 10_000;
+
 export function useEditNode(args: UseEditNodeArgs): UseEditNode {
-  const { loading, fields, setField } = useNodeDetails(args);
-  const { saving, save } = useSaveNode(args, fields);
-  return { loading, saving, fields, setField, save };
+  const { loading, fields } = useNodeDetails(args);
+  const { saving, save } = useSaveNode(args);
+  return { loading, saving, fields, save };
 }
 
 // Loads the node details into form state when the modal opens. `loading` is
@@ -52,39 +56,52 @@ export function useEditNode(args: UseEditNodeArgs): UseEditNode {
 function useNodeDetails(args: UseEditNodeArgs): {
   loading: boolean;
   fields: NodeEditFields;
-  setField: (key: string, value: string) => void;
 } {
-  const [fields, setFields] = useState<NodeEditFields>({});
-  const [settledFor, setSettledFor] = useState<string | null>(null);
+  const [fields, setFields] = useState<NodeEditFields>(() => args.initialDetails ? toFields(args.initialDetails) : {});
+  const [settledFor, setSettledFor] = useState<string | null>(() => args.initialDetails ? args.node?.id ?? null : null);
   const nodeId = args.node?.id ?? null;
   const group = args.node?.group;
 
   useLoadNodeDetails(args, group, nodeId, setFields, setSettledFor);
 
   const loading = Boolean(args.open && nodeId && settledFor !== nodeId);
-  const setField = (key: string, value: string): void =>
-    setFields((f) => ({ ...f, [key]: value }));
-  return { loading, fields, setField };
+  return { loading, fields };
 }
 
 function useLoadNodeDetails(
-  args: UseEditNodeArgs,
-  group: string | undefined,
-  nodeId: string | null,
-  onFields: (f: NodeEditFields) => void,
-  onSettled: (id: string) => void,
+  args: UseEditNodeArgs, group: string | undefined, nodeId: string | null,
+  onFields: (f: NodeEditFields) => void, onSettled: (id: string) => void,
 ): void {
-  const { open, onOpenChange } = args;
+  const { open, onOpenChange, editor, initialDetails } = args;
   useEffect(() => {
-    if (!open || !nodeId || !group) return;
-    let ignore = false;
-    graphHttp
-      .getNodeDetails(group, nodeId)
-      .then((d): void => { if (!ignore) applyNodeDetails(d, onFields, onOpenChange); })
-      .catch((): void => { if (!ignore) toast.error("Erro ao carregar dados do nó"); })
-      .finally((): void => { if (!ignore) onSettled(nodeId); });
-    return (): void => { ignore = true; };
-  }, [open, group, nodeId, onOpenChange, onFields, onSettled]);
+    if (!open || !nodeId || initialDetails) return;
+    if (!group) return applyNodeDetails(null, onFields, onOpenChange);
+    const onError = (error: unknown): void => {
+      toast.error(editor && error instanceof Error ? error.message : "Erro ao carregar dados do nó");
+      onOpenChange(false);
+    };
+    return loadNodeDetails(editor ?? graphHttp, group, nodeId, (details): void => {
+      applyNodeDetails(details, onFields, onOpenChange);
+      onSettled(nodeId);
+    }, onError);
+  }, [open, group, nodeId, onOpenChange, onFields, onSettled, editor, initialDetails]);
+}
+
+function loadNodeDetails(
+  editor: GraphNodeEditorPort, group: string, nodeId: string,
+  onLoaded: (details: Awaited<ReturnType<GraphNodeEditorPort["getNodeDetails"]>>) => void,
+  onError: (error: unknown) => void,
+): () => void {
+  const request = new AbortController();
+  const timer = setTimeout(() => {
+    request.abort();
+    onError(new Error("Tempo esgotado ao carregar o nó. Abra a edição novamente."));
+  }, NODE_DETAILS_TIMEOUT_MS);
+  void Promise.resolve().then(() => editor.getNodeDetails(group, nodeId))
+    .then((details): void => { if (!request.signal.aborted) onLoaded(details); })
+    .catch((error: unknown): void => { if (!request.signal.aborted) onError(error); })
+    .finally(() => clearTimeout(timer));
+  return (): void => { request.abort(); clearTimeout(timer); };
 }
 
 function applyNodeDetails(
@@ -99,10 +116,9 @@ function applyNodeDetails(
 
 function useSaveNode(
   args: UseEditNodeArgs,
-  fields: NodeEditFields,
-): { saving: boolean; save: () => Promise<void> } {
+): { saving: boolean; save: (draft: NodeEditFields) => Promise<void> } {
   const [saving, setSaving] = useState(false);
-  const save = (): Promise<void> => performSave(args, fields, setSaving);
+  const save = (draft: NodeEditFields): Promise<void> => performSave(args, draft, setSaving);
   return { saving, save };
 }
 
@@ -115,7 +131,7 @@ async function performSave(
   if (!node) return;
   setSaving(true);
   try {
-    await updateNode(graphHttp, { grafoId, group: node.group, nodeId: node.id, fields });
+    await updateNode(args.editor ?? graphHttp, { grafoId, group: node.group, nodeId: node.id, fields });
     toast.success("Nó atualizado!");
     onOpenChange(false);
     onSuccess?.();

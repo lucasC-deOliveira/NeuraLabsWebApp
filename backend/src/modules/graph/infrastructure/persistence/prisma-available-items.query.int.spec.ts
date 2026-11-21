@@ -77,4 +77,25 @@ describe('Available items query (integration — neuralabs_test)', () => {
     const view = await query.listForGraph(userId, grafoId);
     expect(view.flashcards).toHaveLength(0);
   });
+
+  it('lists available owned concepts and excludes concepts already linked', async () => {
+    const { userId, grafoId } = await seedGraph();
+    const other = await seedGraph();
+    const available = await prisma.conceito.create({
+      data: { usuarioId: userId, nome: 'Available' },
+    });
+    const linked = await prisma.conceito.create({ data: { usuarioId: userId, nome: 'Linked' } });
+    await prisma.conceito.create({ data: { usuarioId: other.userId, nome: 'Private' } });
+    await prisma.nodeConhecimento.create({
+      data: {
+        usuarioId: userId,
+        tipoNode: 'CONCEITO',
+        referenciaId: linked.id,
+        contidoEm: { create: { grafoId } },
+      },
+    });
+    expect((await query.listForGraph(userId, grafoId)).conceitos).toMatchObject([
+      { id: available.id, label: 'Available' },
+    ]);
+  });
 });

@@ -1,6 +1,8 @@
 import { ZodBody } from '../common/zod-body.decorator';
 import { savePlanContract, submitReviewContract, syncVaultLogContract } from '../../../contracts/estudo-e-anexos';
 import type { SavePlanBody, SubmitReviewBody, SyncVaultLogBody } from '../../../contracts/estudo-e-anexos';
+import { vaultStudySyncRequest } from '../../../contracts/vault-study-sync';
+import type { VaultStudySyncRequest, VaultStudySyncResponse } from '../../../contracts/vault-study-sync';
 import {
   Controller,
   Delete,
@@ -40,6 +42,7 @@ import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-ca
 import { StartSingleCardStudyUseCase } from '../modules/study/application/use-cases/start-single-card-study.use-case';
 import { StartDeckStudyUseCase } from '../modules/study/application/use-cases/start-deck-study.use-case';
 import { SyncVaultLogUseCase } from '../modules/study/application/use-cases/sync-vault-log.use-case';
+import { SyncVaultStudyUseCase } from '../modules/study/application/use-cases/sync-vault-study.use-case';
 import { StudyDomainExceptionFilter } from '../modules/study/interface/study-domain-exception.filter';
 
 @UseGuards(JwtAuthGuard)
@@ -55,6 +58,7 @@ export class StudyController {
     private readonly startSingleCardStudy: StartSingleCardStudyUseCase,
     private readonly startDeckStudy: StartDeckStudyUseCase,
     private readonly syncVaultLog: SyncVaultLogUseCase,
+    private readonly syncVaultStudy: SyncVaultStudyUseCase,
     private readonly diagnoseConceptErrors: DiagnoseConceptErrorsUseCase,
     private readonly getTodayPlan: GetTodayPlanUseCase,
     private readonly saveStudyPlan: SaveStudyPlanUseCase,
@@ -112,6 +116,14 @@ export class StudyController {
   @Post('sync-vault-log')
   sync(@CurrentUser() userId: string, @ZodBody(syncVaultLogContract) body: SyncVaultLogBody) {
     return this.syncVaultLog.execute(userId, body.sessions ?? []);
+  }
+
+  @Post('vault-sync')
+  syncSelectedVaultStudy(
+    @CurrentUser() userId: string,
+    @ZodBody(vaultStudySyncRequest) body: VaultStudySyncRequest,
+  ): Promise<VaultStudySyncResponse> {
+    return this.syncVaultStudy.execute(userId, body);
   }
 
   // Todos os planos do usuário (o Dashboard usa o mais recente).

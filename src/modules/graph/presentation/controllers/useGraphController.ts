@@ -8,8 +8,9 @@ import { DEFAULT_CLUSTER_OPTIONS, type PhysicsOptions } from "../services/graph-
 import { runPresettle } from "../services/run-presettle";
 import { isFirstOpenOfGraph } from "./big-bang-guard";
 import { getFilteredNodes, getVisibleEdges } from "../../domain/selectors/graph.selectors";
-import { graphHttp } from "../../infra/http";
 import { useVaultWatch } from "../hooks/useVaultWatch";
+import { keepEquivalentVaultProjection } from "../services/vault-graph-projection";
+import type { GraphEdgeType, GraphNodeType } from "../../domain/types/graph.types";
 
 // Grafo grande: layout fica num ref (não no estado React) para evitar
 // reconciliação de 14k fibers em startTransition que leva 2-3s e trava o pan.
@@ -46,6 +47,10 @@ export function useGraphController(graphId: string) {
   const svgRef = useRef<HTMLElement | null>(null);
 
   const {
+    vaultBacked,
+    vaultSource,
+    setVaultSource,
+    setVaultBacked,
     rawNodes,
     rawEdges,
     loading,
@@ -61,7 +66,16 @@ export function useGraphController(graphId: string) {
 
   const { nodes, edges } = useGraphLayout(rawNodes, rawEdges);
 
-  useVaultWatch({ grafoId: graphId, grafoNome, rawNodes, setRawNodes, setRawEdges });
+  const applyVaultNodes = useCallback((nodes: GraphNodeType[]) => {
+    setRawNodes((current) => keepEquivalentVaultProjection(current, nodes));
+  }, [setRawNodes]);
+  const applyVaultEdges = useCallback((edges: GraphEdgeType[]) => {
+    setRawEdges((current) => keepEquivalentVaultProjection(current, edges));
+  }, [setRawEdges]);
+  useVaultWatch({
+    grafoId: graphId, grafoNome, rawNodes, setVaultBacked, setVaultSource,
+    setRawNodes: applyVaultNodes, setRawEdges: applyVaultEdges,
+  });
 
   const [layout, setLayout] = useState<SimNode[]>([]);
   // Ref-mode para grafos grandes: evita 14k itens no estado React
@@ -276,7 +290,7 @@ export function useGraphController(graphId: string) {
 
         // Anima o "big bang" (colapso → expansão) até os alvos assentados e, no fim,
         // persiste as posições recém-simuladas. Extraída para manter o build enxuto.
-        const animateBigBang = (targets: SimNode[], allPinned: boolean): void => {
+        const animateBigBang = (targets: SimNode[]): void => {
           let cx = 0;
           let cy = 0;
           for (const n of targets) {
@@ -311,14 +325,6 @@ export function useGraphController(graphId: string) {
               introRafRef.current = requestAnimationFrame(step);
             } else {
               setIntroActive(false);
-              // Persiste posições só quando foram simuladas (nós sem posição salva).
-              // Grafos com todas as posições salvas já têm dados inalterados.
-              if (!allPinned) {
-                graphHttp.saveGraphPositions(
-                  graphId,
-                  Object.fromEntries(targets.map((n) => [n.id, { x: n.x, y: n.y }])),
-                ).catch(() => { /* silencia — não bloqueia o usuário */ });
-              }
             }
           };
           introRafRef.current = requestAnimationFrame(step);
@@ -341,7 +347,7 @@ export function useGraphController(graphId: string) {
               );
           seed.then((settled) => {
             if (cancelled) return;
-            animateBigBang(settled.map((n) => ({ ...n, fixed: false, vx: 0, vy: 0 })), allPinned);
+            animateBigBang(settled.map((n) => ({ ...n, fixed: false, vx: 0, vy: 0 })));
           });
         };
 
@@ -426,6 +432,8 @@ export function useGraphController(graphId: string) {
       // ou remover a vista de um subgrafo dentro desta.
       rawNodes,
       rawEdges,
+      vaultBacked,
+      vaultSource,
       filteredNodes,
       filteredEdges,
       selectedNode: liveSelectedNode,
@@ -456,6 +464,10 @@ export function useGraphController(graphId: string) {
       setZoom,
       setPan,
       setRawNodes,
+      setVaultSource,
+      setVaultBacked,
+      applyVaultNodes,
+      applyVaultEdges,
       setRawEdges,
       setActiveTool,
       setPhysicsEnabled,

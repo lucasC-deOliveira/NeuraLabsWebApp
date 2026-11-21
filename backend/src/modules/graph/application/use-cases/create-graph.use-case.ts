@@ -23,11 +23,17 @@ export class CreateGraphUseCase {
     private readonly cache: CachePort,
   ) {}
 
-  async execute(userId: string, nome: string, descricao?: string): Promise<{ id: string }> {
+  async execute(
+    userId: string,
+    nome: string,
+    descricao?: string,
+    localId?: string,
+  ): Promise<{ id: string }> {
     const master = await this.resolveMaster(userId);
     const { grafoId } = await this.subgraphs.createSubgraph(userId, master, {
       nome: nome.trim() || 'Novo grafo',
       descricao,
+      localId,
       tipoRelacao: DEFAULT_SUBGRAPH_RELATION,
     });
     // Nova vista na lista do usuário → a listagem cacheada desse usuário some.

@@ -23,7 +23,11 @@ contextBridge.exposeInMainWorld("neuralabs", {
   },
   vault: {
     getPath: () => ipcRenderer.invoke("vault:get-path"),
+    listGraphFolders: () => ipcRenderer.invoke("vault:list-graph-folders"),
+    listExamAttempts: (dir) => ipcRenderer.invoke("vault:list-exam-attempts", dir),
     pickFolder: () => ipcRenderer.invoke("vault:pick-folder"),
+    readStudy: (folder) => ipcRenderer.invoke("vault:study-read", folder),
+    writeStudy: (update) => ipcRenderer.invoke("vault:study-write", update),
     read: (dir) => ipcRenderer.invoke("vault:read", dir),
     write: (dir, files) => ipcRenderer.invoke("vault:write", { dir, files }),
     openFolder: (dir) => ipcRenderer.invoke("vault:open-folder", dir),
@@ -32,6 +36,9 @@ contextBridge.exposeInMainWorld("neuralabs", {
     checkModified: (dir, since) => ipcRenderer.invoke("vault:check-modified", { dir, since }),
     readFile: (dir, relPath) => ipcRenderer.invoke("vault:read-file", { dir, relPath }),
     writeFile: (dir, relPath, content) => ipcRenderer.invoke("vault:write-file", { dir, relPath, content }),
+    replaceGraphMarkdown: (dir, relPath, expected, next) =>
+      ipcRenderer.invoke("vault:replace-graph-markdown", { dir, relPath, expected, next }),
+    replaceGraphMarkdownBatch: (writes) => ipcRenderer.invoke("vault:replace-graph-markdown-batch", writes),
     deleteFiles: (dir, relPaths) => ipcRenderer.invoke("vault:delete-files", { dir, relPaths }),
     watch: (dir, watchId) => ipcRenderer.invoke("vault:watch", { dir, watchId }),
     unwatch: (watchId) => ipcRenderer.invoke("vault:unwatch", watchId),

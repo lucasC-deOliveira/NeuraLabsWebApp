@@ -16,6 +16,7 @@ import {
 } from "@/lib/study-plan-api";
 import { getBaralhos } from "@/lib/baralhos-api";
 import { listProvas } from "@/lib/provas-api";
+import type { VaultPlanSetupPort } from "@/modules/study/application/vault-study-plan.port";
 
 interface GraphOption {
   id: string;
@@ -49,11 +50,12 @@ const inferObjetivo = (prioridade?: string): Objetivo => (prioridade && priorida
 
 // Assistente de 3 passos: Objetivo → Conteúdo → Ritmo. O objetivo determina a ordem
 // (prioridade) automaticamente; a prova/edital vêm de dentro do grafo escolhido.
-export function PlanSetup({ graphs, initial, onSaved, onCancel }: {
+export function PlanSetup({ graphs, initial, onSaved, onCancel, vault }: {
   graphs: GraphOption[];
   initial: StudyPlan | null;
   onSaved: (plan: StudyPlan) => void;
   onCancel?: () => void;
+  vault?: VaultPlanSetupPort;
 }) {
   const editing = initial !== null;
   const [step, setStep] = useState(1);
@@ -74,31 +76,34 @@ export function PlanSetup({ graphs, initial, onSaved, onCancel }: {
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
+    if (vault) return;
     let active = true;
     Promise.all(grafoIds.map((g) => getGraphRoadmaps(g).then((rs) => [g, rs] as const).catch(() => [g, []] as const)))
       .then((pairs) => { if (active) setRoadmapsByGraph(Object.fromEntries(pairs)); });
     return () => { active = false; };
-  }, [grafoIds]);
+  }, [grafoIds, vault]);
 
   useEffect(() => {
     let active = true;
-    getPlanScope(grafoIds)
+    (vault ? vault.scope(grafoIds) : getPlanScope(grafoIds))
       .then((s) => { if (active) setScope(s); })
       .catch(() => { if (active) setScope({ hasProva: false, hasEdital: false }); });
     return () => { active = false; };
-  }, [grafoIds]);
+  }, [grafoIds, vault]);
 
   useEffect(() => {
     let active = true;
-    Promise.all([getBaralhos(), listProvas()])
-      .then(([bs, ps]) => {
+    const sources = vault ? vault.sources()
+      : Promise.all([getBaralhos(), listProvas()]).then(([decks, exams]) => ({ decks, exams }));
+    sources
+      .then(({ decks, exams }) => {
         if (!active) return;
-        setBaralhos(bs.map((b) => ({ id: b.id, titulo: b.titulo })));
-        setProvas(ps.map((p) => ({ id: p.id, titulo: p.titulo })));
+        setBaralhos(decks.map((b) => ({ id: b.id, titulo: b.titulo })));
+        setProvas(exams.map((p) => ({ id: p.id, titulo: p.titulo })));
       })
       .catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [vault]);
 
   // A prova/edital pode vir do conteúdo (provaIds) OU de dentro dos grafos escolhidos.
   const provaAvailable = provaIds.length > 0 || scope.hasProva;
@@ -129,12 +134,13 @@ export function PlanSetup({ graphs, initial, onSaved, onCancel }: {
     }
     setSaving(true);
     try {
-      await ensureRoadmaps();
-      const plan = await saveStudyPlan({
+      if (!vault) await ensureRoadmaps();
+      const input = {
         id: initial?.id, grafoIds, prioridade, metaTipo, metaValor: valor,
         dataAlvo: iso(dataAlvo), baralhoIds, provaIds,
         conceitosExcluidos: initial?.conceitosExcluidos ?? [],
-      });
+      };
+      const plan = await (vault ? vault.save(input) : saveStudyPlan(input));
       toast.success("Plano salvo!");
       onSaved(plan);
     } catch {
@@ -160,14 +166,14 @@ export function PlanSetup({ graphs, initial, onSaved, onCancel }: {
             <ObjetivoCard
               icon={<TargetIcon className="size-5" />}
               title="Passar numa prova"
-              desc="Estude focado no que mais cai e no que o edital cobra."
+              desc={vault ? "Estude pelas questões disponíveis das provas no vault." : "Estude focado no que mais cai e no que o edital cobra."}
               on={objetivo === "prova"}
               onClick={() => setObjetivo("prova")}
             />
             <ObjetivoCard
               icon={<NetworkIcon className="size-5" />}
               title="Dominar um assunto"
-              desc="Aprenda todo o grafo, na ordem que a IA prioriza."
+              desc={vault ? "Siga a ordem dos pré-requisitos do grafo baixado." : "Aprenda todo o grafo, na ordem que a IA prioriza."}
               on={objetivo === "grafo"}
               onClick={() => setObjetivo("grafo")}
             />

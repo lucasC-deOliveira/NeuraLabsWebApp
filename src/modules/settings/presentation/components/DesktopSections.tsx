@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FolderTreeIcon, FolderOpenIcon, TerminalIcon } from "lucide-react";
 import { desktop } from "@/lib/vault-bridge";
+import { VaultStudySyncControls } from "./VaultStudySyncControls";
 
 const CLAUDE_CODE_PROXY_PORT = 11435;
 
@@ -24,12 +25,11 @@ function VaultCard({ vaultPath, onPickVault }: { vaultPath: string | null; onPic
       <CardHeader className="px-3 sm:px-6">
         <CardTitle className="text-base sm:text-lg flex items-center gap-2">
           <FolderTreeIcon className="size-5" />
-          Vault (Markdown)
+          Vault
         </CardTitle>
         <CardDescription className="text-xs sm:text-sm">
-          Pasta local de arquivos Markdown (formato PARA), editável no Obsidian
-          ou pelo Claude Code. Define a pasta aqui; a sincronização (Pull/Push)
-          é feita por grafo, no botão <strong>Vault</strong> dentro de cada grafo.
+          Esta pasta guarda os baralhos, flashcards e revisões usados no desktop.
+          Para sincronizar os arquivos Markdown de um grafo, use o botão <strong>Vault</strong> no próprio grafo.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 px-3 sm:px-6">
@@ -54,6 +54,7 @@ function VaultCard({ vaultPath, onPickVault }: { vaultPath: string | null; onPic
             <FolderOpenIcon className="size-4" /> Abrir pasta
           </Button>
         )}
+        {vaultPath && <VaultStudySyncControls key={vaultPath} folder={vaultPath} />}
       </CardContent>
     </Card>
   );

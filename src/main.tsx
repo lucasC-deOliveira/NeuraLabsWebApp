@@ -19,12 +19,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/app-shell";
 import { getToken } from "@/lib/api";
+import { isDesktop } from "@/lib/vault-bridge";
 
 import DashboardPage from "@/app/page";
 import FlashcardsPage from "@/app/flashcards/page";
 import NewFlashcardPage from "@/app/flashcards/new/page";
 import BaralhosPage from "@/app/baralhos/page";
 import BaralhoDetailPage from "@/app/baralhos/[id]/page";
+import OfflineBaralhosPage from "@/app/baralhos/offline/page";
 import NotesPage from "@/app/notes/page";
 import NewNotePage from "@/app/notes/new/page";
 import NoteDetailPage from "@/app/notes/[id]/page";
@@ -42,12 +44,14 @@ import NewProvaPage from "@/app/provas/new/page";
 import ProvaDetailPage from "@/app/provas/[id]/page";
 import AnalyticsPage from "@/app/analytics/page";
 import EstudoPage from "@/app/estudo/page";
+import { VaultStudySyncPrompt } from "@/modules/study/presentation/VaultStudySyncPrompt";
 
 const AUTH_PATHS = ["/login", "/register"];
 
 // Gate de autenticação (substitui o middleware proxy.ts): sem token vai p/ login.
-function RequireAuth({ children }: { children: React.ReactNode }) {
+function RequireAuth({ children, desktopLocal = false }: { children: React.ReactNode; desktopLocal?: boolean }) {
   const loc = useLocation();
+  if (desktopLocal && isDesktop()) return <>{children}</>;
   if (!getToken()) {
     const callbackUrl = encodeURIComponent(loc.pathname);
     return <Navigate to={`/login?callbackUrl=${callbackUrl}`} replace />;
@@ -62,23 +66,27 @@ function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  const { pathname } = useLocation();
+  const pauseSyncPrompt = AUTH_PATHS.includes(pathname)
+    || pathname === "/settings" || pathname.startsWith("/settings/");
   return (
     <AppShell authPaths={AUTH_PATHS}>
       <TooltipProvider>
         <Routes>
           <Route path="/login" element={<RedirectIfAuthed><LoginPage /></RedirectIfAuthed>} />
           <Route path="/register" element={<RedirectIfAuthed><RegisterPage /></RedirectIfAuthed>} />
-          <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
-          <Route path="/flashcards" element={<RequireAuth><FlashcardsPage /></RequireAuth>} />
-          <Route path="/flashcards/new" element={<RequireAuth><NewFlashcardPage /></RequireAuth>} />
-          <Route path="/estudo" element={<RequireAuth><EstudoPage /></RequireAuth>} />
-          <Route path="/baralhos" element={<RequireAuth><BaralhosPage /></RequireAuth>} />
-          <Route path="/baralhos/:id" element={<RequireAuth><BaralhoDetailPage /></RequireAuth>} />
+          <Route path="/" element={<RequireAuth desktopLocal><DashboardPage /></RequireAuth>} />
+          <Route path="/flashcards" element={<RequireAuth desktopLocal><FlashcardsPage /></RequireAuth>} />
+          <Route path="/flashcards/new" element={<RequireAuth desktopLocal><NewFlashcardPage /></RequireAuth>} />
+          <Route path="/estudo" element={<RequireAuth desktopLocal><EstudoPage /></RequireAuth>} />
+          <Route path="/baralhos" element={<RequireAuth desktopLocal><BaralhosPage /></RequireAuth>} />
+          <Route path="/baralhos/offline" element={<RequireAuth><OfflineBaralhosPage /></RequireAuth>} />
+          <Route path="/baralhos/:id" element={<RequireAuth desktopLocal><BaralhoDetailPage /></RequireAuth>} />
           <Route path="/notes" element={<RequireAuth><NotesPage /></RequireAuth>} />
           <Route path="/notes/new" element={<RequireAuth><NewNotePage /></RequireAuth>} />
           <Route path="/notes/:id" element={<RequireAuth><NoteDetailPage /></RequireAuth>} />
-          <Route path="/graph" element={<RequireAuth><GraphPage /></RequireAuth>} />
-          <Route path="/graph/:id" element={<RequireAuth><GraphDetailPage /></RequireAuth>} />
+          <Route path="/graph" element={<RequireAuth desktopLocal><GraphPage /></RequireAuth>} />
+          <Route path="/graph/:id" element={<RequireAuth desktopLocal><GraphDetailPage /></RequireAuth>} />
           <Route path="/vr/:id" element={<RequireAuth><VRPage /></RequireAuth>} />
           <Route path="/questions" element={<RequireAuth><QuestoesPage /></RequireAuth>} />
           <Route path="/questions/new" element={<RequireAuth><NewQuestaoPage /></RequireAuth>} />
@@ -86,10 +94,11 @@ function App() {
           <Route path="/provas/new" element={<RequireAuth><NewProvaPage /></RequireAuth>} />
           <Route path="/provas/:id" element={<RequireAuth><ProvaDetailPage /></RequireAuth>} />
           <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
-          <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
-          <Route path="/settings/:secao" element={<RequireAuth><SettingsSectionPage /></RequireAuth>} />
+          <Route path="/settings" element={<RequireAuth desktopLocal><SettingsPage /></RequireAuth>} />
+          <Route path="/settings/:secao" element={<RequireAuth desktopLocal><SettingsSectionPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {isDesktop() && <VaultStudySyncPrompt paused={pauseSyncPrompt} />}
         <Toaster />
       </TooltipProvider>
     </AppShell>

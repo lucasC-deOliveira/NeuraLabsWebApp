@@ -81,6 +81,15 @@ const baralhoCard = z
     tipo: z.string().nullable(),
     conceito: z.string(),
     conceitosConectados: z.array(conceptTag),
+    schedule: z.object({
+      fase: z.string(),
+      learningStep: z.number(),
+      dificuldade: z.number(),
+      intervalo: z.number(),
+      fatorEase: z.number(),
+      proximaRevisao: z.string(),
+      ultimaRevisao: z.string(),
+    }).nullable().optional(),
   })
   .passthrough();
 

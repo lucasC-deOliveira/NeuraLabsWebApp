@@ -7,6 +7,7 @@ import {
   provaAttemptContract,
   suggestConceitosContract,
   updateProvaContract,
+  vaultProvaAttemptContract,
 } from '../../../contracts/provas';
 import type {
   CreateEditalBody,
@@ -16,6 +17,8 @@ import type {
   ProvaAttemptBody,
   SuggestConceitosBody,
   UpdateProvaBody,
+  VaultProvaAttemptBody,
+  VaultExamHistoryPage,
 } from '../../../contracts/provas';
 import {
   Controller,
@@ -25,6 +28,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   UseFilters,
   UseInterceptors,
@@ -51,6 +55,7 @@ import {
   ListEditaisUseCase,
 } from '../modules/provas/application/use-cases/edital.use-cases';
 import { ProvasExceptionFilter } from '../modules/provas/interface/provas-exception.filter';
+import type { RecordedProvaAttempt } from '../modules/provas/domain/ports/prova-attempt-repository';
 
 @Controller('provas')
 @UseGuards(JwtAuthGuard)
@@ -128,6 +133,24 @@ export class ProvasController {
     @ZodBody(provaAttemptContract) dto: ProvaAttemptBody,
   ): Promise<{ id: string }> {
     return this.recordProvaAttempt.execute(userId, { ...dto, provaId });
+  }
+
+  @Post(':id/tentativas/vault')
+  recordVaultAttempt(
+    @CurrentUser() userId: string,
+    @Param('id') provaId: string,
+    @ZodBody(vaultProvaAttemptContract) dto: VaultProvaAttemptBody,
+  ): Promise<RecordedProvaAttempt> {
+    return this.recordProvaAttempt.execute(userId, { ...dto, provaId });
+  }
+
+  @Get('vault/:graphId/tentativas')
+  listVaultAttempts(
+    @CurrentUser() userId: string,
+    @Param('graphId') graphId: string,
+    @Query('after') after?: string,
+  ): Promise<VaultExamHistoryPage> {
+    return this.recordProvaAttempt.listVaultHistory(userId, graphId, after);
   }
 
   // Cria o nó EDITAL (título + programa); com provaId, vincula 1:1 à prova.

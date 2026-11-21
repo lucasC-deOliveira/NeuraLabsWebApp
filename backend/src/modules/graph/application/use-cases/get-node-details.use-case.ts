@@ -1,4 +1,8 @@
-import type { NodeDetails, NodeDetailsQuery } from '../../domain/ports/node-details-query';
+import type {
+  ConceptGraphMembership,
+  NodeDetails,
+  NodeDetailsQuery,
+} from '../../domain/ports/node-details-query';
 
 /**
  * Returns a node's content (shaped by its type), or null when not owned.
@@ -9,5 +13,12 @@ export class GetNodeDetailsUseCase {
 
   execute(userId: string, tipoNode: string, refId: string): Promise<NodeDetails | null> {
     return this.nodes.findDetails(userId, tipoNode, refId);
+  }
+
+  /** Returns the affected graphs before a concept is edited.
+   * @example getNodeDetails.listConceptGraphs('u1', 'concept-1')
+   */
+  listConceptGraphs(userId: string, refId: string): Promise<ConceptGraphMembership[]> {
+    return this.nodes.findConceptGraphs(userId, refId);
   }
 }

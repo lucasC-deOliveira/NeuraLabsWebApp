@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import GraphListPage from "./page";
-import { listUserGraphs, type GraphListParams } from "@/lib/graph-api";
+import { createGrafo, listUserGraphs, type GraphListParams } from "@/lib/graph-api";
+import { desktop, isDesktop, type VaultFile } from "@/lib/vault-bridge";
+import { VAULT_GRAPH_MANIFEST } from "@/lib/vault-graph-manifest";
 
 vi.mock("@/lib/graph-api", () => ({
   listUserGraphs: vi.fn(),
@@ -12,8 +15,21 @@ vi.mock("@/lib/graph-api", () => ({
 vi.mock("@/components/link", () => ({ Link: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock("@/lib/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/lib/vault-bridge", () => ({
+  isDesktop: vi.fn(() => false),
+  desktop: {
+    vault: {
+      getPath: vi.fn(),
+      listGraphFolders: vi.fn(async () => []),
+      write: vi.fn(async (_dir: string, files: VaultFile[]) => ({ written: files.length })),
+    },
+  },
+}));
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(isDesktop).mockReturnValue(false);
+});
 
 const page = (items: unknown[]) => ({ items, total: items.length, page: 1, pageSize: 12 });
 
@@ -30,6 +46,21 @@ function mockGraphs(master: unknown, subgrafos: unknown[]): void {
 const master = { id: "master", nome: "Meu Conhecimento", parentGrafoId: null, filhosCount: 2 };
 
 describe("GraphListPage", () => {
+  it("creates a local graph with an offline desktop session", async () => {
+    vi.mocked(isDesktop).mockReturnValue(true);
+    vi.mocked(desktop.vault.getPath).mockResolvedValue("C:/vault");
+    render(<GraphListPage />);
+
+    const name = screen.getByRole("textbox", { name: "Nome do grafo" });
+    await userEvent.type(name, "Biologia");
+    await userEvent.click(screen.getByRole("button", { name: "Criar" }));
+    expect(createGrafo).not.toHaveBeenCalled();
+    expect(desktop.vault.write).toHaveBeenCalledWith(
+      expect.stringMatching(/^C:\/vault\/biologia--/),
+      expect.arrayContaining([expect.objectContaining({ relPath: VAULT_GRAPH_MANIFEST })]),
+    );
+  });
+
   it("pins the master graph at the top", async () => {
     mockGraphs(master, []);
     render(<GraphListPage />);

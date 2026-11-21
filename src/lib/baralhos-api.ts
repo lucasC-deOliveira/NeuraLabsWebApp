@@ -33,6 +33,7 @@ export interface BaralhoCard {
   tipo: string | null;
   conceito: string;
   conceitosConectados: ConceptTag[];
+  schedule?: import("zod").infer<typeof baralhoDetailResponse>["cards"][number]["schedule"];
 }
 
 export interface BaralhoDetail {

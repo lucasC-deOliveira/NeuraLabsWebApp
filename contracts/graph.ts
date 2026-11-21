@@ -39,6 +39,11 @@ export const createGraphContract = z.object({
 });
 export type CreateGraphBody = z.infer<typeof createGraphContract>;
 
+export const registerVaultGraphContract = createGraphContract.extend({
+  localId: z.string().uuid(),
+});
+export type RegisterVaultGraphBody = z.infer<typeof registerVaultGraphContract>;
+
 export const renameGraphContract = z.object({
   nome: z.string().trim().min(1, "Informe o nome do grafo"),
 });
@@ -252,5 +257,6 @@ const vaultEdge = z.object({
 export const vaultSyncContract = z.object({
   nodes: z.array(vaultNode),
   edges: z.array(vaultEdge),
+  preserveExistingRelations: z.boolean().optional(),
 });
 export type VaultSyncBody = z.infer<typeof vaultSyncContract>;

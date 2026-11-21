@@ -4,6 +4,7 @@ import type { AvailableItem } from '../services/available-item';
 // kind, for the "add node" picker.
 export interface AvailableItemsView {
   flashcards: AvailableItem[];
+  conceitos: AvailableItem[];
   notas: AvailableItem[];
   questoes: AvailableItem[];
   provas: AvailableItem[];

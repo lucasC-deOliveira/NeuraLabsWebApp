@@ -1,6 +1,7 @@
 // View-model types + pure helpers for the edge manager modal. Shared by
 // useEdgeManager and useEdgeActions (kept in one module to avoid an import cycle).
 import type { EdgeFormValues } from "../../domain/services/edge-form-validation";
+import type { GraphEdgesPort } from "../../application/ports/graph-edges.port";
 
 export interface EdgeManagerEdge {
   id: string;
@@ -27,6 +28,9 @@ export interface EditorState {
 }
 
 export interface EdgeManagerProps {
+  beforeUpdate?: (edge: EdgeManagerEdge) => Promise<boolean>;
+  edgePort?: GraphEdgesPort;
+  localNodes?: EdgeNode[];
   open: boolean;
   grafoId: string;
   onOpenChange: (open: boolean) => void;

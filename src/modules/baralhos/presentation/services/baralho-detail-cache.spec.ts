@@ -1,6 +1,8 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { loadCachedBaralho, saveCachedBaralho, forgetCachedBaralho } from "./baralho-detail-cache";
 import type { BaralhoDetail } from "../../domain/baralho.types";
+
+vi.mock("../../infra/offline-deck-library", () => ({ getOfflineAccountScope: () => "test-scope" }));
 
 // API Storage suficiente para load/save/forget (get/set/remove). A robustez do
 // mecanismo (JSON corrompido, versão antiga) é coberta em local-cache-store.spec.
@@ -44,6 +46,12 @@ beforeEach(() => {
 });
 
 describe("baralho-detail-cache", () => {
+  it("does not share a cached deck with another account or server", () => {
+    saveCachedBaralho(detail(), "server-a:account-a");
+    expect(loadCachedBaralho("b1", "server-a:account-a")).not.toBeNull();
+    expect(loadCachedBaralho("b1", "server-a:account-b")).toBeNull();
+    expect(loadCachedBaralho("b1", "server-b:account-a")).toBeNull();
+  });
   it("returns null when the deck was never cached", () => {
     expect(loadCachedBaralho("b1")).toBeNull();
   });

@@ -62,4 +62,21 @@ describe('Subgraph creation (integration — neuralabs_test)', () => {
       createSubgraph.execute(intruder.userId, grafoId, { nome: 'Sub', tipoRelacao: 'APROFUNDA' }),
     ).rejects.toBeInstanceOf(ParentGraphNotFoundError);
   });
+
+  it('retries registration with the same graph and parent reference', async () => {
+    const { userId, grafoId } = await seedGraph();
+    const repository = new PrismaCreateSubgraphRepository(prisma);
+    const localId = 'a20e47ff-3fe9-4e32-aad2-5ff22c23626c';
+    const input = { nome: 'Biology', tipoRelacao: 'RELACIONADO', localId };
+    await repository.createSubgraph(userId, grafoId, input);
+    await expect(repository.createSubgraph(userId, grafoId, input)).resolves.toEqual({
+      grafoId: localId,
+      grafoRefNodeId: localId,
+    });
+    expect(
+      await prisma.grafoNode.count({
+        where: { grafoId, node: { tipoNode: 'GRAFO_REF', referenciaId: localId } },
+      }),
+    ).toBe(1);
+  });
 });

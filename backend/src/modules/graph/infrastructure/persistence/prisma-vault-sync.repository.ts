@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   type Prisma,
-  type SubtipoNota,
+  SubtipoNota,
   type TipoNode,
   type TipoQuestao,
   type TipoRelacao,
@@ -26,6 +26,13 @@ import { containNode, createContainedNode, releaseNode } from './node-containmen
 
 type Tx = Prisma.TransactionClient;
 type EntityUpserter = (tx: Tx, userId: string, n: VaultNode, now: Date) => Promise<void>;
+const VAULT_SYNC_TRANSACTION = { maxWait: 10_000, timeout: 90_000 };
+
+function vaultNoteSubtype(raw: string | undefined): SubtipoNota | undefined {
+  const normalized = raw?.normalize('NFD').replace(/\p{M}/gu, '').trim();
+  const key = normalized?.toUpperCase().replace(/[\s-]+/g, '_');
+  return Object.values(SubtipoNota).find((subtype) => subtype === key);
+}
 
 const structuralFields = (n: VaultNode): { nome: string; descricao: string | null } => ({
   nome: (n.nome ?? '').trim() || 'Sem título',
@@ -81,15 +88,18 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
   ): Promise<VaultSyncResult> {
     const nodes = payload?.nodes ?? [];
     const edges = payload?.edges ?? [];
+    // The snapshot must remain atomic even when several hundred nodes need links.
     return this.prisma.$transaction(async (tx) => {
       const removed = await this.removeMissing(tx, userId, grafoId, nodes);
-      const { created, updated } = await this.upsertNodes(tx, userId, grafoId, nodes);
-      const byRef = await this.loadByRef(tx, userId, grafoId);
-      const edgeCount = await this.replaceEdges(tx, grafoId, edges, byRef);
-      await this.syncDecks(tx, edges, byRef);
-      await this.syncProvas(tx, edges, byRef);
+      const { created, updated, byRef } = await this.upsertNodes(tx, userId, grafoId, nodes);
+      const preserve = payload.preserveExistingRelations ?? false;
+      const edgeCount = preserve
+        ? await this.mergeEdges(tx, edges, byRef)
+        : await this.replaceEdges(tx, grafoId, edges, byRef);
+      await this.syncDecks(tx, edges, byRef, preserve);
+      await this.syncProvas(tx, edges, byRef, preserve);
       return { created, updated, edges: edgeCount, removed };
-    });
+    }, VAULT_SYNC_TRANSACTION);
   }
 
   // Tira da VISTA os nós que sumiram da pasta (só quando a pasta traz nós — payload
@@ -121,16 +131,17 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     userId: string,
     grafoId: string,
     nodes: VaultNode[],
-  ): Promise<{ created: number; updated: number }> {
+  ): Promise<{ created: number; updated: number; byRef: Map<string, GraphNodeRef> }> {
     const now = new Date();
+    const byRef = await this.loadByRef(tx, userId, grafoId);
     let created = 0;
     let updated = 0;
     for (const n of nodes) {
       await this.upsertEntity(tx, userId, n, now);
-      if (await this.upsertNodeLink(tx, userId, grafoId, n)) updated++;
+      if (await this.upsertNodeLink(tx, userId, grafoId, n, byRef)) updated++;
       else created++;
     }
-    return { created, updated };
+    return { created, updated, byRef };
   }
 
   // Returns true when an existing link was updated, false when a new one was created.
@@ -139,13 +150,12 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     userId: string,
     grafoId: string,
     n: VaultNode,
+    byRef: Map<string, GraphNodeRef>,
   ): Promise<boolean> {
-    const existing = await tx.nodeConhecimento.findFirst({
-      where: { referenciaId: n.ref, usuarioId: userId, contidoEm: { some: { grafoId } } },
-      select: { id: true },
-    });
+    const existing = byRef.get(n.ref);
     if (!existing) {
-      await this.createNodeLink(tx, userId, grafoId, n);
+      const id = await this.createNodeLink(tx, userId, grafoId, n);
+      byRef.set(n.ref, { id, tipoNode: n.tipo, referenciaId: n.ref });
       return false;
     }
     await this.updateNodeLink(tx, grafoId, existing.id, n);
@@ -172,9 +182,9 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     userId: string,
     grafoId: string,
     n: VaultNode,
-  ): Promise<void> {
+  ): Promise<string> {
     const dados = linkData(n);
-    await createContainedNode(tx, {
+    return createContainedNode(tx, {
       usuarioId: userId,
       grafoId,
       tipoNode: n.tipo as TipoNode,
@@ -236,15 +246,35 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     });
   }
 
+  /** A first publication cannot treat missing local edges as server deletions.
+   * @example await this.mergeEdges(tx, payload.edges, refs)
+   */
+  private async mergeEdges(
+    tx: Tx,
+    edges: VaultPayload['edges'],
+    byRef: Map<string, GraphNodeRef>,
+  ): Promise<number> {
+    const data = planVaultEdges(edges, byRef).map((edge) => ({
+      nodeOrigemId: edge.nodeOrigemId,
+      nodeDestinoId: edge.nodeDestinoId,
+      tipoRelacao: edge.relacao as TipoRelacao,
+      peso: edge.peso,
+    }));
+    const { count } = await tx.conhecimentoAresta.createMany({ data, skipDuplicates: true });
+    return count;
+  }
+
   private async syncDecks(
     tx: Tx,
     edges: VaultPayload['edges'],
     byRef: Map<string, GraphNodeRef>,
+    preserve: boolean,
   ): Promise<void> {
     for (const { baralhoRef, fcRefs } of baralhoFlashcardPairs(edges, byRef)) {
+      const members = fcRefs.map((id) => ({ id }));
       await tx.baralho.update({
         where: { id: baralhoRef },
-        data: { flashcards: { set: fcRefs.map((id) => ({ id })) } },
+        data: { flashcards: preserve ? { connect: members } : { set: members } },
       });
     }
   }
@@ -259,16 +289,18 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     tx: Tx,
     edges: VaultPayload['edges'],
     byRef: Map<string, GraphNodeRef>,
+    preserve: boolean,
   ): Promise<void> {
     for (const { provaRef, questaoRefs } of provaQuestaoPairs(edges, byRef)) {
       const atuais = await tx.provaQuestao.findMany({
         where: { provaId: provaRef },
         select: { questaoId: true, ordem: true },
       });
-      await tx.provaQuestao.deleteMany({ where: { provaId: provaRef } });
+      if (!preserve) await tx.provaQuestao.deleteMany({ where: { provaId: provaRef } });
       const linhas = planProvaQuestoes(questaoRefs, atuais);
       await tx.provaQuestao.createMany({
         data: linhas.map((l) => ({ provaId: provaRef, ...l })),
+        skipDuplicates: preserve,
       });
     }
   }
@@ -282,21 +314,21 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
   private readonly entityUpserters: Record<string, EntityUpserter> = {
     ASSUNTO: async (tx, userId, n) => {
       await tx.assunto.upsert({
-        where: { id: n.ref },
+        where: { id: n.ref, usuarioId: userId },
         create: { id: n.ref, ...structuralFields(n), usuarioId: userId },
         update: structuralFields(n),
       });
     },
     TOPICO: async (tx, userId, n) => {
       await tx.topico.upsert({
-        where: { id: n.ref },
+        where: { id: n.ref, usuarioId: userId },
         create: { id: n.ref, ...structuralFields(n), usuarioId: userId },
         update: structuralFields(n),
       });
     },
     CONCEITO: async (tx, userId, n) => {
       await tx.conceito.upsert({
-        where: { id: n.ref },
+        where: { id: n.ref, usuarioId: userId },
         create: { id: n.ref, ...structuralFields(n), usuarioId: userId },
         update: structuralFields(n),
       });
@@ -304,7 +336,7 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     FLASHCARD: async (tx, userId, n, now) => {
       const data = { pergunta: (n.pergunta ?? '').trim(), resposta: (n.resposta ?? '').trim() };
       await tx.flashcard.upsert({
-        where: { id: n.ref },
+        where: { id: n.ref, usuarioId: userId },
         create: { id: n.ref, ...data, usuarioId: userId, dataCriacao: now },
         update: data,
       });
@@ -314,7 +346,7 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
       const titulo = (n.titulo ?? '').trim() || 'Texto sem título';
       const data = { titulo, texto: n.texto ?? '' };
       await tx.textoBruto.upsert({
-        where: { id: n.ref },
+        where: { id: n.ref, usuarioId: userId },
         create: { id: n.ref, ...data, usuarioId: userId, dataCriacao: now },
         update: data,
       });
@@ -322,7 +354,7 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     BARALHO: async (tx, userId, n, now) => {
       const titulo = (n.titulo ?? n.nome ?? '').trim() || 'Baralho';
       await tx.baralho.upsert({
-        where: { id: n.ref },
+        where: { id: n.ref, usuarioId: userId },
         create: { id: n.ref, titulo, usuarioId: userId, dataCriacao: now },
         update: { titulo },
       });
@@ -332,7 +364,7 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
     QUESTION: async (tx, userId, n, now) => {
       const data = questaoFields(n);
       await tx.questao.upsert({
-        where: { id: n.ref },
+        where: { id: n.ref, usuarioId: userId },
         create: {
           id: n.ref,
           ...(data as Prisma.QuestaoUncheckedCreateInput),
@@ -348,7 +380,7 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
         descricao: n.descricao ?? null,
       };
       await tx.prova.upsert({
-        where: { id: n.ref },
+        where: { id: n.ref, usuarioId: userId },
         create: { id: n.ref, ...data, usuarioId: userId, dataCriacao: now },
         update: data,
       });
@@ -360,11 +392,12 @@ export class PrismaVaultSyncRepository implements VaultSyncRepository {
       titulo: (n.titulo ?? '').trim() || 'Sem título',
       conteudo: n.conteudo ?? '',
       tipoNota: n.tipoNota || 'PERMANENTE',
-      subtipo: (n.subtipo ?? '') as SubtipoNota,
+      // Legacy Markdown can omit the optional enum. An empty string is not a Prisma value.
+      subtipo: vaultNoteSubtype(n.subtipo),
       fonte: n.fonte ?? null,
     };
     await tx.nota.upsert({
-      where: { id: n.ref },
+      where: { id: n.ref, usuarioId: userId },
       create: { id: n.ref, ...shared, slug: n.ref, usuarioId: userId, dataCriacao: now },
       update: shared,
     });

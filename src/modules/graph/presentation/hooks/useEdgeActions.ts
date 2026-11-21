@@ -22,6 +22,7 @@ const EDGE_ERROR_MESSAGES: Record<EdgeFormError, string> = {
   "edge-missing-fields": "Preencha todos os campos obrigatórios",
   "edge-same-node": "Origem e destino não podem ser o mesmo nó",
   "edge-incomplete": "Dados incompletos",
+  "edge-invalid-weight": "O peso deve ser maior que 0 e no máximo 2.",
 };
 
 export interface EdgeActions {
@@ -81,13 +82,21 @@ function finishMutation(ctx: EdgeActionCtx, resetEditor: boolean): void {
   ctx.router.refresh();
 }
 
+function allowEdgeUpdate({ props, editor }: EdgeActionCtx): Promise<boolean> {
+  const { selected } = editor;
+  if (!selected || !props.beforeUpdate) return Promise.resolve(true);
+  return props.beforeUpdate(selected);
+}
+
 async function performEdgeSubmit(ctx: EdgeActionCtx): Promise<void> {
   const { props, editor, setLoading } = ctx;
   const isAdd = editor.mode === "add";
+  const port = props.edgePort ?? graphHttp;
   setLoading(true);
   try {
-    if (isAdd) await createGraphEdge(graphHttp, props.grafoId, editor.form);
-    else await updateGraphEdge(graphHttp, editor.selected?.id ?? null, props.grafoId, editor.form);
+    if (!isAdd && !(await allowEdgeUpdate(ctx))) return;
+    if (isAdd) await createGraphEdge(port, props.grafoId, editor.form);
+    else await updateGraphEdge(port, editor.selected?.id ?? null, props.grafoId, editor.form);
     toast.success(isAdd ? "Relação criada com sucesso!" : "Relação atualizada com sucesso!");
     finishMutation(ctx, true);
   } catch (e) {
@@ -98,10 +107,9 @@ async function performEdgeSubmit(ctx: EdgeActionCtx): Promise<void> {
 }
 
 async function performEdgeDelete(ctx: EdgeActionCtx, edgeId: string): Promise<void> {
-  if (!window.confirm("Tem certeza que deseja remover esta relação?")) return;
   ctx.setLoading(true);
   try {
-    await deleteGraphEdge(graphHttp, edgeId, ctx.props.grafoId);
+    await deleteGraphEdge(ctx.props.edgePort ?? graphHttp, edgeId, ctx.props.grafoId);
     toast.success("Relação removida com sucesso!");
     finishMutation(ctx, false);
   } catch (e) {

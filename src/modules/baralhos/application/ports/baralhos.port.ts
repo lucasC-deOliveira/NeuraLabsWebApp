@@ -6,7 +6,7 @@ export interface BaralhosPort {
   listBaralhos(): Promise<BaralhoItem[]>;
   // Flashcards do usuário candidatos a entrar num baralho. Vem da borda de conteúdo,
   // não do módulo flashcards: cada módulo tem a sua visão do que precisa.
-  listAvailableCards(): Promise<BaralhoCardOption[]>;
+  listAvailableCards(baralhoId?: string): Promise<BaralhoCardOption[]>;
   getBaralho(baralhoId: string): Promise<BaralhoDetail>;
   createBaralho(titulo: string, flashcardIds: string[]): Promise<{ baralhoId: string }>;
   renameBaralho(baralhoId: string, titulo: string): Promise<void>;

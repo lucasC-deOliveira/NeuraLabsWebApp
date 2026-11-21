@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } 
 import { graphHttp } from "../../infra/http";
 import type { GraphListParams, GraphListResult } from "../../domain/types/graph.types";
 import { loadCachedGraphList, saveCachedGraphList } from "../services/graph-list-cache";
+import { canReadServerGraphs } from "../../infra/vault/graph-vault-reader";
 
 const PAGE_SIZE = 12;
 const EMPTY: GraphListResult = { items: [], total: 0, page: 1, pageSize: PAGE_SIZE };
@@ -27,6 +28,10 @@ function revalidate(
   setLoading: Dispatch<SetStateAction<boolean>>,
 ): () => void {
   let alive = true;
+  if (!canReadServerGraphs()) {
+    void Promise.resolve().then((): void => { if (alive) setLoading(false); });
+    return (): void => { alive = false; };
+  }
   graphHttp
     .listUserGraphs(params)
     .then((r) => { if (alive) { setResult(r); saveCachedGraphList(params, r); setLoading(false); } })
@@ -40,7 +45,7 @@ function seedFromCache(
   setResult: Dispatch<SetStateAction<GraphListResult>>,
   setLoading: Dispatch<SetStateAction<boolean>>,
 ): void {
-  const cached = loadCachedGraphList(params);
+  const cached = canReadServerGraphs() ? loadCachedGraphList(params) : null;
   if (cached) { setResult(cached); setLoading(false); }
   else { setResult(EMPTY); setLoading(true); }
 }

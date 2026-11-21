@@ -27,6 +27,8 @@ import { GetFlashcardForStudyUseCase } from '../modules/study/application/use-ca
 import { StartSingleCardStudyUseCase } from '../modules/study/application/use-cases/start-single-card-study.use-case';
 import { StartDeckStudyUseCase } from '../modules/study/application/use-cases/start-deck-study.use-case';
 import { SyncVaultLogUseCase } from '../modules/study/application/use-cases/sync-vault-log.use-case';
+import { SyncVaultStudyUseCase } from '../modules/study/application/use-cases/sync-vault-study.use-case';
+import { PrismaVaultStudySyncRepository } from '../modules/study/infrastructure/persistence/prisma-vault-study-sync.repository';
 import { CLOCK, type Clock } from '../modules/study/domain/ports/clock';
 import {
   VAULT_IMPORT_SESSION_REPOSITORY,
@@ -115,6 +117,13 @@ import { PrismaVaultImportSessionRepository } from '../modules/study/infrastruct
   imports: [AuthModule],
   controllers: [StudyController],
   providers: [
+    PrismaVaultStudySyncRepository,
+    {
+      provide: SyncVaultStudyUseCase,
+      useFactory: (repository: PrismaVaultStudySyncRepository): SyncVaultStudyUseCase =>
+        new SyncVaultStudyUseCase(repository),
+      inject: [PrismaVaultStudySyncRepository],
+    },
     { provide: STUDY_UNIT_OF_WORK, useClass: PrismaStudyUnitOfWork },
     { provide: VAULT_IMPORT_SESSION_REPOSITORY, useClass: PrismaVaultImportSessionRepository },
     { provide: STUDY_CARD_QUERY, useClass: PrismaStudyCardQuery },

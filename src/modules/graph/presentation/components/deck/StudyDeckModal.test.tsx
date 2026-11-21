@@ -116,6 +116,8 @@ describe("StudyDeckModal", () => {
 
       expect(await screen.findByText("Nada vencido agora")).toBeInTheDocument();
       expect(screen.queryByText("Card um?")).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Encerrar sessão" }));
+      expect(finalizeStudySession).toHaveBeenCalledWith("s1");
     });
 
     // O card graduado (REVIEW, dias à frente) sai da sessão — nada de espera.

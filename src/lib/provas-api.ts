@@ -1,4 +1,5 @@
 import { apiFetch, getToken } from "./api";
+import { vaultExamHistoryPage, vaultProvaAttemptResponse, type VaultExamHistoryPage, type VaultProvaAttemptBody } from "../../contracts/provas";
 import type { AlternativaMultipla, TipoQuestao } from "./questions-api";
 
 export interface ProvaListItem {
@@ -222,4 +223,23 @@ export function recordProvaAttempt(
     method: "POST",
     body: JSON.stringify(attempt),
   });
+}
+
+export function uploadVaultProvaAttempt(
+  provaId: string,
+  attempt: VaultProvaAttemptBody,
+): Promise<{ id: string; alreadyRecorded?: true }> {
+  return apiFetch(`/provas/${encodeURIComponent(provaId)}/tentativas/vault`, {
+    method: "POST",
+    body: JSON.stringify(attempt),
+    schema: vaultProvaAttemptResponse,
+  });
+}
+
+/** Reads a page of completed server attempts for the selected graph.
+ * @example await readVaultProvaHistory(graphId, cursor)
+ */
+export function readVaultProvaHistory(graphId: string, after: string | null): Promise<VaultExamHistoryPage> {
+  const query = after ? `?after=${encodeURIComponent(after)}` : "";
+  return apiFetch(`/provas/vault/${encodeURIComponent(graphId)}/tentativas${query}`, { schema: vaultExamHistoryPage });
 }

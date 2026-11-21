@@ -5,6 +5,7 @@
 import type { BaralhoDetail } from "../../domain/baralho.types";
 import { cacheStore } from "../../../cache/infra/local-cache-store";
 import type { CacheSlot } from "../../../cache/domain/cache-store";
+import { getOfflineAccountScope } from "../../infra/offline-deck-library";
 
 // v2 = cartões passaram a ter conceitosConectados; um payload v1 não tem o campo.
 // Mudou a forma de BaralhoDetail? Vire a versão.
@@ -17,24 +18,25 @@ function isUsable(parsed: BaralhoDetail): boolean {
   return parsed.cards.every((card) => Array.isArray(card.conceitosConectados));
 }
 
-function slotOf(baralhoId: string): CacheSlot<BaralhoDetail> {
+function slotOf(baralhoId: string, scope: string): CacheSlot<BaralhoDetail> {
   return cacheStore.slot({
-    key: `baralho-detail.${baralhoId}`,
+    key: `baralho-detail.${scope}.${baralhoId}`,
     version: VERSION,
     accept: isUsable,
     revive: (b): BaralhoDetail => ({ ...b, dataCriacao: new Date(b.dataCriacao) }),
   });
 }
 
-export function loadCachedBaralho(baralhoId: string): BaralhoDetail | null {
-  return slotOf(baralhoId).read();
+export function loadCachedBaralho(baralhoId: string, scope: string | null = getOfflineAccountScope()): BaralhoDetail | null {
+  return scope ? slotOf(baralhoId, scope).read() : null;
 }
 
-export function saveCachedBaralho(baralho: BaralhoDetail): void {
-  slotOf(baralho.id).write(baralho);
+export function saveCachedBaralho(baralho: BaralhoDetail, scope: string | null = getOfflineAccountScope()): void {
+  if (scope) slotOf(baralho.id, scope).write(baralho);
 }
 
 /** Esquece o baralho — usado ao excluí-lo, para o cache não ressuscitar um fantasma. */
 export function forgetCachedBaralho(baralhoId: string): void {
-  slotOf(baralhoId).invalidate();
+  const scope = getOfflineAccountScope();
+  if (scope) slotOf(baralhoId, scope).invalidate();
 }

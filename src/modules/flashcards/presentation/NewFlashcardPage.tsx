@@ -4,6 +4,7 @@ import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { useState } from "react";
 import { useRouter } from "@/lib/navigation";
+import { isDesktop } from "@/lib/vault-bridge";
 import { SparklesIcon, BrainIcon } from "lucide-react";
 import { NewFlashcardFromNotaMode } from "./components/NewFlashcardFromNotaMode";
 import { NewFlashcardManualMode } from "./components/NewFlashcardManualMode";
@@ -12,7 +13,7 @@ type PageMode = "from-nota" | "manual";
 
 export function NewFlashcardPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<PageMode>("from-nota");
+  const [mode, setMode] = useState<PageMode>(() => isDesktop() ? "manual" : "from-nota");
 
   return (
     <PageContainer className="space-y-6">

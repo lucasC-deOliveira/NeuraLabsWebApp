@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CreateNodeModal } from "./CreateNodeModal";
+import { addNodeToGraph, getAvailableItems } from "@/lib/graph-api";
 
 // Smoke de montagem do modal decomposto (era um god-component de 1838 linhas).
 // O adapter delega para @/lib/*, então mockar a borda cobre o fluxo.
@@ -39,6 +40,19 @@ function submitButton(): HTMLElement {
 }
 
 describe("CreateNodeModal validation", () => {
+  it("adds an existing concept from the same picker as other existing items", async () => {
+    vi.mocked(getAvailableItems).mockResolvedValueOnce({
+      flashcards: [], notas: [],
+      conceitos: [{ id: "c1", label: "Mitose", fullText: "Divisão celular", tipo: "CONCEITO", hierarquia: "Conceito" }],
+    });
+    vi.mocked(addNodeToGraph).mockResolvedValueOnce({ success: true, nodeId: "c1" });
+    await pickType("Conceito");
+    await userEvent.click(screen.getByRole("button", { name: "Adicionar existentes" }));
+    await userEvent.type(screen.getByPlaceholderText("Buscar conceitos..."), "divisão");
+    await userEvent.click(await screen.findByText("Mitose"));
+    await userEvent.click(screen.getByRole("button", { name: "Adicionar 1 item(s)" }));
+    expect(addNodeToGraph).toHaveBeenCalledWith("g1", "CONCEITO", { entityId: "c1" });
+  });
   it("does not flag anything before the first submit", async () => {
     await pickType("Assunto");
     expect(screen.queryByText("Digite um nome para o assunto")).not.toBeInTheDocument();

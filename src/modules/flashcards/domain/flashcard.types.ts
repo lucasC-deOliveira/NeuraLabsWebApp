@@ -25,6 +25,8 @@ export interface FlashcardConceptTag {
 
 export interface FlashcardItem {
   id: string;
+  storage?: "vault";
+  availableOnServer?: boolean;
   tipo: TipoFlashcard | null;
   pergunta: string;
   resposta: string;

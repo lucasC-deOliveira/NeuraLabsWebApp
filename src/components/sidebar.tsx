@@ -153,13 +153,42 @@ export function Sidebar({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionCheckFailed, setSessionCheckFailed] = useState(false);
+  const [sessionCheckAttempt, setSessionCheckAttempt] = useState(0);
 
   useEffect(() => {
+    let active = true;
     authApi
       .me()
-      .then((u) => setUser(u ? { id: u.id, name: u.nome, email: u.email } : null))
-      .finally(() => setLoading(false));
-  }, []);
+      .then((u) => {
+        if (active) setUser(u ? { id: u.id, name: u.nome, email: u.email } : null);
+      })
+      .catch(() => {
+        if (active) setSessionCheckFailed(true);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [sessionCheckAttempt]);
+
+  const sessionRetry = sessionCheckFailed && (
+    <div className="mt-auto border-t border-border pt-3 text-xs text-muted-foreground">
+      <p role="status">Não foi possível verificar a sessão.</p>
+      <button
+        type="button"
+        className="mt-2 text-primary underline"
+        aria-label="Tentar verificar a sessão novamente"
+        onClick={() => {
+          setSessionCheckFailed(false);
+          setLoading(true);
+          setSessionCheckAttempt((attempt) => attempt + 1);
+        }}
+      >
+        Tentar novamente
+      </button>
+    </div>
+  );
 
   return (
     <>
@@ -213,7 +242,8 @@ export function Sidebar({
             <NavContent onItemClick={() => setMobileOpen(false)} />
 
             {user && <UserSection user={user} />}
-            {!loading && !user && (
+            {sessionRetry}
+            {!loading && !user && !sessionCheckFailed && (
               <div className="mt-auto pt-3 border-t border-border">
                 <Link
                   href="/login"
@@ -266,7 +296,8 @@ export function Sidebar({
         <NavContent collapsed={collapsed} />
 
         {user && <UserSection user={user} collapsed={collapsed} />}
-        {!loading && !user && (
+        {sessionRetry}
+        {!loading && !user && !sessionCheckFailed && (
           <div className={`mt-auto pt-4 border-t border-border ${collapsed ? "flex flex-col items-center gap-2" : ""}`}>
             {collapsed ? (
               <SideTip label="Fazer login">

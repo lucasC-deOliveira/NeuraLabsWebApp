@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Loader2Icon, CheckCircle2Icon, CheckIcon, XIcon } from "lucide-react";
 import {
   Dialog,
@@ -12,24 +13,36 @@ import {
 import { Button } from "@/components/ui/button";
 import { submitCardReview, endStudySession } from "@/lib/study-api";
 import type { PlannedSession, FlashcardItem, QuestionItem } from "@/lib/study-plan-api";
+import type { VaultPlanStudyPort } from "@/modules/study/application/vault-study-plan.port";
+import type { ReviewGrade } from "@/lib/srs-local";
+import { openVaultStudyDialog } from "@/lib/vault-study-events";
 
 // Player da sessão do dia: percorre a fila intercalada de flashcards e questões.
-export function PlannedSessionModal({ session, onClose }: {
+export function PlannedSessionModal({ session, onClose, vault }: {
   session: PlannedSession | null;
   onClose: () => void;
+  vault?: VaultPlanStudyPort;
 }) {
   const [idx, setIdx] = useState(0);
   const [prevId, setPrevId] = useState<string | null>(null);
 
   const sid = session?.sessionId ?? null;
-  if (sid !== prevId) { setPrevId(sid); setIdx(0); }
+  if (sid !== prevId) { setPrevId(sid); setIdx(session?.index ?? 0); }
+
+  useEffect(() => {
+    if (sid && vault) return openVaultStudyDialog();
+  }, [sid, vault]);
 
   const items = session?.items ?? [];
   const item = items[idx] ?? null;
   const done = session !== null && idx >= items.length;
   const advance = (): void => setIdx((i) => i + 1);
+  const advanceQuestion = async (answer: string): Promise<void> => {
+    if (vault && sid) await vault.advance(sid, idx, answer);
+    advance();
+  };
   const close = (): void => {
-    if (sid) endStudySession(sid).catch(() => {});
+    if (sid && !vault) endStudySession(sid).catch(() => {});
     onClose();
   };
 
@@ -48,9 +61,10 @@ export function PlannedSessionModal({ session, onClose }: {
         {done ? (
           <Done onClose={close} />
         ) : item?.kind === "flashcard" && sid ? (
-          <FlashcardStep key={item.id} card={item} sessionId={sid} onNext={advance} />
+          <FlashcardStep key={item.id} card={item} sessionId={sid} onNext={advance}
+            localGrade={vault ? (grade) => vault.grade(sid, item, grade) : undefined} />
         ) : item?.kind === "question" ? (
-          <QuestionStep key={item.id} q={item} onNext={advance} />
+          <QuestionStep key={item.id} q={item} onNext={advanceQuestion} />
         ) : null}
       </DialogContent>
     </Dialog>
@@ -76,7 +90,7 @@ function ConceptTag({ conceito }: { conceito: string | null }) {
   );
 }
 
-type Grade = "again" | "hard" | "good" | "easy";
+type Grade = ReviewGrade;
 const GRADES: { id: Grade; label: string; className: string }[] = [
   { id: "again", label: "Errei", className: "bg-red-500/15 text-red-600 hover:bg-red-500/25" },
   { id: "hard", label: "Difícil", className: "bg-amber-500/15 text-amber-600 hover:bg-amber-500/25" },
@@ -84,16 +98,23 @@ const GRADES: { id: Grade; label: string; className: string }[] = [
   { id: "easy", label: "Fácil", className: "bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25" },
 ];
 
-function FlashcardStep({ card, sessionId, onNext }: {
+function FlashcardStep({ card, sessionId, onNext, localGrade }: {
   card: FlashcardItem;
   sessionId: string;
   onNext: () => void;
+  localGrade?: (grade: Grade) => Promise<void>;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const grade = (g: Grade): void => {
     setSaving(true);
+    if (localGrade) {
+      localGrade(g).then(onNext)
+        .catch(() => toast.error("Não foi possível salvar a revisão no vault. Tente novamente."))
+        .finally(() => setSaving(false));
+      return;
+    }
     submitCardReview({ flashcardId: card.id, grade: g, sessaoId: sessionId })
       .catch(() => {})
       .finally(() => { setSaving(false); onNext(); });
@@ -136,10 +157,17 @@ const VF_OPTIONS = [
 
 const firstUpper = (s: string): string => s.trim().charAt(0).toUpperCase();
 
-function QuestionStep({ q, onNext }: { q: QuestionItem; onNext: () => void }) {
+function QuestionStep({ q, onNext }: { q: QuestionItem; onNext: (answer: string) => Promise<void> }) {
   const [chosen, setChosen] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const options = q.alternativas && q.alternativas.length > 0 ? q.alternativas : VF_OPTIONS;
   const correctLetra = (letra: string): boolean => firstUpper(letra) === firstUpper(q.gabarito);
+  const nextQuestion = (): void => {
+    if (chosen === null || saving) return;
+    setSaving(true);
+    void onNext(chosen).catch(() => toast.error("Não foi possível salvar a resposta no vault. Tente novamente."))
+      .finally(() => setSaving(false));
+  };
 
   return (
     <div className="min-h-0 flex-1 space-y-4 overflow-auto py-4">
@@ -182,7 +210,7 @@ function QuestionStep({ q, onNext }: { q: QuestionItem; onNext: () => void }) {
         </div>
       )}
       <div className="flex justify-center pt-2">
-        <Button onClick={onNext} disabled={chosen === null} variant={chosen === null ? "outline" : "default"}>
+        <Button onClick={nextQuestion} disabled={chosen === null || saving} variant={chosen === null ? "outline" : "default"}>
           Próximo
         </Button>
       </div>

@@ -61,6 +61,9 @@ export function listGraphAssuntos(): Promise<GraphAssunto[]> {
 export function createGrafo(nome: string, descricao?: string): Promise<{ id: string }> {
   return apiFetch("/graph/graphs", { method: "POST", body: JSON.stringify({ nome, descricao }) });
 }
+export function registerVaultGraph(localId: string, nome: string, descricao?: string): Promise<{ id: string }> {
+  return apiFetch("/graph/graphs/register-vault", { method: "POST", body: JSON.stringify({ localId, nome, descricao }) });
+}
 // Deleta o grafo — a VISTA. Os nós são do sistema: continuam existindo, e nos
 // outros grafos onde aparecem. O `keepTypes` saiu junto: não havia mais o que
 // escolher preservar, porque nada é apagado.
@@ -127,7 +130,7 @@ export interface AvailableItem {
   hierarquia: string;
   conceitoId?: string | null;
 }
-export function getAvailableItems(grafoId: string): Promise<{ flashcards: AvailableItem[]; notas: AvailableItem[]; questoes?: AvailableItem[]; provas?: AvailableItem[] }> {
+export function getAvailableItems(grafoId: string): Promise<{ flashcards: AvailableItem[]; notas: AvailableItem[]; conceitos?: AvailableItem[]; questoes?: AvailableItem[]; provas?: AvailableItem[] }> {
   return apiFetch(`/graph/available-items${qs({ grafoId })}`);
 }
 
@@ -153,6 +156,10 @@ export function deleteGraphNode(graphNodeId: string, grafoId?: string, options?:
 }
 export function getNodeDetails(tipoNode: string, referenciaId: string): Promise<Record<string, string | null> | null> {
   return apiFetch(`/graph/nodes/${referenciaId}/details${qs({ tipoNode })}`);
+}
+
+export function listConceptEditGraphs(referenceId: string): Promise<Array<{ id: string; name: string }>> {
+  return apiFetch(`/graph/concepts/${encodeURIComponent(referenceId)}/graphs`, { timeoutMs: 10_000 });
 }
 // remove só o vínculo com o grafo (mantém a entidade)
 export async function removeNodeFromGraph(graphNodeId: string, grafoId: string): Promise<{ success: boolean }> {
@@ -215,6 +222,7 @@ export function importGraph(grafoId: string, payload: ImportGraphPayload): Promi
 
 // Export no mesmo formato do import, com posição/nível (usado pelo vault/Pull).
 export interface ExportGraphNode extends ImportGraphNode {
+  questaoIds?: string[];
   posicaoX?: number | null;
   posicaoY?: number | null;
   nivelDominio?: number;
@@ -237,8 +245,8 @@ export function exportGraph(grafoId: string): Promise<ExportGraphPayload> {
 }
 
 // Sync por id (Push do vault): upsert de conteúdo + substitui arestas.
-export function syncGraphFromVault(grafoId: string, payload: { nodes: ExportGraphNode[]; edges: ImportGraphEdge[] }): Promise<{ created: number; updated: number; edges: number; removed: number }> {
-  return apiFetch(`/graph/graphs/${grafoId}/sync`, { method: "POST", body: JSON.stringify(payload) });
+export function syncGraphFromVault(grafoId: string, payload: { nodes: ExportGraphNode[]; edges: ImportGraphEdge[]; preserveExistingRelations?: boolean }): Promise<{ created: number; updated: number; edges: number; removed: number }> {
+  return apiFetch(`/graph/graphs/${grafoId}/sync`, { method: "POST", body: JSON.stringify(payload), timeoutMs: 120_000 });
 }
 
 // ---- Posições ----

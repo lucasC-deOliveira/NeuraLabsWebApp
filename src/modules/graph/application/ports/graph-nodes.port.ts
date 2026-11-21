@@ -2,6 +2,9 @@
 // Only infra/ implements it (ACL over @/lib/graph-api). No React, no @/lib here.
 
 export type NodeDetails = Record<string, string | null>;
+export interface ConceptEditGraph { id: string; name: string }
+export type LoadConceptEditImpact = () => Promise<ConceptEditGraph[]>;
+export type GraphNodeEditorPort = Pick<GraphNodesPort, "getNodeDetails" | "updateGraphNode">;
 
 export interface GraphNodesPort {
   getNodeDetails(group: string, nodeId: string): Promise<NodeDetails | null>;

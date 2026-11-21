@@ -17,6 +17,8 @@ import {
   ProvaForbiddenError,
   ProvaNotFoundError,
   UnsupportedDocumentFormatError,
+  InvalidVaultAttemptQuestionError,
+  VaultAttemptExamMismatchError,
 } from '../domain/errors';
 
 type ProvaError =
@@ -26,7 +28,9 @@ type ProvaError =
   | InvalidExamJsonError
   | ProvaAlreadyHasEditalError
   | EditalAlreadyLinkedError
-  | EmptyAttemptError;
+  | EmptyAttemptError
+  | InvalidVaultAttemptQuestionError
+  | VaultAttemptExamMismatchError;
 
 // Maps provas domain errors to HTTP responses (Portuguese, user-facing).
 @Catch(
@@ -37,6 +41,8 @@ type ProvaError =
   ProvaAlreadyHasEditalError,
   EditalAlreadyLinkedError,
   EmptyAttemptError,
+  InvalidVaultAttemptQuestionError,
+  VaultAttemptExamMismatchError,
 )
 export class ProvasExceptionFilter implements ExceptionFilter {
   catch(error: ProvaError, host: ArgumentsHost): void {
@@ -57,5 +63,11 @@ function toHttpError(error: ProvaError): HttpException {
     return new ConflictException('Este edital já está vinculado a uma prova.');
   if (error instanceof EmptyAttemptError)
     return new BadRequestException('Tentativa sem respostas.');
+  if (error instanceof InvalidVaultAttemptQuestionError)
+    return new ConflictException(
+      'A tentativa tem uma questão que deixou de pertencer à prova no servidor.',
+    );
+  if (error instanceof VaultAttemptExamMismatchError)
+    return new ConflictException('Este identificador de tentativa já pertence a outra prova.');
   return new BadRequestException('IA retornou formato inválido.');
 }

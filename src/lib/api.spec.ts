@@ -9,6 +9,8 @@ import {
   resolveApiUrl,
   readFieldErrors,
   authApi,
+  getOfflineAccountScope,
+  getOfflineAccountId,
 } from "./api";
 
 // api.ts toca globais de DOM (window.localStorage, fetch). Como roda no projeto
@@ -183,6 +185,23 @@ describe("apiFetch com schema de resposta", () => {
 });
 
 describe("authApi", () => {
+  it("keeps the verified offline scope across outages and isolates server and account changes", async () => {
+    fetchMock.mockResolvedValueOnce(httpResponse(true, 200, { token: "first", user: { id: "account-1" } }));
+    await authApi.login({ email: "a@example.com", senha: "secret" });
+    const scope = getOfflineAccountScope();
+    expect(scope).toBeTruthy();
+
+    fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await expect(authApi.me()).rejects.toThrow();
+    expect(getOfflineAccountScope()).toBe(scope);
+    expect(getOfflineAccountId()).toBe("account-1");
+    vi.stubGlobal("window", { __NEURALABS_API_URL__: "https://other/api", localStorage: ls });
+    expect(getOfflineAccountScope()).toBeNull();
+    expect(getOfflineAccountId()).toBeNull();
+    vi.stubGlobal("window", { localStorage: ls });
+    setToken("unverified");
+    expect(getOfflineAccountScope()).toBeNull();
+  });
   it("register persists the returned token and yields the user", async () => {
     fetchMock.mockResolvedValue(httpResponse(true, 200, { token: "t", user: { id: "u" } }));
 
@@ -195,5 +214,30 @@ describe("authApi", () => {
   it("me returns null when there is no token (no request made)", async () => {
     expect(await authApi.me()).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("me preserves the token when the server cannot be reached", async () => {
+    setToken("session");
+    const connectionFailure = new TypeError("Failed to fetch");
+    fetchMock.mockRejectedValue(connectionFailure);
+
+    await expect(authApi.me()).rejects.toBe(connectionFailure);
+    expect(getToken()).toBe("session");
+  });
+
+  it("me preserves the token when the server returns an unavailable response", async () => {
+    setToken("session");
+    fetchMock.mockResolvedValue(httpResponse(false, 503, { message: "Unavailable" }));
+
+    await expect(authApi.me()).rejects.toMatchObject({ status: 503 });
+    expect(getToken()).toBe("session");
+  });
+
+  it("me returns null and clears the token when the server rejects the session", async () => {
+    setToken("session");
+    fetchMock.mockResolvedValue(httpResponse(false, 401, { message: "Unauthorized" }));
+
+    await expect(authApi.me()).resolves.toBeNull();
+    expect(getToken()).toBeNull();
   });
 });

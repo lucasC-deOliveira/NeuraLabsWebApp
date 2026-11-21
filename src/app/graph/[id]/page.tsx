@@ -3,7 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "@/lib/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DeleteDeckModal } from "@/modules/graph/presentation/components/deck/DeleteDeckModal";
 import { GenerateDeckModal } from "@/modules/graph/presentation/components/deck/GenerateDeckModal";
 
@@ -53,7 +53,8 @@ import { GraphSettingsModal } from "@/modules/graph/presentation/components/Grap
 import { GraphLoadingScreen } from "@/modules/graph/presentation/components/GraphLoadingScreen";
 import { useGraphSettings } from "@/modules/graph/presentation/hooks/useGraphSettings";
 
-import type { GrafoInfoDetail } from "@/modules/graph/domain/types/graph.types";
+import type { EdgeView, GrafoInfoDetail } from "@/modules/graph/domain/types/graph.types";
+import { vaultEdgeViews } from "@/modules/graph/domain/selectors/vault-edge-views";
 import { CreateSubgrafoModal } from "@/modules/graph/presentation/components/vault/CreateSubgrafoModal";
 import { ExtractSubgrafoModal } from "@/modules/graph/presentation/components/vault/ExtractSubgrafoModal";
 import {
@@ -73,7 +74,14 @@ import { createdBetween, type GraphIdSnapshot } from "@/modules/graph/presentati
 import { CreateNodeModal } from "@/modules/graph/presentation/components/create-node/CreateNodeModal";
 import { ImportJsonModal } from "@/modules/graph/presentation/components/vault/ImportJsonModal";
 import { EdgeManagerModal } from "@/modules/graph/presentation/components/EdgeManagerModal";
-import { EditNodeModal } from "@/modules/graph/presentation/components/EditNodeModal";
+import { EditNodeModal, type NodeEditFocus } from "@/modules/graph/presentation/components/EditNodeModal";
+import { graphNodeDialogKey } from "@/modules/graph/presentation/services/graph-node-dialog-key";
+import { serverConceptEditImpact } from "@/modules/graph/infra/http/concept-edit-impact";
+import { serverRelationImpact } from "@/modules/graph/infra/http/relation-impact";
+import { vaultRelationImpact } from "@/modules/graph/infra/vault/relation-impact";
+import { confirmRelationImpact } from "@/modules/graph/presentation/services/confirm-relation-impact";
+import { GraphConfirmation } from "@/modules/graph/presentation/components/GraphConfirmation";
+import { useGraphConfirmation } from "@/modules/graph/presentation/hooks/useGraphConfirmation";
 import { ViewNotaModal } from "@/modules/graph/presentation/components/deck/ViewNotaModal";
 import { ViewProvaModal } from "@/modules/graph/presentation/components/deck/ViewProvaModal";
 import { StudyProvaModal } from "@/modules/graph/presentation/components/deck/StudyProvaModal";
@@ -94,7 +102,14 @@ import { FeynmanModal } from "@/components/feynman/FeynmanModal";
 import type { FeynmanAlvoTipo } from "@/components/feynman/feynman.types";
 import { VaultSyncModal } from "@/modules/graph/presentation/components/vault/VaultSyncModal";
 import { GraphDashboard } from "@/modules/graph/presentation/components/dashboard/GraphDashboard";
-import { isDesktop } from "@/lib/vault-bridge";
+import { desktop, isDesktop } from "@/lib/vault-bridge";
+import { canReadServerGraphs, openGraphFromVault, readLocalGraphInfo } from "@/modules/graph/infra/vault/graph-vault-reader";
+import { makeVaultGraphEdges } from "@/modules/graph/infra/vault/graph-vault-edges";
+import { makeVaultGraphNodeCreation } from "@/modules/graph/infra/vault/create-vault-graph-node";
+import { listExistingVaultConcepts } from "@/modules/graph/infra/vault/existing-vault-concepts";
+import { makeVaultExamStudy } from "@/modules/graph/infra/vault/vault-exam-study";
+import { canEditVaultGraphNode, prepareVaultNodeEdit } from "@/modules/graph/infra/vault/graph-vault-nodes";
+import type { EditableNode } from "@/modules/graph/presentation/hooks/useEditNode";
 import { getConquestConcepts } from "@/lib/gamification-api";
 import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 import { splitGraphEntities, countNodesByType, neighborhoodFlashcardIds } from "@/modules/graph/domain/services/graph-derivations";
@@ -206,9 +221,53 @@ export default function GraphPage() {
   const [showClusters, setShowClusters] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEdgeManagerOpen, setIsEdgeManagerOpen] = useState(false);
-  const [graphEdges, setGraphEdges] = useState<any[]>([]);
+  const confirmation = useGraphConfirmation();
+  const [serverRelations, setServerRelations] = useState<{ graphId: string; edges: EdgeView[] } | null>(null);
+  const vaultBacked = controller.state.vaultBacked;
+  const vaultSource = controller.state.vaultSource;
+  const localExamStudy = useMemo(() => vaultSource ? makeVaultExamStudy(graphId, vaultSource, desktop.vault) : undefined, [graphId, vaultSource]);
+  const vaultEdges = useMemo(() => makeVaultGraphEdges(desktop.vault), []);
+  const vaultNodeCreation = useMemo(() => makeVaultGraphNodeCreation(desktop.vault), []);
+  const localNodeCreation = useMemo(() => vaultBacked ? {
+    port: vaultNodeCreation,
+    listConcepts: (destinationId: string) => listExistingVaultConcepts(desktop.vault, destinationId),
+    flashcards: controller.state.rawNodes.filter((node) => node.type === "FLASHCARD").map((node) => ({
+      id: node.id, pergunta: node.pergunta ?? node.label, conceito: null,
+    })),
+  } : undefined, [vaultBacked, vaultNodeCreation, controller.state.rawNodes]);
+  const relationPort = vaultBacked ? vaultEdges : graphHttp;
+  const onlineRelations = !vaultBacked && serverRelations?.graphId === graphId ? serverRelations.edges : null;
+  const canEditRelations = vaultBacked || onlineRelations !== null;
+  const graphEdges = useMemo(
+    () => onlineRelations ?? vaultEdgeViews(controller.state.rawNodes, controller.state.rawEdges),
+    [onlineRelations, controller.state.rawNodes, controller.state.rawEdges],
+  );
   const [nodeMenu, setNodeMenu] = useState<{ node: any; x: number; y: number } | null>(null);
-  const [editingNode, setEditingNode] = useState<any>(null);
+  const [nodeEditSession, setNodeEditSession] = useState<{
+    node: EditableNode;
+    local?: ReturnType<typeof prepareVaultNodeEdit>;
+    loadImpact?: ReturnType<typeof serverConceptEditImpact>;
+  } | null>(null);
+  const editingNode = nodeEditSession?.node ?? null;
+  const nodeEditDraftRef = useRef<Record<string, string>>({});
+  const nodeEditFocusedField = useRef<NodeEditFocus | null>(null);
+  const readNodeEditDraft = useCallback(() => nodeEditDraftRef.current, []);
+  const rememberNodeEditField = useCallback((name: string, value: string) => {
+    nodeEditDraftRef.current[name] = value;
+  }, []);
+  const openNodeEditor = (node: EditableNode | null) => {
+    if (!node || (vaultBacked && !canEditVaultGraphNode(node.group))) return;
+    const local = vaultBacked
+      ? prepareVaultNodeEdit(desktop.vault, graphId, controller.state.vaultSource, node.group, node.id)
+      : undefined;
+    nodeEditFocusedField.current = null;
+    nodeEditDraftRef.current = {};
+    const loadImpact = local ? local.loadImpact : node.group === "CONCEITO" ? serverConceptEditImpact(node.id) : undefined;
+    setNodeEditSession({ node, local, loadImpact });
+  };
+  const closeNodeEditor = useCallback((open: boolean) => {
+    if (!open) setNodeEditSession(null);
+  }, []);
   const [viewingNotaId, setViewingNotaId] = useState<string | null>(null);
   const [viewingProvaId, setViewingProvaId] = useState<string | null>(null);
   const [studyProvaId, setStudyProvaId] = useState<string | null>(null);
@@ -232,7 +291,12 @@ export default function GraphPage() {
   const [isExtractSubgrafoOpen, setIsExtractSubgrafoOpen] = useState(false);
 
   useEffect(() => {
-    graphHttp.getGrafoInfo(graphId).then(setGrafoInfo).catch(() => {});
+    let active = true;
+    readLocalGraphInfo(graphId).catch(() => null)
+      .then((local) => local ?? (canReadServerGraphs() ? graphHttp.getGrafoInfo(graphId) : null))
+      .then((info) => { if (active) setGrafoInfo(info); })
+      .catch(() => {});
+    return () => { active = false; };
   }, [graphId]);
 
   // Chegou de "Ver no grafo" com ?focus=<referenciaId>: seleciona e centraliza o
@@ -498,12 +562,16 @@ export default function GraphPage() {
   // selecionados viram arestas até ele. A direção é do domínio, não do usuário.
   const connectSelectionTo = async (edges: Array<{ sourceNodeId: string; targetNodeId: string; tipoRelacao: string }>) => {
     if (!edges.length) return;
-    const { edgeIds, rejected } = await connectSelectionToHub(graphHttp, graphId, edges);
+    const { edgeIds, rejected } = await connectSelectionToHub(relationPort, graphId, edges);
     if (edgeIds.length) {
       undo.push({
         label: `Conectar ${edgeIds.length} nó(s)`,
-        invert: async () => { for (const id of edgeIds) await graphHttp.deleteEdge(id, graphId); await refreshGraph(); },
-        redo: async () => { await connectSelectionToHub(graphHttp, graphId, edges); await refreshGraph(); },
+        invert: async () => { for (const id of edgeIds) await relationPort.deleteEdge(id, graphId); await refreshGraph(); },
+        redo: async () => {
+          const result = await connectSelectionToHub(relationPort, graphId, edges);
+          edgeIds.splice(0, edgeIds.length, ...result.edgeIds);
+          await refreshGraph();
+        },
       });
     }
     await refreshGraph();
@@ -635,9 +703,11 @@ export default function GraphPage() {
       toast.error("Nenhum baralho encontrado neste grafo.");
       return;
     }
-    const ok = window.confirm(
-      `Dividir ${baralhos.length} baralho(s) em subgrafos separados?\n\nCada baralho e seus flashcards serão movidos para um novo subgrafo com o nome do baralho.`,
-    );
+    const ok = await confirmation.ask({
+      title: `Dividir ${baralhos.length} baralho(s) em subgrafos separados?`,
+      description: "Cada baralho e seus flashcards serão movidos para um novo subgrafo com o nome do baralho.",
+      action: "Dividir",
+    });
     if (!ok) return;
 
     setIsSplittingBaralhos(true);
@@ -684,10 +754,14 @@ export default function GraphPage() {
   };
 
   const loadEdges = async () => {
+    if (vaultBacked || !canReadServerGraphs()) return;
     try {
-      setGraphEdges(await graphHttp.getGraphEdges(graphId));
+      setServerRelations({ graphId, edges: await graphHttp.getGraphEdges(graphId) });
     } catch {
-      toast.error("Erro ao carregar relações");
+      setServerRelations((current) => current?.graphId === graphId ? null : current);
+      if (!(await readLocalGraphInfo(graphId).catch(() => null))) {
+        toast.error("Erro ao carregar relações");
+      }
     }
   };
 
@@ -712,10 +786,10 @@ export default function GraphPage() {
     }
   }, [is3D, has3DBeenOpened]);
 
-  const handleOpenEdgeManager = async () => {
+  const handleOpenEdgeManager = () => {
     closeToolbarModals();
-    await loadEdges();
     setIsEdgeManagerOpen(true);
+    void loadEdges();
   };
 
   // ======================
@@ -769,6 +843,7 @@ export default function GraphPage() {
   // GRAPH REFRESH
   // ======================
   const refreshGraph = async () => {
+    if (vaultBacked) return refreshVaultGraph();
     const result = await graphHttp.getGraphNodes(graphId);
 
     // o controller mescla os nós novos preservando as posições dos existentes
@@ -779,6 +854,16 @@ export default function GraphPage() {
     await loadEdges();
   };
 
+  const refreshVaultGraph = async () => {
+    const result = await openGraphFromVault(graphId, desktop.vault);
+    if (!result) throw new Error("Grafo não encontrado no vault.");
+    setGrafoInfo(result.info);
+    controller.actions.setVaultBacked(true);
+    controller.actions.setVaultSource(result.source);
+    controller.actions.applyVaultNodes(result.nodes);
+    controller.actions.applyVaultEdges(result.edges);
+  };
+
   // ======================
   // RELAÇÕES DO NÓ SELECIONADO (painel de propriedades)
   // ======================
@@ -786,6 +871,9 @@ export default function GraphPage() {
   // tipo de cada nó, para o painel agrupar as relações pelo tipo do outro nó.
   const nodeTypeById = new Map<string, string>(
     controller.state.layout.map((n: any) => [n.id, n.tipoReal ?? n.group])
+  );
+  const loadRelationImpact = vaultBacked ? vaultRelationImpact(desktop.vault) : serverRelationImpact(
+    new Map(controller.state.rawNodes.map(({ id, type }) => [id, type])),
   );
   const selectedNodeEdges = selectedNodeId
     ? graphEdges
@@ -810,9 +898,12 @@ export default function GraphPage() {
   };
 
   const handleDeleteEdge = async (edge: any) => {
-    if (!confirm("Excluir esta relação?")) return;
     try {
-      await graphHttp.deleteEdge(edge.id, graphId);
+      const confirmed = await confirmRelationImpact({
+        operation: "delete", currentGraphId: graphId, edge, loadImpact: loadRelationImpact, ask: confirmation.ask,
+      });
+      if (!confirmed) return;
+      await relationPort.deleteEdge(edge.id, graphId);
       toast.success("Relação excluída");
       await refreshGraph();
     } catch (e) {
@@ -845,7 +936,11 @@ export default function GraphPage() {
       setDeleteDeckConfirm({ node });
       return;
     }
-    if (!confirm(`Excluir "${node.label}" permanentemente do aplicativo?`)) return;
+    if (!(await confirmation.ask({
+      title: `Excluir "${node.label}" permanentemente do aplicativo?`,
+      action: "Excluir",
+      destructive: true,
+    }))) return;
     await performDeleteNode(node, false);
   };
 
@@ -1210,10 +1305,11 @@ export default function GraphPage() {
           onDeleteNode={handleDeleteNode}
           isDeleting={isDeletingNode}
           onFocusNode={controller.interactions.focusNode}
-          onEditEdge={handleEditEdge}
-          onDeleteEdge={handleDeleteEdge}
-          onAddEdge={handleAddEdgeFromPanel}
-          onEditNode={() => setEditingNode(controller.state.selectedNode)}
+          onEditEdge={canEditRelations ? handleEditEdge : undefined}
+          onDeleteEdge={canEditRelations ? handleDeleteEdge : undefined}
+          onAddEdge={canEditRelations ? handleAddEdgeFromPanel : undefined}
+          onEditNode={vaultBacked && !canEditVaultGraphNode(controller.state.selectedNode?.group ?? "")
+            ? undefined : () => openNodeEditor(controller.state.selectedNode)}
           onViewNota={() => setViewingNotaId(controller.state.selectedNode?.id ?? null)}
           onViewProva={() => setViewingProvaId(controller.state.selectedNode?.id ?? null)}
           onViewTextoBruto={() => setViewingTextoId(controller.state.selectedNode?.id ?? null)}
@@ -1394,7 +1490,7 @@ export default function GraphPage() {
             <button
               className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
               onClick={() => {
-                setEditingNode(nodeMenu.node);
+                openNodeEditor(nodeMenu.node);
                 setNodeMenu(null);
               }}
             >
@@ -1446,11 +1542,12 @@ export default function GraphPage() {
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
         grafoId={graphId}
+        localCreation={localNodeCreation}
         parentIds={graphEntities}
         provas={controller.state.filteredNodes
           .filter((n: any) => n.group === "PROVA")
           .map((n: any) => ({ id: n.id, label: n.label }))}
-        onSuccess={refreshGraph}
+        onSuccess={() => void refreshGraph().catch(() => toast.error("Erro ao atualizar nós do grafo"))}
       />
       <ImportJsonModal
         open={isImportJsonOpen}
@@ -1464,15 +1561,24 @@ export default function GraphPage() {
           onOpenChange={setIsVaultOpen}
           grafoId={graphId}
           grafoNome={controller.state.grafoNome}
-          onSynced={refreshGraph}
+          onSynced={() => void refreshGraph().catch(() => toast.error("Erro ao atualizar o grafo"))}
+          onPulled={() => void refreshVaultGraph().catch(() => toast.error("Erro ao abrir o grafo baixado"))}
         />
       )}
+      <GraphConfirmation request={confirmation.request} finish={confirmation.finish} />
       <EditNodeModal
+        key={graphNodeDialogKey("edit-node", editingNode?.id)}
         open={!!editingNode}
-        onOpenChange={(open) => !open && setEditingNode(null)}
+        onOpenChange={closeNodeEditor}
         grafoId={graphId}
         node={editingNode}
-        onSuccess={refreshGraph}
+        editor={nodeEditSession?.local?.editor}
+        loadImpact={nodeEditSession?.loadImpact}
+        initialDetails={nodeEditSession?.local?.initialDetails}
+        readDraft={readNodeEditDraft}
+        focusedFieldRef={nodeEditFocusedField}
+        onDraftFieldChange={rememberNodeEditField}
+        onSuccess={() => void refreshGraph().catch(() => toast.error("Erro ao atualizar nós do grafo"))}
       />
       <ViewNotaModal
         open={!!viewingNotaId}
@@ -1485,12 +1591,14 @@ export default function GraphPage() {
         open={!!viewingProvaId}
         onOpenChange={(open) => !open && setViewingProvaId(null)}
         provaId={viewingProvaId}
+        studyPort={localExamStudy}
       />
       <StudyProvaModal
         open={!!(studyProvaId || studyQuestaoId)}
         onOpenChange={(open) => { if (!open) { setStudyProvaId(null); setStudyQuestaoId(null); } }}
         provaId={studyProvaId}
         questaoId={studyQuestaoId}
+        studyPort={localExamStudy}
       />
       <ViewTextoBrutoModal
         open={!!viewingTextoId}
@@ -1642,7 +1750,7 @@ export default function GraphPage() {
         onGenerated={finishAiWrite("Gerar grafo por texto")}
       />
       <LinkEditalProvaModal
-        key={controller.state.selectedNode?.id ?? "none"}
+        key={graphNodeDialogKey("link-exam", controller.state.selectedNode?.id)}
         open={linkEditalOpen}
         onOpenChange={setLinkEditalOpen}
         grafoId={graphId}
@@ -1745,6 +1853,10 @@ export default function GraphPage() {
         }}
         grafoId={graphId}
         existingEdges={graphEdges}
+        readOnly={!canEditRelations}
+        edgePort={relationPort}
+        loadImpact={loadRelationImpact}
+        localNodes={vaultBacked ? controller.state.rawNodes : undefined}
         initialEditEdge={editEdge}
         initialSourceId={
           addEdgeSourceId ??
@@ -1759,10 +1871,7 @@ export default function GraphPage() {
             ? [...controller.state.selectedNodeIds][1]
             : undefined
         }
-        onSuccess={async () => {
-          await loadEdges();
-          await refreshGraph();
-        }}
+        onSuccess={() => void refreshGraph().catch(() => toast.error("Erro ao atualizar relações do grafo"))}
       />
       <CreateSubgrafoModal
         open={isCreateSubgrafoOpen}

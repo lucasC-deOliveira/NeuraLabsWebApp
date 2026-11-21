@@ -21,16 +21,17 @@ import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
 import { availableTargets } from "../../domain/selectors/edge-candidates";
 import { useEdgeManager, type EdgeManagerEdge, type EdgeNode } from "../hooks/useEdgeManager";
 import { getRelationLabel } from "./edge-relation-labels";
+import type { EdgeManagerProps } from "../hooks/edge-manager.model";
+import { GraphConfirmation } from "./GraphConfirmation";
+import { useGraphConfirmation } from "../hooks/useGraphConfirmation";
+import type { LoadRelationImpact, RelationEndpoints } from "../../application/ports/relation-impact.port";
+import { confirmRelationImpact } from "../services/confirm-relation-impact";
+import { toast } from "sonner";
 
-interface EdgeManagerModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  grafoId: string;
+interface EdgeManagerModalProps extends EdgeManagerProps {
   existingEdges: EdgeManagerEdge[];
-  onSuccess?: () => void;
-  initialSourceId?: string;
-  initialTargetId?: string;
-  initialEditEdge?: EdgeManagerEdge | null;
+  readOnly?: boolean;
+  loadImpact?: LoadRelationImpact;
 }
 
 const TITLES: Record<string, string> = {
@@ -45,8 +46,38 @@ const DESCRIPTIONS: Record<string, string> = {
 };
 
 export function EdgeManagerModal(props: EdgeManagerModalProps) {
+  if (props.readOnly) {
+    return (
+      <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Relações do grafo</DialogTitle>
+            <DialogDescription>Relações disponíveis para consulta. Edição exige conexão com o servidor.</DialogDescription>
+          </DialogHeader>
+          <EdgeList edges={props.existingEdges} nodeMap={new Map()} loading={false} />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  return <EditableEdgeManager {...props} />;
+}
+
+function EditableEdgeManager(props: EdgeManagerModalProps) {
   const { existingEdges } = props;
-  const graph = useEdgeManager(props);
+  const confirmation = useGraphConfirmation();
+  const confirmImpact = (operation: "edit" | "delete", edge: RelationEndpoints) => confirmRelationImpact({
+    operation, edge, currentGraphId: props.grafoId, loadImpact: props.loadImpact, ask: confirmation.ask,
+  });
+  const graph = useEdgeManager({ ...props, beforeUpdate: (edge) => confirmImpact("edit", edge) });
+  const confirmRemoval = async (edgeId: string) => {
+    const edge = existingEdges.find(({ id }) => id === edgeId);
+    if (!edge) return;
+    try {
+      if (await confirmImpact("delete", edge)) await graph.remove(edgeId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao verificar o impacto da relação");
+    }
+  };
 
   return (
     <Dialog open={props.open} onOpenChange={graph.handleOpenChange}>
@@ -64,7 +95,7 @@ export function EdgeManagerModal(props: EdgeManagerModalProps) {
               loading={graph.loading}
               onAdd={graph.startAdd}
               onEdit={graph.startEdit}
-              onDelete={graph.remove}
+              onDelete={confirmRemoval}
             />
           ) : (
             <EdgeForm graph={graph} existingEdges={existingEdges} />
@@ -73,6 +104,7 @@ export function EdgeManagerModal(props: EdgeManagerModalProps) {
 
         <EdgeFooter graph={graph} />
       </DialogContent>
+      <GraphConfirmation request={confirmation.request} finish={confirmation.finish} />
     </Dialog>
   );
 }
@@ -81,18 +113,18 @@ interface EdgeListProps {
   edges: EdgeManagerEdge[];
   nodeMap: Map<string, EdgeNode>;
   loading: boolean;
-  onAdd: () => void;
-  onEdit: (edge: EdgeManagerEdge) => void;
-  onDelete: (edgeId: string) => void;
+  onAdd?: () => void;
+  onEdit?: (edge: EdgeManagerEdge) => void;
+  onDelete?: (edgeId: string) => void;
 }
 
 function EdgeList({ edges, nodeMap, loading, onAdd, onEdit, onDelete }: EdgeListProps) {
   return (
     <>
-      <Button onClick={onAdd} className="w-full gap-1.5">
+      {onAdd && <Button onClick={onAdd} className="w-full gap-1.5">
         <PlusIcon className="size-4" />
         Nova relação
-      </Button>
+      </Button>}
       {edges.length === 0 ? (
         <p className="text-center text-zinc-500 py-8">Nenhuma relação criada ainda.</p>
       ) : (
@@ -110,8 +142,8 @@ interface EdgeRowProps {
   edge: EdgeManagerEdge;
   nodeMap: Map<string, EdgeNode>;
   loading: boolean;
-  onEdit: (edge: EdgeManagerEdge) => void;
-  onDelete: (edgeId: string) => void;
+  onEdit?: (edge: EdgeManagerEdge) => void;
+  onDelete?: (edgeId: string) => void;
 }
 
 function EdgeRow({ edge, nodeMap, loading, onEdit, onDelete }: EdgeRowProps) {
@@ -137,10 +169,10 @@ function EdgeRow({ edge, nodeMap, loading, onEdit, onDelete }: EdgeRowProps) {
           <div className="flex items-center gap-2">
             <span className="text-xs text-zinc-500">peso: {edge.peso.toFixed(1)}</span>
             <div className="flex gap-1">
-              <Button size="icon-sm" variant="ghost" aria-label="Editar relação" onClick={() => onEdit(edge)}>
+              {onEdit && <Button size="icon-sm" variant="ghost" aria-label="Editar relação" onClick={() => onEdit(edge)}>
                 <PencilIcon className="size-3.5" />
-              </Button>
-              <Button
+              </Button>}
+              {onDelete && <Button
                 size="icon-sm"
                 variant="ghost"
                 aria-label="Remover relação"
@@ -148,7 +180,7 @@ function EdgeRow({ edge, nodeMap, loading, onEdit, onDelete }: EdgeRowProps) {
                 disabled={loading}
               >
                 <Trash2Icon className="size-3.5 text-red-500" />
-              </Button>
+              </Button>}
             </div>
           </div>
         </div>
@@ -223,7 +255,7 @@ function EdgeForm({ graph, existingEdges }: EdgeFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="peso">Peso da relação (0.0 - 2.0)</Label>
+        <Label htmlFor="peso">Peso da relação (maior que 0, até 2)</Label>
         <Input
           id="peso"
           type="number"
@@ -231,7 +263,7 @@ function EdgeForm({ graph, existingEdges }: EdgeFormProps) {
           min="0"
           max="2"
           value={form.peso}
-          onChange={(e) => setForm({ peso: parseFloat(e.target.value) || 1.0 })}
+          onChange={(e) => setForm({ peso: e.target.value === "" ? 1 : e.target.valueAsNumber })}
           className="w-full"
         />
         <p className="text-xs text-zinc-500">

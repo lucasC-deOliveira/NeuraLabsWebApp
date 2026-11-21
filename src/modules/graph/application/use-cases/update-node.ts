@@ -6,7 +6,7 @@ import {
   type NodeEditError,
   type NodeEditFields,
 } from "../../domain/services/node-edit-validation";
-import type { GraphNodesPort } from "../ports/graph-nodes.port";
+import type { GraphNodeEditorPort } from "../ports/graph-nodes.port";
 
 export class NodeValidationError extends Error {
   constructor(readonly code: NodeEditError) {
@@ -40,7 +40,7 @@ export function buildNodeUpdatePayload(fields: NodeEditFields): Record<string, u
   };
 }
 
-export async function updateNode(port: GraphNodesPort, input: UpdateNodeInput): Promise<void> {
+export async function updateNode(port: GraphNodeEditorPort, input: UpdateNodeInput): Promise<void> {
   const error = validateNodeEditFields(input.group, input.fields);
   if (error) throw new NodeValidationError(error);
   await port.updateGraphNode(input.group, input.nodeId, buildNodeUpdatePayload(input.fields), input.grafoId);

@@ -3,6 +3,7 @@ import type { VaultEdge, VaultNode } from '../services/vault-sync';
 export interface VaultPayload {
   nodes: VaultNode[];
   edges: VaultEdge[];
+  preserveExistingRelations?: boolean;
 }
 
 export interface VaultSyncResult {

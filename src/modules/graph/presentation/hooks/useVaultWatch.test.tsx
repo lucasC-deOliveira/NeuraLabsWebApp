@@ -31,6 +31,8 @@ const baseProps = () => ({
   grafoId: "g1",
   grafoNome: "Bio",
   rawNodes: [],
+  setVaultBacked: vi.fn(),
+  setVaultSource: vi.fn(),
   setRawNodes: vi.fn(),
   setRawEdges: vi.fn(),
 });
@@ -63,6 +65,11 @@ describe("useVaultWatch", () => {
     });
 
     expect(props.setRawNodes).toHaveBeenCalledWith([{ id: "NODE" }]);
+    expect(props.setVaultBacked).toHaveBeenCalledWith(true);
+    expect(props.setVaultSource).toHaveBeenCalledWith({
+      directory: "/dir/graph",
+      entries: [{ file: { relPath: "Resources/a.md", content: "NODE" }, node: { id: "NODE" } }],
+    });
     expect(props.setRawEdges).toHaveBeenCalledWith([{ source: "a", target: "b" }]);
   });
 
@@ -73,5 +80,6 @@ describe("useVaultWatch", () => {
 
     capturedOnChanged?.({ watchId: "other", files: [{ relPath: "Resources/a.md", content: "NODE" }] });
     expect(props.setRawNodes).not.toHaveBeenCalled();
+    expect(props.setVaultBacked).not.toHaveBeenCalled();
   });
 });
