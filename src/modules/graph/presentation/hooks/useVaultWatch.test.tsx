@@ -51,13 +51,17 @@ describe("useVaultWatch", () => {
 
   it("watches the graph dir on desktop and applies vault changes (guide file ignored)", async () => {
     const props = baseProps();
-    renderHook(() => useVaultWatch(props));
+    const { unmount } = renderHook(() => useVaultWatch(props));
 
-    await waitFor(() => expect(desktop.vault.watch).toHaveBeenCalledWith("/dir/graph", "graph-g1"));
+    await waitFor(() => expect(desktop.vault.watch).toHaveBeenCalledWith(
+      "/dir/graph",
+      expect.stringMatching(/^graph-g1-.+$/),
+    ));
+    const [, watchId] = vi.mocked(desktop.vault.watch).mock.calls[0];
     expect(capturedOnChanged).toBeTypeOf("function");
 
     capturedOnChanged?.({
-      watchId: "graph-g1",
+      watchId,
       files: [
         { relPath: "AGENTS.md", content: "GUIDE" },
         { relPath: "Resources/a.md", content: "NODE" },
@@ -71,6 +75,9 @@ describe("useVaultWatch", () => {
       entries: [{ file: { relPath: "Resources/a.md", content: "NODE" }, node: { id: "NODE" } }],
     });
     expect(props.setRawEdges).toHaveBeenCalledWith([{ source: "a", target: "b" }]);
+
+    unmount();
+    expect(desktop.vault.unwatch).toHaveBeenCalledWith(watchId);
   });
 
   it("ignores change events from a different watchId", async () => {
