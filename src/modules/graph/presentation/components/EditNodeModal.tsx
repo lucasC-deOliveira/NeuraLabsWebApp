@@ -54,7 +54,7 @@ interface FieldsProps {
   fields: NodeEditFields;
 }
 
-const fieldClass = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm focus-visible:outline-2 focus-visible:outline-ring";
+const fieldClass = "h-8 w-full min-w-0 max-w-full rounded-lg border border-input bg-transparent px-2.5 text-sm focus-visible:outline-2 focus-visible:outline-ring";
 
 const SUBTIPOS: Array<[string, string]> = [
   ["DEFINICAO", "Definição"],
@@ -220,14 +220,14 @@ export function EditNodeModal({
       ref={dialogRef}
       aria-labelledby={headingId}
       aria-describedby={descriptionId}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg max-h-[calc(100%-2rem)] overflow-auto rounded-xl bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 backdrop:bg-black/50"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg max-h-[calc(100%-2rem)] overflow-y-auto rounded-xl bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 backdrop:bg-black/50"
       onCancel={(event) => { event.preventDefault(); closeEditor(); }}
       onClick={(event) => { if (event.target === event.currentTarget) closeEditor(); }}
       onKeyDown={(event) => event.stopPropagation()}
     >
       <form
         ref={formRef}
-        className="relative grid gap-4 p-4"
+        className="relative grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 p-4 [overflow-wrap:anywhere]"
         onReset={(event) => event.preventDefault()}
         onFocusCapture={(event) => rememberFocus(event.target)}
         onSelectCapture={(event) => rememberFocus(event.target)}
@@ -265,7 +265,7 @@ export function EditNodeModal({
           </div>
         )}
 
-        <footer className="flex justify-end gap-2">
+        <footer className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" onClick={closeEditor}>
             Cancelar
           </Button>

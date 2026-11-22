@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { readBookGraphPage } from "../../electron/vault-book-graph";
 
-it("loads only members from the requested book page and distinguishes missing analysis", () => {
+it("loads only members from the requested book page and distinguishes missing analysis", async () => {
   const vault = mkdtempSync(join(tmpdir(), "neuralabs-book-scope-"));
   try {
     const id = `book-${"a".repeat(40)}`;
@@ -20,11 +20,11 @@ it("loads only members from the requested book page and distinguishes missing an
       { id: "later", folder: "Resources", fields: [] },
     ]));
     writeFileSync(join(vault, "Resources", "first.md"), "---\nid: first\ntipo: CONCEITO\ntitulo: First\n---\n\nPage 2");
-    expect(readBookGraphPage(vault, id, 2)).toMatchObject({
+    expect(await readBookGraphPage(vault, id, 2)).toMatchObject({
       status: "ready", files: [{ relPath: "Resources/first.md" }], edges: [],
     });
-    expect(readBookGraphPage(vault, id, 4)).toEqual({ status: "unanalyzed", graphId: id });
-    expect(readBookGraphPage(vault, "../another-graph", 2)).toEqual({ status: "missing" });
+    expect(await readBookGraphPage(vault, id, 4)).toEqual({ status: "unanalyzed", graphId: id });
+    expect(await readBookGraphPage(vault, "../another-graph", 2)).toEqual({ status: "missing" });
   } finally {
     rmSync(vault, { recursive: true, force: true });
   }

@@ -5,7 +5,8 @@ import {
   getNodeColors, getNodeShape, getRelationColor, truncateLabel,
 } from "@/modules/graph/presentation/services/graph-style.service";
 import { computeEdgeCurve } from "@/modules/graph/presentation/services/edge-geometry.service";
-import { RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
+import { NODE_TYPE_DISPLAY, RELATION_LABELS } from "@/modules/graph/constants/graph-ui.constants";
+import { topClusterArcPoint } from "../services/cluster-label-anchor";
 import { heatmapColor } from "@/modules/graph/domain/services/heatmap-color";
 import { territoryColor } from "@/modules/graph/domain/services/conquest-color";
 import { useColorTheme } from "@/components/color-theme-provider";
@@ -166,6 +167,7 @@ function drawClusterBlob(
   stroke: string,
   zoom: number,
   pad = 52,
+  locateLabel = false,
 ) {
   if (groupNodes.length === 0) return;
   const PAD = pad;
@@ -178,7 +180,7 @@ function drawClusterBlob(
     ctx.fillStyle = fill; ctx.fill();
     ctx.strokeStyle = stroke; ctx.lineWidth = 2 / zoom;
     ctx.setLineDash([8/zoom, 5/zoom]); ctx.stroke(); ctx.setLineDash([]);
-    return;
+    return locateLabel ? { x: n.x, y: n.y - r } : undefined;
   }
 
   const gcx = groupNodes.reduce((a: number, n: any) => a + n.x, 0) / groupNodes.length;
@@ -195,16 +197,25 @@ function drawClusterBlob(
 
   const cnt = expanded.length;
   const firstMid = { x:(expanded[cnt-1].x+expanded[0].x)/2, y:(expanded[cnt-1].y+expanded[0].y)/2 };
+  let top = firstMid;
+  let start = firstMid;
   ctx.beginPath();
   ctx.moveTo(firstMid.x, firstMid.y);
   for (let i = 0; i < cnt; i++) {
     const c = expanded[i], nx = expanded[(i+1)%cnt];
-    ctx.quadraticCurveTo(c.x, c.y, (c.x+nx.x)/2, (c.y+nx.y)/2);
+    const end = { x: (c.x + nx.x) / 2, y: (c.y + nx.y) / 2 };
+    ctx.quadraticCurveTo(c.x, c.y, end.x, end.y);
+    if (locateLabel) {
+      const candidate = topClusterArcPoint(start, c, end);
+      if (candidate.y < top.y) top = candidate;
+      start = end;
+    }
   }
   ctx.closePath();
   ctx.fillStyle = fill; ctx.fill();
   ctx.strokeStyle = stroke; ctx.lineWidth = 2.5 / zoom;
   ctx.setLineDash([8/zoom, 5/zoom]); ctx.stroke(); ctx.setLineDash([]);
+  return locateLabel ? top : undefined;
 }
 
 function drawEdgeLine(ctx: CanvasRenderingContext2D, src: any, tgt: any, color: string, zoom: number) {
@@ -415,6 +426,8 @@ export function GraphRenderer({
     // Folhas (flashcard/baralho/etc.) nunca têm região própria; entram na do
     // conceito. Cai no agrupamento por TIPO se a hierarquia não foi derivada.
     if (showClusters && zoom >= ZOOM_DOT) {
+      const labelRegions = zoom > ZOOM_BEZIER;
+      const labels = new Map<string, { name: string; x: number; y: number; color: string }>();
       const hasHierarchy = vis.some((n) => Array.isArray(n.subtreeIds));
       if (hasHierarchy) {
         // do nível mais externo (assunto) ao mais interno (conceito)
@@ -436,9 +449,11 @@ export function GraphRenderer({
           // baralho/prova/questão) só orbitam e não definem cor; e hierarquias que
           // pulam níveis (ex.: conceito direto sob assunto) recebem a cor certa.
           for (const [sid, gNodes] of groups) {
-            const ownerType = nodeById.get(sid)?.group ?? lv.type;
+            const owner = nodeById.get(sid);
+            const ownerType = owner?.group ?? lv.type;
             const c = getNodeColors(ownerType, isDark);
-            drawClusterBlob(ctx, gNodes, c.border + lv.fillA, c.border + lv.strokeA, zoom, lv.pad);
+            const anchor = drawClusterBlob(ctx, gNodes, c.border + lv.fillA, c.border + lv.strokeA, zoom, lv.pad, labelRegions);
+            if (anchor && owner?.label && !labels.has(sid)) labels.set(sid, { ...anchor, name: owner.label, color: c.border });
           }
         }
       } else {
@@ -450,8 +465,27 @@ export function GraphRenderer({
         }
         for (const [group, gNodes] of groups) {
           const c = getNodeColors(group, isDark);
-          drawClusterBlob(ctx, gNodes, c.border + "1f", c.border + "66", zoom);
+          const anchor = drawClusterBlob(ctx, gNodes, c.border + "1f", c.border + "66", zoom, 52, labelRegions);
+          const name = NODE_TYPE_DISPLAY[group as keyof typeof NODE_TYPE_DISPLAY]?.label ?? group;
+          if (anchor) labels.set(group, { ...anchor, name, color: c.border });
         }
+      }
+      if (labels.size) {
+        ctx.save();
+        ctx.font = `600 ${11 / zoom}px system-ui,sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.lineJoin = "round";
+        ctx.lineWidth = 4 / zoom;
+        ctx.strokeStyle = isDark ? "#18181b" : "#fafafa";
+        for (const { name, x, y, color } of labels.values()) {
+          if (x < gL || x > gR || y < gT || y > gB) continue;
+          const label = truncateLabel(name, "CONCEITO", 220);
+          ctx.strokeText(label, x, y);
+          ctx.fillStyle = color;
+          ctx.fillText(label, x, y);
+        }
+        ctx.restore();
       }
     }
 
