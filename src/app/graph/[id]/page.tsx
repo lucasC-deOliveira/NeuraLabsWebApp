@@ -1,6 +1,10 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "@/lib/navigation";
+import { rememberReaderGraph } from "@/lib/reader-graph-context";
+import type { VaultNode } from "@/lib/vault-format";
+import { useBookGraphView } from "@/modules/graph/presentation/hooks/useBookGraphView";
+import { BookGraphPageFilter } from "@/modules/graph/presentation/components/BookGraphPageFilter";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -116,16 +120,29 @@ import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 import { splitGraphEntities, countNodesByType, neighborhoodFlashcardIds } from "@/modules/graph/domain/services/graph-derivations";
 import { getRelationStats } from "@/modules/graph/domain/selectors/graph.selectors";
 
-export default function GraphPage() {
+interface EmbeddedBookGraph {
+  graphId: string;
+  page: number;
+  showAll?: boolean;
+  onCitationNode: (node: VaultNode | null, pinned: boolean) => void;
+}
+
+export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph } = {}) {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-  const graphId = params.id as string;
+  const graphId = embedded?.graphId ?? params.id as string;
 
   const { theme, resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark" || theme === "dark";
 
-  const controller = useGraphController(graphId);
+  const bookPages = embedded ? (embedded.showAll ? "" : String(embedded.page)) : searchParams.get("pages") ?? "";
+  const bookView = useBookGraphView(graphId, bookPages);
+  const controller = useGraphController(graphId, bookView.filter);
+  const { loading: graphLoading, grafoNome: graphName, rawNodes: graphNodes } = controller.state;
+  useEffect(() => {
+    if (isDesktop() && !graphLoading) rememberReaderGraph(graphId, graphName, graphNodes);
+  }, [graphId, graphLoading, graphName, graphNodes]);
   const undo = useUndoStack();
   const nodeStats = useMemo(
     () => countNodesByType(controller.state.rawNodes),
@@ -230,6 +247,26 @@ export default function GraphPage() {
   const [serverRelations, setServerRelations] = useState<{ graphId: string; edges: EdgeView[] } | null>(null);
   const vaultBacked = controller.state.vaultBacked;
   const vaultSource = controller.state.vaultSource;
+  const selectedVaultNode = vaultSource?.entries.find(({ node }) => node.id === controller.state.selectedNode?.id)?.node;
+  const publishCitation = embedded?.onCitationNode;
+  const readerPage = embedded?.page;
+  const citationPage = useRef(readerPage);
+  const selectEmbeddedNode = controller.actions.selectNode;
+  const hoverEmbeddedNode = controller.actions.setHoveredNodeId;
+  const hoveredId = controller.state.hoveredNodeId;
+  useEffect(() => {
+    if (!publishCitation) return;
+    if (citationPage.current !== readerPage) {
+      citationPage.current = readerPage;
+      selectEmbeddedNode(null);
+      hoverEmbeddedNode(null);
+      publishCitation(null, false);
+      return;
+    }
+    const hovered = !selectedVaultNode && hoveredId
+      ? vaultSource?.entries.find(({ node }) => node.id === hoveredId)?.node : null;
+    publishCitation(selectedVaultNode ?? hovered ?? null, Boolean(selectedVaultNode));
+  }, [publishCitation, readerPage, selectEmbeddedNode, hoverEmbeddedNode, hoveredId, selectedVaultNode, vaultSource]);
   const vaultChat = useMemo(() => vaultSource ? makeVaultChat(graphId, vaultSource) : undefined, [graphId, vaultSource]);
   const localExamStudy = useMemo(() => vaultSource ? makeVaultExamStudy(graphId, vaultSource, desktop.vault) : undefined, [graphId, vaultSource]);
   const vaultEdges = useMemo(() => makeVaultGraphEdges(desktop.vault), []);
@@ -308,17 +345,19 @@ export default function GraphPage() {
   // Chegou de "Ver no grafo" com ?focus=<referenciaId>: seleciona e centraliza o
   // nó assim que a view carregar. Uma vez por destino — depois o usuário navega livre.
   const focusId = searchParams.get("focus");
+  const openConcept = searchParams.get("from") === "reader";
   const focusedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!focusId) { focusedRef.current = null; return; }
-    const destination = `${graphId}:${focusId}`;
+    const destination = `${graphId}:${focusId}:${openConcept}`;
     if (focusedRef.current === destination) return;
     const node = controller.state.filteredNodes.find((n: any) => n.id === focusId);
     if (!node) return;
     focusedRef.current = destination;
-    controller.actions.setSelectedNodeIds(new Set([focusId]));
+    if (openConcept) controller.actions.selectNode(node);
+    else controller.actions.setSelectedNodeIds(new Set([focusId]));
     controller.interactions.focusNode(node);
-  }, [graphId, focusId, controller.state.filteredNodes, controller.actions, controller.interactions]);
+  }, [graphId, focusId, openConcept, controller.state.filteredNodes, controller.actions, controller.interactions]);
 
   const closeToolbarModals = () => {
     setIsCreateModalOpen(false);
@@ -804,7 +843,8 @@ export default function GraphPage() {
   // LOADING
   // ======================
   if (controller.state.loading || controller.state.preparing) {
-    return <GraphLoadingScreen phase={controller.state.loading ? "loading" : "preparing"} />;
+    return embedded ? <p role="status" className="p-3">Preparando o grafo do livro…</p>
+      : <GraphLoadingScreen phase={controller.state.loading ? "loading" : "preparing"} />;
   }
   // contagem de arestas por tipo de relação (camadas de relações)
   const relationStats = getRelationStats(controller.state.edges);
@@ -1005,13 +1045,13 @@ export default function GraphPage() {
   // RENDER
   // ======================
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className={`flex flex-col overflow-hidden ${embedded ? "h-full" : "h-screen"}`}>
 
       {/* HEADER */}
       <header className="h-10 flex items-center px-2 border-b border-primary/60">
-        <Button variant="ghost" className="text-primary" onClick={() => router.push("/graph")}>
+        {!embedded && <Button variant="ghost" className="text-primary" onClick={() => router.push("/graph")}>
           <ArrowLeftIcon />
-        </Button>
+        </Button>}
 
         <div className="flex-1 flex items-center justify-center gap-1.5 min-w-0">
           {grafoInfo?.parentGrafoId && (
@@ -1158,6 +1198,15 @@ export default function GraphPage() {
           </Button>
         )}
       </header>
+      {!embedded && bookView.index && <BookGraphPageFilter key={graphId} index={bookView.index} current={bookPages} onChange={(pages) => {
+        controller.actions.selectNode(null);
+        const query = new URLSearchParams(searchParams);
+        query.delete("focus");
+        if (pages) query.set("pages", pages);
+        else query.delete("pages");
+        const suffix = query.toString();
+        router.replace(`/graph/${encodeURIComponent(graphId)}${suffix ? `?${suffix}` : ""}`);
+      }} />}
 
       {/* BODY */}
       <div className="flex flex-1 overflow-hidden">
@@ -1304,6 +1353,8 @@ export default function GraphPage() {
         {/* RIGHT PANEL */}
         {controller.state.selectedNode && (
         <PropertiesPanel
+          bookSourceDescription={selectedVaultNode?.descricao}
+          bookSourceHref={selectedVaultNode?.fonte}
           selectedNode={controller.state.selectedNode}
           connectedEdges={selectedNodeEdges}
           isDark={isDark}

@@ -13,6 +13,7 @@ import { getFilteredNodes, getVisibleEdges } from "../../domain/selectors/graph.
 import { useVaultWatch } from "../hooks/useVaultWatch";
 import { keepEquivalentVaultProjection } from "../services/vault-graph-projection";
 import type { GraphEdgeType, GraphNodeType } from "../../domain/types/graph.types";
+import { bookEdgeKey, type BookGraphViewFilter } from "@/lib/book-graph-view";
 
 // Grafo grande: layout fica num ref (não no estado React) para evitar
 // reconciliação de 14k fibers em startTransition que leva 2-3s e trava o pan.
@@ -48,7 +49,7 @@ function mergePositions(nodes: SimNode[], prev: SimNode[]): SimNode[] {
   });
 }
 
-export function useGraphController(graphId: string) {
+export function useGraphController(graphId: string, bookFilter?: BookGraphViewFilter | null) {
   const svgRef = useRef<HTMLElement | null>(null);
 
   const {
@@ -420,14 +421,15 @@ export function useGraphController(graphId: string) {
 
   // Grafo grande: lê do ref (referência estável — useMemo não recomputa no pan)
   const filteredNodes = useMemo(() => {
+    const restrict = (nodes: SimNode[]): SimNode[] => bookFilter ? nodes.filter(({ id }) => bookFilter.nodes.has(id)) : nodes;
     if (isLargeRef.current) {
       const src = largeLayoutRef.current;
-      return hiddenTypes.size === 0 ? src : src.filter((n) => !hiddenTypes.has((n as any).group));
+      return restrict(hiddenTypes.size === 0 ? src : src.filter((n) => !hiddenTypes.has((n as any).group)));
     }
-    return getFilteredNodes(layout, hiddenTypes);
+    return restrict(getFilteredNodes(layout, hiddenTypes));
   // largeLayoutVer invalida o memo quando o ref é atualizado (drag, carga inicial)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, hiddenTypes, largeLayoutVer]);
+  }, [layout, hiddenTypes, largeLayoutVer, bookFilter]);
 
   // Grafo grande: visibleNodeIds vazio — o Canvas já faz culling interno
   const visibleNodeIds = useMemo(
@@ -438,8 +440,9 @@ export function useGraphController(graphId: string) {
   // Oculta relações desativadas (camadas) e, no grafo pequeno, arestas de nós
   // ocultos. No grafo grande passa null p/ nós — o Canvas filtra por viewport.
   const filteredEdges = useMemo(
-    () => getVisibleEdges(edges, isLargeRef.current ? null : visibleNodeIds, hiddenRelations),
-    [edges, visibleNodeIds, hiddenRelations]
+    () => getVisibleEdges(bookFilter ? edges.filter(({ source, type, target }) =>
+      bookFilter.edges.has(bookEdgeKey(source, type, target))) : edges, isLargeRef.current ? null : visibleNodeIds, hiddenRelations),
+    [edges, visibleNodeIds, hiddenRelations, bookFilter]
   );
 
   const liveSelectedNode = useMemo(() => {

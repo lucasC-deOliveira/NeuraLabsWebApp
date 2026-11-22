@@ -46,7 +46,7 @@ function listGraphFoldersIn(root, parent, central) {
       const shared = readSharedManifest(directory);
       if (central && shared?.id !== location.id) return [];
       return [{ id: location.id, label: shared?.name ?? location.label, directory, modifiedAt: fs.statSync(directory).mtime.toISOString(),
-        ...(shared ? { layout: shared.layout } : {}) }];
+        ...(shared ? { layout: shared.layout, ...(shared.bookSource ? { bookSource: shared.bookSource } : {}) } : {}) }];
     } catch (error) {
       if (error.code === "ENOENT" || error.code === "EACCES") return [];
       throw error;

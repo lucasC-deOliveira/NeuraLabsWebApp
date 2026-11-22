@@ -111,9 +111,10 @@ function canonicalNote(graph, id, preferred) {
   return matches[0] ?? { target: paraPath(graph.root, `${preferred}/${id}.md`), content: null };
 }
 
-function readSharedGraphFiles(graph, since = null) {
+function readSharedGraphFiles(graph, since = null, ids = null) {
   const membershipTime = since === null || graph.raw === null ? 0 : fs.statSync(graph.filename).mtimeMs;
   return graph.members.flatMap((member) => {
+    if (ids && !ids.has(member.id)) return [];
     const { target, content } = canonicalNote(graph, member.id, member.folder);
     if (content === null) throw new Error(`O Markdown ${member.id}.md está faltando no PARA compartilhado.`);
     if (splitMarkdown(content).id !== member.id) throw new Error(`O ID de ${member.id}.md foi alterado.`);

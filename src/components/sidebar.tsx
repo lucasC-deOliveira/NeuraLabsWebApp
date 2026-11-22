@@ -5,6 +5,7 @@ import { Link } from "@/components/link";
 import { usePathname, useRouter } from "@/lib/navigation";
 import { BrainIcon, LayersIcon, NetworkIcon, FileTextIcon, MenuIcon, XIcon, SettingsIcon, LogOutIcon, UserIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, HelpCircleIcon, ClipboardListIcon, LibraryIcon, BarChart3Icon, CalendarCheckIcon } from "lucide-react";
 import { authApi } from "@/lib/api";
+import { isDesktop } from "@/lib/vault-bridge";
 import {
   Tooltip,
   TooltipContent,
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { href: "/estudo", label: "Plano de Estudo", icon: CalendarCheckIcon },
   { href: "/flashcards", label: "Flashcards", icon: LayersIcon },
   { href: "/baralhos", label: "Baralhos", icon: LibraryIcon },
+  { href: "/biblioteca", label: "Biblioteca", icon: LibraryIcon, desktopOnly: true },
   { href: "/questions", label: "Questões", icon: HelpCircleIcon },
   { href: "/provas", label: "Provas", icon: ClipboardListIcon },
   { href: "/notes", label: "Notas", icon: FileTextIcon },
@@ -52,7 +54,7 @@ function NavContent({
 
   return (
     <nav className="flex flex-col gap-1">
-      {NAV_ITEMS.map((item) => {
+      {NAV_ITEMS.filter((item) => !item.desktopOnly || isDesktop()).map((item) => {
         const isActive = pathname === item.href;
         const Icon = item.icon;
 

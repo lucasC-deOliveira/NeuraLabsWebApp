@@ -52,6 +52,23 @@ services:
       retries: 30
       start_period: 30s
 
+  reader-ocr:
+    profiles: ["ocr"]
+    build: ./ocr
+    ports:
+      - "127.0.0.1:${READER_OCR_PORT:-5002}:5050"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5050/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  document-converter:
+    profiles: ["documents"]
+    build: ./document-converter
+    ports:
+      - "127.0.0.1:5003:5051"
+
   backend:
     # Contexto na raiz (não ./backend): o build precisa de contracts/, que é irmã
     # de backend/. Ver o cabeçalho do backend/Dockerfile.

@@ -34,6 +34,11 @@ import { DetectMissingPrerequisitesUseCase } from '../modules/ai/application/use
 import { GenerateCommunitySummaryUseCase } from '../modules/ai/application/use-cases/generate-community-summary.use-case';
 import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
 import { ChatWithVaultUseCase } from '../modules/ai/application/use-cases/chat-with-vault.use-case';
+import { AnalyzeBookPassageUseCase } from '../modules/ai/application/use-cases/analyze-book-passage.use-case';
+import {
+  bookArgumentBatchRequest,
+  type BookArgumentBatchRequest,
+} from '../../../contracts/book-arguments';
 import { ZodBody } from '../common/zod-body.decorator';
 import {
   vaultChatRequest,
@@ -95,6 +100,7 @@ export class AiController {
     private readonly generateCommunitySummaryUseCase: GenerateCommunitySummaryUseCase,
     private readonly chatWithGraphUseCase: ChatWithGraphUseCase,
     private readonly chatWithVaultUseCase: ChatWithVaultUseCase,
+    private readonly analyzeBookPassageUseCase: AnalyzeBookPassageUseCase,
     private readonly listBaralhosInGrafoUseCase: ListBaralhosInGrafoUseCase,
     private readonly expandNodeUseCase: ExpandNodeUseCase,
     private readonly classifyFlashcardUseCase: ClassifyFlashcardUseCase,
@@ -447,6 +453,14 @@ export class AiController {
     @ZodBody(vaultChatRequest) request: VaultChatRequest,
   ): Promise<VaultChatResponse> {
     return this.chatWithVaultUseCase.execute(userId, request);
+  }
+
+  @Post('book-arguments')
+  analyzeBookPassage(
+    @CurrentUser() userId: string,
+    @ZodBody(bookArgumentBatchRequest) request: BookArgumentBatchRequest,
+  ): Promise<unknown> {
+    return this.analyzeBookPassageUseCase.execute(userId, request);
   }
 
   @Post('graphs/:grafoId/assess-completeness')

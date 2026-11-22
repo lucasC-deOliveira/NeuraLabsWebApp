@@ -1,6 +1,14 @@
 // Features de IA do grafo → API NestJS.
 import { apiFetch, getToken } from "./api";
 import { vaultChatResponse, type VaultChatRequest, type VaultChatResponse } from "@contracts/vault-chat";
+import type { BookArgumentBatchRequest } from "@contracts/book-arguments";
+
+/** Uses the configured generative provider for one book passage. */
+export function requestBookArguments(request: BookArgumentBatchRequest): Promise<unknown> {
+  return apiFetch("/ai/graph/book-arguments", {
+    method: "POST", body: JSON.stringify(request), timeoutMs: 240_000,
+  });
+}
 
 export interface NotaRelationSuggestion {
   nodeId: string;
@@ -381,8 +389,8 @@ export function chatWithGraph(
 /** Sends only selected local excerpts to the configured AI backend.
  * @example const answer = await chatWithVaultSources(request)
  */
-export function chatWithVaultSources(request: VaultChatRequest): Promise<VaultChatResponse> {
-  return apiFetch("/ai/graph/vault/chat", { method: "POST", body: JSON.stringify(request), schema: vaultChatResponse });
+export function chatWithVaultSources(request: VaultChatRequest, timeoutMs?: number): Promise<VaultChatResponse> {
+  return apiFetch("/ai/graph/vault/chat", { method: "POST", body: JSON.stringify(request), schema: vaultChatResponse, timeoutMs });
 }
 
 // ── Avaliação de completude ────────────────────────────────────────────────

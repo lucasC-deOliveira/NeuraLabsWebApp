@@ -33,7 +33,23 @@ export interface VaultGraphFolder {
   label: string;
   directory: string;
   modifiedAt: string;
+  bookSource?: BookGraphSource;
 }
+
+import type { BookGraphIndex, BookGraphSource } from "@contracts/book-graph-source";
+import type { ReaderExplanation, SavedReaderExplanation } from "@contracts/reader-explanation";
+
+export interface VaultBookGraphWrite {
+  directory: string;
+  expectedManifest: string;
+  manifest: { id: string; layout?: "shared-para"; bookIndex?: BookGraphIndex; bookSource?: BookGraphSource };
+  notes: (VaultFile & { id: string; previousPath?: string; expected?: string })[];
+}
+
+export type VaultBookGraphPage =
+  | { status: "missing" }
+  | { status: "unanalyzed"; graphId: string }
+  | { status: "ready"; graphId: string; edges: string[]; files: VaultFile[] };
 
 export interface VaultSyncState {
   lastPull?: string; // ISO 8601
@@ -66,6 +82,10 @@ interface NeuralabsBridge {
   vault: {
     getPath: () => Promise<string | null>;
     listGraphFolders: () => Promise<VaultGraphFolder[]>;
+    writeBookGraph: (update: VaultBookGraphWrite) => Promise<boolean>;
+    readBookGraphPage: (graphId: string, page: number) => Promise<VaultBookGraphPage>;
+    listReaderExplanations: (book: string, page: number) => Promise<SavedReaderExplanation[]>;
+    saveReaderExplanation: (book: string, page: number, explanation: ReaderExplanation) => Promise<SavedReaderExplanation>;
     listExamAttempts?: (dir: string) => Promise<string[]>;
     pickFolder: () => Promise<string | null>;
     readStudy: (folder: string) => Promise<string | null>;
@@ -77,6 +97,19 @@ interface NeuralabsBridge {
     writeSyncState: (dir: string, state: Partial<VaultSyncState>) => Promise<{ ok: boolean }>;
     checkModified: (dir: string, since: string) => Promise<{ count: number; files: string[] }>;
     readFile: (dir: string, relPath: string) => Promise<string | null>;
+    listLibraryPdfs: () => Promise<{ path: string; name: string }[]>;
+    importLibraryPdf: () => Promise<{ path: string; name: string } | null>;
+    readLibraryPdf: (relative: string) => Promise<Uint8Array>;
+    loadReaderOcr: (relative: string) => Promise<ReaderOcrCache>;
+    recognizeReaderPage: (request: ReaderOcrRequest) => Promise<ReaderOcrPage>;
+    convertReaderMarkdown: (request: ReaderConversionRequest) => Promise<ReaderConversionResult>;
+    onReaderConversionProgress: (callback: (progress: ReaderConversionProgress) => void) => () => void;
+    listReaderTranscriptions: (book: string) => Promise<ReaderTranscription[]>;
+    readReaderTranscription: (book: string, id: string) => Promise<string>;
+    searchReaderTranscription: (book: string, id: string, query: string) => Promise<ReaderSemanticHit[]>;
+    findReaderBookEvidence: (book: string, id: string, query: string) => Promise<ReaderSemanticHit[]>;
+    readReaderTranscriptionImage: (book: string, id: string, name: string) => Promise<string | null>;
+    trashReaderTranscription: (book: string, id: string) => Promise<"system" | "vault">;
     writeFile: (dir: string, relPath: string, content: string) => Promise<{ ok: boolean }>;
     replaceGraphMarkdown: (dir: string, relPath: string, expected: string, next: string) => Promise<boolean>;
     replaceGraphMarkdownBatch: (writes: VaultGraphMarkdownWrite[]) => Promise<boolean>;
@@ -118,6 +151,10 @@ export const desktop = {
   vault: {
     getPath: () => required().vault.getPath(),
     listGraphFolders: () => required().vault.listGraphFolders(),
+    writeBookGraph: (update: VaultBookGraphWrite) => required().vault.writeBookGraph(update),
+    readBookGraphPage: (graphId: string, page: number) => required().vault.readBookGraphPage(graphId, page),
+    listReaderExplanations: (book: string, page: number) => required().vault.listReaderExplanations(book, page),
+    saveReaderExplanation: (book: string, page: number, explanation: ReaderExplanation) => required().vault.saveReaderExplanation(book, page, explanation),
     listExamAttempts: (dir: string) => required().vault.listExamAttempts?.(dir) ?? null,
     pickFolder: () => required().vault.pickFolder(),
     readStudy: (folder: string) => required().vault.readStudy(folder),
@@ -129,6 +166,19 @@ export const desktop = {
     writeSyncState: (dir: string, state: Partial<VaultSyncState>) => required().vault.writeSyncState(dir, state),
     checkModified: (dir: string, since: string) => required().vault.checkModified(dir, since),
     readFile: (dir: string, relPath: string) => required().vault.readFile(dir, relPath),
+    listLibraryPdfs: () => required().vault.listLibraryPdfs(),
+    importLibraryPdf: () => required().vault.importLibraryPdf(),
+    readLibraryPdf: (relative: string) => required().vault.readLibraryPdf(relative),
+    loadReaderOcr: (relative: string) => required().vault.loadReaderOcr(relative),
+    recognizeReaderPage: (request: ReaderOcrRequest) => required().vault.recognizeReaderPage(request),
+    convertReaderMarkdown: (request: ReaderConversionRequest) => required().vault.convertReaderMarkdown(request),
+    onReaderConversionProgress: (callback: (progress: ReaderConversionProgress) => void) => required().vault.onReaderConversionProgress(callback),
+    listReaderTranscriptions: (book: string) => required().vault.listReaderTranscriptions(book),
+    readReaderTranscription: (book: string, id: string) => required().vault.readReaderTranscription(book, id),
+    searchReaderTranscription: (book: string, id: string, query: string) => required().vault.searchReaderTranscription(book, id, query),
+    findReaderBookEvidence: (book: string, id: string, query: string) => required().vault.findReaderBookEvidence(book, id, query),
+    readReaderTranscriptionImage: (book: string, id: string, name: string) => required().vault.readReaderTranscriptionImage(book, id, name),
+    trashReaderTranscription: (book: string, id: string) => required().vault.trashReaderTranscription(book, id),
     writeFile: (dir: string, relPath: string, content: string) => required().vault.writeFile(dir, relPath, content),
     replaceGraphMarkdown: (dir: string, relPath: string, expected: string, next: string) =>
       required().vault.replaceGraphMarkdown(dir, relPath, expected, next),
@@ -140,3 +190,6 @@ export const desktop = {
     onChanged: (cb: (data: { watchId: string; files: VaultFile[] }) => void) => required().vault.onChanged(cb),
   },
 };
+import type { ReaderOcrCache, ReaderOcrPage, ReaderOcrRequest } from "@contracts/reader-ocr";
+import type { ReaderConversionProgress, ReaderConversionRequest, ReaderConversionResult } from "@contracts/reader-conversion";
+import type { ReaderSemanticHit, ReaderTranscription } from "@contracts/reader-transcriptions";
