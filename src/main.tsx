@@ -2,7 +2,7 @@ import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 import "@/app/globals.css";
 
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import {
   HashRouter,
@@ -65,6 +65,8 @@ function RedirectIfAuthed({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const BibliographyReaderPage = lazy(() => import("@/modules/reader/presentation/BibliographyReaderPage"));
+
 function App() {
   const { pathname } = useLocation();
   const pauseSyncPrompt = AUTH_PATHS.includes(pathname)
@@ -82,6 +84,7 @@ function App() {
           <Route path="/baralhos" element={<RequireAuth desktopLocal><BaralhosPage /></RequireAuth>} />
           <Route path="/baralhos/offline" element={<RequireAuth><OfflineBaralhosPage /></RequireAuth>} />
           <Route path="/baralhos/:id" element={<RequireAuth desktopLocal><BaralhoDetailPage /></RequireAuth>} />
+          <Route path="/biblioteca" element={<RequireAuth desktopLocal><Suspense fallback={<p role="status" className="p-6">Abrindo biblioteca…</p>}><BibliographyReaderPage /></Suspense></RequireAuth>} />
           <Route path="/notes" element={<RequireAuth><NotesPage /></RequireAuth>} />
           <Route path="/notes/new" element={<RequireAuth><NewNotePage /></RequireAuth>} />
           <Route path="/notes/:id" element={<RequireAuth><NoteDetailPage /></RequireAuth>} />

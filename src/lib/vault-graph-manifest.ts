@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bookGraphIndex, bookGraphSource } from "@contracts/book-graph-source";
 import { desktop, type VaultGraphFolder } from "./vault-bridge";
 
 export const VAULT_GRAPH_MANIFEST = ".neuralabs-graph.json";
@@ -8,6 +9,8 @@ const manifestSchema = z.object({
   layout: z.literal("shared-para").optional(),
   publication: z.enum(["pending", "published"]).optional(),
   description: z.string().optional(),
+  bookSource: bookGraphSource.optional(),
+  bookIndex: bookGraphIndex.optional(),
   parentId: z.string().nullable().optional(), parentName: z.string().nullable().optional(),
   parentRelation: z.string().nullable().optional(), childCount: z.number().optional(),
   visual: z.object({ zoom: z.number(), pan: z.object({ x: z.number(), y: z.number() }) }).optional(),

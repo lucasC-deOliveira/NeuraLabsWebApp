@@ -7,9 +7,12 @@ import type { PropertiesNode, PropertiesEdge, DeckStats } from "./properties/pro
 import { NodeSummary, NodeAiSection, NodeStudySection, NodeAnalyticsAction, NodeFeynmanAction, DeckStatsView, NotaMetaView } from "./properties/PropertiesSections";
 import { NodeRelations } from "./properties/NodeRelations";
 import { NodeActions, GenerateDeckAction, NodePosition } from "./properties/NodeActions";
+import { BookNodeSources } from "./properties/BookNodeSources";
 
 export interface PropertiesPanelProps {
   selectedNode: PropertiesNode | null;
+  bookSourceDescription?: string | null;
+  bookSourceHref?: string | null;
   connectedEdges: PropertiesEdge[];
   isDark: boolean;
   onRemoveFromGraph: () => void;
@@ -107,6 +110,7 @@ function NodeContent({ props, node, notaMeta, deckStats }: NodeContentProps) {
   return (
     <div className="space-y-4">
       <NodeSummary node={node} connections={props.connectedEdges.length} />
+      <BookNodeSources description={props.bookSourceDescription ?? ""} source={props.bookSourceHref} />
       <Separator />
       <NodeAiSection node={node} onGenerateInsights={props.onGenerateInsights} onExpandNode={props.onExpandNode} onImproveFlashcard={props.onImproveFlashcard} onImproveQuestao={props.onImproveQuestao} onImproveNota={props.onImproveNota} />
       <NodeStudySection

@@ -114,6 +114,7 @@ import {
 import { PrismaChatNodesRepository } from '../modules/ai/infrastructure/persistence/prisma-chat-nodes.repository';
 import { ChatWithGraphUseCase } from '../modules/ai/application/use-cases/chat-with-graph.use-case';
 import { ChatWithVaultUseCase } from '../modules/ai/application/use-cases/chat-with-vault.use-case';
+import { AnalyzeBookPassageUseCase } from '../modules/ai/application/use-cases/analyze-book-passage.use-case';
 import {
   GRAPH_DECKS_QUERY,
   type GraphDecksQuery,
@@ -537,6 +538,11 @@ const graphRelationRules: RelationRulesPort = {
       provide: ChatWithGraphUseCase,
       useFactory: (repo: ChatNodesRepository, llm: LlmPort) => new ChatWithGraphUseCase(repo, llm),
       inject: [CHAT_NODES_REPOSITORY, LLM_PORT],
+    },
+    {
+      provide: AnalyzeBookPassageUseCase,
+      useFactory: (llm: LlmPort) => new AnalyzeBookPassageUseCase(llm),
+      inject: [LLM_PORT],
     },
     {
       provide: ChatWithVaultUseCase,

@@ -1,0 +1,25 @@
+.reader-pdf-text {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+}
+
+.reader-pdf-text :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  transform-origin: 0 0;
+  cursor: text;
+}
+
+.reader-pdf-text span.markedContent {
+  top: 0;
+  height: 0;
+}
+
+.reader-pdf-text ::selection {
+  background: rgb(59 130 246 / 35%);
+}

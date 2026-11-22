@@ -98,6 +98,86 @@ desative-o antes de selecionar o Codex.
 
 ## Como funciona
 
+### Leitura de PDFs escaneados
+
+No Electron, abra **Biblioteca** e selecione um PDF do vault. Para reconhecer
+páginas escaneadas, prepare o serviço local com `docker compose up -d --build reader-ocr`.
+O build baixa os pesos do PaddleOCR do Hugging Face. Depois de pronta, a imagem
+processa páginas sem internet. Escolha Português ou Inglês no leitor e clique
+em **Reconhecer texto**. O vault guarda o resultado por página em
+`.neuralabs/reader-ocr/`. O leitor e a busca no texto já disponível continuam
+funcionando quando o serviço estiver desligado.
+Use **Reconhecer livro para busca** para preencher o cache de OCR de todas as
+páginas necessárias. Ao parar, as páginas concluídas podem ser reaproveitadas.
+
+### Conversão de PDF para Markdown com figuras
+
+Para experimentar o conversor de estrutura, execute `docker compose up -d --build document-converter`.
+Na Biblioteca, abra um PDF e use **Converter livro para Markdown** dentro de
+**Transcrições**. O app converte em lotes e guarda um único Markdown separado por
+páginas, com as figuras em uma subpasta de `Resources/Bibliografia/Transcricoes/`. A transcrição
+pode ser aberta ou movida para a lixeira pelo livro. O PDF original continua
+disponível.
+
+O serviço roda localmente na CPU. O preparo da imagem baixa os pesos do
+[Heron](https://huggingface.co/docling-project/docling-layout-heron) e do
+[TableFormer](https://huggingface.co/docling-project/docling-models). Ele usa
+[Docling (MIT)](https://github.com/docling-project/docling/blob/main/LICENSE) e
+[Tesseract (Apache-2.0)](https://github.com/tesseract-ocr/tesseract/blob/main/LICENSE)
+com os dados de português e inglês para páginas escaneadas.
+
+Na transcrição aberta, **Buscar por significado** compara a consulta com os
+trechos do livro e direciona cada resultado à seção correspondente. A busca
+funciona com português e inglês, inclusive em consultas sobre um livro no outro
+idioma. O modelo [MiniLM multilíngue (Apache-2.0)](https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2)
+é baixado na construção da imagem e executado na CPU. O conteúdo do livro e a
+consulta ficam na máquina. A primeira busca indexa a transcrição em memória.
+
+### Mapa de argumentos de um livro
+
+Na transcrição página por página, abra **Gerar grafo para análise**, selecione
+uma página, uma combinação como `2, 5–8` ou **Livro inteiro** e clique em
+**Analisar com IA**. Os resultados são salvos no grafo do livro, onde é
+possível filtrar pelas páginas analisadas. Transcrições antigas em blocos de 30 páginas precisam ser
+geradas novamente para escolher páginas individuais.
+
+Use **Leitura lado a lado** para acompanhar o PDF, a transcrição e o grafo
+da mesma página. Os controles de página atualizam os três painéis juntos.
+
+O botão **Perguntar à IA** usa a página aberta para explicar, simplificar,
+dar uma analogia ou resumir pelo provedor configurado. Use **Salvar resposta
+no vault** para guardar o texto aprovado em `Resources/Bibliografia/Anotacoes/`
+com um link para a página na transcrição, quando ela estiver disponível.
+No contexto **Livro inteiro**, o assistente busca passagens relacionadas na
+transcrição e envia até seis delas ao provedor configurado para compor uma
+síntese com fontes. As sínteses aprovadas ficam acessíveis em qualquer
+página do livro. **Cobertura do grafo** mostra as páginas com análise salva.
+Os trechos escolhidos são enviados pelo backend ao provedor configurado nas
+opções de IA, inclusive aos proxies do Codex e do Claude.
+O app analisa a transcrição em trechos, usa os títulos disponíveis como
+referência de capítulo e indica o progresso. Cada sugestão precisa trazer
+uma citação presente no texto. Revise os conceitos, as notas, os flashcards e as relações antes
+de salvar o novo grafo. **Usar análise simples** mantém a extração por
+títulos e frases explícitas disponível offline.
+
+#### Melhoria futura do leitor semântico
+
+A prioridade é permitir que o leitor aprove e salve no grafo do livro as
+relações entre passagens de capítulos diferentes. Cada relação deve registrar
+o papel da passagem, como definição, aplicação ou limite, e incluir uma
+citação que abra na página correspondente da transcrição.
+
+Depois, sugerir a reunião de conceitos equivalentes e indicar quando um
+mesmo termo tem sentidos diferentes. A decisão fica com o leitor, que
+pode comparar as fontes. Exemplos e analogias criados pela IA devem ter
+autoria explícita. A cobertura semântica deve mostrar quais teses têm
+evidências, exemplos e objeções vinculados.
+
+Para validar a primeira entrega, escolha uma ideia que reaparece em três
+capítulos. Registre a definição, a aplicação e o limite. Depois, verifique
+se é possível reconstruir o percurso da ideia navegando pelo grafo e
+abrindo as três citações.
+
 ### Repetição espaçada (SM-2)
 
 Após cada cartão, o usuário informa se acertou e seu nível de confiança (1 a 5). Esses valores são mapeados para a qualidade SM-2 e o algoritmo recalcula o intervalo e o fator de facilidade. Cartões errados voltam para o dia seguinte; cartões corretos com alta confiança avançam progressivamente (1 → 6 → N × ease dias).

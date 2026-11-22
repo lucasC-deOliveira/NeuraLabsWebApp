@@ -12,7 +12,14 @@ const { CODEX_PROXY_PORT, makeCodexProxy } = require("./codex-proxy");
 const { spawn, exec, execSync } = require("child_process");
 const { readVaultStudy, writeVaultStudy, replaceVaultFile } = require("./vault-study-store");
 const { installVaultAgentSkills } = require("./vault-agent-skills");
+const { listLibraryPdfs, readLibraryPdf, importLibraryPdf } = require("./vault-library-pdfs");
+const { loadReaderOcr, saveReaderOcr } = require("./reader-ocr");
+const { saveReaderMarkdown } = require("./reader-markdown");
+const { listReaderTranscriptions, readReaderTranscription, readReaderTranscriptionImage, trashReaderTranscription } = require("./reader-transcriptions");
+const { searchReaderTranscription, findReaderBookEvidence } = require("./reader-semantic");
 const { listVaultGraphFolders } = require("./vault-graph-folders");
+const { writeBookGraph, readBookGraphPage } = require("./vault-book-graph");
+const { saveReaderExplanation, listReaderExplanations } = require("./reader-explanations");
 const { vaultGraphLocation, vaultStudyFile, examRecordDirectory } = require("./vault-paths");
 const {
   readSharedManifest, sharedGraph, readSharedGraphFiles, writeSharedGraphFiles,
@@ -536,7 +543,38 @@ ipcMain.handle("neuralabs:stop-codex-proxy", () => {
 // IPC: vault (sistema de arquivos)
 // ---------------------------------------------------------------------------
 ipcMain.handle("vault:get-path", () => readConfig().vaultPath || null);
+ipcMain.handle("vault:list-library-pdfs", () => listLibraryPdfs(readConfig().vaultPath));
+ipcMain.handle("vault:import-library-pdf", async () => {
+  const vault = readConfig().vaultPath;
+  if (!vault) throw new Error("No vault selected. Expected a configured vault.");
+  const selection = await dialog.showOpenDialog(mainWindow, {
+    title: "Adicionar livro à biblioteca",
+    properties: ["openFile"],
+    filters: [{ name: "Documentos PDF", extensions: ["pdf"] }],
+  });
+  if (selection.canceled || !selection.filePaths[0]) return null;
+  if (vault !== readConfig().vaultPath) throw new Error("The vault changed while selecting a book.");
+  return importLibraryPdf(vault, selection.filePaths[0]);
+});
+ipcMain.handle("vault:read-library-pdf", (_event, relative) => readLibraryPdf(readConfig().vaultPath, relative));
+ipcMain.handle("vault:load-reader-ocr", (_event, relative) => loadReaderOcr(readConfig().vaultPath, relative));
+ipcMain.handle("vault:recognize-reader-page", (_event, request) => saveReaderOcr(readConfig().vaultPath, request));
+ipcMain.handle("vault:convert-reader-markdown", (event, request) =>
+  saveReaderMarkdown(readConfig().vaultPath, request, (progress) => {
+    if (!event.sender.isDestroyed()) event.sender.send("vault:reader-conversion-progress", progress);
+  }),
+);
+ipcMain.handle("vault:list-reader-transcriptions", (_event, book) => listReaderTranscriptions(readConfig().vaultPath, book));
+ipcMain.handle("vault:read-reader-transcription", (_event, book, id) => readReaderTranscription(readConfig().vaultPath, book, id));
+ipcMain.handle("vault:search-reader-transcription", (_event, book, id, query) => searchReaderTranscription(readConfig().vaultPath, book, id, query));
+ipcMain.handle("vault:find-reader-book-evidence", (_event, book, id, query) => findReaderBookEvidence(readConfig().vaultPath, book, id, query));
+ipcMain.handle("vault:read-reader-transcription-image", (_event, book, id, name) => readReaderTranscriptionImage(readConfig().vaultPath, book, id, name));
+ipcMain.handle("vault:trash-reader-transcription", (_event, book, id) => trashReaderTranscription(readConfig().vaultPath, book, id, (target) => shell.trashItem(target)));
 ipcMain.handle("vault:list-graph-folders", () => listVaultGraphFolders(readConfig().vaultPath));
+ipcMain.handle("vault:write-book-graph", (_event, update) => writeBookGraph(readConfig().vaultPath, update));
+ipcMain.handle("vault:read-book-graph-page", (_event, graphId, page) => readBookGraphPage(readConfig().vaultPath, graphId, page));
+ipcMain.handle("vault:list-reader-explanations", (_event, book, page) => listReaderExplanations(readConfig().vaultPath, book, page));
+ipcMain.handle("vault:save-reader-explanation", (_event, book, page, explanation) => saveReaderExplanation(readConfig().vaultPath, book, page, explanation));
 ipcMain.handle("vault:list-exam-attempts", (_event, dir) => {
   const location = vaultGraphLocation(readConfig().vaultPath, dir);
   if (!location) {
@@ -615,7 +653,10 @@ function activeSharedGraph(dir, files) {
   const proposed = manifestFile ? JSON.parse(manifestFile.content) : null;
   if (!current && (!proposed || proposed.layout !== "shared-para" ||
     listVaultGraphFolders(root).some((folder) => folder.id === location.id))) return null;
-  const manifest = current && proposed ? { ...proposed, id: current.id, layout: current.layout } : current ?? proposed;
+  const manifest = current && proposed
+    ? { ...proposed, id: current.id, layout: current.layout, bookSource: current.bookSource ?? proposed.bookSource,
+      bookIndex: current.bookIndex ?? proposed.bookIndex }
+    : current ?? proposed;
   if (manifestFile && current && manifestFile.content !== JSON.stringify(manifest, null, 2) + "\n") {
     manifestFile.content = JSON.stringify(manifest, null, 2) + "\n";
   }
