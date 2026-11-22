@@ -19,10 +19,12 @@ const { listReaderTranscriptions, readReaderTranscription, readReaderTranscripti
 const { searchReaderTranscription, findReaderBookEvidence } = require("./reader-semantic");
 const { listVaultGraphFolders } = require("./vault-graph-folders");
 const { writeBookGraph, readBookGraphPage } = require("./vault-book-graph");
+const { readSharedGraphSnapshot, readLegacyGraphSnapshot } = require("./vault-graph-read");
+const { graphWatchFilter } = require("./vault-graph-watch-filter");
 const { saveReaderExplanation, listReaderExplanations } = require("./reader-explanations");
 const { vaultGraphLocation, vaultStudyFile, examRecordDirectory } = require("./vault-paths");
 const {
-  readSharedManifest, sharedGraph, readSharedGraphFiles, writeSharedGraphFiles,
+  readSharedManifest, sharedGraph, writeSharedGraphFiles,
   planSharedReplacement, unlinkSharedNotes, commitVaultWrites,
 } = require("./vault-shared-para");
 
@@ -759,22 +761,7 @@ ipcMain.handle("vault:delete-files", async (_e, { dir, relPaths }) => {
 ipcMain.handle("vault:read", async (_e, dir) => {
   if (!dir) throw new Error("Pasta não informada");
   const shared = activeSharedGraph(dir);
-  if (shared) return readSharedGraphFiles(shared);
-  const root = path.resolve(dir);
-  const out = [];
-  const walk = (abs) => {
-    let entries = [];
-    try { entries = fs.readdirSync(abs, { withFileTypes: true }); } catch { return; }
-    for (const ent of entries) {
-      const full = path.join(abs, ent.name);
-      if (ent.isDirectory()) walk(full);
-      else if (ent.isFile() && ent.name.toLowerCase().endsWith(".md")) {
-        out.push({ relPath: path.relative(root, full), content: fs.readFileSync(full, "utf8") });
-      }
-    }
-  };
-  for (const folder of PARA_FOLDERS) walk(path.join(root, folder));
-  return out;
+  return shared ? readSharedGraphSnapshot(shared) : readLegacyGraphSnapshot(path.resolve(dir));
 });
 
 ipcMain.handle("vault:open-folder", async (_e, dir) => {
@@ -819,7 +806,7 @@ ipcMain.handle("vault:check-modified", async (_e, { dir, since }) => {
   const sinceMs = since ? new Date(since).getTime() : 0;
   const shared = activeSharedGraph(dir);
   if (shared) {
-    const files = readSharedGraphFiles(shared, sinceMs).map(({ relPath }) => relPath);
+    const files = (await readSharedGraphSnapshot(shared, { since: sinceMs })).map(({ relPath }) => relPath);
     return { count: files.length, files };
   }
   const modified = [];
@@ -843,46 +830,44 @@ ipcMain.handle("vault:check-modified", async (_e, { dir, since }) => {
 // ---------------------------------------------------------------------------
 const vaultWatchers = new Map(); // watchId → { watcher, timer }
 
-function readGraphDir(root) {
-  const files = [];
-  const walk = (abs) => {
-    let entries = [];
-    try { entries = fs.readdirSync(abs, { withFileTypes: true }); } catch { return; }
-    for (const ent of entries) {
-      const full = path.join(abs, ent.name);
-      if (ent.isDirectory()) walk(full);
-      else if (ent.isFile() && ent.name.toLowerCase().endsWith(".md")) {
-        try { files.push({ relPath: path.relative(root, full), content: fs.readFileSync(full, "utf8") }); }
-        catch { /* inacessível */ }
-      }
-    }
-  };
-  for (const folder of PARA_FOLDERS) walk(path.join(root, folder));
-  return files;
-}
-
-ipcMain.handle("vault:watch", async (_e, { dir, watchId }) => {
+ipcMain.handle("vault:watch", async (event, { dir, watchId }) => {
   if (!dir) return { ok: false };
   const existing = vaultWatchers.get(watchId);
   if (existing) { try { existing.watcher.close(); } catch {} clearTimeout(existing.timer); }
 
   const root = path.resolve(dir);
-  const entry = { watcher: null, timer: null };
   const shared = activeSharedGraph(dir);
+  const watchedRoot = shared?.root ?? root;
+  const entry = { watcher: null, timer: null, reading: false, pending: false, accepts: graphWatchFilter(shared, watchedRoot) };
+  const schedule = () => {
+    clearTimeout(entry.timer);
+    entry.timer = setTimeout(flush, 120);
+  };
 
-  const flush = () => {
+  const flush = async () => {
+    if (vaultWatchers.get(watchId) !== entry) return;
+    if (entry.reading) { entry.pending = true; return; }
+    entry.reading = true;
     try {
       const current = shared ? activeSharedGraph(dir) : null;
-      const files = current ? readSharedGraphFiles(current) : readGraphDir(root);
-      mainWindow?.webContents.send("vault:changed", { watchId, files });
+      entry.accepts = graphWatchFilter(current, watchedRoot);
+      const files = current ? await readSharedGraphSnapshot(current) : await readLegacyGraphSnapshot(root, true);
+      if (vaultWatchers.get(watchId) === entry && !event.sender.isDestroyed()) {
+        event.sender.send("vault:changed", { watchId, files });
+      }
     } catch (error) { console.error("Could not read changed vault files:", error.message); }
+    finally {
+      entry.reading = false;
+      if (entry.pending && vaultWatchers.get(watchId) === entry) {
+        entry.pending = false;
+        schedule();
+      }
+    }
   };
 
   try {
-    entry.watcher = fs.watch(shared?.root ?? root, { recursive: true }, (_, filename) => {
-      if (!filename?.toLowerCase().endsWith(".md") && !(shared && filename?.endsWith(".neuralabs-members.json"))) return;
-      clearTimeout(entry.timer);
-      entry.timer = setTimeout(flush, 80);
+    entry.watcher = fs.watch(watchedRoot, { recursive: true }, (_, filename) => {
+      if (entry.accepts(filename)) schedule();
     });
     vaultWatchers.set(watchId, entry);
   } catch { /* dir não existe ainda */ }

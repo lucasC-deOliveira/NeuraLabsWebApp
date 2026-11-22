@@ -14,6 +14,7 @@ import { useVaultWatch } from "../hooks/useVaultWatch";
 import { keepEquivalentVaultProjection } from "../services/vault-graph-projection";
 import type { GraphEdgeType, GraphNodeType } from "../../domain/types/graph.types";
 import { bookEdgeKey, type BookGraphViewFilter } from "@/lib/book-graph-view";
+import { graphDeckIds, projectCollapsedDecks } from "../../domain/selectors/collapsed-deck-view";
 
 // Grafo grande: layout fica num ref (não no estado React) para evitar
 // reconciliação de 14k fibers em startTransition que leva 2-3s e trava o pan.
@@ -49,7 +50,7 @@ function mergePositions(nodes: SimNode[], prev: SimNode[]): SimNode[] {
   });
 }
 
-export function useGraphController(graphId: string, bookFilter?: BookGraphViewFilter | null) {
+export function useGraphController(graphId: string, bookFilter?: BookGraphViewFilter | null, expandedDecks?: ReadonlySet<string>) {
   const svgRef = useRef<HTMLElement | null>(null);
 
   const {
@@ -138,7 +139,10 @@ export function useGraphController(graphId: string, bookFilter?: BookGraphViewFi
 
 
   // additive (Shift no marquee): soma os nós do retângulo à seleção atual.
-  const handleMarqueeSelect = useCallback((ids: string[], additive?: boolean) => {
+  const deckVisibleIds = useRef<Set<string> | null>(null);
+  const handleMarqueeSelect = useCallback((candidateIds: string[], additive?: boolean) => {
+    const visible = deckVisibleIds.current;
+    const ids = visible ? candidateIds.filter((id) => visible.has(id)) : candidateIds;
     if (additive) {
       setSelectedNodeIds((prev) => new Set([...prev, ...ids]));
       setSelectedNode(null);
@@ -445,6 +449,18 @@ export function useGraphController(graphId: string, bookFilter?: BookGraphViewFi
     [edges, visibleNodeIds, hiddenRelations, bookFilter]
   );
 
+  const decksWithCards = useMemo(() => graphDeckIds(rawNodes, rawEdges), [rawNodes, rawEdges]);
+  const collapsedDecks = useMemo(() => expandedDecks
+    ? new Set([...decksWithCards].filter((id) => !expandedDecks.has(id))) : new Set<string>(),
+  [decksWithCards, expandedDecks]);
+  const renderedGraph = useMemo(() => collapsedDecks.size
+    ? projectCollapsedDecks(filteredNodes, filteredEdges, rawEdges, collapsedDecks)
+    : { nodes: filteredNodes, edges: filteredEdges },
+  [filteredNodes, filteredEdges, rawEdges, collapsedDecks]);
+  useEffect(() => {
+    deckVisibleIds.current = collapsedDecks.size ? new Set(renderedGraph.nodes.map(({ id }) => id)) : null;
+  }, [collapsedDecks, renderedGraph.nodes]);
+
   const liveSelectedNode = useMemo(() => {
     if (!selectedNode) return null;
     const src = isLargeRef.current ? largeLayoutRef.current : layout;
@@ -465,6 +481,9 @@ export function useGraphController(graphId: string, bookFilter?: BookGraphViewFi
       vaultSource,
       filteredNodes,
       filteredEdges,
+      renderedGraph,
+      collapsedDecks,
+      decksWithCards,
       selectedNode: liveSelectedNode,
       selectedNodeIds,
       hoveredNodeId,

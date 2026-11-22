@@ -120,6 +120,8 @@ import { canRelate } from "@/modules/graph/domain/services/relation-rules";
 import { splitGraphEntities, countNodesByType, neighborhoodFlashcardIds } from "@/modules/graph/domain/services/graph-derivations";
 import { getRelationStats } from "@/modules/graph/domain/selectors/graph.selectors";
 
+import { useExpandedDecks } from "@/modules/graph/presentation/hooks/useExpandedDecks";
+
 interface EmbeddedBookGraph {
   graphId: string;
   page: number;
@@ -138,7 +140,14 @@ export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph }
 
   const bookPages = embedded ? (embedded.showAll ? "" : String(embedded.page)) : searchParams.get("pages") ?? "";
   const bookView = useBookGraphView(graphId, bookPages);
-  const controller = useGraphController(graphId, bookView.filter);
+  const deckPreference = useExpandedDecks(graphId);
+  const controller = useGraphController(graphId, bookView.filter, deckPreference.expanded);
+  const { renderedGraph, collapsedDecks, decksWithCards } = controller.state;
+  const toggleDeckView = (deckId: string): void => {
+    const deck = controller.state.filteredNodes.find(({ id }) => id === deckId);
+    if (deck) controller.actions.selectNode(deck);
+    deckPreference.toggle(deckId);
+  };
   const { loading: graphLoading, grafoNome: graphName, rawNodes: graphNodes } = controller.state;
   useEffect(() => {
     if (isDesktop() && !graphLoading) rememberReaderGraph(graphId, graphName, graphNodes);
@@ -151,8 +160,8 @@ export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph }
 
   // busca com filtros poderosos (texto, tipo, domínio, prioridade, conexões)
   const search = useGraphSearch(
-    controller.state.filteredNodes,
-    controller.state.filteredEdges,
+    renderedGraph.nodes,
+    renderedGraph.edges,
     graphId,
   );
   const [roadmapOpen, setRoadmapOpen] = useState(false);
@@ -353,11 +362,18 @@ export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph }
     if (focusedRef.current === destination) return;
     const node = controller.state.filteredNodes.find((n: any) => n.id === focusId);
     if (!node) return;
+    if (node.group === "FLASHCARD" && !renderedGraph.nodes.some(({ id }) => id === focusId)) {
+      const owner = controller.state.rawEdges.find(({ source, target, type }) =>
+        target === focusId && type === "CONTEM" && collapsedDecks.has(source) &&
+        controller.state.filteredNodes.some(({ id }) => id === source));
+      if (owner) { deckPreference.toggle(owner.source); return; }
+    }
     focusedRef.current = destination;
     if (openConcept) controller.actions.selectNode(node);
     else controller.actions.setSelectedNodeIds(new Set([focusId]));
     controller.interactions.focusNode(node);
-  }, [graphId, focusId, openConcept, controller.state.filteredNodes, controller.actions, controller.interactions]);
+  }, [graphId, focusId, openConcept, controller.state.filteredNodes, controller.state.rawEdges, controller.actions,
+    controller.interactions, renderedGraph.nodes, collapsedDecks, deckPreference]);
 
   const closeToolbarModals = () => {
     setIsCreateModalOpen(false);
@@ -502,7 +518,7 @@ export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph }
   // Copiar/recortar/colar operam sobre a CONTENÇÃO (o nó é do sistema): colar
   // adiciona a mesma entidade a este grafo; recortar soltou a contenção na origem.
   const selectAllNodes = () => {
-    const ids = controller.state.filteredNodes.map((n: any) => n.id);
+    const ids = renderedGraph.nodes.map(({ id }) => id);
     controller.actions.setSelectedNodeIds(new Set(ids));
   };
 
@@ -664,9 +680,7 @@ export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph }
     const sel = controller.state.selectedNodeIds;
     if (sel.size === 0) return;
     const next = new Set(sel);
-    for (const e of controller.state.filteredEdges as any[]) {
-      const s = typeof e.source === "object" ? e.source.id : e.source;
-      const t = typeof e.target === "object" ? e.target.id : e.target;
+    for (const { source: s, target: t } of renderedGraph.edges) {
       if (sel.has(s)) next.add(t);
       if (sel.has(t)) next.add(s);
     }
@@ -677,16 +691,14 @@ export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph }
   const invertSelection = () => {
     const sel = controller.state.selectedNodeIds;
     const next = new Set<string>(
-      controller.state.filteredNodes.filter((n: any) => !sel.has(n.id)).map((n: any) => n.id),
+      renderedGraph.nodes.filter(({ id }) => !sel.has(id)).map(({ id }) => id),
     );
     controller.actions.setSelectedNodeIds(next);
     controller.actions.setSelectedNode(null);
   };
 
   const selectAllOfType = (group: string) => {
-    const ids = controller.state.filteredNodes
-      .filter((n: any) => n.group === group)
-      .map((n: any) => n.id);
+    const ids = renderedGraph.nodes.filter((node) => node.group === group).map(({ id }) => id);
     controller.actions.setSelectedNodeIds(new Set(ids));
     toast(`${ids.length} nó(s) do tipo selecionado(s)`);
   };
@@ -1281,8 +1293,8 @@ export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph }
             <div className={`absolute inset-0${!is3D ? " invisible pointer-events-none" : ""}`}>
               <Graph3DRenderer
                 ref={graph3DRef}
-                nodes={controller.state.filteredNodes}
-                edges={controller.state.filteredEdges}
+                nodes={renderedGraph.nodes}
+                edges={renderedGraph.edges}
                 isDark={isDark}
                 matchedIds={combinedMatchedIds}
                 selectedNodeIds={controller.state.selectedNodeIds}
@@ -1296,8 +1308,8 @@ export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph }
           )}
           {!is3D && (
             <GraphRenderer
-              nodes={controller.state.filteredNodes}
-              edges={controller.state.filteredEdges}
+              nodes={renderedGraph.nodes}
+              edges={renderedGraph.edges}
               zoom={controller.state.zoom}
               pan={controller.state.pan}
               isDark={isDark}
@@ -1353,6 +1365,9 @@ export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph }
         {/* RIGHT PANEL */}
         {controller.state.selectedNode && (
         <PropertiesPanel
+          deckCollapsed={collapsedDecks.has(controller.state.selectedNode.id)}
+          onToggleDeck={controller.state.selectedNode.group === "BARALHO" && selectedNodeId && decksWithCards.has(selectedNodeId)
+            ? () => toggleDeckView(selectedNodeId) : undefined}
           bookSourceDescription={selectedVaultNode?.descricao}
           bookSourceHref={selectedVaultNode?.fonte}
           selectedNode={controller.state.selectedNode}
@@ -1524,6 +1539,14 @@ export default function GraphPage({ embedded }: { embedded?: EmbeddedBookGraph }
                 }}
               >
                 {expandActionFor(nodeMenu.node?.group)?.label}
+              </button>
+            )}
+            {nodeMenu.node?.group === "BARALHO" && decksWithCards.has(nodeMenu.node.id) && (
+              <button
+                className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground"
+                onClick={() => { toggleDeckView(nodeMenu.node.id); setNodeMenu(null); }}
+              >
+                {collapsedDecks.has(nodeMenu.node.id) ? "Expandir baralho" : "Recolher baralho"}
               </button>
             )}
             {nodeMenu.node?.group === "BARALHO" && (

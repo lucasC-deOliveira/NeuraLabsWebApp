@@ -32,6 +32,8 @@ export interface PropertiesPanelProps {
   onViewFlashcard?: () => void;
   onStudyDeck?: () => void;
   onViewDeck?: () => void;
+  deckCollapsed?: boolean;
+  onToggleDeck?: () => void;
   onStudyProva?: () => void;
   onStudyQuestao?: () => void;
   onViewAnalytics?: () => void;
@@ -110,6 +112,9 @@ function NodeContent({ props, node, notaMeta, deckStats }: NodeContentProps) {
   return (
     <div className="space-y-4">
       <NodeSummary node={node} connections={props.connectedEdges.length} />
+      {props.onToggleDeck && <Button variant="outline" size="sm" aria-expanded={!props.deckCollapsed} onClick={props.onToggleDeck}>
+        {props.deckCollapsed ? "Expandir baralho" : "Recolher baralho"}
+      </Button>}
       <BookNodeSources description={props.bookSourceDescription ?? ""} source={props.bookSourceHref} />
       <Separator />
       <NodeAiSection node={node} onGenerateInsights={props.onGenerateInsights} onExpandNode={props.onExpandNode} onImproveFlashcard={props.onImproveFlashcard} onImproveQuestao={props.onImproveQuestao} onImproveNota={props.onImproveNota} />

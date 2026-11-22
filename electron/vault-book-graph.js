@@ -1,7 +1,7 @@
-const { vaultGraphLocation } = require("./vault-paths");
-const { graphsDirectory } = require("./vault-paths");
+const { vaultGraphLocation, graphsDirectory } = require("./vault-paths");
 const path = require("node:path");
 const { sharedGraph, readSharedManifest, readSharedGraphFiles, planSharedGraphFiles, ensureSharedPara, commitVaultWrites } = require("./vault-shared-para");
+const { readSharedGraphSnapshot } = require("./vault-graph-read");
 
 /** Commits a book graph and its page index together, checking the loaded manifest revision. */
 function writeBookGraph(root, { directory, expectedManifest, manifest, notes }) {
@@ -14,7 +14,8 @@ function writeBookGraph(root, { directory, expectedManifest, manifest, notes }) 
   }
   if (JSON.stringify(current) !== expectedManifest) return false;
   const graph = sharedGraph(location.root, location.dir, current ?? manifest);
-  const snapshots = new Map(readSharedGraphFiles(graph).map(({ relPath, content }) => [relPath, content]));
+  const tracked = new Set(notes.filter(({ previousPath }) => previousPath).map(({ id }) => id));
+  const snapshots = new Map(readSharedGraphFiles(graph, null, tracked).map(({ relPath, content }) => [relPath, content]));
   if (notes.some(({ previousPath, expected }) => previousPath && snapshots.get(previousPath) !== expected)) return false;
   const editIds = new Set(notes.filter(({ previousPath }) => previousPath).map(({ id }) => id));
   const files = [{ relPath: ".neuralabs-graph.json", content: JSON.stringify(manifest, null, 2) + "\n" }, ...notes];
@@ -24,7 +25,7 @@ function writeBookGraph(root, { directory, expectedManifest, manifest, notes }) 
 }
 
 /** Reads only the graph notes with evidence on the requested physical page. */
-function readBookGraphPage(root, graphId, page) {
+async function readBookGraphPage(root, graphId, page) {
   if (!root || typeof graphId !== "string" || !/^book-[a-f0-9]{40}$/u.test(graphId) ||
       !Number.isSafeInteger(page) || page < 1) return { status: "missing" };
   const directory = path.join(graphsDirectory(root), graphId);
@@ -40,7 +41,7 @@ function readBookGraphPage(root, graphId, page) {
     const match = /^\["([^"]+)","[^"]+","([^"]+)"\]$/u.exec(edge);
     if (match) { ids.add(match[1]); ids.add(match[2]); }
   }
-  return { status: "ready", graphId, edges, files: readSharedGraphFiles(sharedGraph(root, directory, manifest), null, ids) };
+  return { status: "ready", graphId, edges, files: await readSharedGraphSnapshot(sharedGraph(root, directory, manifest), { ids }) };
 }
 
 module.exports = { writeBookGraph, readBookGraphPage };

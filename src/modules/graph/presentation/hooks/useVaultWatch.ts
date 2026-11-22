@@ -46,7 +46,7 @@ async function setupWatch(state: WatchState, grafoId: string, grafoNome: string,
 
 // Observa a pasta do vault do grafo e reflete edições externas (.md) de volta no estado.
 function startVaultWatch(grafoId: string, grafoNome: string, refs: VaultRefs): () => void {
-  const watchId = `graph-${grafoId}`;
+  const watchId = `graph-${grafoId}-${crypto.randomUUID()}`;
   const state: WatchState = { active: true };
   void setupWatch(state, grafoId, grafoNome, watchId, refs);
   return (): void => {
